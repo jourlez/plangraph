@@ -1,4 +1,6 @@
 name: ci
+# Parallel jobs so that no single job is long (wall time to a green result is what counts). Every test file runs on Linux in exactly one
+# of `unit` (with the coverage floors) and `slow` (no coverage); scripts/ci-tests.mjs makes the split and test/ci-tests.test.mjs pins it.
 on:
   push:
     branches: [main]
@@ -10,35 +12,58 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
-  test:
-    name: test (${{ matrix.os }}, node ${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30 # measured: ubuntu about 9 minutes, macOS about 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-latest]
-        node: ['24']
+  unit:
+    name: unit tests with coverage (ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15 # estimated about 4 minutes
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
-      # the solver tests need uv; they run on Linux only (they skip cleanly without uv), which keeps the macOS leg short
-      - if: runner.os == 'Linux'
-        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+          node-version: '24'
+      - name: unit tests with coverage ratchet (the coverage group; raise these floors when coverage rises, never lower)
+        run: |
+          files=$(node scripts/ci-tests.mjs coverage)
+          test -n "$files"
+          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
+          node --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-include='src/**' --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=98 $files
+  slow:
+    name: solver, evals and icon tests, smoke (ubuntu)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15 # estimated about 4 minutes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      # the solver tests and the solver part of the smoke test need uv; they run here only (they skip cleanly without uv)
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: false
-      - name: unit tests with coverage ratchet (one run of the suite; raise these floors when coverage rises, never lower)
-        run: >
-          node --test --experimental-test-coverage
-          --test-coverage-include='lib/**' --test-coverage-include='src/**'
-          --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=98
-          test/*.test.mjs
-      - name: smoke
+      - name: smoke (first, so it also builds the solver environment the solver tests reuse)
         run: npm run smoke
+      - name: no-coverage test group (slow files that reach no lib/ or src/ code the coverage group does not)
+        run: |
+          files=$(node scripts/ci-tests.mjs nocoverage)
+          test -n "$files"
+          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
+          node --test $files
+  static:
+    name: typecheck, lint, plugin layout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
       - name: plugin layout
         run: npm run validate
       - name: install dev-only tools (typescript, @types/node, biome; exact versions from package-lock.json)
@@ -54,10 +79,34 @@ jobs:
           else
             echo "::notice::claude CLI not installed on this runner, plugin validate skipped"
           fi
+  macos:
+    name: macos tests (shard ${{ matrix.shard }}/2, node 24)
+    runs-on: macos-latest
+    timeout-minutes: 15 # estimated about 2 minutes per shard
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: portable test group, one shard (every test file but the Linux-only solver; coverage is measured by the unit job)
+        run: |
+          files=$(node scripts/ci-tests.mjs portable)
+          test -n "$files"
+          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
+          node --test --test-shard=${{ matrix.shard }}/2 $files
+      - name: smoke on macOS (BSD userland; the solver part needs uv and runs in the slow job)
+        if: matrix.shard == 1
+        run: npm run smoke
   mutation:
     name: mutation
     runs-on: ubuntu-24.04
-    timeout-minutes: 25 # measured: about 5 minutes on ubuntu
+    timeout-minutes: 15 # estimated about 3 minutes (mutants run on min(cores, 4) workers)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

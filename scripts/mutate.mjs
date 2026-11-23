@@ -1,10 +1,13 @@
 // Tiny mutation runner: applies a fixed list of one-line source mutations to a COPY of the repo (the working tree is never touched),
 // runs the relevant test files against each, and prints killed/survived counts. A mutation is killed when its tests fail or time out.
-// Usage: node scripts/mutate.mjs [--list]. Exit 0 when all mutants are killed, 1 when any survived, 2 on a stale mutation or a red baseline.
+// The mutants run in parallel, one repository copy per worker (scripts/mutate-pool.mjs); the report lists survivors in mutant order.
+// Usage: node scripts/mutate.mjs [--list] [--jobs N] (default: min(available cores, 4)).
+// Exit 0 when all mutants are killed, 1 when any survived, 2 on a stale mutation, a red baseline or a bad --jobs.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { pool, parseJobs } from './mutate-pool.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const M = 'test/merge.test.mjs', MR = 'test/merge-reference.test.mjs', ST = 'test/stale.test.mjs', OI = 'test/openitems.test.mjs';
@@ -88,28 +91,34 @@ const MUTATIONS = [
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }
+let jobs = 1;
+try { jobs = parseJobs(process.argv, Math.min(os.availableParallelism(), 4)); } catch (e) { console.error(String(/** @type {Error} */ (e).message)); process.exit(2); }
+
+/** Run `node --test files` in `cwd`; resolves the exit code (null on a signal, a spawn error or the 180 s timeout: all count as a failure).
+ * @param {string} cwd @param {string[]} files @returns {Promise<number | null>} */
+const runTests = (cwd, files) => new Promise((resolve) => {
+  const c = spawn(process.execPath, ['--test', ...files], { cwd, stdio: 'ignore', timeout: 180000 });
+  c.on('error', () => resolve(null));
+  c.on('close', (code) => resolve(code));
+});
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-mutate-'));
-const work = path.join(tmp, 'repo');
+const copies = Array.from({ length: Math.min(jobs, MUTATIONS.length) }, (_, k) => path.join(tmp, `repo-${k}`));
 try {
-  fs.cpSync(ROOT, work, { recursive: true, filter: (s) => !/(^|\/)(\.git|node_modules)(\/|$)/.test(path.relative(ROOT, s)) });
-  const runTests = (files) => spawnSync(process.execPath, ['--test', ...files], { cwd: work, encoding: 'utf8', timeout: 180000, maxBuffer: 1 << 24 });
-  const base = runTests([...new Set(MUTATIONS.flatMap((m) => m[3]))]);
-  if (base.status !== 0) { console.error('baseline is red: refusing to mutate'); process.exitCode = 2; }
+  for (const work of copies) fs.cpSync(ROOT, work, { recursive: true, filter: (s) => !/(^|\/)(\.git|node_modules)(\/|$)/.test(path.relative(ROOT, s)) });
+  const stale = MUTATIONS.find(([file, from]) => fs.readFileSync(path.join(copies[0], file), 'utf8').split(from).length !== 2);
+  if (stale) { console.error(`stale mutation (not exactly one match): ${stale[0]}: ${stale[1]}`); process.exitCode = 2; }
+  else if (await runTests(copies[0], [...new Set(MUTATIONS.flatMap((m) => m[3]))]) !== 0) { console.error('baseline is red: refusing to mutate'); process.exitCode = 2; }
   else {
-    let killed = 0; const survived = [];
-    for (const [file, from, to, tests] of MUTATIONS) {
-      const p = path.join(work, file), orig = fs.readFileSync(p, 'utf8');
-      if (orig.split(from).length !== 2) { console.error(`stale mutation (not exactly one match): ${file}: ${from}`); process.exitCode = 2; break; }
+    // worker w owns copies[w]: it applies one mutant, runs that mutant's tests and restores the file before taking the next mutant
+    const killedBy = await pool(MUTATIONS, copies.length, async ([file, from, to, tests], _k, w) => {
+      const p = path.join(copies[w], file), orig = fs.readFileSync(p, 'utf8');
       fs.writeFileSync(p, orig.replace(from, () => to));
-      const r = runTests(tests);
-      fs.writeFileSync(p, orig);
-      if (r.status !== 0) killed++; else survived.push(`${file}: ${from}`);
-    }
-    if (process.exitCode !== 2) {
-      console.log(`mutants ${MUTATIONS.length}, killed ${killed}, survived ${survived.length}`);
-      for (const s of survived) console.log(`SURVIVED ${s}`);
-      process.exitCode = survived.length ? 1 : 0;
-    }
+      try { return (await runTests(copies[w], tests)) !== 0; } finally { fs.writeFileSync(p, orig); }
+    });
+    const survived = MUTATIONS.filter((_, k) => !killedBy[k]).map(([file, from]) => `${file}: ${from}`);
+    console.log(`mutants ${MUTATIONS.length}, killed ${MUTATIONS.length - survived.length}, survived ${survived.length}`);
+    for (const s of survived) console.log(`SURVIVED ${s}`);
+    process.exitCode = survived.length ? 1 : 0;
   }
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }

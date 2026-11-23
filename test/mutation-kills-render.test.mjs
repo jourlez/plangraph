@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bound, table, budget, outputMode, renderCard, estTokens, CARD_BUDGET } from '../lib/render.mjs';
 import { buildModel } from '../lib/model.mjs';
+import { fenceInline } from '../lib/sanitize.mjs';
 import { golden, outcome } from './helpers/golden-json.mjs';
 
 const G = (/** @type {string} */ name, /** @type {() => unknown} */ fn) => golden('render', name, outcome(fn));
@@ -62,15 +63,15 @@ test('budget counts the trailing newline: a text of exactly 4k characters needs 
 test('card: verdict and finding names are cut at 20 characters; a ticket without story points adds 0 load', () => {
   const m = buildModel({ tickets: [{ key: 'A', sp: 0, verdict: 'v'.repeat(30) }, { key: 'B', verdict: 'v'.repeat(30) }, { key: 'C', sp: 2 }], schedule: [{ key: 'A', owner: 'Ana', sprint: 1 }, { key: 'B', owner: 'Ana', sprint: 1 }, { key: 'C', owner: 'Ana', sprint: 1 }], config: { caps: { default: 2 } }, findings: [{ key: 'A', kind: 'k'.repeat(30) }] });
   const card = renderCard(m, {});
-  assert.ok(card.includes(`verdicts: 2 ${'v'.repeat(20)}, 1 unrated`), card);
-  assert.ok(card.includes(`findings: ${'k'.repeat(20)} 1`), card);
+  assert.ok(card.includes(`verdicts: ${fenceInline(`2 ${'v'.repeat(20)}, 1 unrated`)}`), card);
+  assert.ok(card.includes(`findings: ${fenceInline(`${'k'.repeat(20)} 1`)}`), card);
   assert.ok(card.includes('over cap: none'), 'two points on a cap of two is not over: the 0-point and point-less tickets add nothing');
 });
 
 test('card: over-cap rows order by excess, then owner, then sprint, and show the top 3', () => {
   const rows = [['Zoe', 1, 5], ['Ana', 2, 5], ['Ana', 1, 5], ['Ben', 1, 9], ['Cy', 1, 4]];
   const m = buildModel({ tickets: rows.map(([o, s, sp]) => ({ key: `${o}${s}`, sp })), schedule: rows.map(([o, s]) => ({ key: `${o}${s}`, owner: o, sprint: s })), config: { caps: { default: 3 } } });
-  assert.ok(renderCard(m, {}).includes('over cap: Ben S1 +6, Ana S1 +2, Ana S2 +2, +2 more'), renderCard(m, {}));
+  assert.ok(renderCard(m, {}).includes(`over cap: ${fenceInline('Ben S1 +6, Ana S1 +2, Ana S2 +2, +2 more')}`), renderCard(m, {}));
 });
 
 test('card: the budget counts the trailing newline, and lines are dropped from the least important', () => {
@@ -86,5 +87,5 @@ test('card: the budget counts the trailing newline, and lines are dropped from t
 test('card: over-cap rows of one owner order by sprint whatever order they were met', () => {
   const rows = [['Ana', 1, 5], ['Ana', 2, 5], ['Ana', 3, 5]];
   const m = buildModel({ tickets: rows.map(([o, s, sp]) => ({ key: `${o}${s}`, sp })), schedule: rows.map(([o, s]) => ({ key: `${o}${s}`, owner: o, sprint: s })), config: { caps: { default: 3 } } });
-  assert.ok(renderCard(m, {}).includes('over cap: Ana S1 +2, Ana S2 +2, Ana S3 +2'), renderCard(m, {}));
+  assert.ok(renderCard(m, {}).includes(`over cap: ${fenceInline('Ana S1 +2, Ana S2 +2, Ana S3 +2')}`), renderCard(m, {}));
 });

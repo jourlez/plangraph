@@ -20,7 +20,7 @@ test('config.json: symlink, over 64 KiB, a directory and invalid JSON each have 
   const a = dir(); fs.writeFileSync(path.join(a, 'real.json'), '{}'); fs.symlinkSync(path.join(a, 'real.json'), path.join(a, 'config.json'));
   fails(() => loadModel(a), 'SYMLINK', 'config.json: is a symlink');
   const b = dir(); fs.writeFileSync(path.join(b, 'config.json'), `{}${' '.repeat(64 * 1024 - 1)}`);
-  fails(() => loadModel(b), 'TOO_LARGE', `config.json: too large (over ${64 * 1024} bytes)`);
+  fails(() => loadModel(b), 'TOO_LARGE', `config.json: file too large (limit ${64 * 1024} bytes)`);
   fs.writeFileSync(path.join(b, 'config.json'), `{"caps":{"default":7}}${' '.repeat(64 * 1024 - 22)}`);
   assert.equal(loadModel(b).config.caps.default, 7, 'exactly 64 KiB is accepted');
   const c = dir(); fs.mkdirSync(path.join(c, 'config.json'));
@@ -36,8 +36,10 @@ test('config.json: a BOM is accepted; a missing config is empty', () => {
 });
 
 test('config.json: errors other than a missing file propagate unchanged', { skip: !posix }, () => {
-  const parent = dir(), file = path.join(parent, 'not-a-dir'); fs.writeFileSync(file, 'x');
-  fails(() => loadModel(file), 'ENOTDIR');
+  const parent = dir(), loop = path.join(parent, 'loop'); fs.symlinkSync(loop, loop);
+  fails(() => loadModel(loop), 'ELOOP');
+  const file = path.join(parent, 'not-a-dir'); fs.writeFileSync(file, 'x');
+  assert.deepEqual(loadModel(file).config, {}, 'a path under a file is a missing config (ENOTDIR counts as missing), not an error');
   if (root0) return;
   const a = dir(); fs.writeFileSync(path.join(a, 'config.json'), '{}'); fs.chmodSync(path.join(a, 'config.json'), 0o000);
   fails(() => loadModel(a), 'EACCES');

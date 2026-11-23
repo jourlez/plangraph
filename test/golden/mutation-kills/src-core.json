@@ -177,6 +177,7 @@
    "USAGE": 2,
    "DATA": 2,
    "NO_INDEX": 2,
+   "NO_BRAIN": 2,
    "STALE": 2,
    "ENV": 3,
    "REFUSED": 4,
@@ -366,7 +367,7 @@
       {
        "name": "ready",
        "title": "May this ticket start now?",
-       "description": "Definition of ready for one ticket: READY TO START, or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `brain ready KEY`.",
+       "description": "Definition of ready for one ticket: READY TO START, DONE (its own status is closed), or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `brain ready KEY`.",
        "inputSchema": {
         "type": "object",
         "properties": {

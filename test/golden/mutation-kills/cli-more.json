@@ -145,21 +145,21 @@
   "integrations": {
    "code": 0,
    "out": [
-    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\nopenwolf: active 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\ncontext7: absent\ngitkraken: installed 2.0.0"
+    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\nopenwolf: active 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\ncontext7: absent\ngitkraken: installed 2.0.0"
    ],
    "err": []
   },
   "integrations -v": {
    "code": 0,
    "out": [
-    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  evidence: installed: superpowers@m\n  evidence: enabled: superpowers@m in user settings.json\nopenwolf: active 1.2.3\n  evidence: .wolf/ is a directory\n  evidence: .wolf/hooks/session-start.js exists\n  evidence: hook registered in project settings.json\n  evidence: .wolf/hooks/runtime.json version 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\n  evidence: installed: caveman@m\n  evidence: enabled: caveman@m in project settings.json\ncontext7: absent\ngitkraken: installed 2.0.0\n  evidence: installed: gitkraken-hooks@m\n  note: disabled in settings\n  note: logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app\nconnector hints (connectors cannot be detected from a shell; match these against your own tool list):\n  atlassian: mcp__*Atlassian*__getJiraIssue (read one Jira issue)\n  atlassian: mcp__*Atlassian*__searchJiraIssuesUsingJql (search Jira issues by JQL (delta import))\n  slack: mcp__*Slack*__slack_send_message_draft (draft a message for a person to send)\n  meetings: mcp__*Meetings*__get_meeting_action_items (read meeting action items)\n  google-drive: mcp__*Google_Drive*__read_file_content (read a spec or plan document)\n  claude-docs: mcp__*Claude_Docs*__create (create an editable living document)\n  artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))\nalways-on token budget, measured 2026-11-22 on one machine, not a live measurement:\n  superpowers 871\n  openwolf 1067\n  caveman 936\n  brain card 185\n  total 3059"
+    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\n  evidence: installed: superpowers@m\n  evidence: enabled: superpowers@m in user settings.json\nopenwolf: active 1.2.3\n  evidence: .wolf/ is a directory\n  evidence: .wolf/hooks/session-start.js exists\n  evidence: hook registered in project settings.json\n  evidence: .wolf/hooks/runtime.json version 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\n  evidence: installed: caveman@m\n  evidence: enabled: caveman@m in project settings.json\ncontext7: absent\ngitkraken: installed 2.0.0\n  evidence: installed: gitkraken-hooks@m\n  note: disabled in settings\n  note: logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app\nconnector hints (connectors cannot be detected from a shell; match these against your own tool list):\n  atlassian: mcp__*Atlassian*__getJiraIssue (read one Jira issue)\n  atlassian: mcp__*Atlassian*__searchJiraIssuesUsingJql (search Jira issues by JQL (delta import))\n  slack: mcp__*Slack*__slack_send_message_draft (draft a message for a person to send)\n  meetings: mcp__*Meetings*__get_meeting_action_items (read meeting action items)\n  google-drive: mcp__*Google_Drive*__read_file_content (read a spec or plan document)\n  claude-docs: mcp__*Claude_Docs*__create (create an editable living document)\n  artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))\nalways-on token budget, measured 2026-11-22 on one machine, not a live measurement:\n  superpowers 871\n  openwolf 1067\n  caveman 936\n  brain card 185\n  total 3059"
    ],
    "err": []
   },
   "integrations --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"integrations\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\",\"openwolf: active 1.2.3\",\"caveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\",\"context7: absent\",\"gitkraken: installed 2.0.0\"]},\"fresh\":null,\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"integrations\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\",\"  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\",\"openwolf: active 1.2.3\",\"caveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\",\"context7: absent\",\"gitkraken: installed 2.0.0\"]},\"fresh\":null,\"next\":[]}"
    ],
    "err": []
   },
@@ -298,7 +298,7 @@
   "legacy ticket T-1": {
    "code": 0,
    "out": [
-    "T-1 | 5 SP | Jira To Do | verdict BLOCKED (audit) | plan S1 Ana | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
+    "T-1 | 5 SP | <untrusted n=\"e3d2f717\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
    ],
    "err": [
     "note: .brain: data format 0 is older than 1: run `brain migrate --write`"
@@ -321,7 +321,7 @@
   "legacy card": {
    "code": 0,
    "out": [
-    "brain 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: 13 READY, 1 BLOCKED\nover cap: Ana S1 +7, Ben S1 +2\nfindings: question 1, risk 1\nask: brain explain"
+    "brain 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl"
    ],
    "err": [
     "note: .brain: data format 0 is older than 1: run `brain migrate --write`"
@@ -357,8 +357,8 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: no index: run `brain build`",
-    "try: brain build"
+    "error: no brain directory: run `brain init`",
+    "try: brain init"
    ]
   },
   "empty card --if-present": {
@@ -370,16 +370,16 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: no index: run `brain build`",
-    "try: brain build"
+    "error: no brain directory: run `brain init`",
+    "try: brain init"
    ]
   },
   "empty forecast": {
    "code": 2,
    "out": [],
    "err": [
-    "error: no index: run `brain build`",
-    "try: brain build"
+    "error: no brain directory: run `brain init`",
+    "try: brain init"
    ]
   },
   "open-items newer forecast": {
