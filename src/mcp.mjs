@@ -13,7 +13,7 @@ import { makeContext } from './context.mjs';
 /** @typedef {(argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>, cwd: string }) => Promise<number>} Runner */
 /** @typedef {string | number} Id */
 
-export const SERVER_VERSION = '0.1.1';
+export const SERVER_VERSION = '0.1.2';
 /** Newest first. A requested version in this list is echoed; any other gets the first (the spec: answer the latest one we support). */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];

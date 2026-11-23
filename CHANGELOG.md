@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+Added: the Jira tenant (site, cloud id, JQL) can live in the user-level `jira-sites.json` under `projects`, keyed by repository path, so
+nothing about a company has to be committed. A site chosen there is trusted and may use the generic `JIRA_*` credentials; this restores
+the pre-0.1.1 behaviour for users who keep the tenant at user level. Credentials for a site that only a committed config names stay bound.
+
 ## 0.1.1
 
 Added: Jira credentials are bound per tenant (cloud id, site or Data Center host) through a user-level registry

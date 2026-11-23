@@ -16,14 +16,14 @@ export function configDir(env = {}) {
 }
 export const registryFile = (env = {}) => path.join(configDir(env), 'jira-sites.json');
 
-/** @returns {{ file: string, exists: boolean, reg: Record<string, any>, problems: string[] }} */
+/** @returns {{ file: string, exists: boolean, reg: Record<string, any>, projects: Record<string, any>, problems: string[] }} */
 export function loadRegistry(env = {}) {
   const file = registryFile(env);
-  let st; try { st = fs.lstatSync(file); } catch { return { file, exists: false, reg: Object.create(null), problems: [] }; }
-  if (!st.isFile()) return { file, exists: true, reg: Object.create(null), problems: ['jira-sites.json is not a regular file (a symlink is refused)'] };
-  if (st.size > MAX_REGISTRY) return { file, exists: true, reg: Object.create(null), problems: ['jira-sites.json is larger than 64 KiB'] };
-  const { reg, problems } = parseSiteRegistry(fs.readFileSync(file, 'utf8'));
-  return { file, exists: true, reg, problems };
+  let st; try { st = fs.lstatSync(file); } catch { return { file, exists: false, reg: Object.create(null), projects: Object.create(null), problems: [] }; }
+  if (!st.isFile()) return { file, exists: true, reg: Object.create(null), projects: Object.create(null), problems: ['jira-sites.json is not a regular file (a symlink is refused)'] };
+  if (st.size > MAX_REGISTRY) return { file, exists: true, reg: Object.create(null), projects: Object.create(null), problems: ['jira-sites.json is larger than 64 KiB'] };
+  const { reg, projects, problems } = parseSiteRegistry(fs.readFileSync(file, 'utf8'));
+  return { file, exists: true, reg, projects, problems };
 }
 
 /** The tenant key credentials are bound to: the cloud id for a scoped token, else the site or Data Center host. '' when it cannot be told. */
@@ -32,4 +32,15 @@ export function tenantOf(cfg = {}, env = {}) {
   if (mode === 'scoped') return String(cfg.cloud_id || '').toLowerCase();
   const url = env.JIRA_BASE_URL || cfg.base_url;
   try { return new URL(String(url)).host.toLowerCase(); } catch { return ''; }
+}
+
+/**
+ * The Jira settings of one project: the committed config.jira (optional, may be empty) with the user-level `projects` entry for this
+ * repository root laid over it. A project can therefore keep its tenant (site, cloud id, JQL) out of the repository entirely: nothing about
+ * a company has to be committed, which matters for public repositories.
+ */
+export function effectiveJira(committed = {}, root = '', env = {}) {
+  const u = loadRegistry(env).projects[String(root).replace(/\/+$/, '')] || {};
+  // userTenant: the site or cloud id came from the user's own file, not from a committed (untrusted) config, so generic credentials may go there
+  return { ...committed, ...u, ...(u.auth || committed.auth ? { auth: u.auth || committed.auth } : {}), userTenant: Boolean(u.base_url || u.cloud_id) };
 }

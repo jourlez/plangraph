@@ -106,3 +106,11 @@ Resolution for a tenant T, first hit wins:
 3. **Generic** `JIRA_EMAIL` + `JIRA_API_TOKEN` (or `JIRA_OP_REF`, or the keychain service `project-brain-jira`): used for scoped and Data Center tenants, and for a site token only when the site is listed in `BRAIN_JIRA_SITES`. Otherwise the pull stops and names the missing binding.
 
 `brain doctor` shows the tenant and which binding applies, without printing a secret.
+
+### Keep the tenant out of the repository
+
+A public project must not have to commit its company's Jira site, cloud id or JQL. Put them in the same user-level file instead, keyed by the repository's absolute path; they are laid over the (possibly empty) committed `config.json` "jira" block:
+
+`{"projects": {"/path/to/repo": {"auth": {"mode": "site-token"}, "base_url": "https://acme.atlassian.net", "jql": "project = ABC"}}}`
+
+Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. A site named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `BRAIN_JIRA_SITES` pin.

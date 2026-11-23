@@ -11,7 +11,7 @@ import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABL
 import { checkRepoPath } from '../../lib/gitsafe.mjs';
 import { NODE_FLOOR, nodeSupported } from '../floor.mjs';
 import { claudeSnippet } from '../../lib/steer.mjs';
-import { tenantOf, loadRegistry } from '../jira-tenant.mjs';
+import { tenantOf, loadRegistry, effectiveJira } from '../jira-tenant.mjs';
 import { siteTag } from '../../lib/jira.mjs';
 import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
@@ -277,7 +277,7 @@ async function doctor(ctx, args) {
 /** @param {Ctx} ctx */
 function doctorJira(ctx) {
   const out = ctx.io.out, env = ctx.env || {};
-  /** @type {any} */ let j = {}; try { j = ctx.config().jira || {}; } catch { /* a bad config is reported by the data checks */ }
+  /** @type {any} */ let j = {}; try { j = effectiveJira(ctx.config().jira || {}, ctx.root, env); } catch { /* a bad config is reported by the data checks */ }
   const set = (/** @type {string} */ k) => String(env[k] || '').trim() !== '';
   const mode = j.auth?.mode || 'scoped';
   if (!j.jql && !j.cloud_id && !j.base_url) { out('jira: not configured (config.json "jira" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it'); return; }
@@ -288,7 +288,7 @@ function doctorJira(ctx) {
   if (!tenant) cred = 'tenant unknown (base_url or cloud_id missing)';
   else if (e) cred = `bound by registry (${e.token_env ? `${e.token_env} ${set(e.token_env) ? 'set' : 'MISSING'}` : e.op_ref ? 'op ref' : 'keychain'})`;
   else if (set(`JIRA_API_TOKEN__${tag}`) || set(`JIRA_OP_REF__${tag}`)) cred = `bound by env JIRA_*__${tag}`;
-  else if (mode !== 'site-token' || pinned) cred = set('JIRA_EMAIL') && set('JIRA_API_TOKEN') ? 'generic env JIRA_EMAIL + JIRA_API_TOKEN set' : set('JIRA_OP_REF') ? 'generic env JIRA_OP_REF set' : 'no credentials in env (OS keychain not checked)';
+  else if (mode !== 'site-token' || pinned || j.userTenant === true) cred = set('JIRA_EMAIL') && set('JIRA_API_TOKEN') ? 'generic env JIRA_EMAIL + JIRA_API_TOKEN set' : set('JIRA_OP_REF') ? 'generic env JIRA_OP_REF set' : 'no credentials in env (OS keychain not checked)';
   else cred = `NO credential bound to ${tenant}: add it to ${reg.file} or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}`;
   out(`jira: ${mode}, tenant ${tenant || '?'}, jql ${j.jql ? 'set' : 'missing'}, ${cred}`);
   if (tenant) out(`jira connector: use the Atlassian connector only if getAccessibleAtlassianResources lists ${tenant === (j.cloud_id || '').toLowerCase() ? `cloud id ${tenant}` : tenant}; otherwise use \`brain jira-pull\` (read-only) and make no Jira write`);
