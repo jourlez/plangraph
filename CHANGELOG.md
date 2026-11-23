@@ -1,10 +1,24 @@
 # Changelog
 
+## 0.2.0
+
+Changed: the plugin is now native-ESM TypeScript (Node 24 runs the `.ts` files directly, no build step). Behavior is unchanged: a differential baseline of 373 command, hook, merge-driver, MCP and library probes is identical before and after, on synthetic and on a real brain directory. Startup time is the same (about 133 ms either way). Strictness flags: `strict`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `erasableSyntaxOnly`, and `noUncheckedIndexedAccess` for `lib`, `src` and `mcp`. Tooling: TypeScript 7.0.2 (`tsc --noEmit`), Biome 2.6.8 (lint), knip 6.48.0, lefthook 2.2.2, `node:test`. Still zero runtime dependencies. The mutation-equivalents list was rebuilt (97 entries re-pinned; a recorded line may now differ only by a type annotation). Known open items are in `KNOWN_ISSUES.md`.
+
+Renamed: the plugin, the marketplace and the repository are now `plangraph` (`/plugin install plangraph@plangraph-marketplace`; skills are `plangraph:brain`, `plangraph:brain-onboard` and so on). The command stays `brain`. The per-user state keeps its names (`~/.config/project-brain/`, `~/.cache/project-brain`, the keychain service `project-brain-jira`, the merge driver `brain-jsonl`, every environment variable), so nothing needs to be moved.
+
+Security (from an adversarial audit; see `SECURITY.md` trust boundaries):
+- A committed config can no longer redirect the generic Jira credentials. A user `projects` entry that names `base_url`, `cloud_id` or `auth` now decides the whole tenant; committed tenant fields are dropped. An unknown or malformed `auth.mode` fails with `bad_config` before any credential helper runs.
+- Data Center: generic credentials are used only when `BRAIN_JIRA_DC_HOSTS` lists exactly one host and it is the tenant. With several hosts each needs a per-host binding.
+- Files written by `jira-pull`, `jira-import`, `jira-text` and `units --out` are mode 0600.
+- The Node compile cache lives in a private per-user directory (`<data>/compile-cache`, mode 0700, refused when not owned by the user or writable by others). It no longer uses the shared temp directory.
+- The solver launcher runs Python in isolated mode (`-I`), so files in the current directory cannot shadow `ortools`, `venv` or `pip`.
+- `release.yml` grants the permissions that `ci.yml` asks for. Tests no longer write into the real home directory.
+
 ## 0.1.4
 
 Fixed: 0.1.3 changed two per-user state locations during the rename, which hid existing Jira bindings (`~/.config/project-brain/jira-sites.json`)
 and moved the data and cache directory. Both are back to `project-brain` (`~/.config/project-brain/`, `~/.cache/project-brain`), and
-`test/state-paths.test.mjs` pins the names so a rename cannot change them silently. Anyone on 0.1.3 should update.
+`test/state-paths.test.ts` pins the names so a rename cannot change them silently. Anyone on 0.1.3 should update.
 
 ## 0.1.3
 
@@ -43,20 +57,20 @@ Added:
   --relieve NAME --sprint N` (it said `expected 1 argument, got 0`).
 - Bulk ready: `brain ready --person NAME --sprint N` (either filter alone or both, no KEY) answers which of those tickets may start now in
   one call: counts first, the ready keys (capped, `-v` more), each not-ready reason with example keys, `--json` with every list. Same rules
-  as `brain ready KEY` (lib/ready.mjs readyScope over readySet). Changed: `brain ready` with no argument now says `ready needs a KEY, or
+  as `brain ready KEY` (lib/ready.ts readyScope over readySet). Changed: `brain ready` with no argument now says `ready needs a KEY, or
   --person NAME and/or --sprint N` (it said `expected 1 argument, got 0`), and readySet also returns `verdict` (the tickets whose verdict is
   not READY) and takes an optional `{ keys }`.
-- Optional read-only MCP adapter, off by default: `mcp/brain-mcp.mjs` (stdio, hand-written JSON-RPC, no dependencies) with three tools,
+- Optional read-only MCP adapter, off by default: `mcp/brain-mcp.ts` (stdio, hand-written JSON-RPC, no dependencies) with three tools,
   `ready`, `whatif` (dry run only) and `ticket`, whose text is byte for byte the CLI's. The plugin does not start it (no `mcpServers`,
   no `.mcp.json`; the default install still shows `MCP servers (0)`); docs/MCP.md shows how to opt in and when it is worth it (only if
-  your evals show it is no worse than the CLI). `node test/bench-mcp.mjs` measures its token cost. Connecting and listing tools was
+  your evals show it is no worse than the CLI). `node test/bench-mcp.ts` measures its token cost. Connecting and listing tools was
   verified with Claude Code 2.1.329. Later, in a live 2.1.329 session: Claude Code deferred the tool definitions and loaded them through
   `ToolSearch` (the model's first step selected the three tools), then made 3 correct calls in 5 turns for $0.046 (reported); the size of
   the deferred entry and other clients are not verified (docs/MCP.md).
 
 Packaging:
 
-- Plugin icon `.claude-plugin/icon.png` (1024x1024 PNG), generated deterministically by `scripts/make-icon.mjs` (no dependencies; its
+- Plugin icon `.claude-plugin/icon.png` (1024x1024 PNG), generated deterministically by `scripts/make-icon.ts` (no dependencies; its
   self-check measures that the highlighted path stays visible at 32 and 64 px); `plugin.json` sets `icon`. The validator's `ICON_MISSING`
   warning is gone.
 - `engines.claude-code` is `>=2.1.329` in `plugin.json`: the plugin was installed and run on 2.1.329; the newest published, 2.1.330, was not tested.
@@ -148,7 +162,7 @@ Changed:
 
 ## 0.1.0
 
-Status, stated plainly: it works locally. The test suite runs with `node --test $(ls test/*.test.mjs | grep -v solver)` (the solver suite, which needs Python and downloads packages, is run separately), plus `test/smoke.sh` and `test/validate-plugin.mjs`. It has not been installed in a live Claude Code session by its author, and it has no remote repository yet.
+Status, stated plainly: it works locally. The test suite runs with `node --test $(ls test/*.test.mjs | grep -v solver)` (the solver suite, which needs Python and downloads packages, is run separately), plus `test/smoke.sh` and `test/validate-plugin.ts`. It has not been installed in a live Claude Code session by its author, and it has no remote repository yet.
 
 What exists:
 
@@ -181,4 +195,4 @@ Unverified:
 
 - Install and hook behavior inside a live Claude Code session.
 - Claude Code releases newer than 2.1.329 (the declared minimum): the newest published when the minimum was set, 2.1.330, was not tested.
-- (Resolved) the manifests are now also checked by `claude plugin validate .` on Claude Code 2.1.329, via `test/claude-validate.test.mjs`.
+- (Resolved) the manifests are now also checked by `claude plugin validate .` on Claude Code 2.1.329, via `test/claude-validate.test.ts`.

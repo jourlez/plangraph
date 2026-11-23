@@ -21,99 +21,99 @@ By file:
 
 | File | Errors |
 |---|---|
-| test/cli-core.test.mjs | 95 |
-| test/integrations-detect.test.mjs | 52 |
-| test/openitems.test.mjs | 27 |
-| test/jira.test.mjs | 27 |
-| test/commands.test.mjs | 23 |
-| lib/jira.mjs | 23 |
-| test/merge.test.mjs | 18 |
-| test/superpowers-ingest.test.mjs | 16 |
-| test/driver.test.mjs | 16 |
-| src/db.mjs | 14 |
-| lib/openitems.mjs | 13 |
-| test/fsafe.test.mjs | 12 |
-| test/store.test.mjs | 11 |
-| test/openwolf-readthrough.test.mjs | 9 |
-| test/whatif.test.mjs | 8 |
-| test/schema.test.mjs | 8 |
-| test/security.test.mjs | 7 |
-| src/commands/integrations.mjs | 7 |
-| src/commands/audit.mjs | 6 |
-| lib/jsonl.mjs | 6 |
-| lib/integrations/superpowers.mjs | 6 |
-| test/platform.test.mjs | 5 |
-| test/jsonl-read.test.mjs | 5 |
-| src/commands/plan.mjs | 5 |
-| lib/integrations/openwolf.mjs | 5 |
-| test/verify.test.mjs | 4 |
-| test/sanitize.test.mjs | 4 |
-| test/floor.test.mjs | 3 |
-| test/driver-wiring.test.mjs | 3 |
-| src/context.mjs | 3 |
-| src/commands/openitems.mjs | 3 |
-| src/cli.mjs | 3 |
-| scripts/mutate.mjs | 3 |
-| lib/store.mjs | 3 |
-| test/solver.test.mjs | 2 |
-| test/contract.test.mjs | 2 |
-| src/commands/shared.mjs | 2 |
-| lib/integrations/detect.mjs | 2 |
-| lib/forecast.mjs | 2 |
-| lib/driver.mjs | 2 |
-| test/hook.test.mjs | 1 |
-| src/errors.mjs | 1 |
-| lib/model.mjs | 1 |
-| lib/fsafe.mjs | 1 |
+| test/cli-core.test.ts | 95 |
+| test/integrations-detect.test.ts | 52 |
+| test/openitems.test.ts | 27 |
+| test/jira.test.ts | 27 |
+| test/commands.test.ts | 23 |
+| lib/jira.ts | 23 |
+| test/merge.test.ts | 18 |
+| test/superpowers-ingest.test.ts | 16 |
+| test/driver.test.ts | 16 |
+| src/db.ts | 14 |
+| lib/openitems.ts | 13 |
+| test/fsafe.test.ts | 12 |
+| test/store.test.ts | 11 |
+| test/openwolf-readthrough.test.ts | 9 |
+| test/whatif.test.ts | 8 |
+| test/schema.test.ts | 8 |
+| test/security.test.ts | 7 |
+| src/commands/integrations.ts | 7 |
+| src/commands/audit.ts | 6 |
+| lib/jsonl.ts | 6 |
+| lib/integrations/superpowers.ts | 6 |
+| test/platform.test.ts | 5 |
+| test/jsonl-read.test.ts | 5 |
+| src/commands/plan.ts | 5 |
+| lib/integrations/openwolf.ts | 5 |
+| test/verify.test.ts | 4 |
+| test/sanitize.test.ts | 4 |
+| test/floor.test.ts | 3 |
+| test/driver-wiring.test.ts | 3 |
+| src/context.ts | 3 |
+| src/commands/openitems.ts | 3 |
+| src/cli.ts | 3 |
+| scripts/mutate.ts | 3 |
+| lib/store.ts | 3 |
+| test/solver.test.ts | 2 |
+| test/contract.test.ts | 2 |
+| src/commands/shared.ts | 2 |
+| lib/integrations/detect.ts | 2 |
+| lib/forecast.ts | 2 |
+| lib/driver.ts | 2 |
+| test/hook.test.ts | 1 |
+| src/errors.ts | 1 |
+| lib/model.ts | 1 |
+| lib/fsafe.ts | 1 |
 
 ## Strict probe (same files, `strict: true`): 3988 errors
 
 lib/ 1287, src/ 453, test/ 2053, evals/ 191, scripts/ 4. Mostly TS7006 (1168 outside test/, implicit any parameter) and TS2339.
-The four library files staged first under strict (`lib/sanitize.mjs`, `lib/gitsafe.mjs`, `lib/fsafe.mjs`, `lib/schema.mjs`) had 66 between them.
+The four library files staged first under strict (`lib/sanitize.ts`, `lib/gitsafe.ts`, `lib/fsafe.ts`, `lib/schema.ts`) had 66 between them.
 
 Strict, outside test/, by file:
 
 | File | Errors |
 |---|---|
-| lib/forecast.mjs | 185 |
-| lib/integrations/superpowers.mjs | 179 |
-| lib/jira.mjs | 144 |
-| evals/gen.mjs | 129 |
-| lib/store.mjs | 102 |
-| lib/stale.mjs | 102 |
-| lib/whatif.mjs | 93 |
-| lib/openitems.mjs | 92 |
-| lib/integrations/openwolf.mjs | 90 |
-| src/db.mjs | 70 |
-| src/commands/queries.mjs | 68 |
-| evals/run.mjs | 53 |
-| src/commands/plan.mjs | 50 |
-| src/commands/integrations.mjs | 49 |
-| lib/integrations/detect.mjs | 46 |
-| src/commands/audit.mjs | 43 |
-| lib/report.mjs | 40 |
-| src/commands/shared.mjs | 38 |
-| lib/merge.mjs | 35 |
-| lib/render.mjs | 30 |
-| lib/jsonl.mjs | 28 |
-| src/commands/openitems.mjs | 27 |
-| lib/schema.mjs | 27 |
-| src/context.mjs | 23 |
-| src/commands/analysis.mjs | 23 |
-| lib/verify.mjs | 23 |
-| lib/model.mjs | 23 |
-| src/cli.mjs | 22 |
-| lib/fsafe.mjs | 21 |
-| lib/gitsafe.mjs | 13 |
-| src/commands/explain.mjs | 12 |
-| src/errors.mjs | 11 |
-| lib/driver.mjs | 9 |
-| evals/schema.mjs | 9 |
-| src/commands/report.mjs | 6 |
-| src/args.mjs | 6 |
-| lib/sanitize.mjs | 5 |
-| scripts/mutate.mjs | 4 |
-| src/registry.mjs | 3 |
+| lib/forecast.ts | 185 |
+| lib/integrations/superpowers.ts | 179 |
+| lib/jira.ts | 144 |
+| evals/gen.ts | 129 |
+| lib/store.ts | 102 |
+| lib/stale.ts | 102 |
+| lib/whatif.ts | 93 |
+| lib/openitems.ts | 92 |
+| lib/integrations/openwolf.ts | 90 |
+| src/db.ts | 70 |
+| src/commands/queries.ts | 68 |
+| evals/run.ts | 53 |
+| src/commands/plan.ts | 50 |
+| src/commands/integrations.ts | 49 |
+| lib/integrations/detect.ts | 46 |
+| src/commands/audit.ts | 43 |
+| lib/report.ts | 40 |
+| src/commands/shared.ts | 38 |
+| lib/merge.ts | 35 |
+| lib/render.ts | 30 |
+| lib/jsonl.ts | 28 |
+| src/commands/openitems.ts | 27 |
+| lib/schema.ts | 27 |
+| src/context.ts | 23 |
+| src/commands/analysis.ts | 23 |
+| lib/verify.ts | 23 |
+| lib/model.ts | 23 |
+| src/cli.ts | 22 |
+| lib/fsafe.ts | 21 |
+| lib/gitsafe.ts | 13 |
+| src/commands/explain.ts | 12 |
+| src/errors.ts | 11 |
+| lib/driver.ts | 9 |
+| evals/schema.ts | 9 |
+| src/commands/report.ts | 6 |
+| src/args.ts | 6 |
+| lib/sanitize.ts | 5 |
+| scripts/mutate.ts | 4 |
+| src/registry.ts | 3 |
 | src/floor.mjs | 2 |
 
 ## After Task 18
@@ -121,19 +121,27 @@ Strict, outside test/, by file:
 | Run | Config | Scope counted | Errors |
 |---|---|---|---|
 | non-strict | `tsconfig.json` | every checked file | 469 -> 0 |
-| strict | `tsconfig.strict.json` | `lib/sanitize.mjs`, `lib/gitsafe.mjs`, `lib/fsafe.mjs`, `lib/schema.mjs`, `src/**/*.mjs`, `scripts/typecheck.mjs` | 519 -> 0 (at the base commit: 66 in the four lib files, 453 in src/; the script is new) |
+| strict | `tsconfig.strict.json` | `lib/sanitize.ts`, `lib/gitsafe.ts`, `lib/fsafe.ts`, `lib/schema.ts`, `src/**/*.mjs`, `scripts/typecheck.ts` | 519 -> 0 (at the base commit: 66 in the four lib files, 453 in src/; the script is new) |
 
-`npm run typecheck` (`scripts/typecheck.mjs`) runs both and fails when any per-file count rises above `scripts/typecheck-baseline.json`
-(all zero, so any new error fails). The strict run also type-checks the lib files that src imports; those are counted only by the
+At the time, `npm run typecheck` (`scripts/typecheck.ts`) ran both and failed when any per-file count rose above a committed baseline
+(all zero, so any new error failed). The strict run also type-checks the lib files that src imports; those are counted only by the
 non-strict run until they join the strict include list (next candidates by strict error count: verify, merge, render, model, store).
 
 How the errors were fixed: JSDoc `@param`/`@returns`/`@type`/`@typedef` comments and parenthesized `/** @type {T} */ (expr)` casts,
 `catch (/** @type {any} */ e)` where the code reads `e.code`, and typed case tables in tests. Three changes touch code, each provably
-behavior-preserving: boolean subtraction written as `Number(a) - Number(b)` (lib/openitems.mjs, twice; the same ToNumber coercion),
-`typeof r === 'number' &&` before `Number.isSafeInteger(r)` (src/cli.mjs; isSafeInteger is false for every non-number anyway), and
-`io: io` with a cast (src/context.mjs). No runtime bug was found: the research note's "forecast.mjs 17 and 38 pass string | number"
+behavior-preserving: boolean subtraction written as `Number(a) - Number(b)` (lib/openitems.ts, twice; the same ToNumber coercion),
+`typeof r === 'number' &&` before `Number.isSafeInteger(r)` (src/cli.ts; isSafeInteger is false for every non-number anyway), and
+`io: io` with a cast (src/context.ts). No runtime bug was found: the research note's "forecast.mjs 17 and 38 pass string | number"
 was a tuple-inference artifact (`lines()` always yields `[string, number]`), and the compact.mjs option fields it named are gone.
 `bin/brain` and the other extensionless entry points are not checked (tsc and Biome read only known extensions); they are thin shims.
+
+## End of the ratchet (TypeScript migration, Task 12)
+
+The ratchet ended at zero: every per-file count reached 0 under the final strict flags, so the baseline file
+(`scripts/typecheck-baseline.json`), the strict-scope config (`tsconfig.strict.json`) and the counting logic were removed.
+`npm run typecheck` is now a thin wrapper that runs `tsc --noEmit -p tsconfig.json` (every `.ts` file except `test/types-fixtures`, which only `test/types.test.ts` checks, plus `src/floor.js`: `allowJs` and `checkJs` stay on so the plain-JavaScript Node-version guard is type-checked through JSDoc; `strict`, `noImplicitAny`,
+`exactOptionalPropertyTypes`) and `tsc --noEmit -p tsconfig.prod.json` (`lib`, `src`, `mcp`, adding `noUncheckedIndexedAccess`),
+prints every error, and exits 1 on any error (2 when tsc cannot run).
 
 ## Biome baseline (`@biomejs/biome@2.6.8`, before Task 18 fixes)
 
@@ -144,5 +152,5 @@ Fixed: the unused variables and import, useConst, the adjacent-spaces regex (` {
 useOptionalChain (its fix is not equivalent when the left side is a falsy non-nullish value), noAssignInExpressions and noCommaOperator
 (the deliberate dense style), noUselessEscapeInRegex (`\/` inside a class is harmless), noUnusedFunctionParameters (positional stub and
 callback signatures), noControlCharactersInRegex (sanitizer patterns match control characters on purpose); per file: noMisleadingCharacterClass
-in lib/sanitize.mjs (the class strips single code points on purpose), noPrecisionLoss in test/jira.test.mjs (`1e400` tests Infinity),
+in lib/sanitize.ts (the class strips single code points on purpose), noPrecisionLoss in test/jira.test.ts (`1e400` tests Infinity),
 noTemplateCurlyInString in test/ and evals/ (literal `${CLAUDE_PLUGIN_ROOT}` and shell text). The formatter is disabled: no file was reformatted.

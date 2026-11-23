@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6.48.0/schema.json",
+  "entry": [
+    "bin/brain",
+    "bin/brain-merge",
+    "src/cli.ts",
+    "mcp/brain-mcp.ts",
+    "scripts/*.ts",
+    "evals/*.ts",
+    "test/**/*.test.{mjs,ts}",
+    "test/types-fixtures/*-bad.ts",
+    "test/**/*.assure.ts"
+  ],
+  "ignoreFiles": [
+    // a template for the Claude Code Workflow tool, run by that tool and never imported by the plugin
+    "workflows/audit.workflow.js"
+  ],
+  "ignoreBinaries": [
+    // optional runtime for the Python solver: `brain doctor` probes for it and brain-solve-run falls back to a venv without it
+    "uv"
+  ]
+}

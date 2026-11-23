@@ -1,4 +1,4 @@
-# open-brain: language and platform research and code audit
+# plangraph: language and platform research and code audit
 
 Date: 2026-11-22. Machine: Node v24.18.0 (V8 13.6, ICU 78.3, undici 7.28, SQLite 3.53.1), macOS.
 Scope: bin/brain (547 lines), bin/brain-merge, lib/*.mjs, docs/CONTRACT.md, package.json. No code was edited.
@@ -19,7 +19,7 @@ Source for status: tc39/proposals finished-proposals.md (VERIFIED-docs, fetched 
 
 | Feature | ES edition | Node 24.18 | Tag | Use here |
 |---|---|---|---|---|
-| Set methods (union, isSubsetOf ...) | 2025 | yes | VERIFIED-locally | `lib/whatif.mjs`, `stale.mjs`, `openitems.mjs` set algebra |
+| Set methods (union, isSubsetOf ...) | 2025 | yes | VERIFIED-locally | `lib/whatif.ts`, `stale.mjs`, `openitems.mjs` set algebra |
 | Iterator helpers (map/filter/take/toArray ...) | 2025 | yes | VERIFIED-locally | replace `[...x].filter().map()` chains, lazy `take(limit)` |
 | Object.groupBy / Map.groupBy | 2024 | yes | VERIFIED-locally | replace Map-of-arrays builders (bin/brain 175, 214-215; compact.mjs 27; model.mjs 14-19) |
 | toSorted / toSpliced / with / findLast | 2023 | yes | VERIFIED-locally | `[...a].sort()` copies become `a.toSorted()` |
@@ -125,7 +125,7 @@ tsconfig.json (strict target; start with the commented flags relaxed):
 }
 ```
 
-Stage 1 sets `"strict": false` and adds `"noImplicitAny": false`. Real bugs tsc already surfaces: `forecast.mjs` 17 and 38 pass `string | number` to a string parameter (JSON.parse of a line), and `compact.mjs` 19 and 62 read option fields that the destructuring type omits (`currentSprint`, `keys`). Add `bin/brain` as `src/cli.mjs` (section 5.3) so tsc sees it.
+Stage 1 sets `"strict": false` and adds `"noImplicitAny": false`. Real bugs tsc already surfaces: `forecast.mjs` 17 and 38 pass `string | number` to a string parameter (JSON.parse of a line), and `compact.mjs` 19 and 62 read option fields that the destructuring type omits (`currentSprint`, `keys`). Add `bin/brain` as `src/cli.ts` (section 5.3) so tsc sees it.
 
 ## 4. Lint, format, dev tooling and dependency policy
 
@@ -239,7 +239,7 @@ S9. `jira.mjs` is solid (host allowlist, `redirect:'manual'`, secrets registered
 | 340-344 | `for (let i=0; i<keys.length; i+=size)` | `Array.from({length: Math.ceil(n/size)}, (_, i) => keys.slice(i*size, (i+1)*size))` (no Iterator.chunk yet: stage 4 for 2027, not in Node 24) |
 | 347 | `toLocaleString()` for numbers | locale-dependent output breaks CONTRACT rule 6 (determinism: "same input gives byte-identical output"). Use `Intl.NumberFormat('en-US')` or a plain integer |
 | 364 | prints `(statuses ...)` through console.log | fine |
-| 372-373 | in-line mulberry32 and Box-Muller | move to `lib/rng.mjs` (the contract says to copy the function into lib); `test/fixtures/gen.mjs` has its own copy: one source |
+| 372-373 | in-line mulberry32 and Box-Muller | move to `lib/rng.mjs` (the contract says to copy the function into lib); `test/fixtures/gen.ts` has its own copy: one source |
 | 380-381 | `ready.shift()` + `ready.sort()` inside the loop: O(n^2 log n) for a 100k-ticket plan | use a binary heap (whatif.mjs 135 already has a priority-queue `less`) |
 | 446 | `at2` reads two args by index | model as `--close KEY KIND`: parseArgs does not support 2-arg options; use `--close KEY:KIND` or subcommands (`brain open-items close KEY KIND`) |
 | 517-519 | `table` object + `table[cmd]` | a `Map` registry (5.3) |
@@ -254,10 +254,10 @@ Target layout (about 600 lines of bin/brain become 1 shim + 8 small files; each 
 
 ```
 bin/brain                 #!/usr/bin/env node  import '../src/cli.mjs'   (3 lines; hook path unchanged)
-src/cli.mjs               main(), registry, output capture, exit codes
-src/args.mjs              shared option schema
-src/context.mjs           root/dir/config/db helpers (makeContext)
-src/db.mjs                schema, build, open
+src/cli.ts               main(), registry, output capture, exit codes
+src/args.ts              shared option schema
+src/context.ts           root/dir/config/db helpers (makeContext)
+src/db.ts                schema, build, open
 src/git.mjs               makeGit, checkRef
 src/commands/*.mjs        one file per command: export const meta, export async function run(ctx, args)
 ```
@@ -282,7 +282,7 @@ export async function run(ctx, { values, positionals: [key] }) {
 Registry and runner (replaces bin/brain 517-547 and the console/exit monkeypatching):
 
 ```js
-// src/cli.mjs
+// src/cli.ts
 import { parseArgs } from 'node:util';
 import { realpath } from 'node:fs/promises';
 
@@ -329,7 +329,7 @@ Benefits: no global `console.log`/`process.exit` replacement (the capture hack a
 - `using` for scoped resources (all VERIFIED-locally):
   - `build()`: `using db = new DatabaseSync(tmp)` closes the database on every exit path (today a throw between `db.close()` at 122 and `fs.renameSync` leaves `db = null` handled by hand).
   - `withLock` (store.mjs 102-113): return `{ [Symbol.dispose]() { rmSync(lockPath, { force: true }) } }` and write `using _lock = takeLock(path)`, so the `try/finally` goes away and nested locks compose with `DisposableStack`.
-  - Temp work in tests: `using t = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'brain-'))` replaces manual `mkdtempSync` + `rmSync` in the test files (check which tests do cleanup by hand; `test/store.test.mjs` and `test/smoke.sh` are candidates).
+  - Temp work in tests: `using t = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'brain-'))` replaces manual `mkdtempSync` + `rmSync` in the test files (check which tests do cleanup by hand; `test/store.test.ts` and `test/smoke.sh` are candidates).
   - `writeAtomic` (store.mjs 94-99): the fd try/finally is fine; `fs.writeFileSync(tmp, text, { flag: 'wx' })` plus `fs.openSync` only for fsync is the minimal form; keep fsync because it is the point.
 - `Promise.try(() => fn())` for APIs that may throw synchronously or return a promise (jira.mjs `exec` injection at 101/105 mixes sync throw and rejection); `Promise.withResolvers()` replaces `new Promise((resolve, reject) => ...)` at jira.mjs 77 and 141.
 - Immutability: `Object.freeze` on model Maps is overkill; instead make `buildModel` documented as read-only with a JSDoc `ReadonlyMap`. `whatif.mjs` already guarantees no mutation by test ("never mutates the model"). Prefer `toSorted()` over `[...x].sort()` (about 25 sites) and `Object.groupBy` (null-prototype result, safe keys).
@@ -354,7 +354,7 @@ Conclusions:
 - Fix `build()` (statement cache). Ready-to-apply replacement for bin/brain 111-118:
 
 ```js
-// src/db.mjs
+// src/db.ts
 const COLUMNS = new Map([ // allowlist: column names never come from data
   ['ticket', ['key','summary','epic','sp','jira_status','v2_owner','v2_sprint','verdict','verdict_source','first_verdict']],
   ['schedule', ['version','key','owner','sprint']],
@@ -410,7 +410,7 @@ export function loadTable(db, table, recs, fileName) {
 | 1 | S1 git option injection: `checkRef`, `--end-of-options`, path validation (code in 5.1) | Security | 1 h |
 | 2 | S2 + perf: `loadTable` allowlist and cached statements in `build()` (code in 5.5) | Security + 3x faster build | 1.5 h |
 | 3 | S3: `Map`-based registry; `brain constructor` must exit 1 (code in 5.3) | Correctness | 0.5 h (part of 4) |
-| 4 | `util.parseArgs` strict per command + command registry + `ctx.out`, remove console/exit monkeypatching; `bin/brain` becomes a 3-line shim to `src/cli.mjs` | Maintainability, loud typo errors, testable commands, exit codes as data | 2 to 3 days (mechanical; one command per PR) |
+| 4 | `util.parseArgs` strict per command + command registry + `ctx.out`, remove console/exit monkeypatching; `bin/brain` becomes a 3-line shim to `src/cli.ts` | Maintainability, loud typo errors, testable commands, exit codes as data | 2 to 3 days (mechanical; one command per PR) |
 | 5 | Typecheck: `tsc` 7 + JSDoc typedefs, staged strictness (section 3), gate in CI | Catches the 60 existing issues, prevents regressions | 0.5 day stage 1; 1 day stage 2; 2 to 3 days stage 3 |
 | 6 | Single JSONL parser (`parseJsonlText`) used everywhere, with `AggregateError` and `cause` | Consistent file:line errors, conflict-marker detection in all readers | 3 h |
 | 7 | `using` for sqlite db, locks and tests (`mkdtempDisposableSync`) | Removes manual cleanup branches | 3 h |
@@ -422,10 +422,10 @@ Not recommended (investigated and rejected, with reason): single-executable app 
 
 ## 7. Ready-to-apply snippets (index)
 
-All code blocks above are complete enough to paste: `src/git.mjs` (5.1 S1), `src/cli.mjs` and command module (5.3), `src/db.mjs loadTable` (5.5), `tsconfig.json` (3), `biome.json` and `package.json` scripts (4). A scoped-lock example for `withLock` with `using`:
+All code blocks above are complete enough to paste: `src/git.mjs` (5.1 S1), `src/cli.ts` and command module (5.3), `src/db.ts loadTable` (5.5), `tsconfig.json` (3), `biome.json` and `package.json` scripts (4). A scoped-lock example for `withLock` with `using`:
 
 ```js
-// lib/store.mjs
+// lib/store.ts
 function takeLock(lockPath, { retries = 100, waitMs = 20, staleMs = 30_000 } = {}) {
   for (let i = 0; ; i++) {
     try { fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' }); break; }

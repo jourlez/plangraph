@@ -1,0 +1,10 @@
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,js,mjs,json}"
+      run: npx @biomejs/biome check --no-errors-on-unmatched {staged_files}
+    typecheck:
+      run: npm run typecheck
+    related-tests:
+      run: node scripts/related-tests.ts {staged_files} | xargs node --test

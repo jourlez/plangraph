@@ -1,6 +1,6 @@
 # Open items register
 
-Decisions and fixes owed by a named person before a ticket may start. Module: `lib/openitems.mjs`. Tests: `test/openitems.test.mjs`.
+Decisions and fixes owed by a named person before a ticket may start. Module: `lib/openitems.ts`. Tests: `test/openitems.test.ts`.
 
 ## Data
 `open-items.jsonl`, one record per line, sorted by `key` then `kind` (plain `<`), canonical field order, `\n`, trailing newline:
@@ -40,7 +40,7 @@ An open item is DUE when `due - lead_time <= currentSprint`; `late` is `due < cu
 - `parseFindings(text, name)` -> `{findings, errors}`. Input is JSONL, one `{key,kind,text}` per line (all strings). Blank lines are skipped; every other bad line yields an error `name:line: reason` (the line's content is never echoed). Limits: 1 MiB per line, 100000 findings. Pass `extraFindings: result.findings` to `openItemsFromFindings`.
 - The plugin never executes commands. Checks (schema clashes etc.) run in CI or via Claude's own Bash tool under its normal permission prompts, and write a findings JSONL file; a `checks` section in config is ignored.
 
-## CLI wiring (as implemented in `src/commands/openitems.mjs`)
+## CLI wiring (as implemented in `src/commands/openitems.ts`)
 `brain open-items [--mine] [--close KEY KIND [--note TEXT] | --reopen KEY KIND | --register KEY KIND --owner O --due N --text T] [--findings FILE|-] [--write] [--sprint N] [--me NAME]` (one action per run)
 1. load model; `const {findings, errors} = parseFindings(readFileSync(file, 'utf8'), file)` (print errors to stderr); `derived = openItemsFromFindings(model, config, {extraFindings: findings})`;
 2. `items = reconcileItems(parseItems(file), derived)`; apply one of `--close`, `--reopen` or `--register` (one action per run: giving two is a usage error, exit 2); `--mine` filters to `owner === me`;

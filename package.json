@@ -1,10 +1,11 @@
 {
-  "name": "open-brain",
-  "version": "0.1.4",
+  "name": "plangraph",
+  "version": "0.2.0",
   "description": "Planning memory for AI coding agents: a dependency graph in git text, safe reassignment, provable schedules, token-minimal answers.",
   "type": "module",
   "private": true,
   "license": "MIT",
+  "packageManager": "npm@11.16.0",
   "engines": {
     "node": ">=24.2"
   },
@@ -13,29 +14,38 @@
     "brain-merge": "bin/brain-merge"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test \"test/*.test.{mjs,ts}\"",
     "smoke": "bash test/smoke.sh",
-    "bench": "node test/bench-tokens.mjs",
-    "validate": "node test/validate-plugin.mjs",
-    "mutate": "node scripts/mutate.mjs",
-    "assure": "node --test test/assure/*.test.mjs",
-    "mutate:all": "node scripts/mutate-all.mjs --jobs 4",
-    "mutate:smoke": "node scripts/mutate-all.mjs --files lib/verify.mjs,lib/whatif.mjs,lib/merge.mjs,lib/gitsafe.mjs,lib/fsafe.mjs,lib/forecast.mjs,lib/report.mjs --limit 40 --seed 1 --max-tier 1 --jobs 2",
+    "bench": "node test/bench-tokens.ts",
+    "validate": "node test/validate-plugin.ts",
+    "mutate": "node scripts/mutate.ts",
+    "assure": "node --test \"test/assure/*.test.{mjs,ts}\"",
+    "mutate:all": "node scripts/mutate-all.ts --jobs 4",
+    "mutate:smoke": "node scripts/mutate-all.ts --files lib/verify.ts,lib/whatif.ts,lib/merge.ts,lib/gitsafe.ts,lib/fsafe.ts,lib/forecast.ts,lib/report.ts --limit 40 --seed 1 --max-tier 1 --jobs 2",
 
-    "typecheck": "node scripts/typecheck.mjs",
-    "lint": "biome lint ."
+    "typecheck": "node scripts/typecheck.ts",
+    "lint": "biome lint .",
+    "lint:check": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "test:related": "node scripts/related-tests.ts",
+    "bulletproof": "npm run lint:fix && npm run typecheck && npm run test",
+    "bulletproof:check": "npm run lint:check && npm run typecheck && npm run test",
+    "knip": "knip",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
     "@types/node": "24.19.2",
+    "knip": "6.48.0",
+    "lefthook": "2.2.2",
     "typescript": "7.0.2"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jourlez/open-brain.git"
+    "url": "git+https://github.com/jourlez/plangraph.git"
   },
-  "homepage": "https://github.com/jourlez/open-brain",
+  "homepage": "https://github.com/jourlez/plangraph",
   "bugs": {
-    "url": "https://github.com/jourlez/open-brain/issues"
+    "url": "https://github.com/jourlez/plangraph/issues"
   }
 }

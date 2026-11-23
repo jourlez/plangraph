@@ -2,7 +2,7 @@
 
 Assigns every ticket to one person and one sprint. Rules: each ticket placed once; person-sprint load within capacity; strict handoff
 `sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0)`; frozen tickets unchanged (they still use capacity). Frozen history
-(docs/CONTRACT.md, `lib/frozen.mjs`): a constraint exists only where at least one side is free, so a link whose producer is closed and a link
+(docs/CONTRACT.md, `lib/frozen.ts`): a constraint exists only where at least one side is free, so a link whose producer is closed and a link
 between two frozen tickets constrain nothing (never INFEASIBLE, never a delayed consumer), and a cell's capacity binds only its free load
 (free load within `max(0, cap - frozen load)`: a frozen cell above cap is history, not a violation, and takes no free story point); every ticket that is not
 frozen goes to `first_sprint` or later, so no new work lands in a past sprint (a frozen ticket keeps its own slot, even before `first_sprint`).
@@ -137,7 +137,7 @@ consumer says that no later end sprint fixes it (the free producer cannot start 
 Determinism: `--seed N` (default 1). `--deterministic`: 1 worker, `max_deterministic_time` instead of wall time, no wall-clock fields in the
 output, so repeated runs on the same input are byte-identical. Without it, multi-worker runs may differ run to run (both valid).
 
-Capacity default when neither `caps[person]` nor `caps.default` exists: 140 (same as `lib/model.mjs`).
+Capacity default when neither `caps[person]` nor `caps.default` exists: 140 (same as `lib/model.ts`).
 
 Fractional story points: `sp`, `caps` and `min_per_sprint` may be any non-negative numbers with at most 4 decimal places (more, or a
 non-number, exits 2 `story points, caps and min_per_sprint must be numbers with at most 4 decimal places`). They are read as exact decimals and
@@ -202,7 +202,7 @@ What this shows, and what it does not:
 
 ### Measurements: `--decompose` on a multi-component instance
 
-`node test/bench-decompose.mjs TIME SEEDS` builds 8 independent components of 150 tickets (genPlan seeds 100 to 107, 5,031 links) that share
+`node test/bench-decompose.ts TIME SEEDS` builds 8 independent components of 150 tickets (genPlan seeds 100 to 107, 5,031 links) that share
 4 people (cap 60), so the components couple only through capacity, and runs each seed monolithic and with `--decompose` (2026-11-22, dev
 machine with other load present; wall times are noisy). Stage order: end sprint, then owner changes vs current. Every run proved the end sprint
 (15, OPTIMAL) and ended the owner-changes stage FEASIBLE with bound 7: the proof status never differed.
@@ -228,7 +228,7 @@ OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/brain-solve-run` 
 a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
 else prints three lines and exits 3. `BRAIN_SOLVE_SCRIPT` overrides the script (used by the mutation test).
 
-Tests: `node --test test/solver.test.mjs` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
+Tests: `node --test test/solver.test.ts` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
 
 ## Input limits and path confinement
 
@@ -243,12 +243,12 @@ points, caps and min_per_sprint must be at most 1000000000 after scaling to whol
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
 
-Input guards (`load_raw`; tests: `test/brain-solve-input.test.mjs`, Python unit checks, stdlib only). The index (`brain.sqlite` or `--db`)
-gets the same guards as the CLI's `openIndex` (`src/db.mjs`): it must be a regular file (lstat, then the solver's own
+Input guards (`load_raw`; tests: `test/brain-solve-input.test.ts`, Python unit checks, stdlib only). The index (`brain.sqlite` or `--db`)
+gets the same guards as the CLI's `openIndex` (`src/db.ts`): it must be a regular file (lstat, then the solver's own
 `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` open and fstat with the same device and inode: a symlink or a FIFO is refused, never followed or blocked
 on), no SQLite sidecar (`-journal`, `-wal`, `-shm`) may sit beside it (a hot journal would be replayed), it is opened read-only
 (`file:...?mode=ro` plus `PRAGMA query_only`), its `sqlite_master` must pass the same schema allowlist as `schemaOk` (a planted view, for
-example over an infinite `WITH RECURSIVE`, is refused before any query; the Python lists are compared with `src/db.mjs` by a test), and its
+example over an infinite `WITH RECURSIVE`, is refused before any query; the Python lists are compared with `src/db.ts` by a test), and its
 content digest must match (the same canonical rows as `contentDigest`; the JSON row text comes from SQLite itself; an index without a digest
 is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`brain build\``. JSONL files and the brain dir's `config.json` are read like
 `readDataCapped`: lstat (a symlink is refused), `O_NOFOLLOW|O_NONBLOCK` open, fstat must be a regular file with the lstat's device, inode and

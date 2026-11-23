@@ -11,7 +11,11 @@ __pycache__/
 *.tmp-*
 .superpowers/
 
-# eval suites, results and real-project data are built in temp directories (evals/run.mjs, evals/gen-real.mjs), never here;
+# eval suites, results and real-project data are built in temp directories (evals/run.ts, evals/gen-real.ts), never here;
 # these patterns only guard against a manual run inside the repository. cases/ and fixtures/ are committed.
 evals/results/
 evals/pass-*/
+
+# differential baseline captures (scripts/baseline.ts)
+.baseline/
+.no-hooks/

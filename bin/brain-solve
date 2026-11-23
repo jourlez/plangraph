@@ -3,7 +3,7 @@
 # requires-python = ">=3.10,<3.15"
 # dependencies = ["ortools==9.15.6755"]
 # ///
-"""Sprint-assignment solver (OR-Tools CP-SAT) for the open-brain plan store. No Jira access, no model calls.
+"""Sprint-assignment solver (OR-Tools CP-SAT) for the plangraph plan store. No Jira access, no model calls.
 
   brain-solve-run --out schedule.json [--end 14] [--time 400] [--workers 10] [--seed 1] [--deterministic]
                   [--baseline current|v2|<archive>] [--freeze K1,K2] [--freeze-file f.json] [--jsonl-dir DIR] [--lns] [--decompose]
@@ -31,7 +31,7 @@ LNS_ROUND_S = 5.0       # time (or deterministic time) per --lns round
 DECOMPOSE_GROUP = 50    # --decompose: consecutive small components are merged until a group has at least this many tickets
 MAX_PLACES = 4          # story points, caps and min_per_sprint: at most this many decimal places (scaled to exact integers)
 MAX_UNITS = 10 ** 9     # story points, caps and min_per_sprint: at most this after scaling (CP-SAT gets small exact integers, sums stay in int64)
-MAX_SPRINT = 10 ** 6    # first_sprint, end_sprint (--end), frozen_before_sprint: whole numbers within +-this (as lib/verify.mjs bounds first_sprint)
+MAX_SPRINT = 10 ** 6    # first_sprint, end_sprint (--end), frozen_before_sprint: whole numbers within +-this (as lib/verify.ts bounds first_sprint)
 SCALED = ('shortfall', 'load_of', 'peak_load')   # stage values in story points (reported unscaled)
 SNAP_CAP = 64 << 20     # an existing --out larger than this is not snapshotted, and anytime writes are then off
 
@@ -105,11 +105,11 @@ def clamp_limits(a, cfg, clamped):
     return int(w2), t2
 
 
-DATA_CAP = 64 << 20     # a JSONL or config file larger than this is refused (as lib/jsonl.mjs readDataCapped caps the brain data files)
+DATA_CAP = 64 << 20     # a JSONL or config file larger than this is refused (as lib/jsonl.ts readDataCapped caps the brain data files)
 
 
 def read_capped(path, follow=False, cap=None):
-    """A data file's text, or None when it is missing. As lib/jsonl.mjs readCapped: lstat (follow=False refuses a symlink), open with
+    """A data file's text, or None when it is missing. As lib/jsonl.ts readCapped: lstat (follow=False refuses a symlink), open with
     O_NONBLOCK (a FIFO never blocks) and O_NOFOLLOW, fstat must be a regular file (with follow=False: the lstat's device, inode and ctime),
     read at most `cap` (default DATA_CAP) bytes. Errors name the file by its base name only."""
     cap = DATA_CAP if cap is None else cap
@@ -149,8 +149,8 @@ def read_jsonl(path):
     return out
 
 
-# ---- the index: the same guards as src/db.mjs openIndex (kept in sync by test/brain-solve-input.test.mjs) ----
-# [table, columns, primary key] in src/db.mjs TABLES order (the columns are lib/store.mjs SCHEMAS[file].order; `extra` is appended).
+# ---- the index: the same guards as src/db.ts openIndex (kept in sync by test/brain-solve-input.test.ts) ----
+# [table, columns, primary key] in src/db.ts TABLES order (the columns are lib/store.ts SCHEMAS[file].order; `extra` is appended).
 INDEX_TABLES = {
     'ticket': (('key', 'summary', 'epic', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'verdict', 'verdict_source', 'first_verdict', 'impl_status'), ('key',)),
     'schedule': (('version', 'key', 'owner', 'sprint'), ('version', 'key')),
@@ -168,13 +168,13 @@ CONTENT_KEY = 'content_digest'
 
 
 def index_order(t):
-    """Canonical digest order of a table, as src/db.mjs: the primary key, then every other column (extra included)."""
+    """Canonical digest order of a table, as src/db.ts: the primary key, then every other column (extra included)."""
     cols, pk = INDEX_TABLES[t]
     return ','.join(pk + tuple(c for c in cols + ('extra',) if c not in pk))
 
 
 def schema_ok(db):
-    """src/db.mjs schemaOk: only the tables, columns and indexes `brain build` writes; no view, trigger, virtual table or hidden column."""
+    """src/db.ts schemaOk: only the tables, columns and indexes `brain build` writes; no view, trigger, virtual table or hidden column."""
     tables = set()
     for typ, name, tbl, sql in db.execute('SELECT type, name, tbl_name, sql FROM sqlite_master'):
         if typ == 'table':
@@ -195,7 +195,7 @@ VIRTUAL_RE = re.compile(r'\s*CREATE\s+VIRTUAL\b', re.I)
 
 
 def content_digest(db):
-    """src/db.mjs contentDigest: sha256 over each table's name and its rows as SQLite json_array text in canonical order, then index_meta
+    """src/db.ts contentDigest: sha256 over each table's name and its rows as SQLite json_array text in canonical order, then index_meta
     without the digest row. The JSON text comes from SQLite itself, so it is the same bytes the CLI hashed."""
     h = hashlib.sha256()
     def feed(name, sql, args):
@@ -208,7 +208,7 @@ def content_digest(db):
 
 
 def open_index(dbp):
-    """Open the index READ-ONLY with src/db.mjs openIndex's guards: a regular file (never a symlink or FIFO; checked by our own non-blocking,
+    """Open the index READ-ONLY with src/db.ts openIndex's guards: a regular file (never a symlink or FIFO; checked by our own non-blocking,
     non-following open), no SQLite sidecar beside it (a hot journal would be replayed by a read-write open), the schema allowlist, and the
     content digest. Residual, as in openIndex: SQLite opens the path again after the check."""
     def refuse(what): return invalid(f'{what}: run `brain build`')
@@ -380,7 +380,7 @@ def prepare(a, tickets, edges_raw, sched, cfg):
     frozen = {ix[k] for k in fz}
     fst = set(cfg.get('frozen_statuses') or [])
     cst = {'Done'} | {x for x in (cfg.get('closed_statuses') if isinstance(cfg.get('closed_statuses'), list) else []) if isinstance(x, str)}
-    # Frozen history, mirroring lib/frozen.mjs (test/frozen.test.mjs compares the two): CLOSED = an sp: task with impl_status done, or a
+    # Frozen history, mirroring lib/frozen.ts (test/frozen.test.ts compares the two): CLOSED = an sp: task with impl_status done, or a
     # jira_status Done / in closed_statuses; closed tickets with a current slot are always frozen, whatever frozen_statuses says.
     pr.closed = {i for i, t in enumerate(tickets) if pr.status[i] in cst or (pr.T[i].startswith('sp:') and t.get('impl_status') == 'done')}
     fb = cfg.get('frozen_before_sprint')
@@ -393,7 +393,7 @@ def prepare(a, tickets, edges_raw, sched, cfg):
         if i not in pr.cur: raise invalid(f'frozen ticket {pr.T[i]} has no current schedule slot')
     pr.frozen = {i: (pr.Pi[pr.cur[i][0]], pr.cur[i][1]) for i in sorted(frozen)}
     # The links that constrain: a constraint exists only where at least one side is free. A link whose producer is closed is satisfied (a
-    # finished producer cannot be late), and a link between two frozen tickets is a fixed fact of history (lib/frozen.mjs).
+    # finished producer cannot be late), and a link between two frozen tickets is a fixed fact of history (lib/frozen.ts).
     pr.live = [(c, p) for c, p in pr.edges if p not in pr.closed and not (c in pr.frozen and p in pr.frozen)]
     pr.S0 = sprint_num(cfg.get('first_sprint', 1), 'first_sprint')   # free (not frozen) tickets go to sprint S0 or later: no new work lands in a past sprint
     pr.lo = min([pr.S0] + [s for _, s in pr.frozen.values()])   # lowest sprint index in the model: frozen tickets keep their own slot, even below S0
@@ -642,7 +642,7 @@ def build(pr, cp, horizon, links, soft=False):
     cx.d = []
     big = horizon - lo + 2
     for c, p in links:
-        if (c in pr.frozen and p in pr.frozen) or p in pr.closed: continue   # history (lib/frozen.mjs): never a constraint, never infeasible
+        if (c in pr.frozen and p in pr.frozen) or p in pr.closed: continue   # history (lib/frozen.ts): never a constraint, never infeasible
         relax = 0
         if soft: sl = m.NewBoolVar(''); cx.slack.append((c, p, sl)); relax = big * sl
         if nP > 1:

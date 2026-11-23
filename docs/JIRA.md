@@ -1,4 +1,4 @@
-# Jira reader (lib/jira.mjs)
+# Jira reader (lib/jira.ts)
 
 Read-only, the only module that touches the network. Never put a token in a file, a CLI argument or a log.
 
@@ -75,7 +75,7 @@ getJiraIssue({
 
 `fields.updated` is not strictly needed but recommended: without it the "an older copy never overwrites a newer one" rule has nothing to
 compare. For bulk, `searchJiraIssuesUsingJql` with the same `fields`; whether its `responseFields` paths need an `issues.nodes.` prefix is
-unverified. Expected size: the synthetic slim fixture in `test/jira-slim.test.mjs` (one issue, 22 links, two sprints) is about 3,200
+unverified. Expected size: the synthetic slim fixture in `test/jira-slim.test.ts` (one issue, 22 links, two sprints) is about 3,200
 characters as JSON, against the ~15,000 baseline; a real slim response is unmeasured.
 
 `brain jira-import` accepts that slim shape (tested on the synthetic fixture built from the verified payload shape above): link `type`
@@ -94,16 +94,16 @@ Bulk rule: for more than about 20 tickets use `brain jira-pull` (token, no model
 
 ## How to tell whether Jira is set up
 
-`brain doctor` prints one `jira:` line (info only, no network, no secret read or shown): the auth mode, whether the site or cloud id and the JQL are set, and which credential source is present in the environment (`JIRA_EMAIL` + `JIRA_API_TOKEN`, or `JIRA_OP_REF`; the OS keychain is not checked). `jira: not configured` means `brain jira-pull` is off. The Atlassian connector (MCP) is separate: `brain` never uses it, and a connector signed in to another site cannot see your project. To see which site a connector reaches, call its `getAccessibleAtlassianResources`.
+`brain doctor` prints one `jira:` line (info only, no network, no secret read or shown): the auth mode, whether the site or cloud id and the JQL are set, and which credential source is present in the environment (`JIRA_EMAIL` + `JIRA_API_TOKEN`, or `JIRA_OP_REF`; the OS keychain is not checked). `jira: not configured` means `brain jira-pull` is off. `jira: invalid config: auth.mode must be scoped, site-token or datacenter; ...` means the mode is not one of the three exact values (case and spaces count): `brain jira-pull` refuses it before any credential is looked up. `NO credential bound to <tenant>: ...` means generic credentials may not go to that tenant and no per-tenant binding is set. The Atlassian connector (MCP) is separate: `brain` never uses it, and a connector signed in to another site cannot see your project. To see which site a connector reaches, call its `getAccessibleAtlassianResources`.
 
 ## Several companies, several Jira sites (tenants)
 
 Each brain directory names its own tenant in its committed config (`cloud_id` for a scoped token, `base_url` for a site token or Data Center), so every repository can point at a different Jira. Credentials are bound to the tenant, never shared: a token for company B is never sent to company A's site.
 
 Resolution for a tenant T, first hit wins:
-1. **User-level registry** `~/.config/project-brain/jira-sites.json` (or `$BRAIN_CONFIG_DIR`, `$XDG_CONFIG_HOME/open-brain`). Never committed. It holds names and references only, never a secret: `{"sites": {"acme.atlassian.net": {"email_env": "ACME_JIRA_EMAIL", "token_env": "ACME_JIRA_TOKEN"}, "<cloud-id>": {"op_ref": "op://Work/Jira/token"}, "jira.corp.example": {"keychain": "my-corp-jira"}}}`. A tenant with an entry never falls back to anything else.
+1. **User-level registry** `~/.config/project-brain/jira-sites.json` (or `$BRAIN_CONFIG_DIR`, `$XDG_CONFIG_HOME/project-brain`). Never committed. It holds names and references only, never a secret: `{"sites": {"acme.atlassian.net": {"email_env": "ACME_JIRA_EMAIL", "token_env": "ACME_JIRA_TOKEN"}, "<cloud-id>": {"op_ref": "op://Work/Jira/token"}, "jira.corp.example": {"keychain": "my-corp-jira"}}}`. A tenant with an entry never falls back to anything else.
 2. **Convention**: env `JIRA_EMAIL__TAG` + `JIRA_API_TOKEN__TAG` (or `JIRA_OP_REF__TAG`), or keychain service `project-brain-jira:T`; TAG is the host without `.atlassian.net`, upper-case, non-alphanumerics as `_`.
-3. **Generic** `JIRA_EMAIL` + `JIRA_API_TOKEN` (or `JIRA_OP_REF`, or the keychain service `project-brain-jira`): used for scoped and Data Center tenants, and for a site token only when the site is listed in `BRAIN_JIRA_SITES`. Otherwise the pull stops and names the missing binding.
+3. **Generic** `JIRA_EMAIL` + `JIRA_API_TOKEN` (or `JIRA_OP_REF`, or the keychain service `project-brain-jira`): used only where the tenant is not chosen by a committed config: a scoped tenant (the gateway host is fixed; a committed `cloud_id` still chooses which cloud, see SECURITY.md), a Data Center host when `BRAIN_JIRA_DC_HOSTS` lists exactly that ONE host (with several hosts a committed config could pick any of them, so each needs a registry entry or a convention binding), a site listed in `BRAIN_JIRA_SITES`, or the tenant named in your own `projects` entry (below). Otherwise the pull stops and names the missing binding.
 
 `brain doctor` shows the tenant and which binding applies, without printing a secret.
 
@@ -113,4 +113,6 @@ A public project must not have to commit its company's Jira site, cloud id or JQ
 
 `{"projects": {"/path/to/repo": {"auth": {"mode": "site-token"}, "base_url": "https://acme.atlassian.net", "jql": "project = ABC"}}}`
 
-Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. A site named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `BRAIN_JIRA_SITES` pin.
+Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. An entry that names any tenant field (`auth`, `base_url` or `cloud_id`) decides the WHOLE tenant: the committed `auth`, `base_url` and `cloud_id` are then ignored, so give the mode and its tenant field together (`auth.mode` defaults to `scoped`, which needs `cloud_id`; `site-token` and `datacenter` need `base_url`). The committed `jql`, `sprint_field` and `full_reconcile_every` still apply unless the entry sets them. The tenant field named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `BRAIN_JIRA_SITES` pin.
+
+Output files of `brain jira-pull --out`, `brain jira-import --out` and `brain jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.

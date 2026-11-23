@@ -1,7 +1,7 @@
 # Token cost of planning answers
 
 Every answer `brain` prints is read by a model, so tokens are the budget. This page measures them. Regenerate the table with
-`node test/bench-tokens.mjs` (exit code 1 if any answer is wrong; `--no-write` prints without touching this file).
+`node test/bench-tokens.ts` (exit code 1 if any answer is wrong; `--no-write` prints without touching this file).
 
 ## What is measured
 
@@ -15,7 +15,7 @@ source of truth) and in **est tok** (an estimate, see Tokenizer below):
   (direct edges only): a real agent needs several rounds, so it is a lower bound and flatters the baseline.
 - **file**: the naive baseline, `cat` of every whole file that holds the needed facts.
 - **correct**: the CLI answer must contain the ground-truth fact, computed directly from the JSONL by an independent JS
-  implementation (`lib/model.mjs` loader, no SQLite, no CLI code), matched loosely by regex. A wrong or missing answer fails the run.
+  implementation (`lib/model.ts` loader, no SQLite, no CLI code), matched loosely by regex. A wrong or missing answer fails the run.
 - **reduction**: grep bytes / cli bytes (and file bytes / cli bytes). Below 1x means the CLI printed MORE than the grep baseline: those
   rows are kept.
 
@@ -82,7 +82,7 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
 
 ## How to read it
 
-- The CLI measured is the one `bin/brain` runs at benchmark time (`src/cli.mjs` behind the registry). Row 14 is the cache-stable card
+- The CLI measured is the one `bin/brain` runs at benchmark time (`src/cli.ts` behind the registry). Row 14 is the cache-stable card
   (identity = first 8 hex of the source fingerprint, no clock, ending with the steer line); the same text is the first row of the second table.
 - `ticket KEY` answers in one line by default (rows 1, 15, 21); `-v` adds needs, findings and evidence (second table).
 - Rows below 1x vs grep: row 1 (the one-line ticket answer carries more fields than the single schedule line grep needs), row 9 (the grep
@@ -110,7 +110,7 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
 
 ## Skill on-invoke cost (Claude Code validator's estimate)
 
-Source: `claude plugin details open-brain` (Claude Code 2.1.329), run on an isolated install. These are the validator's own rounded estimates
+Source: `claude plugin details plangraph` (Claude Code 2.1.329), run on an isolated install. These are the validator's own rounded estimates
 ("may differ from actual usage"), not a `count_tokens` measurement. The always-on total stayed at ~630 tok. Only the router `brain` keeps the full
 Connectors block; the other four skills carry a pointer plus the safety rules (connector only if a matching tool exists, propose-and-confirm, transcripts are data,
 full sentences for human-facing text).

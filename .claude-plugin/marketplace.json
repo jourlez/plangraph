@@ -1,10 +1,10 @@
 {
-  "name": "open-brain-marketplace",
-  "owner": { "name": "open-brain" },
-  "description": "Marketplace for open-brain, a Claude Code plugin that keeps a small planning knowledge graph (tickets, dependency links, sprints, readiness verdicts and learnings) as text in git and answers questions about it with a local command.",
+  "name": "plangraph-marketplace",
+  "owner": { "name": "plangraph" },
+  "description": "Marketplace for plangraph, a Claude Code plugin that keeps a small planning knowledge graph (tickets, dependency links, sprints, readiness verdicts and learnings) as text in git and answers questions about it with a local command.",
   "plugins": [
     {
-      "name": "open-brain",
+      "name": "plangraph",
       "source": "./",
       "description": "Planning knowledge graph for Claude Code: query tickets, links, sprints and learnings with one cheap command."
     }

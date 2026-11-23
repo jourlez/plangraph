@@ -1,26 +1,26 @@
-# Engineering contract for open-brain modules
+# Engineering contract for plangraph modules
 
 Goal: the best planning memory for AI coding agents. Hard rules, in priority order:
 
 1. **Correctness is provable.** Every feature ships with tests that could fail: property tests against an independent oracle, golden outputs, mutation-sensitive assertions. Say what a test does NOT cover in a comment at the top of the test file.
 2. **Tokens are a budget.** Every answer a command prints is read by a model. Default output is the smallest useful answer (target: one line for a yes/no, under 250 tokens for anything, under 60 for the common case). No prose, no decoration, stable ordering, stable field names. Bounded output: an explicit limit plus a `... N more` marker. Every answer that depends on data states its freshness when it could be stale. Estimate tokens as `ceil(chars / 4)`.
-3. **No network or model calls** anywhere except `lib/jira.mjs`. Never write, log or echo secrets (Jira token). Tokens only from the process environment or an OS keychain helper.
-4. **Pure core.** Library modules are ES modules in `lib/*.mjs` that take plain data (the model from `lib/model.mjs`, see `buildModel`) and return plain data or strings. No SQLite, no `process.exit`, no `console.log` inside library functions (return strings or objects; the CLI prints). This keeps them testable and lets the CLI drop SQLite later.
-5. **No runtime dependencies** (Node built-ins only; Python solver only uses OR-Tools). Dev-only, exact-pinned, never shipped: `typescript`, `@types/node`, `@biomejs/biome` (`npm run typecheck`, `npm run lint`). Node >= 24.2. Tests use `node:test` + `node:assert/strict`, files named `test/<module>.test.mjs`, runnable with `node --test test/*.test.mjs`. Fixtures come from `test/fixtures/gen.mjs` (`genPlan`, `rng`). Never use real people, tickets or company data; names are invented.
+3. **No network or model calls** anywhere except `lib/jira.ts`. Never write, log or echo secrets (Jira token). Tokens only from the process environment or an OS keychain helper.
+4. **Pure core.** Library modules are ES modules in `lib/*.ts` that take plain data (the model from `lib/model.ts`, see `buildModel`) and return plain data or strings. No SQLite, no `process.exit`, no `console.log` inside library functions (return strings or objects; the CLI prints). This keeps them testable and lets the CLI drop SQLite later.
+5. **No runtime dependencies** (Node built-ins only; Python solver only uses OR-Tools). Dev-only, exact-pinned, never shipped: `typescript`, `@types/node`, `@biomejs/biome` (`npm run typecheck`, `npm run lint`). Node >= 24.2. Tests use `node:test` + `node:assert/strict`, files named `test/<module>.test.ts`, runnable with `npm test`. Fixtures come from `test/fixtures/gen.ts` (`genPlan`, `rng`). Never use real people, tickets or company data; names are invented.
 6. **Determinism.** Same input gives byte-identical output. Sort with plain `<` comparison (not localeCompare). Seeded RNG only (`rng` from the fixtures file; copy the tiny function into lib if the module needs randomness).
 7. **Merge-friendly data.** Text files are JSONL, one record per line, sorted by primary key, canonical key order, `\n` endings, trailing newline.
 
-Exhaustive small-scope suite: `npm run assure` (minutes; `test/assure/`) checks verify, check/verify CLI agreement, whatif/proposeMove, whatif --relieve, merge, stale, ready (single and bulk), forecast gates and the canonical round trip against clean-room oracles on EVERY instance up to small bounds (each file's header states them; a reduced variant runs in every `node --test test/*.test.mjs` run as `test/assure.test.mjs`). It is exhaustive within those bounds, not a proof beyond them.
+Exhaustive small-scope suite: `npm run assure` (minutes; `test/assure/`) checks verify, check/verify CLI agreement, whatif/proposeMove, whatif --relieve, merge, stale, ready (single and bulk), forecast gates and the canonical round trip against clean-room oracles on EVERY instance up to small bounds (each file's header states them; a reduced variant runs in every `npm test` run as `test/assure.test.ts`). It is exhaustive within those bounds, not a proof beyond them.
 
 CI (`.github/workflows/ci.yml`) runs parallel jobs so that no job is long: `unit` (ubuntu; every test file but the slow no-coverage group,
 with the coverage floors), `slow` (ubuntu with uv; smoke, then the solver, evals and icon tests, which reach no `lib/` or `src/` code the
 coverage group does not), `static` (typecheck, lint, plugin layout), `macos` (every test but the solver one, in shards, plus smoke),
-`mutation` and `gitleaks`. `node scripts/ci-tests.mjs coverage|nocoverage|portable` prints each group; `test/ci-tests.test.mjs` pins the
+`mutation` and `gitleaks`. `node scripts/ci-tests.ts coverage|nocoverage|portable` prints each group; `test/ci-tests.test.ts` pins the
 split, and a file joins the no-coverage group only after measuring that the coverage group alone keeps the same coverage.
 
 Mutation testing: `npm run mutate` runs the hand-written mutants of known past defects (`--list` prints them; all must be killed; they run
 in parallel on min(cores, 4) workers, `--jobs N` overrides; the required CI `mutation` job runs it on every push). `npm run mutate:all`
-(`scripts/mutate-all.mjs`, long run) generates every mutant of `lib/`, `lib/integrations/`, `src/` and `mcp/` (relational, arithmetic,
+(`scripts/mutate-all.ts`, long run) generates every mutant of `lib/`, `lib/integrations/`, `src/` and `mcp/` (relational, arithmetic,
 logical, boolean, condition negation, return value, string literal, off-by-one, guard and throw removal; never comments, JSDoc, regex
 literals or import specifiers), applies each to a temporary copy of the repository, syntax-checks it and runs the test files mapped to
 that file (tier 1: direct importers that run in under 10 s; tier 2, only for tier-1 survivors: slower importers and tests reaching it
@@ -31,15 +31,15 @@ test or a timeout kills a mutant (timeouts are counted in their own column); a m
 Results are resumable from `$TMPDIR/brain-mutate-all/`; `--files`, `--limit N --seed S`, `--shard N/M`, `--jobs J`, `--max-tier 1`.
 `npm run mutate:smoke` (40 seeded mutants of core modules with fast tests: verify, whatif, merge, gitsafe, fsafe, forecast, report; tier 1) runs weekly and on demand as the informational `mutation`
 workflow (not on every push): it reports survivors in the job summary and never fails the run. A surviving mutant is answered with a behavior test that
-kills it (`test/mutation-kills-*.test.mjs`; their JSON goldens are in `test/golden/mutation-kills/`, rewritten with `UPDATE_GOLDEN=1`
+kills it (`test/mutation-kills-*.test.ts`; their JSON goldens are in `test/golden/mutation-kills/`, rewritten with `UPDATE_GOLDEN=1`
 after an intended output change and reviewed as a diff), or with an equivalence entry, never with a test of the mutant's text.
 
 
-Ownership: each worker edits ONLY the files assigned to it (new files under `lib/`, `test/`, and where stated `bin/brain-solve`, docs). Do NOT edit `bin/brain`, `hooks/`, `skills/`, `README.md`, `lib/model.mjs`, `lib/jsonl.mjs`, `test/smoke.sh`, `test/fixtures/gen.mjs`; the integrator wires modules into the CLI. If you need a change in one of those, describe it in your final report.
+Ownership: each worker edits ONLY the files assigned to it (new files under `lib/`, `test/`, and where stated `bin/brain-solve`, docs). Do NOT edit `bin/brain`, `hooks/`, `skills/`, `README.md`, `lib/model.ts`, `lib/jsonl.ts`, `test/smoke.sh`, `test/fixtures/gen.ts`; the integrator wires modules into the CLI. If you need a change in one of those, describe it in your final report.
 
-Model shape (`lib/model.mjs`): `{ tickets: Map<key,row>, edges: [{consumer,producer,kind,note}], prods: Map<consumer,[producer]>, cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}> (current schedule), config, findings, evidence, learnings, refs }`. `config.caps[person] ?? config.caps.default` is capacity in story points per person per sprint (`capOf`). `ticket.sp` is story points. A link "consumer needs producer". **Strict handoff rule:** `sprint[consumer] >= sprint[producer] + (owner[consumer] !== owner[producer] ? 1 : 0)`: another person's output must land in an earlier sprint; the same person may share the sprint.
+Model shape (`lib/model.ts`): `{ tickets: Map<key,row>, edges: [{consumer,producer,kind,note}], prods: Map<consumer,[producer]>, cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}> (current schedule), config, findings, evidence, learnings, refs }`. `config.caps[person] ?? config.caps.default` is capacity in story points per person per sprint (`capOf`). `ticket.sp` is story points. A link "consumer needs producer". **Strict handoff rule:** `sprint[consumer] >= sprint[producer] + (owner[consumer] !== owner[producer] ? 1 : 0)`: another person's output must land in an earlier sprint; the same person may share the sprint.
 
-**Frozen history** (stated once, in `lib/frozen.mjs`; `bin/brain-solve` mirrors it and `test/frozen.test.mjs` compares the two on a grid; verify, `whatif` (STARTED and the tickets a
+**Frozen history** (stated once, in `lib/frozen.ts`; `bin/brain-solve` mirrors it and `test/frozen.test.ts` compares the two on a grid; verify, `whatif` (STARTED and the tickets a
 repair may move), `proposeMove` and `--relieve` all read this one predicate. In `brain whatif`, a closed ticket, a ticket below
 `frozen_before_sprint` or one frozen by the caller is a hard `STARTED` stop; `In Progress` always warns (`STARTED`, warn: someone
 started it, whatever `frozen_statuses` says; `brain init` writes `["Done"]`), and so does any status listed in `frozen_statuses` (a
@@ -60,9 +60,9 @@ Final report format from each worker: what you built (files), exact test command
 
 ## CLI contract (bin/brain)
 
-`bin/brain` is a thin entry point: it checks the Node floor, then hands the arguments to `src/cli.mjs`, which looks the command up in the
-registry (`src/registry.mjs`, a `Map` of frozen specs from `src/commands/*.mjs`), parses the options strictly (`src/args.mjs`), runs the
-command with a context (`src/context.mjs`) and prints the bounded output. Commands take `(ctx, args)`, write through `ctx.io`, and return
+`bin/brain` is a thin entry point: it checks the Node floor, then hands the arguments to `src/cli.ts`, which looks the command up in the
+registry (`src/registry.ts`, a `Map` of frozen specs from `src/commands/*.ts`), parses the options strictly (`src/args.ts`), runs the
+command with a context (`src/context.ts`) and prints the bounded output. Commands take `(ctx, args)`, write through `ctx.io`, and return
 an exit code; nothing under `src/` calls `process.exit` or `console.log`.
 
 Exit codes:
@@ -100,19 +100,19 @@ at the index path. A manual `brain card` is unchanged (`error: no index`, exit 2
 this guarantee: other commands given `--if-present` still report errors (it only suppresses their STALE warning).
 
 Errors print `error: <what>` on stderr, optionally `hint: <what to do>` (prose), and always a last line `try: <exact command>`
-(the error table in `src/errors.mjs`: a hint that names a `brain ...` command becomes the try line; otherwise `brain init` when there is no
+(the error table in `src/errors.ts`: a hint that names a `brain ...` command becomes the try line; otherwise `brain init` when there is no
 brain directory, `brain build` for a missing index, `brain doctor` for environment and internal errors, else `brain explain <the command that failed>`). A mistyped command gets
 `did you mean <name>?` (edit distance at most 2); the command list itself is `brain explain`. A line never carries a newline or a forged
 `<untrusted>` tag from the data, and untrusted text never reaches the try line. Commands print through `ctx.io.out(line)`, which takes
 exactly one line: a line break of any kind (LF, CR, VT, FF, NEL, U+2028, U+2029) is a programmer error that fails the tests
 (`BRAIN_STRICT_OUT=1`, set under `node --test`) and becomes a space in production; intended multi-line output (a fence block) goes
-through `ctx.io.outBlock(lines)`. `test/hostile-fuzz.test.mjs` runs every registered command over a plan whose every free-text field
+through `ctx.io.outBlock(lines)`. `test/hostile-fuzz.test.ts` runs every registered command over a plan whose every free-text field
 carries a line injection.
 
 `brain explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class plus the merge-driver wiring a command always does (`init`) or a flag adds (`doctor --fix`, `card --heal`: git config, `.gitattributes`, the merge shim), exit codes),
 bounded (the full list under 400 estimated tokens). `--json` on any command prints exactly one v2 envelope on stdout
 `{"v":2,"cmd","ok","exit","data","fresh","next"}`, also when the command printed nothing (`data` is `{ "lines": [] }`) and when it failed
-(the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.mjs` runs every registered command): `data` is structured for `sprint`, `ready` (one ticket or the bulk form), `whatif` (dry run, also `--relieve`), `verify` and
+(the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.ts` runs every registered command): `data` is structured for `sprint`, `ready` (one ticket or the bulk form), `whatif` (dry run, also `--relieve`), `verify` and
 `explain`, and `{ "lines": [...] }` for the others (card and bundle included: their prepared text, line by line); `fresh` is `{ "fp", "built" }` (first 8 hex of the source fingerprint of the text
 now and of the text the index was built from; they differ when the index is stale) or null when the command read no index; `next` holds
 0 to 3 exact follow-up commands, built only from shell-safe values.
@@ -120,7 +120,7 @@ now and of the text the index was built from; they differ when the index is stal
 Bulk ready (`brain ready --person NAME --sprint N`, either filter alone or both, never with a KEY): the scope is every ticket placed with
 that owner (resolved like `whatif --to`: exact, else a unique case-insensitive match, else a unique first name; anything else is a usage
 error that never echoes the name) and/or in that sprint. Each ticket of the scope is exactly one of ready, done or not ready, by
-`lib/ready.mjs` `readyScope` over the shared `readySet` (no second implementation; `test/assure/ready.assure.mjs` checks it against a
+`lib/ready.ts` `readyScope` over the shared `readySet` (no second implementation; `test/assure/ready.assure.ts` checks it against a
 clean-room oracle on every small instance). Text: one count line first (`<owner> S<n>: ready R of T, done D, not ready N (waiting on
 producers a, open items b, verdict not READY c)`; the groups overlap: a not-ready ticket counts under each of its reasons, and each one is
 under at least one), then the ready keys (25, `-v` 500, then `+N more`), one line per reason with 5 example keys (`-v` 50), with `-v` the
@@ -129,10 +129,10 @@ done keys, and the freshness note. Exit 0 when at least one ticket may start, 1 
 (`{key, verdict}`), each capped at 2000 (the counts are never capped). A KEY together with a filter, or neither, is a usage error.
 
 Relieve (`brain whatif --relieve NAME --sprint N [--earlier] [--owner-change]`, read-only, never with a KEY; `--to`, `--apply-plan` and
-`--write` are usage errors; `--slip` is implied and `--strict` has no effect: frozen tickets never move): `lib/whatif.mjs` `relieve`.
+`--write` are usage errors; `--slip` is implied and `--strict` has no effect: frozen tickets never move): `lib/whatif.ts` `relieve`.
 The name resolves like `whatif --to`. Move space: only the tickets of that cell move, each once, to one slot: the same owner in a later
 sprint; with `--earlier` an earlier one; with `--owner-change` another person (an owner or a caps person) in sprint N or later (earlier too
-with both flags); every sprint in first_sprint..end_sprint. Frozen tickets stay (the one predicate of `lib/frozen.mjs`: closed statuses,
+with both flags); every sprint in first_sprint..end_sprint. Frozen tickets stay (the one predicate of `lib/frozen.ts`: closed statuses,
 an `sp:` task with impl_status done, frozen_statuses as config lists them, N below frozen_before_sprint). Frozen history: only the free load of the cell must fit in max(0, cap -
 frozen load), so a cell over cap by frozen tickets alone needs no relief (`OK: ... over capacity (L/C) only by frozen tickets, which are
 history: nothing to relieve`). A set is valid when, applied together, the free load left fits, every link with a moved ticket at either end
@@ -152,10 +152,10 @@ first_sprint); `OK:
 ... nothing to relieve` when the load is within cap. Exit 0 for relief or nothing to relieve, 1 for no relief. `--json` data: `relieve`
 `{person, sprint}`, `status` (`relief`, `no_relief`, `none_needed`), loads, `slip`, `ownerChanges`, `order`, `searchComplete`, `budget`, `nodes`,
 `allowed`, `moves` (with `command`), `reasons`; `next` holds the move commands, or the relieve command with a wider flag.
-`test/assure/relieve.assure.mjs` checks it against a clean-room brute force on every small instance (minimality, validity, order).
+`test/assure/relieve.assure.ts` checks it against a clean-room brute force on every small instance (minimality, validity, order).
 
 Find (`brain whatif KEY --find [--earlier] [--owner-change] [--strict]`, read-only; `--to`, `--sprint`, `--relieve`, `--apply-plan` and
-`--write` are usage errors; `--slip` is implied): `lib/whatif.mjs` `findSlots`. Slot space (relieve's for one ticket): the same owner in
+`--write` are usage errors; `--slip` is implied): `lib/whatif.ts` `findSlots`. Slot space (relieve's for one ticket): the same owner in
 every later sprint; with `--earlier` an earlier one; with `--owner-change` every other person (an owner or a caps person) in the current
 sprint or later (earlier too with both); sprints first_sprint..end_sprint; at most `FIND_MAX` (5000) slots are tried. A slot is valid when
 `whatif` says OK (a STARTED warning keeps it, marked; `--strict` makes it a stop) and, applied to a copy, verifyPlan finds nothing it did not
@@ -164,11 +164,11 @@ owner name, sprint. Text: `FIND KEY (O Sn): V valid slots of T tried (space); be
 slip, load and the exact `brain whatif` dry-run command, then the dry-run note; none valid: the reason counts and the flags to try; a key
 whatif stops with STARTED: `no slot: KEY keeps its slot (STARTED: ...)`. Exit 0 when a slot is valid, 1 otherwise. `--json` data: `key`,
 `status` (`found`, `none`, `frozen`, `unknown`), `from`, `tried`, `valid`, `allowed`, `searchComplete`, `slots` (up to 200, with `command`),
-`reasons` ({code: count}); `next` holds the best three commands. `test/assure/find.assure.mjs` checks it against a clean-room brute force.
+`reasons` ({code: count}); `next` holds the best three commands. `test/assure/find.assure.ts` checks it against a clean-room brute force.
 
 Session card (`brain card`, the SessionStart hook): a pure function of the data, byte-identical across runs (no clock, no age, no
 modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, the steer
-line `plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read <brain dir>/*.jsonl` (lib/steer.mjs; the
+line `plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read <brain dir>/*.jsonl` (lib/steer.ts; the
 directory as the repo configures it, default `.brain`), and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
 
 Brain directory: `--dir`, else a non-empty `BRAIN_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be
@@ -211,11 +211,11 @@ a crash in the middle of `schedule-load` or `whatif --write` leaves a real hot j
 rebuilds from the text, so index-only changes not yet exported are lost (export after every index write, as above). A reader that starts
 while another process is inside an index write sees that writer's journal and is refused (exit 2) for that moment.
 
-`brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts: one shared function, `lib/ready.mjs`, checked against the CLI and an independent brute-force oracle; a ticket whose own status is closed (`Done` or a `closed_statuses` entry; an `sp:` task with `impl_status` done) is `DONE` for `brain ready`, exit 1, and never listed), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.
+`brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts: one shared function, `lib/ready.ts`, checked against the CLI and an independent brute-force oracle; a ticket whose own status is closed (`Done` or a `closed_statuses` entry; an `sp:` task with `impl_status` done) is `DONE` for `brain ready`, exit 1, and never listed), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.
 
 ## Symlink and swap races
 
-What is closed (tests: `test/toctou-race.test.mjs`, each race forced at an exact point by an injected `fsImpl` that swaps the file right
+What is closed (tests: `test/toctou-race.test.ts`, each race forced at an exact point by an injected `fsImpl` that swaps the file right
 after the check, asserting the outside file is never read or written):
 
 - Reading a brain data file (the eight index sources, `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,

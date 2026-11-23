@@ -1,6 +1,6 @@
 name: ci
 # Parallel jobs so that no single job is long (wall time to a green result is what counts). Every test file runs on Linux in exactly one
-# of `unit` (with the coverage floors) and `slow` (no coverage); scripts/ci-tests.mjs makes the split and test/ci-tests.test.mjs pins it.
+# of `unit` (with the coverage floors) and `slow` (no coverage); scripts/ci-tests.ts makes the split and test/ci-tests.test.ts pins it.
 on:
   push:
     branches: [main]
@@ -13,19 +13,23 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   unit:
-    name: unit tests with coverage (ubuntu)
+    name: unit tests with coverage (ubuntu, node ${{ matrix.node }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15 # estimated about 4 minutes
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24'] # the floor major (engines.node is >=24.2); add a newer major here to test it too
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: ${{ matrix.node }}
       - name: unit tests with coverage ratchet (the coverage group; raise these floors when coverage rises, never lower)
         run: |
-          files=$(node scripts/ci-tests.mjs coverage)
+          files=$(node scripts/ci-tests.ts coverage)
           test -n "$files"
           # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
           node --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-include='src/**' --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=98 $files
@@ -48,7 +52,7 @@ jobs:
         run: npm run smoke
       - name: no-coverage test group (slow files that reach no lib/ or src/ code the coverage group does not)
         run: |
-          files=$(node scripts/ci-tests.mjs nocoverage)
+          files=$(node scripts/ci-tests.ts nocoverage)
           test -n "$files"
           # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
           node --test $files
@@ -66,12 +70,16 @@ jobs:
           cache: npm
       - name: plugin layout
         run: npm run validate
-      - name: install dev-only tools (typescript, @types/node, biome; exact versions from package-lock.json)
-        run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: typecheck (tsc ratchet over tsconfig.json and tsconfig.strict.json)
+      - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
+        run: npm ci --ignore-scripts --no-fund
+      - name: audit (high and critical advisories fail the job)
+        run: npm audit --audit-level=high
+      - name: typecheck (tsc over tsconfig.json and tsconfig.prod.json, any error fails)
         run: npm run typecheck
       - name: biome lint (lint rules only, formatter disabled)
-        run: npm run lint
+        run: npm run lint:check
+      - name: bulletproof check (lint, typecheck, full test suite)
+        run: npm run bulletproof:check
       - name: claude plugin validate
         run: |
           if command -v claude >/dev/null 2>&1; then
@@ -96,7 +104,7 @@ jobs:
           node-version: '24'
       - name: portable test group, one shard (every test file but the Linux-only solver; coverage is measured by the unit job)
         run: |
-          files=$(node scripts/ci-tests.mjs portable)
+          files=$(node scripts/ci-tests.ts portable)
           test -n "$files"
           # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
           node --test --test-shard=${{ matrix.shard }}/2 $files

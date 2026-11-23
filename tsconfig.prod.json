@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true
+  },
+  "include": [
+    "lib/**/*.ts",
+    "src/**/*.ts",
+    "mcp/**/*.ts",
+    "src/floor.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

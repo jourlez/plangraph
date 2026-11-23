@@ -1,14 +1,14 @@
-# open-brain
+# plangraph
 
-[![ci](https://github.com/jourlez/open-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/jourlez/open-brain/actions/workflows/ci.yml)
+[![ci](https://github.com/jourlez/plangraph/actions/workflows/ci.yml/badge.svg)](https://github.com/jourlez/plangraph/actions/workflows/ci.yml)
 
-open-brain is a Claude Code plugin that keeps a team's sprint plan as a small knowledge graph in git: tickets, dependency links, owners and sprints, readiness verdicts with the evidence behind them, and learnings. Claude answers plan questions ("can this start?", "what breaks if this moves to Ben?", "who is over capacity?") with one local command that prints a few lines, instead of reading the plan files into context. The command checks every answer against two exact rules (a handoff rule and a capacity rule), never calls a model, and never writes to Jira.
+plangraph is a Claude Code plugin that keeps a team's sprint plan as a small knowledge graph in git: tickets, dependency links, owners and sprints, readiness verdicts with the evidence behind them, and learnings. Claude answers plan questions ("can this start?", "what breaks if this moves to Ben?", "who is over capacity?") with one local command that prints a few lines, instead of reading the plan files into context. The command checks every answer against two exact rules (a handoff rule and a capacity rule), never calls a model, and never writes to Jira.
 
 ## Contents
 
 - [What it does, and what it does not do](#what-it-does-and-what-it-does-not-do)
 - [Requirements](#requirements)
-- [Install](#install)
+- [Installation](#installation)
 - [Quickstart](#quickstart)
 - [How it works](#how-it-works)
 - [What runs on your machine](#what-runs-on-your-machine)
@@ -23,7 +23,11 @@ open-brain is a Claude Code plugin that keeps a team's sprint plan as a small kn
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
 - [Known limits and roadmap](#known-limits-and-roadmap)
-- [Contributing, license, changelog](#contributing-license-changelog)
+- [Development](#development)
+- [Contributing](#contributing)
+- [Security](#security)
+- [Changelog](#changelog)
+- [License](#license)
 
 ## What it does, and what it does not do
 
@@ -55,13 +59,13 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 
 In short: Node 24.2 or newer, git, and Claude Code 2.1.329 or newer. The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
 
-## Install
+## Installation
 
 ### From GitHub, inside Claude Code
 
 ```text
-/plugin marketplace add jourlez/open-brain
-/plugin install open-brain@open-brain-marketplace
+/plugin marketplace add jourlez/plangraph
+/plugin install plangraph@plangraph-marketplace
 ```
 
 Restart Claude Code to load the hook, the skills and the commands.
@@ -69,8 +73,8 @@ Restart Claude Code to load the hook, the skills and the commands.
 The same steps from a terminal, with the `claude plugin` CLI:
 
 ```bash
-claude plugin marketplace add jourlez/open-brain
-claude plugin install open-brain@open-brain-marketplace
+claude plugin marketplace add jourlez/plangraph
+claude plugin install plangraph@plangraph-marketplace
 ```
 
 Add `--scope project` or `--scope local` to `claude plugin install` to install for one project instead of for your user (the default scope is `user`).
@@ -80,9 +84,9 @@ Add `--scope project` or `--scope local` to `claude plugin install` to install f
 Clone the repository, then add the folder as a marketplace from its local path:
 
 ```bash
-git clone https://github.com/jourlez/open-brain.git
-claude plugin marketplace add ./open-brain
-claude plugin install open-brain@open-brain-marketplace
+git clone https://github.com/jourlez/plangraph.git
+claude plugin marketplace add ./plangraph
+claude plugin install plangraph@plangraph-marketplace
 ```
 
 Inside Claude Code the equivalent is `/plugin marketplace add <path to the clone>`, then the same `/plugin install` command.
@@ -90,8 +94,8 @@ Inside Claude Code the equivalent is `/plugin marketplace add <path to the clone
 ### Updating
 
 ```bash
-claude plugin marketplace update open-brain-marketplace
-claude plugin update open-brain@open-brain-marketplace
+claude plugin marketplace update plangraph-marketplace
+claude plugin update plangraph@plangraph-marketplace
 ```
 
 Restart Claude Code to apply the update. The git merge driver points at the installed copy through a shim, and the session hook repoints it after an update; `brain doctor` reports a stale target and `brain doctor --fix` repairs it.
@@ -99,8 +103,8 @@ Restart Claude Code to apply the update. The git merge driver points at the inst
 ### Uninstalling
 
 ```bash
-claude plugin uninstall open-brain@open-brain-marketplace
-claude plugin marketplace remove open-brain-marketplace
+claude plugin uninstall plangraph@plangraph-marketplace
+claude plugin marketplace remove plangraph-marketplace
 ```
 
 `--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.brain/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=brain-jsonl` line in `.gitattributes`, and the `merge.brain-jsonl.*` entries in `.git/config`.
@@ -109,14 +113,14 @@ claude plugin marketplace remove open-brain-marketplace
 
 The plugin declares one option, `card`, with the values `auto` (default) and `off`. With `off`, the session hook prints nothing; the `brain` command and the skills still work.
 
-- Inside Claude Code: `/plugin configure open-brain@open-brain-marketplace`.
-- At install time: `claude plugin install open-brain@open-brain-marketplace --config card=off`.
-- Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure open-brain@open-brain-marketplace --values-stdin`.
+- Inside Claude Code: `/plugin configure plangraph@plangraph-marketplace`.
+- At install time: `claude plugin install plangraph@plangraph-marketplace --config card=off`.
+- Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`.
 - For one shell or one machine: set the environment variable `BRAIN_CARD=off`.
 
 ### Verifying the install
 
-1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `open-brain@open-brain-marketplace` should be listed as enabled. `claude plugin details open-brain` lists 8 skills, 1 hook and 0 MCP servers.
+1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `plangraph@plangraph-marketplace` should be listed as enabled. `claude plugin details plangraph` lists 8 skills, 1 hook and 0 MCP servers.
 2. In a Claude Code session, ask Claude to run `brain explain`. It prints the command list. `brain` is on the Bash PATH only inside Claude Code sessions with the plugin enabled; see [Troubleshooting](#troubleshooting) for terminal use.
 3. In a project, run `brain doctor`. It checks Node, the data format, the merge driver and the solver runtime, and exits 0 when all are fine.
 
@@ -126,7 +130,7 @@ Adopting it in another project takes one install and one pasted prompt: see [doc
 
 ## Quickstart
 
-The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/open-brain:brain-init` skill wraps `brain init`. The commands used here are `brain init`, `brain build`, `brain check`, `brain verify`, `brain card`, `brain ready`, `brain blockers`, `brain whatif`, `brain export`, `brain report`, `brain doctor`, `brain integrations`, `brain migrate`, `brain sp-ingest`, `brain refs-update` and `brain stale`.
+The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/plangraph:brain-init` skill wraps `brain init`. The commands used here are `brain init`, `brain build`, `brain check`, `brain verify`, `brain card`, `brain ready`, `brain blockers`, `brain whatif`, `brain export`, `brain report`, `brain doctor`, `brain integrations`, `brain migrate`, `brain sp-ingest`, `brain refs-update` and `brain stale`.
 
 ### A new plan in five minutes
 
@@ -303,7 +307,7 @@ Add `--jira snapshot.jsonl` to include Jira changes. The `brain-audit` skill pre
 
 **Capacity rule.** `config.caps[person] ?? config.caps.default` is a person's capacity in story points per sprint. The load of each person-sprint cell must fit within it.
 
-**Frozen history.** Finished work is fact, not a constraint. A ticket is closed when its `jira_status` is `Done` or listed in `closed_statuses` (or, for a superpowers task, its `impl_status` is `done`). A ticket is frozen, and keeps its slot, when it is closed, its status is listed in `frozen_statuses`, it is frozen explicitly, or its sprint is below `frozen_before_sprint`. A link whose producer is closed is always satisfied, a link between two frozen tickets is never a violation, and a cell's capacity binds only its free load (`max(0, cap - frozen load)`). `brain check`, `brain verify`, `brain whatif`, `brain ready` and the solver all read this one predicate (`lib/frozen.mjs`). `brain schedule-load` refuses a schedule that moves a frozen ticket. Full statement: [docs/CONTRACT.md](docs/CONTRACT.md).
+**Frozen history.** Finished work is fact, not a constraint. A ticket is closed when its `jira_status` is `Done` or listed in `closed_statuses` (or, for a superpowers task, its `impl_status` is `done`). A ticket is frozen, and keeps its slot, when it is closed, its status is listed in `frozen_statuses`, it is frozen explicitly, or its sprint is below `frozen_before_sprint`. A link whose producer is closed is always satisfied, a link between two frozen tickets is never a violation, and a cell's capacity binds only its free load (`max(0, cap - frozen load)`). `brain check`, `brain verify`, `brain whatif`, `brain ready` and the solver all read this one predicate (`lib/frozen.ts`). `brain schedule-load` refuses a schedule that moves a frozen ticket. Full statement: [docs/CONTRACT.md](docs/CONTRACT.md).
 
 ### Data flow
 
@@ -340,9 +344,9 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 | `uv --version` | `brain doctor` | when run | none |
 | `bin/brain-merge`, through a small shell shim in the plugin data directory | git | at merge, rebase and cherry-pick of brain JSONL files | none |
 | `op read`, `security find-generic-password` (macOS) or `secret-tool lookup` (Linux) | `brain jira-pull`, `brain jira-text` | only to read your Jira credential, in that order, when the environment does not hold it | none from brain; the helper is your own tool |
-| HTTPS requests from `lib/jira.mjs` | `brain jira-pull`, `brain jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `BRAIN_JIRA_DC_HOSTS` |
+| HTTPS requests from `lib/jira.ts` | `brain jira-pull`, `brain jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `BRAIN_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/brain-solve`, or a Python venv with `pip install --require-hashes` | `brain-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
-| `node mcp/brain-mcp.mjs` | your MCP client | only if you register it yourself (off by default) | none |
+| `node mcp/brain-mcp.ts` | your MCP client | only if you register it yourself (off by default) | none |
 
 What the hook does: if the project has a brain index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. With `--heal` it also repairs a missing or outdated merge driver, silently. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `BRAIN_CARD=off`) turns it off.
 
@@ -399,7 +403,7 @@ Two more executables ship in `bin/`:
 
 ## Skills
 
-The plugin ships eight skills. Claude picks one from its description, or you invoke it as `/open-brain:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `brain` commands; anything that writes still asks you.
+The plugin ships eight skills. Claude picks one from its description, or you invoke it as `/plangraph:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `brain` commands; anything that writes still asks you.
 
 | Skill | When it is used | What it does | Writes |
 |---|---|---|---|
@@ -498,10 +502,10 @@ The credential is never written to a file, logged, or accepted as a command-line
 
 ### Optional MCP adapter
 
-`mcp/brain-mcp.mjs` is a read-only MCP server (stdio, no dependencies) with three tools, `ready`, `whatif` (dry run only) and `ticket`, returning the same text as the CLI. It is **off by default**: the plugin has no `mcpServers` entry and no `.mcp.json`, so a default install shows `MCP servers (0)` and pays nothing for it. To enable it for yourself:
+`mcp/brain-mcp.ts` is a read-only MCP server (stdio, no dependencies) with three tools, `ready`, `whatif` (dry run only) and `ticket`, returning the same text as the CLI. It is **off by default**: the plugin has no `mcpServers` entry and no `.mcp.json`, so a default install shows `MCP servers (0)` and pays nothing for it. To enable it for yourself:
 
 ```bash
-claude mcp add brain -- node /absolute/path/to/open-brain/mcp/brain-mcp.mjs
+claude mcp add brain -- node /absolute/path/to/plangraph/mcp/brain-mcp.ts
 ```
 
 Cost: about 490 estimated tokens of tool definitions per session on a client that loads them up front. Claude Code 2.1.329 was seen to defer them and load them on demand through `ToolSearch`; the size of that deferred entry is not measured. Verified with Claude Code 2.1.329: it connects, lists its tools, and in one owner-run session the model made 3 correct calls. Not verified: other clients, other versions. It duplicates the CLI, so enable it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
@@ -528,7 +532,7 @@ loaded as current; previous plan kept as before-solve; run `brain export` to sav
 
 ## Measured results
 
-An owner-run evaluation in November 2026 compared Claude Code with the plugin (arm A) against bare Claude Code that could read the same plan files (arm B). The plan was a real project's plan of 1,397 tickets; that project's data is not in this repository and the results cannot be reproduced from it. The runner was `evals/run-p.mjs` with natural prompts (questions phrased as a user asks them), deterministic graders generated from the library's ground truth, and the model pinned to Sonnet 5.5.
+An owner-run evaluation in November 2026 compared Claude Code with the plugin (arm A) against bare Claude Code that could read the same plan files (arm B). The plan was a real project's plan of 1,397 tickets; that project's data is not in this repository and the results cannot be reproduced from it. The runner was `evals/run-p.ts` with natural prompts (questions phrased as a user asks them), deterministic graders generated from the library's ground truth, and the model pinned to Sonnet 5.5.
 
 | Measure (128 runs) | With plugin | Without | Note |
 |---|---|---|---|
@@ -546,7 +550,7 @@ Limits, stated plainly:
 - Cost and tokens are the runner's own figures, not an invoice.
 - An earlier pilot on a different harness (`claude plugin eval`) was invalid for the plugin arm: that harness did not put the plugin's `bin/` on the Bash PATH, so every `brain` call failed. The numbers above are from the direct runner, which was checked to put `brain` on the PATH in arm A only.
 
-To run the evaluation on your own plan, see [evals/README.md](evals/README.md) (`node evals/run-p.mjs --dry-run` shows the exact commands without spending anything). Separately, [docs/TOKENS.md](docs/TOKENS.md) measures answer sizes on a synthetic 1,400-ticket plan against grep and whole-file baselines; those figures are estimates (characters divided by 4) of a single turn, not of agent behavior.
+To run the evaluation on your own plan, see [evals/README.md](evals/README.md) (`node evals/run-p.ts --dry-run` shows the exact commands without spending anything). Separately, [docs/TOKENS.md](docs/TOKENS.md) measures answer sizes on a synthetic 1,400-ticket plan against grep and whole-file baselines; those figures are estimates (characters divided by 4) of a single turn, not of agent behavior.
 
 ## Security model
 
@@ -554,12 +558,12 @@ To run the evaluation on your own plan, see [evals/README.md](evals/README.md) (
 
 What is defended, each covered by tests:
 
-- **Fencing and sanitization.** Free text reaches output only inside `<untrusted>` fences, one record per line, with control characters and newlines collapsed, angle brackets removed or replaced, and lengths capped (`lib/sanitize.mjs`). A line can never carry a forged fence tag, and untrusted text never reaches a `try:` line.
-- **Confined atomic writes.** Every state file is written through a temp file and a rename, confined to the repository, refusing symlink and non-regular targets (`lib/fsafe.mjs`).
+- **Fencing and sanitization.** Free text reaches output only inside `<untrusted>` fences, one record per line, with control characters and newlines collapsed, angle brackets removed or replaced, and lengths capped (`lib/sanitize.ts`). A line can never carry a forged fence tag, and untrusted text never reaches a `try:` line.
+- **Confined atomic writes.** Every state file is written through a temp file and a rename, confined to the repository, refusing symlink and non-regular targets (`lib/fsafe.ts`).
 - **No-follow reads.** Brain data files are read with `lstat`, an `O_NOFOLLOW` open and an identity check (device, inode, change time) of the opened descriptor, size-capped.
 - **Index integrity.** The index is opened only when its schema is exactly what `brain build` writes, and its content digest matches; otherwise the command refuses with `brain build` as the fix. A symlinked or non-regular index (for example a FIFO) is refused.
 - **Sidecar refusal.** A SQLite journal or WAL file beside the index is refused before SQLite sees it, so a planted journal is never replayed.
-- **No shell.** git and the credential helpers run with argument lists, after their refs and paths are checked (`lib/gitsafe.mjs`). Config can never make brain run a command.
+- **No shell.** git and the credential helpers run with argument lists, after their refs and paths are checked (`lib/gitsafe.ts`). Config can never make brain run a command.
 - **Bounded output.** Every list has a cap and a `... N more` marker; inputs have size limits.
 - **The hook never fails the session.** `brain card --if-present` prints nothing and exits 0 on any failure.
 - **Jira.** HTTPS only, a fixed host rule, a read-only allowlist, no redirects, and credentials only from the environment, 1Password or the OS keychain.
@@ -589,11 +593,11 @@ What is defended, each covered by tests:
 
 ## Quality
 
-- **Tests.** Node's built-in test runner, no framework. Run `node --test $(ls test/*.test.mjs | grep -v solver)` for the main suite, `node --test test/solver.test.mjs` for the solver (needs uv or an OR-Tools Python; a few minutes), `npm run smoke` for an end-to-end run, and `npm run validate` for the plugin layout. Fixtures are generated; no real people or company data.
+- **Tests.** Node's built-in test runner, no framework. Run `node --test $(ls test/*.test.ts | grep -v solver)` for the main suite, `node --test test/solver.test.ts` for the solver (needs uv or an OR-Tools Python; a few minutes), `npm run smoke` for an end-to-end run, and `npm run validate` for the plugin layout. Fixtures are generated; no real people or company data.
 - **Exhaustive small-scope checks.** `npm run assure` runs verify, whatif, relieve, find, merge, stale, ready, forecast gates and the canonical round trip against clean-room oracles on every instance up to small bounds (each file states its bounds). It is exhaustive within those bounds, not a proof beyond them.
 - **Mutation testing.** `npm run mutate` runs hand-written mutants of known past defects; every one must be killed, on every push. `npm run mutate:all` generates every mutant of `lib/`, `src/` and `mcp/` (a long run); `npm run mutate:smoke` runs a seeded sample weekly as an informational job.
 - **Coverage floors.** The CI unit job enforces line, branch and function coverage floors on `lib/` and `src/`; the values live in `.github/workflows/ci.yml` and are raised, never lowered.
-- **Static checks.** `npm run typecheck` (a TypeScript error-count ratchet, strict mode for `src/`, `mcp/` and the core `lib/` modules) and `npm run lint` (Biome). `claude plugin validate .` passes on Claude Code 2.1.329.
+- **Static checks.** `npm run typecheck` runs `tsc --noEmit` twice and fails on any error: `tsconfig.json` checks every `.ts` file except `test/types-fixtures` (only `test/types.test.ts` checks those) with `strict`, `noImplicitAny` and `exactOptionalPropertyTypes`, keeps `allowJs` and `checkJs` on so the plain-JavaScript `src/floor.js` Node-version guard is type-checked through JSDoc, and `tsconfig.prod.json` adds `noUncheckedIndexedAccess` for `lib/`, `src/` and `mcp/`. `noPropertyAccessFromIndexSignature` is not adopted: it only changes how index-signature reads are spelled (`env['NAME']` instead of `env.NAME`) and adds no safety beyond `noUncheckedIndexedAccess`. `npm run lint:check` runs Biome. `claude plugin validate .` passes on Claude Code 2.1.329.
 - **CI layout.** Parallel jobs: `unit` (with coverage), `slow` (solver, evals, smoke), `static` (typecheck, lint, plugin layout), `macos` (two shards), `mutation` and `gitleaks`. A green run takes about 4 minutes of wall time.
 - **Token budget.** `npm run bench` regenerates [docs/TOKENS.md](docs/TOKENS.md) and fails if any answer is wrong; a test fails when the committed table drifts.
 
@@ -617,7 +621,7 @@ What is verified live, and what only against fixtures:
 |---|---|---|
 | The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `BRAIN_CARD`; run `brain card` by hand to see any error |
 | The session starts with `brain: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet, or the data is in an older format | run `brain build`, or `brain migrate --write` first when the line says so |
-| `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/open-brain/bin/brain ...`, or add that `bin/` directory to your PATH |
+| `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/plangraph/bin/brain ...`, or add that `bin/` directory to your PATH |
 | `note: .brain: data format 0 is older than 1` | data written before `format.json` existed | `brain migrate`, then `brain migrate --write` |
 | `STALE: the text files changed since the index was built` | text edited after the last build | `brain build` |
 | `error: the index is stale ... export would overwrite them` | `brain export` over a stale index | `brain build`, then redo the index change |
@@ -636,7 +640,7 @@ What is verified live, and what only against fixtures:
 
 **Where is my data?** In your repository, as JSONL text in the brain directory, versioned by git. Nothing is uploaded. The SQLite index is a local cache you can delete at any time.
 
-**How do I uninstall?** `claude plugin uninstall open-brain@open-brain-marketplace`, then optionally `claude plugin marketplace remove open-brain-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
+**How do I uninstall?** `claude plugin uninstall plangraph@plangraph-marketplace`, then optionally `claude plugin marketplace remove plangraph-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
 
 **Why SQLite, if the text is the truth?** Queries over thousands of tickets and links (chains, loads, readiness) are fast on an index and slow to re-parse every time. The index is rebuilt from text in well under a second at the measured plan size, carries a fingerprint so a stale index is reported, and is never committed. `node:sqlite` is built into Node, so there is no dependency.
 
@@ -652,9 +656,37 @@ What is verified live, and what only against fixtures:
 - Not built (documented in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)): several superpowers ingest options (`--dry-run`, renumber acceptance), a card line for plan progress, OpenWolf `refs-update` integration.
 - Next steps depend on evidence: wider evaluation (more plans, more runs per case), testing newer Claude Code releases before raising `engines`, and the slim connector call in [docs/JIRA.md](docs/JIRA.md), which is not yet verified.
 
-## Contributing, license, changelog
+## Development
 
-- Contributing: issues and pull requests on GitHub. Start with [CONTRIBUTING.md](CONTRIBUTING.md) (setup, the checks a change must pass, and the rule that every behavior change starts with a failing test) and [docs/REUSE.md](docs/REUSE.md) (what is deliberately not built).
-- Design notes: [docs/CONTRACT.md](docs/CONTRACT.md), [docs/FORMAT.md](docs/FORMAT.md), [docs/STALE.md](docs/STALE.md), [docs/SOLVER.md](docs/SOLVER.md), [docs/FORECAST.md](docs/FORECAST.md), [docs/OPENITEMS.md](docs/OPENITEMS.md), [docs/TOKENS.md](docs/TOKENS.md).
-- License: MIT ([LICENSE](LICENSE)).
-- Changes: [CHANGELOG.md](CHANGELOG.md).
+Node 24.2 or newer runs the TypeScript and JavaScript sources directly (type stripping, no build step). The plugin has no runtime dependencies; `npm ci` installs only the dev tools.
+
+| Script | What it does |
+| --- | --- |
+| `npm test` | Runs every test file with `node --test` |
+| `npm run test:related` | Runs only the tests related to the files you changed |
+| `npm run lint:check` / `npm run lint:fix` | Biome lint rules, with or without autofix (`npm run lint` is an alias of `lint:check`) |
+| `npm run typecheck` | `tsc --noEmit` over `tsconfig.json` and `tsconfig.prod.json`; fails on any error |
+| `npm run knip` | Finds unused files, exports and dependencies |
+| `npm run bulletproof` | Lint with autofix, typecheck, full test suite |
+| `npm run bulletproof:check` | The same without autofix; what CI runs |
+| `npm run smoke` | Shell smoke test of the installed commands |
+| `npm run validate` | Checks the plugin layout |
+| `npm run mutate` | Mutation run; every listed mutant must be killed |
+
+## Contributing
+
+Issues and pull requests on GitHub. Start with [CONTRIBUTING.md](CONTRIBUTING.md) (setup, the checks a change must pass, and the rule that every behavior change starts with a failing test) and [docs/REUSE.md](docs/REUSE.md) (what is deliberately not built). Participation follows [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+Design notes: [docs/CONTRACT.md](docs/CONTRACT.md), [docs/FORMAT.md](docs/FORMAT.md), [docs/STALE.md](docs/STALE.md), [docs/SOLVER.md](docs/SOLVER.md), [docs/FORECAST.md](docs/FORECAST.md), [docs/OPENITEMS.md](docs/OPENITEMS.md), [docs/TOKENS.md](docs/TOKENS.md).
+
+## Security
+
+Report vulnerabilities privately through GitHub private vulnerability reporting, as described in [SECURITY.md](SECURITY.md). See also [Security model](#security-model) above.
+
+## Changelog
+
+[CHANGELOG.md](CHANGELOG.md) lists user-visible changes per release.
+
+## License
+
+MIT ([LICENSE](LICENSE)).

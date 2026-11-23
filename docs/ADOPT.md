@@ -1,4 +1,4 @@
-# Adopting open-brain in another project
+# Adopting plangraph in another project
 
 Two steps: install the plugin once per machine, then paste one prompt into Claude Code inside each project.
 
@@ -7,22 +7,22 @@ Two steps: install the plugin once per machine, then paste one prompt into Claud
 Type these in a Claude Code session (they are slash commands, so you type them yourself):
 
 ```
-/plugin marketplace add jourlez/open-brain
-/plugin install open-brain@open-brain-marketplace
+/plugin marketplace add jourlez/plangraph
+/plugin install plangraph@plangraph-marketplace
 ```
 
-Check with `/plugin`: `open-brain` should be enabled with 8 skills. To have Claude do all of this plus the roadmap documents and the Jira setup, with no questions asked, use the single prompt in [AUTOPILOT.md](AUTOPILOT.md) instead of step 2. The session-start card can be turned off with the plugin's `card` option (`auto` or `off`).
+Check with `/plugin`: `plangraph` should be enabled with 8 skills. To have Claude do all of this plus the roadmap documents and the Jira setup, with no questions asked, use the single prompt in [AUTOPILOT.md](AUTOPILOT.md) instead of step 2. The session-start card can be turned off with the plugin's `card` option (`auto` or `off`).
 
 ## 2. Paste this into Claude Code in the project
 
 ````text
-The open-brain plugin is installed. Set it up for THIS project and report back. Work step by step and stop to ask me before anything marked [ASK].
+The plangraph plugin is installed. Set it up for THIS project and report back. Work step by step and stop to ask me before anything marked [ASK].
 
 Rules: never write to Jira, never write or print a credential, never edit another tool's files (.wolf/, superpowers files), and do not touch source code. Everything you create goes in the brain directory (default `.brain/`) unless I say otherwise.
 
 1. Detect: run `brain integrations` and `brain doctor`. Tell me what is installed (superpowers, OpenWolf, connectors) and any problem found. If `brain` is not found, tell me the plugin is not enabled in this session and stop.
 2. Find existing plan data. Check for: an existing brain dir (`.brain/` or whatever `.brainrc` names), superpowers plan files (docs/superpowers/plans/*.md), a Jira project I use, or nothing. Tell me which you found.
-3. Use the `open-brain:brain-onboard` skill to bring that data in:
+3. Use the `plangraph:brain-onboard` skill to bring that data in:
    - existing brain data in an older format: run `brain migrate --write` [ASK first], then `brain build`;
    - superpowers plans: `brain sp-ingest <plan.md>` for each plan;
    - Jira: prefer the Atlassian connector for single tickets; for a bulk import tell me what `docs/JIRA.md` in the plugin says to set up (a scoped read-only token in MY shell, never in a file) [ASK]; then `brain jira-import`;

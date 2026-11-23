@@ -1,6 +1,6 @@
 # Brain data format, merging, locks and schema evolution
 
-Implemented in `lib/store.mjs`, `lib/merge.mjs`, `bin/brain-merge`. Text files are the source of truth; SQLite is a rebuildable index.
+Implemented in `lib/store.ts`, `lib/merge.ts`, `bin/brain-merge`. Text files are the source of truth; SQLite is a rebuildable index.
 
 ## 1. Canonical form (`canonLine`, `canonFile`)
 
@@ -68,7 +68,7 @@ Install: `.gitattributes` gets `<dir>/*.jsonl merge=brain-jsonl` (versioned, com
 - Reading: `readJsonl` / `readRecords` error messages name the file by base name only, never a path.
 - Reading: more than 1000 bad lines stops the scan, so exactly 1000 errors reads `... and 990 more` and over 1000 reads `... and at least 990 more` (both tested).
 - Reading stdin: `readStreamCapped`'s `timeoutMs` is an idle bound for non-blocking fds only; a blocking stdin cannot be interrupted, so a caller that needs a hard bound must read in a child process.
-- Writing (`lib/fsafe.mjs`): a target that is a symlink is refused with code `SYMLINK`. This includes the repo `.gitignore` written by `brain init`: the CLI wiring must catch it and print a clear message (to do when init is wired to `writeAtomicSafe`). A dangling symlink anywhere in a confined path is refused with code `OUTSIDE_REPO` (`path contains a dangling symlink`). `resolveBrainDir` returns the lexical path; confinement is enforced only when callers pass `{ root }` to `writeAtomicSafe`.
+- Writing (`lib/fsafe.ts`): a target that is a symlink is refused with code `SYMLINK`. This includes the repo `.gitignore` written by `brain init`: the CLI wiring must catch it and print a clear message (to do when init is wired to `writeAtomicSafe`). A dangling symlink anywhere in a confined path is refused with code `OUTSIDE_REPO` (`path contains a dangling symlink`). `resolveBrainDir` returns the lexical path; confinement is enforced only when callers pass `{ root }` to `writeAtomicSafe`.
 
 ## 6. Additive fields and kinds from the superpowers ingest (no format bump)
 

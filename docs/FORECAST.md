@@ -1,12 +1,12 @@
-# Forecast (lib/forecast.mjs)
+# Forecast (lib/forecast.ts)
 
 Schedule-risk forecaster for small teams. Every output is tagged `REFUSED | PRIOR-ONLY | PROVISIONAL | CALIBRATED` and says
-"model-conditional, not a prediction". Tests: `node --test test/forecast.test.mjs`.
+"model-conditional, not a prediction". Tests: `node --test test/forecast.test.ts`.
 
 ## Inputs
 - `history.jsonl`, one record per completed sprint: `{sprint, planned, done, added, carried}` points; optional `team`, `length`. `done:null` = no actuals. `parseHistory(text)` -> `{records, errors, warnings}`.
 - `actuals.jsonl` (optional): `{key, sp, actual, owner, sprint}`. `parseActuals(text)`.
-- A plan model (`lib/model.mjs`) for plan-graph mode, or `remaining` points for flat mode. Config: `regime_changes: [sprint, ...]`, `caps`.
+- A plan model (`lib/model.ts`) for plan-graph mode, or `remaining` points for flat mode. Config: `regime_changes: [sprint, ...]`, `caps`.
 
 ## Model
 - Capacity: resample whole sprints (joint `(done, added, planned)`), circular block bootstrap, block 2 (1 when n>=20 and |lag-1 r| < 1.96/sqrt(n)). Deviation from plain moving blocks: blocks wrap, so each sprint has equal marginal probability. Flat: `R_{t+1} = max(0, R_t - D_t + A_t)`, finish = first t with R=0 (cap 60 sprints = "never").

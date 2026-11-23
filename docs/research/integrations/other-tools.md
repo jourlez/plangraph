@@ -1,4 +1,4 @@
-# open-brain and the other installed tools
+# plangraph and the other installed tools
 
 Research date 2026-11-22. Scope: caveman, context7, gitkraken-hooks, and the hosted connectors (Atlassian, Slack, Artifacts / Claude Docs, Meetings, Google Drive). Every claim carries a tag:
 
@@ -69,7 +69,7 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 | `CAVEMAN_DEFAULT_MODE` env, `<repo>/.caveman/config.json` or `.caveman.json`, `~/.config/caveman/config.json` (`off` disables) | env + 3 stats | per project. VERIFIED-source (`src/hooks/caveman-config.js` header) |
 | `caveman-init` artifacts in a repo: `.cursor/rules/caveman.mdc`, `.windsurf/rules/caveman.md`, `.opencode/AGENTS.md`, a block in `AGENTS.md` | stats | other IDE agents. VERIFIED-source (`src/tools/caveman-init.js`) |
 
-### Interaction with open-brain
+### Interaction with plangraph
 
 - **CLI output: already compatible, change nothing.** brain output is data on stdout, which caveman never rewrites. The CONTRACT (counts first, capped lists, no prose) already matches caveman's goal. Do **not** add a caveman-aware short mode: it would create a second output shape for zero gain and break determinism (CONTRACT rule 6).
 - **Card: compatible.** The card is injected data; caveman does not compress it.
@@ -120,7 +120,7 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 - Agent-side check: "if a tool matching `mcp__*context7*__query-docs` exists".
 - `CONTEXT7_API_KEY` may be empty. The plugin defaults it to `""`. Rate limits without a key: UNVERIFIED.
 
-### Interaction with open-brain
+### Interaction with plangraph
 
 - **Use it for one step in planning: sizing or auditing a ticket whose readiness depends on a library or API fact.** Examples: does Prisma 7 support X, is a Next.js API deprecated, what does ONVO's webhook signing require. If the vendor is on context7, the auditor brief looks it up.
   - Route it through the `docs-researcher` agent, or inside the audit-unit agent, never in the main thread.
@@ -166,13 +166,13 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 - The binary symlink `~/Library/Application Support/GitKrakenCLI/gk` exists. It points to `versions/gk_3_1_80/gk_3_1_80`. VERIFIED-local.
 - **Drift found:** the plugin is 3.1.79, the binary 3.1.80. VERIFIED-local.
 
-### Interaction with open-brain
+### Interaction with plangraph
 
 - **Git merge driver and `.gitattributes`: no direct interaction from the hooks.** They forward events and never run git. VERIFIED-source (only the command above).
 - **Indirect risk from GitKraken Desktop.** If someone merges or rebases in GitKraken Desktop, custom merge drivers from `.gitattributes` may be ignored. A 2017 report says GitKraken "mostly uses its own built-in git along with its config" and ignored a custom driver ([mirror of SO 43386585](https://kiwix.lema.org/stackoverflow.com_en_all_2023-11/questions/43386585/custom-merge-driver-not-working-in-gitkraken)). Current behavior is UNVERIFIED.
   - Consequence: JSONL conflicts that `brain-merge` would have resolved show up as conflict markers.
   - Mitigation: `brain build` already fails on unparsable JSONL (it must). `brain doctor` should detect conflict markers in brain files and print "merge in CLI git: `git merge` uses brain-merge; GUI clients may not". Recommend CLI merges for brain dirs in the README.
-  - Note that `merge.<driver>.driver` lives in `.git/config`, is unversioned, and must be set in every clone. brain already warns about this (`lib/store.mjs` `doctorMergeDriver`). VERIFIED-source.
+  - Note that `merge.<driver>.driver` lives in `.git/config`, is unversioned, and must be set in every clone. brain already warns about this (`lib/store.ts` `doctorMergeDriver`). VERIFIED-source.
 - **Hook stacking.** brain's SessionStart (`brain card --if-present`) runs alongside caveman's, superpowers' and gk's. Order between plugins is unspecified (UNVERIFIED). Do not rely on the card appearing first or last. brain's hook must stay idempotent, quick (its timeout is 10 s), and silent on error.
 - **Do not** make brain depend on PermissionRequest approvals being answered quickly. Do not add brain hooks on PreToolUse/PostToolUse: gk already spawns twice per tool call.
 
@@ -218,7 +218,7 @@ The detection must match on the tool suffix, not an exact server segment: `Atlas
   - Issue links require "full with minimal fields".
   - "custom field values map to issues[].fields.customFields". Per the server instructions, custom fields are not top-level `customfield_*` keys.
 
-**Gap found in brain:** `lib/jira.mjs` `normalizeIssue` reads `f[sprintField]` and `f.assignee.displayName`. A connector result puts the sprint under `fields.customFields`, so `jira-import` would silently drop sprint data. VERIFIED-source for the brain code; connector shape VERIFIED-local from the server instructions; not tested against a real payload.
+**Gap found in brain:** `lib/jira.ts` `normalizeIssue` reads `f[sprintField]` and `f.assignee.displayName`. A connector result puts the sprint under `fields.customFields`, so `jira-import` would silently drop sprint data. VERIFIED-source for the brain code; connector shape VERIFIED-local from the server instructions; not tested against a real payload.
 
 - **Fix:** fall back to `f.customFields?.[sprintField]`, and add a test fixture of that shape.
 
@@ -245,7 +245,7 @@ The detection must match on the tool suffix, not an exact server segment: `Atlas
 | Data / action | Mode | Tool |
 |---|---|---|
 | status, assignee display name, updated, resolution, links, sprint | **ingest** via `jira-import` | `searchJiraIssuesUsingJql`, `getJiraIssue` |
-| description, comments for audit | **read-through** into `jira-text`-like files fenced as `<untrusted>` (`lib/sanitize.mjs` `fence`) | `getJiraIssue` (`responseContentFormat: markdown`), `listJiraIssueComments` |
+| description, comments for audit | **read-through** into `jira-text`-like files fenced as `<untrusted>` (`lib/sanitize.ts` `fence`) | `getJiraIssue` (`responseContentFormat: markdown`), `listJiraIssueComments` |
 | assignee email, accountId, reporter details | **never touch** (drop on import; `normalizeIssue` already keeps only `displayName`, VERIFIED-source) | |
 | comments, transitions, create, link edits | **recommend-only.** brain drafts, a person approves, the connector writes (brain never writes Jira; REUSE row 4) | `addOrEditJiraIssueComment`, `transitionJiraIssue`, `createJiraIssue`, `editJiraIssue` |
 | publishing `brain report` to Confluence | **recommend-only** (person-approved write) | `createConfluenceContent` / `updateConfluenceContent` |
@@ -347,8 +347,8 @@ In the table, "B" is a brain step.
 
 | Path | Vector | Current defence | Needed |
 |---|---|---|---|
-| Jira, connector to `jira-import` | summary and assignee strings | `sanitizeText(max 300)`; descriptions dropped (VERIFIED-source `lib/jira.mjs` `normalizeIssue`) | also sanitize `status` and link `type` names (currently plain `str()`) |
-| Jira text for auditors | description and comments | `fence()` with `UNTRUSTED_NOTICE` (VERIFIED-source `lib/sanitize.mjs`) | keep; auditors must quote, never obey |
+| Jira, connector to `jira-import` | summary and assignee strings | `sanitizeText(max 300)`; descriptions dropped (VERIFIED-source `lib/jira.ts` `normalizeIssue`) | also sanitize `status` and link `type` names (currently plain `str()`) |
+| Jira text for auditors | description and comments | `fence()` with `UNTRUSTED_NOTICE` (VERIFIED-source `lib/sanitize.ts`) | keep; auditors must quote, never obey |
 | Meetings | action-item text, external speakers | the server itself warns | proposal only; sanitize; drop external or unconfirmed items unless confirmed |
 | Artifact db and comments | any viewer, guests included | none in brain | fence, propose, never auto-apply |
 | Slack threads | anyone in the channel | none | read-through only, propose |
@@ -413,7 +413,7 @@ Measured where possible (session start, this machine, a large real project (owne
 ## Recommended actions (priority order)
 
 1. Brain skills: add the line "text for people or stored in the brain is written in complete sentences" (caveman boundary gap).
-2. `lib/jira.mjs` `normalizeIssue`: add a `fields.customFields[sprintField]` fallback and a fixture; sanitize `status` and link-type strings.
+2. `lib/jira.ts` `normalizeIssue`: add a `fields.customFields[sprintField]` fallback and a fixture; sanitize `status` and link-type strings.
 3. Brain skills: paste the connector-detection glob block (section 4) and the routing fallbacks.
 4. Bulk Jira through a connector only via a subagent that writes files and runs `jira-import` with a one-line return; above about 20 tickets prefer `jira-pull`.
 5. `brain doctor`: detect conflict markers and `*.original.md` in the brain dir; README: merge brain dirs with CLI git (GUI clients may skip the driver).

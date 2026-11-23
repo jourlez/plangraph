@@ -1,6 +1,6 @@
-# Incremental re-audit (lib/stale.mjs)
+# Incremental re-audit (lib/stale.ts)
 
-Goal: `brain stale` lists exactly the tickets whose verdict no longer matches its inputs, provably equal to a full re-derivation (`test/stale.test.mjs`, differential test against an independent oracle).
+Goal: `brain stale` lists exactly the tickets whose verdict no longer matches its inputs, provably equal to a full re-derivation (`test/stale.test.ts`, differential test against an independent oracle).
 
 ## What counts as an input (declared = read)
 Per audited ticket (a `refs` row): (1) plan: normalized text of each `{plan, task}` section at the ref, mixed with the heading regex; (2) files: blob ids of `files` at the ref (absent is a value); (3) jira: the `updated` stamp; (4) links: sorted, deduplicated Jira link set (`deps.linkSet`), covers link edits that may not bump `updated` (unverified in Jira); (5) rules: `brain_rules_version` (`opts.rulesVersion`); plus the plan-graph structure (producer list).

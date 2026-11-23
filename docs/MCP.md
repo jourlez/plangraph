@@ -1,6 +1,6 @@
 # Optional read-only MCP adapter
 
-`mcp/brain-mcp.mjs` is a small MCP server (stdio) with three read-only tools: `ready`, `whatif` (dry run only) and `ticket`. It is
+`mcp/brain-mcp.ts` is a small MCP server (stdio) with three read-only tools: `ready`, `whatif` (dry run only) and `ticket`. It is
 **off by default**. Installing the plugin does not start it and does not add it to any session: `plugin.json` has no `mcpServers` entry,
 there is no `.mcp.json` at the plugin root, and the file is not in `bin/`, so it is not a command on PATH. A default install pays zero
 tokens for it (checked with `claude plugin details`, below).
@@ -18,7 +18,7 @@ Pick one. The server finds the repository from its working directory, the way `b
 1. Claude Code, one project, private to you (stored in your user config, not in the repo):
 
    ```
-   claude mcp add brain -- node /absolute/path/to/open-brain/mcp/brain-mcp.mjs
+   claude mcp add brain -- node /absolute/path/to/plangraph/mcp/brain-mcp.ts
    ```
 
 2. A project `.mcp.json` you commit in YOUR repository (Claude Code asks each person to approve it once):
@@ -29,13 +29,13 @@ Pick one. The server finds the repository from its working directory, the way `b
        "brain": {
          "type": "stdio",
          "command": "node",
-         "args": ["/absolute/path/to/open-brain/mcp/brain-mcp.mjs"]
+         "args": ["/absolute/path/to/plangraph/mcp/brain-mcp.ts"]
        }
      }
    }
    ```
 
-Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details open-brain` shows its
+Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details plangraph` shows its
 source). The installed copy's path contains the version, so it changes on update; a checkout does not. Node 24.2 or newer is needed.
 
 Turning it off: `claude mcp remove brain`, or delete the entry. Do not add the snippet to the plugin's own root: Claude Code would then
@@ -56,7 +56,7 @@ Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command 
 --sprint N` and `brain whatif --relieve NAME --sprint N` are read-only and bounded, but they are CLI-only on purpose: adding their
 arguments would raise the up-front tool-definition cost every MCP session pays (the table below), for a server that is off by default.
 
-A call runs the same command through the CLI runner (`src/cli.mjs`) with a collecting output, so fencing of untrusted text, output
+A call runs the same command through the CLI runner (`src/cli.ts`) with a collecting output, so fencing of untrusted text, output
 sanitization, the 40-line bound, the STALE warning and the error lines are the CLI's own. The result is one text item: the command's
 stdout lines, then its stderr lines (as `brain ... 2>&1` would print them in that order), cut at 256 KiB with a marker line.
 `isError` is true only for exit codes 2 and up (usage, data, environment, refused); `NOT READY` and a `NO:` dry run are answers (exit 1),
@@ -70,7 +70,7 @@ not errors.
   returns `isError: true` with a fixed message that never repeats the value.
 - The argv is built from a fixed list: the command name, `--to=`/`--sprint=` with the checked value, the allowed flags, then `--` and
   the key. `--write`, `--apply-plan`, `--jira` and `--dir` cannot be built (checked twice). No shell, no paths from arguments.
-- Read-only: no tool writes. `test/mcp.test.mjs` hashes the whole fixture repository before and after a session of every tool,
+- Read-only: no tool writes. `test/mcp.test.ts` hashes the whole fixture repository before and after a session of every tool,
   `whatif` included, and finds it byte-identical; it also checks that nothing appears in HOME.
 - No network. A command never reads stdin (stdin is the protocol stream; commands get an empty one).
 - One message line may be at most 1 MiB; a longer one is answered with one error and skipped up to its newline without being kept.
@@ -108,12 +108,12 @@ only the handshake ("legacy") revisions; clients that also speak those (dual-era
 
 Claude Code 2.1.329 (the native CLI), in an isolated config (`CLAUDE_CONFIG_DIR` and `HOME` set to a temporary directory), 2026-11-22:
 
-- Default plugin install (`claude plugin marketplace add <checkout>`, `claude plugin install open-brain@open-brain-marketplace`,
-  `claude plugin details open-brain`): `MCP servers (0)`, always-on cost `~630 tok`, the same before and after this change.
+- Default plugin install (`claude plugin marketplace add <checkout>`, `claude plugin install plangraph@plangraph-marketplace`,
+  `claude plugin details plangraph`): `MCP servers (0)`, always-on cost `~630 tok`, the same before and after this change.
 - Opt-in: `claude mcp add brain -- <script>` in a scratch git repository, then `claude mcp list` and `claude mcp get brain`:
   `✔ Connected`. A tee wrapper logged the exchange: Claude Code first sent `server/discover` (protocol 2026-07-28), got -32601, fell back
   to `initialize` with `protocolVersion` 2025-11-25, which was echoed, then sent `notifications/initialized` and `tools/list` and got the
-  three tools. `test/mcp.test.mjs` replays that exact sequence.
+  three tools. `test/mcp.test.ts` replays that exact sequence.
 - The `.mcp.json` snippet above, placed in a scratch repository: `claude mcp list` and `claude mcp get brain` read it as a project-scope
   stdio server, `⏸ Pending approval` (approval is interactive and was not given there).
 - `claude --help` lists `--mcp-config` and `--strict-mcp-config` as described above.
@@ -131,7 +131,7 @@ and any other MCP client.
 
 ## Token cost (measured, with limits)
 
-`node test/bench-mcp.mjs` (2026-11-22). The plan is the token benchmark's synthetic one (test/bench-tokens.mjs: 1400 tickets). Of its 24
+`node test/bench-mcp.ts` (2026-11-22). The plan is the token benchmark's synthetic one (test/bench-tokens.ts: 1400 tickets). Of its 24
 questions, the five that `ticket` or `ready` answer are measured; the others need commands that are not exposed. `whatif` has no bench
 question, so one dry run is listed for size only.
 
@@ -145,7 +145,7 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | - whatif | 833 | 209 |
 | - ticket | 530 | 133 |
 | tools/list reply line | 2024 | 506 |
-| initialize reply line | 166 | 42 |
+| initialize reply line | 165 | 42 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|

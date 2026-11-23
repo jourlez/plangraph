@@ -1,4 +1,4 @@
-# Patterns and paradigms for open-brain: research and architecture review
+# Patterns and paradigms for plangraph: research and architecture review
 
 Date 2026-11-22. Scope: read `docs/CONTRACT.md`, `FORMAT.md`, `STALE.md`, `SOLVER.md`, `bin/brain`, `bin/brain-merge`, `bin/brain-solve`, `lib/*.mjs`. No project file was modified. Counterexamples were run from the scratchpad (`.../scratchpad/ce/t1.mjs`..`t5.mjs`) against the real `lib/` code.
 
@@ -12,21 +12,21 @@ Short verdict: the library layer (`lib/*.mjs`) is already close to a functional 
 
 | # | Where | Finding | Severity |
 |---|---|---|---|
-| B1 | `lib/merge.mjs:18-26` (`mergeField`, `canonValue` maps `undefined` to `'null'`) | Field absent vs `null` are the same value, so a `null` added on one side is dropped or kept depending on which side is "ours". Merge is NOT commutative. | Medium: `git merge` and `git rebase` swap ours/theirs, so the same inputs give different bytes. |
-| B2 | `lib/merge.mjs:31` (`b[f]`, `o[f]`, `t[f]` on plain objects) | Inherited properties are read as values when a side lacks the field: `__proto__` yields `Object.prototype`, `constructor` yields a function. Output contains `"constructor":undefined`, which is invalid JSON (corrupt canonical file). FORMAT.md claims `__proto__` is safe. | Medium (hostile or odd data), easy fix |
-| B3 | `lib/store.mjs:216` (`cmpAt`) | Mixed number/string `claimed_at` makes the order intransitive, so `resolveClaims` winner depends on input order. | Low (format says ISO or number), but it is a determinism hole |
-| B4 | `lib/store.mjs:258-261` (`claimTicketGit`) | `git pull --rebase` refuses on a dirty tree ("cannot pull with rebase: You have unstaged changes"). Claim fails in any working checkout with unrelated edits. | High for the real use case |
-| B5 | `lib/store.mjs:261` (`if (!c.ok \|\| c.already) return c`) | After a crash or retry exhaustion the claim is committed locally but unpushed. Re-running `brain claim` sees its own claim (`already`) and reports success WITHOUT pushing. Other clones never see the claim. | High (silent lost claim) |
-| B6 | `lib/store.mjs:102` (`withLock`) | Stale-lock break is check-then-remove (TOCTOU): two waiters can both delete and both enter; `finally` removes a lock another process now owns. | Medium |
-| B7 | `lib/store.mjs:18,25` (evidence id = hash of 5 named fields) | A record that gains an unknown field (the documented expand phase) has the same id as its old self, so merging reports a false "duplicate key" conflict. | Low-medium |
+| B1 | `lib/merge.ts:18-26` (`mergeField`, `canonValue` maps `undefined` to `'null'`) | Field absent vs `null` are the same value, so a `null` added on one side is dropped or kept depending on which side is "ours". Merge is NOT commutative. | Medium: `git merge` and `git rebase` swap ours/theirs, so the same inputs give different bytes. |
+| B2 | `lib/merge.ts:31` (`b[f]`, `o[f]`, `t[f]` on plain objects) | Inherited properties are read as values when a side lacks the field: `__proto__` yields `Object.prototype`, `constructor` yields a function. Output contains `"constructor":undefined`, which is invalid JSON (corrupt canonical file). FORMAT.md claims `__proto__` is safe. | Medium (hostile or odd data), easy fix |
+| B3 | `lib/store.ts:216` (`cmpAt`) | Mixed number/string `claimed_at` makes the order intransitive, so `resolveClaims` winner depends on input order. | Low (format says ISO or number), but it is a determinism hole |
+| B4 | `lib/store.ts:258-261` (`claimTicketGit`) | `git pull --rebase` refuses on a dirty tree ("cannot pull with rebase: You have unstaged changes"). Claim fails in any working checkout with unrelated edits. | High for the real use case |
+| B5 | `lib/store.ts:261` (`if (!c.ok \|\| c.already) return c`) | After a crash or retry exhaustion the claim is committed locally but unpushed. Re-running `brain claim` sees its own claim (`already`) and reports success WITHOUT pushing. Other clones never see the claim. | High (silent lost claim) |
+| B6 | `lib/store.ts:102` (`withLock`) | Stale-lock break is check-then-remove (TOCTOU): two waiters can both delete and both enter; `finally` removes a lock another process now owns. | Medium |
+| B7 | `lib/store.ts:18,25` (evidence id = hash of 5 named fields) | A record that gains an unknown field (the documented expand phase) has the same id as its old self, so merging reports a false "duplicate key" conflict. | Low-medium |
 | B8 | `lib/compact.mjs` via `bin/brain:481` | `compact --apply` writes `evidence.jsonl` (with summaries) before the archive files, with plain `writeFileSync`. A crash in between loses the archived rows from the working tree (hash check then fails on restore). | Medium |
 | B9 | `bin/brain:282,453,481,488,489,133,409` | State-bearing writes use `fs.writeFileSync` (truncate-then-write), not `writeAtomic`. A crash leaves a truncated source-of-truth file. | Medium |
-| B10 | `lib/store.mjs:94-99` and `bin/brain-solve atomic_write` | fsync of the file, but no fsync of the parent directory after rename: rename may be lost on power failure. | Low (git is the backup) |
-| B11 | `lib/openitems.mjs:69` (`parseItems`) | Unguarded `JSON.parse`: a bad line throws a bare `SyntaxError` with no file:line. `lib/jsonl.mjs` and `store.parseJsonlText` do it right, so there are three parsers with three behaviors. | Low |
+| B10 | `lib/store.ts:94-99` and `bin/brain-solve atomic_write` | fsync of the file, but no fsync of the parent directory after rename: rename may be lost on power failure. | Low (git is the backup) |
+| B11 | `lib/openitems.ts:69` (`parseItems`) | Unguarded `JSON.parse`: a bad line throws a bare `SyntaxError` with no file:line. `lib/jsonl.ts` and `store.parseJsonlText` do it right, so there are three parsers with three behaviors. | Low |
 | B12 | `bin/brain:138` | Index staleness = `mtime > dbmtime + 1000`. Misses an edit within 1 s of a build and any restore of old content with an old mtime. The `stale` module already proves fingerprints are the right tool. | Low |
 | B13 | everywhere (`execFileSync` with no `timeout`; no `AbortSignal` outside `jira.mjs`) | A hung `git push` (credential helper, network) hangs the CLI, and the claim lock path never learns. | Medium |
 
-Exact reproductions (run them with `node`, merge API as in `lib/merge.mjs`):
+Exact reproductions (run them with `node`, merge API as in `lib/merge.ts`):
 
 ```js
 // B1: ours adds null, theirs edits another field. Swap sides, get different bytes.
@@ -67,7 +67,7 @@ Not bugs but unspecified (document them): (1) delete-vs-unchanged and add-vs-add
 
 Sources: Bernhardt "Functional Core, Imperative Shell" (SECONDARY, via commentary: side-effecting code calls pure code; same idea as Ports and Adapters one level down) and Cockburn "Ports and Adapters" (SECONDARY: renamed from "hexagonal" in 2005; a port is a purpose-named interface, an adapter binds it to a technology).
 
-Assessment of this repo: CONTRACT.md rule 4 ("pure core") already states FCIS. `lib/store.mjs` is the exception (fs, git, locks, clock, entropy in one file), and `bin/brain` is a 547-line shell that owns parsing, I/O, SQL, formatting and process lifecycle. The problems are concrete:
+Assessment of this repo: CONTRACT.md rule 4 ("pure core") already states FCIS. `lib/store.ts` is the exception (fs, git, locks, clock, entropy in one file), and `bin/brain` is a 547-line shell that owns parsing, I/O, SQL, formatting and process lifecycle. The problems are concrete:
 
 - `bin/brain:34-38,59-65` read `process.argv`, `process.cwd`, env, and run `git` at import time; every command closes over `argv`, `opt`, `DIR`, `DB`.
 - `bin/brain:533-541` captures output by overwriting `console.log` and `process.exit`; `console.error` bypasses the capture, so stdout and stderr interleave differently under `--json`. Commands cannot be unit-tested without spawning a process.
@@ -83,7 +83,7 @@ src/cli/parse-args.mjs         # pure: argv -> {cmd, positionals, flags}; unknow
 src/cli/context.mjs            # makeContext(env) (shell); makeTestContext(overrides)
 src/cli/render.mjs             # Result -> text | json envelope; bounding lives here
 src/commands/<name>.mjs        # one file per command: export const spec, export async function run(ctx, args)
-src/commands/index.mjs         # the registry (array of specs); usage text is derived from it
+src/commands/index.ts         # the registry (array of specs); usage text is derived from it
 src/ports/                     # interfaces by JSDoc typedef + default adapters
   fs.mjs  git.mjs  clock.mjs  entropy.mjs  index-db.mjs  lock.mjs  process.mjs
 lib/                           # unchanged: pure functions over plain data
@@ -153,7 +153,7 @@ Migration path (low risk, each step ships): (1) extract `src/cli/render.mjs` and
 
 Worth it? Yes for the CLI (it is where the global state lives and where a regression is silent). Not worth: classes, DI containers, `fp-ts`/Effect-style libraries (violates the no-dependency rule and the code is small enough that plain objects carry it). SECONDARY/UNVERIFIED that Node's `util.parseArgs` is adequate for `parse-args.mjs`; it is built in and strict-mode rejects unknown flags, which fixes the current silent-ignore of typos (`opt()` just returns the default).
 
-Also split `lib/store.mjs` (307 lines, five concerns) into `canon.mjs` (pure serialization), `format.mjs` + `migrations.mjs` (pure plans plus a thin apply), `ids.mjs`, `claims.mjs` (pure `resolveClaims` + effectful `claimTicket*`), `atomic.mjs` (writeAtomic, withLock), `git-driver.mjs`. This honors the CONTRACT's "no fs in library" rule: the pure halves stay in `lib/`, the effects move behind ports.
+Also split `lib/store.ts` (307 lines, five concerns) into `canon.mjs` (pure serialization), `format.mjs` + `migrations.mjs` (pure plans plus a thin apply), `ids.mjs`, `claims.mjs` (pure `resolveClaims` + effectful `claimTicket*`), `atomic.mjs` (writeAtomic, withLock), `git-driver.mjs`. This honors the CONTRACT's "no fs in library" rule: the pure halves stay in `lib/`, the effects move behind ports.
 
 ---
 
@@ -166,7 +166,7 @@ Current state: three JSONL parsers (`jsonl.mjs`, `store.parseJsonlText`, `openit
 Proposal: one hand-written schema DSL, about 80 lines, no dependency. A schema is a plain tagged object; `parse(schema, raw, where)` returns `{ ok, value }` or a list of `file:line:field` errors, collects ALL errors per file (up to a cap), and strips nothing (unknown fields are preserved per FORMAT.md).
 
 ```js
-// lib/schema.mjs
+// lib/schema.ts
 const t = {
   str:  (o = {}) => ({ tag: 'str', ...o }),  int: (o = {}) => ({ tag: 'int', ...o }),
   oneOf: (...v) => ({ tag: 'enum', v }),     optional: (s, dflt) => ({ tag: 'opt', s, dflt }),
@@ -216,7 +216,7 @@ Honest triage for THIS repo (single maintainer, no-dependency rule, ~3.7k lines 
 
 | method | worth it? | why / first test |
 |---|---|---|
-| 3.1 property-based testing | YES, hand-rolled generators already exist (`test/fixtures/gen.mjs`, `rng`); adding `fast-check` as a devDependency is justified ONLY for shrinking and model-based commands | see below |
+| 3.1 property-based testing | YES, hand-rolled generators already exist (`test/fixtures/gen.ts`, `rng`); adding `fast-check` as a devDependency is justified ONLY for shrinking and model-based commands | see below |
 | 3.2 model-based / stateful testing | YES for the claim + merge protocols | see below |
 | 3.3 mutation testing | PARTLY: custom mutators on 3 modules beat Stryker here | see below |
 | 3.4 deterministic simulation | YES, small and cheap for the claim race, via an in-process fake git remote | see below |
@@ -246,7 +246,7 @@ Further laws worth stating (all cheap): `merge(b,o,o) = canon(o)`; `merge(b,b,t)
 Model = a pure Map `key -> claim_id` plus a "pushed order" list. Commands: `Claim(clone, key)`, `Pull(clone)`, `CrashAfterCommit(clone)`, `Retry(clone)`. Invariants after every command: at most one claimant per key on the remote; every `ok` return corresponds to a claim visible on the remote (this one fails today because of B5); no clone's working tree differs from `origin` except pending claim commits. Implement the git remote as a real temp bare repo (cheap, 20 ms per clone) for the integration test and as the in-memory model for the oracle. With fast-check: `fc.commands([...])` + `modelRun` (VERIFIED API names). Without it: a seeded random walk of 200 steps x 500 seeds.
 
 ### 3.3 Mutation testing
-Stryker has no `node:test` runner; the documented route is the TAP runner (it runs any TAP-producing test files, including node's built-in runner) or the generic command runner (SECONDARY: stryker-mutator.io tap-runner page and the Stryker 7 announcement; I did not run it). Cost: ~100 MB of devDependencies and slow runs because the solver test takes ~45 s. Recommendation: a 60-line custom mutator script (`test/mutate.mjs`) applying a fixed list of regex mutations (`<` to `<=`, `===` to `!==`, `+ 1` to `+ 0`, delete a `continue`, swap `&&`/`||`) to ONLY `lib/merge.mjs`, `lib/store.mjs` (claims, canon), `lib/stale.mjs`, `lib/verify.mjs`, running just the matching test file with a timeout; fail CI under a mutation-score floor (start at what the manual run achieved). Reason: the mutants that matter are in 4 files and the matching tests run in seconds; Stryker's value (incremental, HTML report) is not needed for one maintainer. Revisit Stryker if the module count grows.
+Stryker has no `node:test` runner; the documented route is the TAP runner (it runs any TAP-producing test files, including node's built-in runner) or the generic command runner (SECONDARY: stryker-mutator.io tap-runner page and the Stryker 7 announcement; I did not run it). Cost: ~100 MB of devDependencies and slow runs because the solver test takes ~45 s. Recommendation: a 60-line custom mutator script (`test/mutate.mjs`) applying a fixed list of regex mutations (`<` to `<=`, `===` to `!==`, `+ 1` to `+ 0`, delete a `continue`, swap `&&`/`||`) to ONLY `lib/merge.ts`, `lib/store.ts` (claims, canon), `lib/stale.ts`, `lib/verify.ts`, running just the matching test file with a timeout; fail CI under a mutation-score floor (start at what the manual run achieved). Reason: the mutants that matter are in 4 files and the matching tests run in seconds; Stryker's value (incremental, HTML report) is not needed for one maintainer. Revisit Stryker if the module count grows.
 
 ### 3.4 Deterministic simulation testing (FoundationDB style)
 Source: Wilson, Strange Loop 2014 and Apple's FoundationDB testing docs (SECONDARY): run the whole system in one thread with simulated disk/network/time, seeded randomness, fault injection (BUGGIFY-style hooks), failing seeds replayable exactly.
@@ -428,7 +428,7 @@ Impact: H/M/L for correctness or maintainability. Effort: S (< half day), M (1-2
 | 11 | Custom mutation script on 4 modules (CI floor) | M | S | none |
 | defer | CRDT/HLC rewrite of merge, event sourcing of tickets, Salsa-style engine, Stryker, Alloy, persistent-data libraries, `fp-ts`/Effect | L | L | high | 
 
-Proposed module structure: see section 1 (`bin/brain` thin; `src/cli`, `src/commands`, `src/ports`; `lib/` pure; `lib/store.mjs` split into canon/format/migrations/ids/claims/atomic/git-driver; `lib/schema.mjs` new).
+Proposed module structure: see section 1 (`bin/brain` thin; `src/cli`, `src/commands`, `src/ports`; `lib/` pure; `lib/store.ts` split into canon/format/migrations/ids/claims/atomic/git-driver; `lib/schema.ts` new).
 
 Order of work (dependencies): 3 and 2 first (small, independent, immediately reduce risk), then 1 (needs 3's atomic writes and lock fix), then 4, then 5 (golden tests written BEFORE the move), then 10 and 8 on top of the ports, and 6 as a separate stream guarded by the existing independent verifier.
 

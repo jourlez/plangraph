@@ -6,14 +6,25 @@
 		"enabled": true,
 		"rules": {
 			"preset": "recommended",
-			"style": { "useTemplate": "off" },
+			"style": {
+				"useTemplate": "off",
+				"useConst": "error",
+				"useImportType": "error",
+				"useExportType": "error"
+			},
 			"complexity": {
 				"useOptionalChain": "off",
 				"noCommaOperator": "off",
 				"noUselessEscapeInRegex": "off"
 			},
-			"correctness": { "noUnusedFunctionParameters": "off" },
+			"correctness": {
+				"noUnusedFunctionParameters": "off",
+				"noUnusedVariables": "error",
+				"noUnusedImports": "error"
+			},
 			"suspicious": {
+				"noVar": "error",
+				"noDoubleEquals": "error",
 				"noAssignInExpressions": "off",
 				"noControlCharactersInRegex": "off"
 			}
@@ -21,17 +32,17 @@
 	},
 	"overrides": [
 		{
-			"includes": ["lib/sanitize.mjs"],
+			"includes": ["lib/sanitize.ts"],
 			"linter": {
 				"rules": { "suspicious": { "noMisleadingCharacterClass": "off" } }
 			}
 		},
 		{
-			"includes": ["test/jira.test.mjs"],
+			"includes": ["test/jira.test.ts"],
 			"linter": { "rules": { "correctness": { "noPrecisionLoss": "off" } } }
 		},
 		{
-			"includes": ["test/**/*.mjs", "evals/**/*.mjs"],
+			"includes": ["test/**/*.ts", "evals/**/*.ts"],
 			"linter": {
 				"rules": { "suspicious": { "noTemplateCurlyInString": "off" } }
 			}
@@ -39,13 +50,13 @@
 	],
 	"files": {
 		"includes": [
-			"lib/**/*.mjs",
-			"src/**/*.mjs",
-			"bin/*.mjs",
-			"mcp/*.mjs",
-			"scripts/**/*.mjs",
-			"test/**/*.mjs",
-			"evals/**/*.mjs"
+			"lib/**/*.ts",
+			"src/**/*.ts",
+			"mcp/*.ts",
+			"scripts/**/*.ts",
+			"test/**/*.ts",
+			"evals/**/*.ts",
+			"!test/types-fixtures"
 		]
 	}
 }

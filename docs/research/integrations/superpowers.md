@@ -1,6 +1,6 @@
 # superpowers integration research
 
-Date: 2026-11-22. Scope: how open-brain should detect, ingest, read through, and recommend the `superpowers` Claude Code plugin without duplicating it or contradicting it.
+Date: 2026-11-22. Scope: how plangraph should detect, ingest, read through, and recommend the `superpowers` Claude Code plugin without duplicating it or contradicting it.
 
 Evidence tags:
 - **VERIFIED-source (path)**: read in the installed plugin cache, `~/.claude/plugins/cache/superpowers-dev/superpowers/6.1.1/` (written below as `SP6/`), or in the upstream git clone at commit `22f0b46` = tag `v7.0.2` (written as `SP7:`; read with `git show 22f0b46:<path>` in `~/.claude/plugins/marketplaces/superpowers-dev`).
@@ -10,10 +10,10 @@ Evidence tags:
 
 ## 0. Headline findings
 
-1. **The installed copy is behind upstream on everything open-brain cares about.** Installed: 6.1.1, commit `d884ae0`, released 2026-07-02. Upstream latest: v7.0.2, commit `22f0b46`, released 2026-11-03. The official Anthropic marketplace entry is already pinned to that same sha. Between the two releases, the SDD workspace moved from `.superpowers/sdd/` to `.superpowers/sdd/<plan-basename>/`. The ledger gained an identity first line. The workspace is now **deleted** after a clean final review. Plans gained `**Spec:**` and `## Review Focus`, and steps no longer contain full code. Task IDs like `A1`, `6b` and `2.1` became first-class. Ledger line types multiplied (fix rounds, parked findings, rulings, deferred minors). A parser written only against 6.1.1 will silently miss 7.x progress. VERIFIED-source (`SP6/RELEASE-NOTES.md:3`, `SP7:RELEASE-NOTES.md` sections v6.2.0, v6.3.0, v6.4.1, v6.4.2, v7.0.2; `~/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json` superpowers entry `sha 22f0b46...`).
+1. **The installed copy is behind upstream on everything plangraph cares about.** Installed: 6.1.1, commit `d884ae0`, released 2026-07-02. Upstream latest: v7.0.2, commit `22f0b46`, released 2026-11-03. The official Anthropic marketplace entry is already pinned to that same sha. Between the two releases, the SDD workspace moved from `.superpowers/sdd/` to `.superpowers/sdd/<plan-basename>/`. The ledger gained an identity first line. The workspace is now **deleted** after a clean final review. Plans gained `**Spec:**` and `## Review Focus`, and steps no longer contain full code. Task IDs like `A1`, `6b` and `2.1` became first-class. Ledger line types multiplied (fix rounds, parked findings, rulings, deferred minors). A parser written only against 6.1.1 will silently miss 7.x progress. VERIFIED-source (`SP6/RELEASE-NOTES.md:3`, `SP7:RELEASE-NOTES.md` sections v6.2.0, v6.3.0, v6.4.1, v6.4.2, v7.0.2; `~/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json` superpowers entry `sha 22f0b46...`).
 2. **Plan checkboxes are not a progress signal.** No superpowers skill ever edits `- [ ]` to `- [x]` in the plan file, in either version. The one exception is the Antigravity harness note. Progress lives in harness todos (lost on exit) and in the git-ignored ledger. VERIFIED-source (`git grep "\[x\]" 22f0b46 -- skills` hits only `using-superpowers/references/antigravity-tools.md:20` and an issue template). VERIFIED-example: the real 646-line plan has all 8 Wave A tasks finished per its ledger, yet still has 0 `- [x]`.
-3. **The ledger is ephemeral by design. open-brain is the natural place to keep its durable record.** Both versions git-ignore it, `git clean -fdx` destroys it, and 7.x `rm -rf`s it after the final review. In 7.x the `Ruling:` lines (decisions the agent took on the human's behalf) survive only in the final chat message. VERIFIED-source (`SP6/skills/subagent-driven-development/SKILL.md:263-264`; `SP7:skills/subagent-driven-development/references/final-review.md:35-47`). Snapshotting ledger facts into brain JSONL is real value that nothing else provides.
-4. **open-brain already speaks superpowers' task-heading dialect.** `lib/stale.mjs:8` `DEFAULT_HEADING = '^#{2,3} Task {id}:'` matches `### Task N:`. `refs.plans[{plan,task}]` can already point a ticket at a superpowers plan task and fingerprint its section. VERIFIED-source (`lib/stale.mjs:8,27-32,38-45`, `lib/store.mjs:31`).
+3. **The ledger is ephemeral by design. plangraph is the natural place to keep its durable record.** Both versions git-ignore it, `git clean -fdx` destroys it, and 7.x `rm -rf`s it after the final review. In 7.x the `Ruling:` lines (decisions the agent took on the human's behalf) survive only in the final chat message. VERIFIED-source (`SP6/skills/subagent-driven-development/SKILL.md:263-264`; `SP7:skills/subagent-driven-development/references/final-review.md:35-47`). Snapshotting ledger facts into brain JSONL is real value that nothing else provides.
+4. **plangraph already speaks superpowers' task-heading dialect.** `lib/stale.ts:8` `DEFAULT_HEADING = '^#{2,3} Task {id}:'` matches `### Task N:`. `refs.plans[{plan,task}]` can already point a ticket at a superpowers plan task and fingerprint its section. VERIFIED-source (`lib/stale.ts:8,27-32,38-45`, `lib/store.ts:31`).
 5. **Real-world output drifts from the documented format.** The example ledger uses a custom header, `Task 1 (A1): implemented <sha>; review 1: ...`, indented `Minor` continuation lines, `commits 4e3d1b3..HEAD incl. ...`, and free prose ("REUSE AUDIT ..."). The real plan uses inline `**Files:** Modify ...` paragraphs and inline `**Interfaces:** Produces ...`, and some tasks have no Interfaces block. `[A1]`-style secondary IDs appear in task titles. The parser must be tolerant, and it must report what it could not classify. VERIFIED-example.
 
 ## 1. What superpowers is
@@ -22,7 +22,7 @@ A zero-dependency skills library and runtime bootstrap by Jesse Vincent, MIT lic
 
 ### 1.1 Skills: trigger (frontmatter `description`) and what each is best at
 
-| Skill | Trigger (verbatim gist) | Shines at | open-brain stance |
+| Skill | Trigger (verbatim gist) | Shines at | plangraph stance |
 |---|---|---|---|
 | using-superpowers | "Use when starting any conversation"; injected by the hook | Forcing skill-first behavior | never touch; must not contradict (1.3) |
 | brainstorming | "MUST use this before any creative work" | Intent, design and spec document, one question at a time, HARD-GATE before code | recommend-only |
@@ -53,7 +53,7 @@ Changes in 7.x:
 - writing-plans now requires the user to review the saved plan before anything runs, and offers "Subagent-driven" vs "Native" with a recommendation. VERIFIED-source (`SP7:skills/writing-plans/SKILL.md` "Execution Handoff").
 - brainstorming sizes the work. A small change gets a short design with no builder check. VERIFIED-source (`SP7:skills/brainstorming/SKILL.md:228-262`).
 
-### 1.3 Mandatory behavior open-brain must not contradict
+### 1.3 Mandatory behavior plangraph must not contradict
 
 From `SP6/skills/using-superpowers/SKILL.md`, which is injected into every main session:
 - **L6-8** `<SUBAGENT-STOP>`: subagents dispatched for a specific task ignore the skill.
@@ -70,7 +70,7 @@ Hard gates in other skills:
 - SDD: "Never: Start implementation on main/master branch without explicit user consent" (`:370`).
 - verification "NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE" (`SP6/.../verification-before-completion/SKILL.md:18-20`).
 
-Rules this imposes on open-brain skills and the session card (design rules; follow from the above):
+Rules this imposes on plangraph skills and the session card (design rules; follow from the above):
 - R1. Never tell the agent to "answer directly" or "skip skills". The card is data, not instructions.
 - R2. Never insert a brain step between brainstorming and writing-plans. Ingest happens after writing-plans has saved the plan.
 - R3. Never ask the agent to stop between SDD tasks to update brain. Brain reads the ledger after the fact, so it needs no cooperation mid-run.
@@ -132,7 +132,7 @@ TASK_REF      \bTask\s+(?<ref>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)\b       reference
 SYMBOL        `(?<sym>[A-Za-z_$][\w$.]*)\s*(?:\(|`)                    identifiers declared in Produces, looked up in later Consumes
 ```
 
-**Task section boundary.** A task runs from its heading to the next TASK heading at the same or a shallower level, except a deeper heading whose ID extends this one (`#### Task 7a` stays inside `### Task 7`), per `SP7:task-brief`. The task-brief tool and `lib/stale.mjs` planSection both end only at the next Task heading. As a result, the **last task of a wave swallows the following `## Wave B` intro**, and the last task of the plan swallows the trailing `## Self-review`. VERIFIED-example (`.superpowers/sdd/task-8-brief.md` ends with the `## Wave B` paragraph). For ingest, end a task section at the first heading of level less than or equal to the task heading's level, or at an HRULE followed by such a heading. Keep the superpowers-compatible span only for fingerprint parity with `lib/stale.mjs`.
+**Task section boundary.** A task runs from its heading to the next TASK heading at the same or a shallower level, except a deeper heading whose ID extends this one (`#### Task 7a` stays inside `### Task 7`), per `SP7:task-brief`. The task-brief tool and `lib/stale.ts` planSection both end only at the next Task heading. As a result, the **last task of a wave swallows the following `## Wave B` intro**, and the last task of the plan swallows the trailing `## Self-review`. VERIFIED-example (`.superpowers/sdd/task-8-brief.md` ends with the `## Wave B` paragraph). For ingest, end a task section at the first heading of level less than or equal to the task heading's level, or at an HRULE followed by such a heading. Keep the superpowers-compatible span only for fingerprint parity with `lib/stale.ts`.
 
 **IDs.** In 6.1.1, task-brief accepts only `Task[ \t]+[0-9]+` prefix matching, so `Task 6` also matched `6b`. In 7.x the ID is a whole token containing a digit (`3`, `6b`, `A1`, `2.1`) and the comparison is exact. The word must be the English literal `Task`. VERIFIED-source (`SP6/.../task-brief:27-33`; `SP7:.../task-brief` comment block and awk).
 
@@ -227,7 +227,7 @@ Rationale: plan-local IDs are only unique per plan; the slug mirrors `sdd-worksp
 
 **Mapping.**
 
-| superpowers | open-brain record |
+| superpowers | plangraph record |
 |---|---|
 | H1 (minus " Implementation Plan"), Goal | `tickets {key: "sp:<slug>", summary: <title>, epic: "", sp: null, jira_status: "", verdict: "", verdict_source: "sp-ingest"}` + unknown fields `kind: "sp_plan"`, `goal` (sanitized, capped) |
 | `### Task N: Title` | `tickets {key: "sp:<slug>/N", summary: Title (sanitized, ≤200), epic: "sp:<slug>", sp: null}` + `kind: "sp_task"`, `alias`, `title_fp`, `order: i` |
@@ -239,7 +239,7 @@ Rationale: plan-local IDs are only unique per plan; the slug mirrors `sdd-worksp
 | `**Files:**` items | `refs {key: task, files: {"<path>": ""}}` (fingerprints are filled by the existing `refs-update`/stale machinery), `plans: [{plan: "<repo-rel path>", task: "N"}]`. The verb (Create/Modify/Test) goes into an unknown field `file_verbs` |
 | `## Global Constraints` bullets | `findings {key: "sp:<slug>", kind: "sp_constraint", text}`, one per bullet. **Not** `learnings`: per `docs/REUSE.md`, learnings are cross-project planning-method rules served by `brain rules`; per-plan constraints there would pollute every project. A person can promote one with an explicit `brain learn --from-finding` (not built; recommend-only) |
 | `## Review Focus` bullets (7.x) | `findings {key: "sp:<slug>", kind: "sp_review_focus", text}` |
-| `**Spec:**` path / sibling `docs/superpowers/specs/<date>-<topic>-design.md` | `refs {key: "sp:<slug>", files: {"<spec path>": ""}}`, so spec edits make the epic stale through the existing `lib/stale.mjs` |
+| `**Spec:**` path / sibling `docs/superpowers/specs/<date>-<topic>-design.md` | `refs {key: "sp:<slug>", files: {"<spec path>": ""}}`, so spec edits make the epic stale through the existing `lib/stale.ts` |
 | Ledger status per task | unknown field `impl_status: todo\|in_progress\|done\|done_parked`, plus `impl_range: "<b7>..<h7>"` on the ticket. **Not** `jira_status`: that field means "status in Jira" and is overwritten by `jira-pull`/`jira-import`. Add `impl_status` through FORMAT.md's expand step (optional field, default `""`) |
 | Ledger `Ruling:` / `parked` / `minor (deferred)` | `findings {key: task or "sp:<slug>", kind: "sp_ruling"\|"sp_parked"\|"sp_minor", text}`. This is the durable record superpowers deletes |
 | Checkbox state | Ignored for status (finding 2). Only `done == total` across all steps of a task, with no ledger, gives the weak hint `impl_status: "done?"`. That covers someone ticking boxes by hand or the Antigravity harness |
@@ -257,7 +257,7 @@ Rationale: plan-local IDs are only unique per plan; the slug mirrors `sdd-worksp
 
 ### 5.2 (b) Link plans to Jira tickets, people and sprints [ingest + read-through]
 
-- Link: `brain sp-link <JIRA-KEY> <plan.md> [--tasks 1,2,4]` writes `refs {key: JIRA-KEY, plans: [{plan, task}...]}`. `refs.plans` and `lib/stale.mjs` already support this. It also writes `edges {consumer: JIRA-KEY, producer: "sp:<slug>/<t>", kind: "sp_implements"}`, so the Jira ticket is only `ready` to close once its tasks are `done`. Direction follows "consumer needs producer".
+- Link: `brain sp-link <JIRA-KEY> <plan.md> [--tasks 1,2,4]` writes `refs {key: JIRA-KEY, plans: [{plan, task}...]}`. `refs.plans` and `lib/stale.ts` already support this. It also writes `edges {consumer: JIRA-KEY, producer: "sp:<slug>/<t>", kind: "sp_implements"}`, so the Jira ticket is only `ready` to close once its tasks are `done`. Direction follows "consumer needs producer".
 - Suggest, never auto-link: if the plan filename, H1 or Goal contains `/\b[A-Z][A-Z0-9]+-\d+\b/`, print `suggest: brain sp-link KEY plan.md`. Superpowers has no ticket field, and brain must not edit the plan to add one.
 - People and sprints: assignment uses brain's normal `schedule` (owner, sprint) on `sp:` keys. The strict handoff rule then applies to `sp_consumes`/`sp_iface` edges: if Task 4 consumes Task 2 and they have different owners, Task 2 must land a sprint earlier. Brain adds unique value here, because superpowers assumes one executor per plan.
 - **Adversarial caveat:** SDD has no "execute only tasks X to Y" mode. It resumes at the first task without a `complete` line (`SP7:.../references/resuming.md`). Splitting one plan across people therefore means either (i) brain recommends splitting the plan into per-owner plans (preferred), or (ii) each person tells their controller explicitly "execute Tasks 3-4 only". Option (ii) is UNVERIFIED to be honored reliably, and both people's ledgers would live in different worktrees. Brain must merge ledgers per task and flag a task marked complete in two ledgers with different ranges.
@@ -289,7 +289,7 @@ Plan writing, spec writing, TDD discipline, per-task and whole-branch code revie
 |---|---|---|
 | 1 | Plan → tickets, edges, refs, constraint findings | ingest |
 | 2 | Ledger → impl_status, rulings, parked, minors (durable copy) | ingest |
-| 3 | Plan task section fingerprints via `refs.plans` / `lib/stale.mjs` | read-through |
+| 3 | Plan task section fingerprints via `refs.plans` / `lib/stale.ts` | read-through |
 | 4 | Detection and version-drift line in `brain doctor` | read-through |
 | 5 | Jira ↔ plan links, people and sprints with the handoff rule on sp edges | ingest (brain-owned records) |
 | 6 | Hand-off recommendations in brain skills | recommend-only |
@@ -301,7 +301,7 @@ Plan writing, spec writing, TDD discipline, per-task and whole-branch code revie
 1. **Instruction conflicts.** (i) using-superpowers "invoke skills before ANY response" vs a brain skill telling the model to run `brain card` first. Fine if the brain skill is itself a skill being invoked; harmful if the card says "do X before anything" (R1). (ii) brainstorming "ONLY writing-plans next" vs brain wanting ingest in between (R2). (iii) SDD "do not pause" vs any brain request for mid-run updates (R3). (iv) superpowers defaults to a feature branch and a worktree; this repo's Global Constraints say "local commits only on the working branch". User instructions win per using-superpowers L62, and brain should not add a third opinion. (v) The word "plan": brain sprint plans vs superpowers implementation plans (R4). VERIFIED-source for the quoted rules; trigger competition is UNVERIFIED.
 2. **Hook size.** About 820 tokens per startup, clear and compact from superpowers, plus brain's card. Keep the card under its CONTRACT budget and never echo skill text (section 3).
 3. **Prompt injection.** Plans, specs, ledgers, briefs and reports are agent-written free text. They may quote web pages, issue text or Jira descriptions, and other agents read brain output. The brainstorm companion even relays browser events "the agent treats as your input" (`SP6/RELEASE-NOTES.md` v6.0.0 companion section). Brain must:
-   - pass every ingested string through `lib/sanitize.mjs` `sanitizeText` (control, OSC, bidi, zero-width, tag characters) and cap it: summary ≤200, finding ≤500, note ≤120;
+   - pass every ingested string through `lib/sanitize.ts` `sanitizeText` (control, OSC, bidi, zero-width, tag characters) and cap it: summary ≤200, finding ≤500, note ≤120;
    - print it only inside `fence('sp-plan'|'sp-ledger', ...)`;
    - never put plan text in the card, only counts and keys;
    - store paths only after `checkRepoPath` (no absolute paths, no `..`, no leading `-`), and drop the `:123-145` suffix before the check;

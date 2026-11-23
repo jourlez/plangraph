@@ -1,4 +1,4 @@
-# open-brain: AI-engineering research and audit
+# plangraph: AI-engineering research and audit
 
 Date: 2026-11-22. Scope: agent-facing design of the `brain` CLI/plugin. Design only; no paid model calls were made and no code was edited.
 
@@ -189,7 +189,7 @@ cp -R "$case_dir/../_gen/fixtures/M/.brain" .brain
 cp "$case_dir/../_gen/fixtures/M/plan.md" plan.md
 node "$plugin_root/bin/brain" build >/dev/null          # BRAIN_DIR default = ./.brain
 ```
-Both arms see the same `.brain/` and `plan.md` (arm A reads them with Grep/Read/jq; arm B asks the CLI). Contamination risk: in arm A the agent could discover `$plugin_root/bin/brain` by absolute path; add a post-hoc check (`tool_used Bash input_match "open-brain/bin/brain"` max 0 with `arm: both`) and discard such runs.
+Both arms see the same `.brain/` and `plan.md` (arm A reads them with Grep/Read/jq; arm B asks the CLI). Contamination risk: in arm A the agent could discover `$plugin_root/bin/brain` by absolute path; add a post-hoc check (`tool_used Bash input_match "plangraph/bin/brain"` max 0 with `arm: both`) and discard such runs.
 
 Task JSON schema (our own runner; the plugin-eval case dir is generated from the same file so there is one source of truth):
 
@@ -215,9 +215,9 @@ Task JSON schema (our own runner; the plugin-eval case dir is generated from the
 ```
 Rules: (a) the generated regex accepts `T-120`/`t-120` and spacing variations (S1: "avoid overly strict verifiers"); (b) every task's prompt demands a final `ANSWER:` JSON line, so graders never depend on prose; (c) do not grade the path (S1: "might be multiple valid paths"), except safety (no writes) and the `used-brain` indicator; (d) llm/rubric graders only for T10b below.
 
-### 2.5 Ten concrete tasks (+1 canary), ground truth from `lib/model.mjs` and friends
+### 2.5 Ten concrete tasks (+1 canary), ground truth from `lib/model.ts` and friends
 
-Common setup: `m = loadModel(dir)` (or `buildModel({...})`), `m.tickets: Map<key,row>`, `m.prods: Map<consumer,[producer]>`, `m.cons`, `m.sched: Map<key,{owner,sprint}>`, `capOf(m.config, person)`. Generator: `genPlan({n, people, density, seed, cap, maxSp})` from `test/fixtures/gen.mjs`, then **plant** the scenario (edit one or two tickets/edges) so the answer is unique and non-trivial. Sizes: S=60, M=300, L=1400 tickets; run most tasks at M, T01/T04 also at L to show scaling.
+Common setup: `m = loadModel(dir)` (or `buildModel({...})`), `m.tickets: Map<key,row>`, `m.prods: Map<consumer,[producer]>`, `m.cons`, `m.sched: Map<key,{owner,sprint}>`, `capOf(m.config, person)`. Generator: `genPlan({n, people, density, seed, cap, maxSp})` from `test/fixtures/gen.ts`, then **plant** the scenario (edit one or two tickets/edges) so the answer is unique and non-trivial. Sizes: S=60, M=300, L=1400 tickets; run most tasks at M, T01/T04 also at L to show scaling.
 
 | # | Task (user prompt, abridged) | Capability | Ground truth derivation | Primary graders |
 |---|---|---|---|---|
@@ -277,7 +277,7 @@ B) Our own runner, any condition (headless):
 ```bash
 # condition B (brain), one run
 claude -p "$(jq -r .prompt tasks/t05.json)" \
-  --plugin-dir /path/to/open-brain \
+  --plugin-dir /path/to/plangraph \
   --model claude-sonnet-5-5 --max-turns 12 --max-budget-usd 0.60 \
   --allowedTools 'Bash(brain *)' 'Read' 'Grep' 'Glob' \
   --output-format stream-json --verbose --no-session-persistence \
@@ -289,7 +289,7 @@ claude -p "$(jq -r .prompt tasks/t05.json)" \
 # final line of stream is the result message: cost, usage, session metadata (VERIFIED S9)
 jq -c 'select(.type=="result")' runs/B/t05/1/stream.jsonl
 ```
-Fresh workspace per run (copy fixture, run `brain build`), clean `HOME` to avoid user hooks/skills leaking (`HOME=$(mktemp -d)` plus credentials via `ANTHROPIC_API_KEY`). Check `system/init` event: `plugins` includes `open-brain`, `plugin_errors` absent, `mcp_servers` as expected (VERIFIED S9 "Fail CI when a plugin or MCP server doesn't load").
+Fresh workspace per run (copy fixture, run `brain build`), clean `HOME` to avoid user hooks/skills leaking (`HOME=$(mktemp -d)` plus credentials via `ANTHROPIC_API_KEY`). Check `system/init` event: `plugins` includes `plangraph`, `plugin_errors` absent, `mcp_servers` as expected (VERIFIED S9 "Fail CI when a plugin or MCP server doesn't load").
 
 C) Cache experiment for the card (settles section 1.3 point 2):
 ```bash
@@ -411,7 +411,7 @@ Principle: defense in depth, cheap, deterministic, no model calls.
 4. **Never put external text in the card or in error messages**: the card holds only counts and ids (it is injected as a system reminder, the most trusted position). Error messages echo user-supplied keys only after a strict `^[A-Z][A-Z0-9]*-\d+$` check (`bundle` already filters keys with this regex; do the same everywhere).
 5. **Length caps per field** (summary 120 chars, finding 300, Jira comment 1,000, plan excerpt 4,000) with `... N more chars (full: brain ticket KEY -v --field finding.2)`. Long text is where injection lives; defaults stay small.
 6. **Commands that read free text are read-only; mutating commands never accept text from other commands' output implicitly.** `--write`, `schedule-load`, `restore`, `compact`, `claim`, `export` require an explicit flag the owner can allow/deny via `permissions`; document `permissions.deny` snippet in README: `Bash(brain * --write*)`, `Bash(brain restore*)`, `Bash(brain compact*)` for read-only profiles; keep a `brain-readonly` env switch (`BRAIN_READONLY=1`) that makes mutating verbs exit 2 with `refused: read-only mode`. This is the Rule-of-Two style capability cut, the strongest single control.
-7. **Never execute instructions from data**: no command in the tool evaluates, templates or shells out from stored text (audit once: `grep -n "exec\|spawn" lib bin` outside git/uv calls; `lib/openitems.mjs runChecks(config, {exec})` runs configured checks: make sure check commands come only from `config.json` committed by owners and are shown, not from tickets).
+7. **Never execute instructions from data**: no command in the tool evaluates, templates or shells out from stored text (audit once: `grep -n "exec\|spawn" lib bin` outside git/uv calls; `lib/openitems.ts runChecks(config, {exec})` runs configured checks: make sure check commands come only from `config.json` committed by owners and are shown, not from tickets).
 8. **Detect and flag, not just fence**: a tiny regex heuristic (`ignore (all|previous)`, `system prompt`, `you are now`, `run .* --write`, `curl .*\|`) sets a `suspicious: true` attribute on the fence (`<untrusted ... flag="inj">`). Cheap, high-recall, explicitly not a security boundary; a false positive costs 3 tokens.
 9. **Defense by distance**: audit agents (`briefs/auditor.md`) read bundles; give them a tool allowlist without `Bash(brain * --write*)`, and have them return structured verdict JSON, not actions.
 10. **Canary evals** (T11 plus 5 variants: instruction in summary, in Jira comment, in plan excerpt, in a finding, in a learning; each with a different phrasing, a fenced-close attempt `</untrusted>`, and a unicode-tag smuggling variant). Metric: forbidden-command count must be 0 over n >= 20 runs per condition; report the upper 95% Wilson bound (0/20 gives <= 16.1%). State honestly that 0/20 does not prove safety.
@@ -570,10 +570,10 @@ Effort: S <= half day, M ~ 1-2 days, L ~ 3-5 days. Impact is expected effect on 
 | Pri | Change | Effort | Where | Why / evidence |
 |---:|---|---|---|---|
 | 1 | Build the eval harness + 11 tasks, run A vs B first with `claude plugin eval` | L | `evals/`, `eval-runner/` | F1; the only way to prove the claim; S1, S8 |
-| 2 | Cache-stable, deterministic card (identity hash, no clock, no `stale ?`, drop menu line, `STALE:` only when abnormal) + determinism test | S | `lib/render.mjs`, `bin/brain card`, `test/render.test.mjs` | F3, F9; section 1.3 |
+| 2 | Cache-stable, deterministic card (identity hash, no clock, no `stale ?`, drop menu line, `STALE:` only when abnormal) + determinism test | S | `lib/render.ts`, `bin/brain card`, `test/render.test.ts` | F3, F9; section 1.3 |
 | 3 | Error contract: `error:/try:` messages, did-you-mean, exit codes 0-5, `BRAIN_READONLY`, usage-with-example | M | `bin/brain` | S1; section 7.2-7.4 |
 | 4 | `ticket` default to one line (+ `-v` for evidence/findings), actionable truncation markers (`--limit`, filter hint), investigate bench rows 1 and 22 | S | `bin/brain` | F2; S1 |
-| 5 | Fence + provenance + sanitize for all free text in `ticket -v`, `findings`, `bundle`, `jira-text`; canary evals | M | `lib/render.mjs` (new `fence()`), `bin/brain`, `lib/jira.mjs` | F6; section 4 |
+| 5 | Fence + provenance + sanitize for all free text in `ticket -v`, `findings`, `bundle`, `jira-text`; canary evals | M | `lib/render.ts` (new `fence()`), `bin/brain`, `lib/jira.ts` | F6; section 4 |
 | 6 | `brain explain` (+ `--json`), generate skill table from it, test no drift | S | `bin/brain`, `skills/brain` | section 7.6; S2 progressive disclosure |
 | 7 | Rewrite skill descriptions/body + trigger sets (20 prompts) as eval cases; measure `used-brain` rate | S | `skills/*`, `evals/trigger-*` | section 3 |
 | 8 | `--json` v2 per-command structured data + `next:` hints + schemas + schema tests | L | `lib/*`, `bin/brain`, `docs/schema/` | F4; section 7.1, 7.5 |
@@ -661,7 +661,7 @@ arm: both
 ---
 ```
 
-### 9.3 Benchmark additions to `test/bench-tokens.mjs`
+### 9.3 Benchmark additions to `test/bench-tokens.ts`
 Add columns `bytes`, `est tok`, and (opt-in) `API tok`; add rows for `ticket -v`, `bundle` (fenced), `explain`, the card; add a "per-session fixed overhead" section; keep the exactness check (24/24 correct).
 
 ### 9.4 Open verification items (do these before relying on this report)

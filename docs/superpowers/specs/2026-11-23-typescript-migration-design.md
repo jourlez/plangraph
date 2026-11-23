@@ -1,4 +1,4 @@
-# TypeScript migration of open-brain: design
+# TypeScript migration of plangraph: design
 
 Date: 2026-11-23. Status: approved by the owner in conversation, to be executed after the Wednesday token reset.
 Plan: `docs/superpowers/plans/2026-11-23-typescript-migration.md`.
@@ -23,7 +23,7 @@ This supersedes the conclusion of `docs/research/language-platform.md` section 0
 
 - Node 24.18.0 runs `.ts` files directly by stripping types (`process.features.typescript` is `"strip"`), with no flag and no warning on stderr.
 - It rejects TypeScript-only syntax that needs code generation (for example `enum`). `erasableSyntaxOnly` already is `true` in `tsconfig.json`, so `tsc` catches it first.
-- Stripping is refused for files under a `node_modules` directory. The plugin is installed at `~/.claude/plugins/cache/.../open-brain/<version>/`, which has no `node_modules` segment. A test must pin this (section 8).
+- Stripping is refused for files under a `node_modules` directory. The plugin is installed at `~/.claude/plugins/cache/.../plangraph/<version>/`, which has no `node_modules` segment. A test must pin this (section 8).
 - Imports of `.ts` files must name the `.ts` extension. `allowImportingTsExtensions` makes `tsc` accept that.
 - TypeScript 7.0.2 (native compiler) and Biome 2.6.8 are already devDependencies. `@types/node` is 24.19.2.
 - Each load strips the file again. Startup cost is therefore a risk for the `SessionStart` hook, which runs `brain card` on every session (timeout 10 s). Section 8 sets a budget.
@@ -97,7 +97,7 @@ Only these, and nothing else:
 3. **The 1417-test suite** passes after every task, not only at the end. The mutation baselines (`scripts/mutate*`, `equivalent.json`, `test/golden/mutation-kills/`) are rebuilt for renamed files by a script and reviewed.
 4. **Install-path test.** A test copies the plugin into a temporary directory shaped like the real install path (no `node_modules` segment) and runs `brain doctor` and `brain card` from it with the real `node`.
 5. **Startup budget.** The warm median of `brain card --if-present` is at most 15 ms over the pre-migration median on the same machine, with the compile cache on (section 3). The plan's measuring script prints both numbers.
-6. **Private-data guard.** The existing `test/public-clean.test.mjs` (renamed with the rest) passes before every publish.
+6. **Private-data guard.** The existing `test/public-clean.test.ts` (renamed with the rest) passes before every publish.
 
 ## 9. Order of work
 

@@ -2,10 +2,10 @@
 // git merge driver for the brain JSONL files: brain-merge %O %A %B %P  (base, ours = result, theirs, repo path).
 // Writes the merged text to %A. Exit 0 = clean; 1 = conflicts (markers left in the file, keys listed on stderr); 2 = unreadable input.
 import path from 'node:path';
-import { mergeJsonl } from '../lib/merge.mjs';
-import { schemaFor, writeAtomic } from '../lib/store.mjs';
-import { oneLine } from '../lib/sanitize.mjs';
-import { readCapped } from '../lib/jsonl.mjs';
+import { mergeJsonl } from '../lib/merge.ts';
+import { schemaFor, writeAtomic } from '../lib/store.ts';
+import { oneLine } from '../lib/sanitize.ts';
+import { readCapped } from '../lib/jsonl.ts';
 
 const [, , O, A, B, P] = process.argv;
 if (!O || !A || !B) { process.stderr.write('usage: brain-merge BASE OURS THEIRS [PATH]\n'); process.exit(2); }

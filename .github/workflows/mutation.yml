@@ -1,5 +1,5 @@
 name: mutation
-# Informational mutation smoke: 40 seeded mutants of the core library modules (scripts/mutate-all.mjs). It reports survivors in the
+# Informational mutation smoke: 40 seeded mutants of the core library modules (scripts/mutate-all.ts). It reports survivors in the
 # job summary and never fails the run (--informational); it is not a required check. The whole-library run (`npm run mutate:all`)
 # takes hours and is run locally. It runs weekly and on demand, not on every push: the required `mutation` job in ci.yml gates every push.
 on:
