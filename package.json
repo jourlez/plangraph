@@ -19,6 +19,9 @@
     "validate": "node test/validate-plugin.mjs",
     "mutate": "node scripts/mutate.mjs",
     "assure": "node --test test/assure/*.test.mjs",
+    "mutate:all": "node scripts/mutate-all.mjs --jobs 4",
+    "mutate:smoke": "node scripts/mutate-all.mjs --files lib/verify.mjs,lib/whatif.mjs,lib/merge.mjs,lib/gitsafe.mjs,lib/fsafe.mjs,lib/forecast.mjs,lib/report.mjs --limit 40 --seed 1 --max-tier 1 --jobs 2",
+
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "biome lint ."
   },

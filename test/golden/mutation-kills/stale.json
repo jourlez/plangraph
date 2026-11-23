@@ -1,0 +1,1440 @@
+{
+ "canon": [
+  "{\"a\":null,\"b\":[1,{\"c\":2,\"d\":null}]}",
+  "null",
+  "[]",
+  "\"s\"",
+  "{}"
+ ],
+ "deep-fresh": {
+  "rows": [
+   {
+    "key": "C1",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "C1",
+      "fp": "838083ac51dafa91"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "C2": "f3639150cbcd68c2|b9bc28f99572a52b|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "C2",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "C2",
+      "fp": "8d5777961b7f12f0"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "C3": "f3639150cbcd68c2|b9bc28f99572a52b|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "C3",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "C3",
+      "fp": "452cf7c734a8aeb3"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "C1": "f3639150cbcd68c2|b9bc28f99572a52b|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "G2",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "G2",
+      "fp": "3d53f8de9bffafed"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   },
+   {
+    "key": "H2",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "H2",
+      "fp": "732e780115aa8110"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "G2": "f3cbb8b5f60bcc43|18e643b62261fde9|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "K",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "K",
+      "fp": "cdab411c0e8d7aa1"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   },
+   {
+    "key": "M",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "M",
+      "fp": "da76071221e218a6"
+     },
+     {
+      "plan": "p.md",
+      "task": "M2",
+      "fp": "6e7be3c6fc875bb4"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   },
+   {
+    "key": "N",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "N",
+      "fp": "5250583f3d41cbef"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "K": "8eee9818f1cb14d7|c85d4314528efdd6|||",
+     "M": "8c1d7104b1eeda30|c58417934e2b616e|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "NN",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "NN",
+      "fp": "3b1741a1c0b1c5d7"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "N": "5f7139dabb74bbe2|51f432f9cf96ea46|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "P1",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "P1",
+      "fp": "3a531a378169dd5f"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "s",
+    "fp_prods": {
+     "P2": "5b9a6568e656229b|084b8e83e124a0b1|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "P2",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "P2",
+      "fp": "e9c6099d0451482c"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "P3": "f5996afef1b69585|c112f78bb5e7b650|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "P3",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "P3",
+      "fp": "9619c5e8126417f2"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   },
+   {
+    "key": "R",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "R",
+      "fp": "0144d54f224bb663"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   },
+   {
+    "key": "X",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "X",
+      "fp": "35011bd1caa2611e"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "Q": "f709398f23623531|deebf6be96a3f449|||",
+     "ZP": "f4755d5704dc2afa|d2336fe9d3139b72|||"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "Y",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "Y",
+      "fp": "90fbbb9b437fc83b"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {
+     "NR": "f0f2ff2794bab09b|f0f2ff2794bab09b|f0f2ff2794bab09b|f0f2ff2794bab09b|f0f2ff2794bab09b"
+    },
+    "audited_at": "c1"
+   },
+   {
+    "key": "ZP",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "ZP",
+      "fp": "1724bac2c00b04cf"
+     }
+    ],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": "c1"
+   }
+  ],
+  "updated": [
+   "C1",
+   "C2",
+   "C3",
+   "G2",
+   "H2",
+   "K",
+   "M",
+   "N",
+   "NN",
+   "P1",
+   "P2",
+   "P3",
+   "R",
+   "X",
+   "Y",
+   "ZP"
+  ],
+  "skipped": []
+ },
+ "deep-jira-empty": {
+  "stale": [],
+  "clean": 16,
+  "ref": null
+ },
+ "deep-model-refs": {
+  "rows": [
+   {
+    "key": "A",
+    "plans": [],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "fp_prods": {},
+    "audited_at": ""
+   }
+  ],
+  "updated": [
+   "A"
+  ],
+  "skipped": []
+ },
+ "deep-partial": {
+  "stale": [
+   {
+    "key": "H2",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "G2"
+   },
+   {
+    "key": "N",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "K"
+   },
+   {
+    "key": "NN",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "N"
+   },
+   {
+    "key": "P1",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "P2"
+   },
+   {
+    "key": "X",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "Q"
+   }
+  ],
+  "clean": 11,
+  "ref": null
+ },
+ "deep-recorded-extra": {
+  "stale": [
+   {
+    "key": "X",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "A0"
+   }
+  ],
+  "clean": 15,
+  "ref": null
+ },
+ "deep-recorded-joined": {
+  "stale": [
+   {
+    "key": "T",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "a"
+   }
+  ],
+  "clean": 0,
+  "ref": null
+ },
+ "deep-stale": {
+  "stale": [
+   {
+    "key": "C1",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "C2"
+   },
+   {
+    "key": "C2",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "C3"
+   },
+   {
+    "key": "C3",
+    "reasons": [
+     "plan",
+     "producer_changed"
+    ],
+    "via": "C1"
+   },
+   {
+    "key": "G2",
+    "reasons": [
+     "plan"
+    ],
+    "via": null
+   },
+   {
+    "key": "H2",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "G2"
+   },
+   {
+    "key": "K",
+    "reasons": [
+     "plan"
+    ],
+    "via": null
+   },
+   {
+    "key": "N",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "K"
+   },
+   {
+    "key": "NN",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "N"
+   },
+   {
+    "key": "P1",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "P2"
+   },
+   {
+    "key": "P2",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "P3"
+   },
+   {
+    "key": "P3",
+    "reasons": [
+     "plan"
+    ],
+    "via": null
+   },
+   {
+    "key": "Q",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "R"
+   },
+   {
+    "key": "R",
+    "reasons": [
+     "plan"
+    ],
+    "via": null
+   },
+   {
+    "key": "W",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "R"
+   },
+   {
+    "key": "X",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "ZP"
+   },
+   {
+    "key": "ZP",
+    "reasons": [
+     "plan"
+    ],
+    "via": null
+   }
+  ],
+  "clean": 2,
+  "ref": null
+ },
+ "format": [
+  "stale vs main: 3 of 6 need re-audit {\"plan\":1,\"files\":1,\"producer_changed\":1,\"jira\":1}\n",
+  "stale vs main (abc): 3 of 6 need re-audit {\"plan\":1,\"files\":1,\"producer_changed\":1,\"jira\":1} | not checked: jira,links\n",
+  "stale vs main: 3 of 6 need re-audit {\"plan\":1,\"files\":1,\"producer_changed\":1,\"jira\":1}\nA: plan,files\nB: producer_changed via A\nC?x?: jira via B fake\n",
+  "stale vs main: 3 of 6 need re-audit {\"plan\":1,\"files\":1,\"producer_changed\":1,\"jira\":1}\nA: plan,files\n... 2 more\n",
+  "{\"ref\":\"main\",\"commit\":\"abc\",\"stale\":[{\"key\":\"A\",\"reasons\":[\"plan\",\"files\"],\"via\":null},{\"key\":\"B\",\"reasons\":[\"producer_changed\"],\"via\":\"A\"},{\"key\":\"C<x>\",\"reasons\":[\"jira\"],\"via\":\"B\\nfake\"}],\"clean\":3}\n",
+  "{\"ref\":\"main\",\"commit\":null,\"stale\":[{\"key\":\"A\",\"reasons\":[\"plan\",\"files\"],\"via\":null},{\"key\":\"B\",\"reasons\":[\"producer_changed\"],\"via\":\"A\"},{\"key\":\"C<x>\",\"reasons\":[\"jira\"],\"via\":\"B\\nfake\"}],\"clean\":3}\n",
+  "stale vs HEAD: 0 of 0 need re-audit\n",
+  "stale vs HEAD: 0 of 2 need re-audit | not checked: jira\n"
+ ],
+ "format-limit": "stale vs HEAD: 45 of 45 need re-audit {\"plan\":45}\nKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK…[+10 chars]: plan\nK-1: plan via VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV…[+10 chars]\nK-2: plan\nK-3: plan\nK-4: plan\nK-5: plan\nK-6: plan\nK-7: plan\nK-8: plan\nK-9: plan\nK-10: plan\nK-11: plan\nK-12: plan\nK-13: plan\nK-14: plan\nK-15: plan\nK-16: plan\nK-17: plan\nK-18: plan\nK-19: plan\nK-20: plan\nK-21: plan\nK-22: plan\nK-23: plan\nK-24: plan\nK-25: plan\nK-26: plan\nK-27: plan\nK-28: plan\nK-29: plan\nK-30: plan\nK-31: plan\nK-32: plan\nK-33: plan\nK-34: plan\nK-35: plan\nK-36: plan\nK-37: plan\nK-38: plan\nK-39: plan\n... 5 more\n",
+ "format-limit-exact": [
+  "K-38: plan",
+  "K-39: plan",
+  ""
+ ],
+ "fp-bare": {
+  "plans": [],
+  "fp_files": "e3b0c44298fc1c14",
+  "jira_updated": null,
+  "fp_links": null,
+  "rules": null
+ },
+ "fp-full": {
+  "plans": [
+   {
+    "plan": "p.md",
+    "task": "1",
+    "fp": "93b7de8431875cbc"
+   },
+   {
+    "plan": "gone.md",
+    "task": "1",
+    "fp": "nofile"
+   },
+   {
+    "plan": "p.md",
+    "task": "7",
+    "fp": "nosection"
+   }
+  ],
+  "fp_files": "259c0dec9f7d63d7",
+  "jira_updated": "5",
+  "fp_links": "ceb74e8bf2c3062d",
+  "rules": "3"
+ },
+ "fp-heading": {
+  "plans": [
+   {
+    "plan": "p.md",
+    "task": "1",
+    "fp": "1aaac7209e5a26ea"
+   },
+   {
+    "plan": "gone.md",
+    "task": "1",
+    "fp": "nofile"
+   },
+   {
+    "plan": "p.md",
+    "task": "7",
+    "fp": "nosection"
+   }
+  ],
+  "fp_files": "259c0dec9f7d63d7",
+  "jira_updated": "5",
+  "fp_links": "ceb74e8bf2c3062d",
+  "rules": null
+ },
+ "fp-jira-zero": {
+  "plans": [],
+  "fp_files": "e3b0c44298fc1c14",
+  "jira_updated": "0",
+  "fp_links": "4f53cda18c2baa0c",
+  "rules": null
+ },
+ "fp-null-tree": {
+  "plans": [],
+  "fp_files": "ab524eea4f46e7c9",
+  "jira_updated": null,
+  "fp_links": null,
+  "rules": null
+ },
+ "git-calls": [
+  [
+   "show",
+   "--end-of-options",
+   "main:docs/p.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "v2:gone.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:disk.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:msg.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:badref.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:echo.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:old.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:timeout.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:signal.md"
+  ],
+  [
+   "show",
+   "--end-of-options",
+   "main:nostatus.md"
+  ],
+  [
+   "ls-tree",
+   "-r",
+   "--end-of-options",
+   "main"
+  ],
+  [
+   "rev-parse",
+   "--short",
+   "--end-of-options",
+   "main"
+  ],
+  [
+   "rev-parse",
+   "--short",
+   "--end-of-options",
+   "v2"
+  ]
+ ],
+ "git-commit": [
+  "abc1234",
+  "abc1234",
+  "abc1234"
+ ],
+ "git-errors": [
+  {
+   "(error)": "Error",
+   "message": "git failed"
+  },
+  {
+   "(error)": "Error",
+   "message": "git failed"
+  },
+  {
+   "(error)": "Error",
+   "message": "git failed"
+  },
+  {
+   "(error)": "Error",
+   "message": "git failed",
+   "code": "ETIMEDOUT"
+  },
+  {
+   "(error)": "Error",
+   "message": "git failed"
+  },
+  {
+   "(error)": "Error",
+   "message": "fatal: path 'nostatus.md' does not exist in 'HEAD'"
+  }
+ ],
+ "git-files": [
+  {
+   "src/a.js": "aaa111",
+   "src": null,
+   "missing": null
+  },
+  {
+   "docs/p.md": "bbb222"
+  }
+ ],
+ "git-jira": [
+  "u1",
+  "",
+  "",
+  [
+   "B"
+  ],
+  [
+   "C"
+  ],
+  [],
+  "Done",
+  "",
+  ""
+ ],
+ "git-no-jira": [
+  null,
+  null,
+  null,
+  {
+   "x": null
+  }
+ ],
+ "git-paths": [
+  {
+   "(error)": "TypeError",
+   "message": "invalid repo path: \"/etc/passwd\""
+  },
+  {
+   "(error)": "TypeError",
+   "message": "invalid git ref: \"-bad\""
+  }
+ ],
+ "git-read": [
+  "# Plan\r\n\r\n## Task 1: one  \r\nbuild a\t\n\n### Task 2: two\nbuild b\n## Task 2.1: sub\nx\n#### Task 3: deep\n\n\n",
+  "# Plan\r\n\r\n## Task 1: one  \r\nbuild a\t\n\n### Task 2: two\nbuild b\n## Task 2.1: sub\nx\n#### Task 3: deep\n\n\n",
+  null,
+  null,
+  null
+ ],
+ "normalize": [
+  "# Plan\n\n## Task 1: one\nbuild a\n\n### Task 2: two\nbuild b\n## Task 2.1: sub\nx\n#### Task 3: deep",
+  "a\n\nb",
+  "",
+  "x     y"
+ ],
+ "normalize-blank-line": "a\n\nb",
+ "refs": [
+  "main",
+  "v1",
+  "HEAD",
+  {
+   "(error)": "TypeError",
+   "message": "invalid git ref: \"-x\""
+  }
+ ],
+ "refs-update-default-keys": {
+  "rows": [
+   {
+    "key": "A",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "1",
+      "fp": "bd7ec40c709a2830"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "1",
+    "fp_links": "01f650e85c956201",
+    "rules": "1",
+    "fp_prods": {},
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "B",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "3",
+    "rules": "1",
+    "fp_prods": {
+     "A": "55fce4ba112f5a1f|6fe8ddd744066902|505cbf8098e227b7|1c4d2b667f5bffd5|bec28770ddc6a848"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "C",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "B": "fb7f3ab74cf71b2d|beee62fe007edbc9|bbacf2fb3ba0306b||d402edcafa6ac87e"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "D",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "E": "1595f51991cd9529|24b30122782a64a0|||0abd0c405d1d9e24"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "E",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "D": "1595f51991cd9529|24b30122782a64a0|||0abd0c405d1d9e24"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "F",
+    "plans": [],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "A": "55fce4ba112f5a1f|6fe8ddd744066902|505cbf8098e227b7|1c4d2b667f5bffd5|bec28770ddc6a848"
+    },
+    "audited_at": ""
+   },
+   {
+    "key": "G",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {},
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "H",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "G": "0e50407be8a45c1d|dd2daf4537b63379|||5ea898b51cef6c6b"
+    },
+    "audited_at": "c0ffee"
+   }
+  ],
+  "updated": [
+   "A",
+   "B",
+   "C",
+   "F"
+  ],
+  "skipped": []
+ },
+ "refs-update-extra-order": [
+  {
+   "key": "A",
+   "plans": [],
+   "files": {},
+   "fp_files": "e3b0c44298fc1c14",
+   "jira_updated": "",
+   "fp_prods": {},
+   "audited_at": "x",
+   "aa": 1,
+   "zz": 2
+  }
+ ],
+ "refs-update-fresh": {
+  "rows": [
+   {
+    "key": "A",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "1",
+      "fp": "93b7de8431875cbc"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "1",
+    "fp_links": "cd65ea2c2ad99e94",
+    "rules": "1",
+    "fp_prods": {},
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "B",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "2",
+    "rules": "1",
+    "fp_prods": {
+     "A": "e78827f8a0113732|6fe8ddd744066902|505cbf8098e227b7|2df46b3f64c1718b|bec28770ddc6a848"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "C",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "B": "b820f8e70abe4284|beee62fe007edbc9|2ccc03100538ffc8||d402edcafa6ac87e"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "D",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "E": "1595f51991cd9529|24b30122782a64a0|||0abd0c405d1d9e24"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "E",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "D": "1595f51991cd9529|24b30122782a64a0|||0abd0c405d1d9e24"
+    },
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "G",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {},
+    "audited_at": "c0ffee"
+   },
+   {
+    "key": "H",
+    "plans": [
+     {
+      "plan": "p.md",
+      "task": "2",
+      "fp": "8516ae6518ae1f18"
+     }
+    ],
+    "files": {
+     "a.js": 1
+    },
+    "fp_files": "80b7b0169f131249",
+    "jira_updated": "",
+    "rules": "1",
+    "fp_prods": {
+     "G": "0e50407be8a45c1d|dd2daf4537b63379|||5ea898b51cef6c6b"
+    },
+    "audited_at": "c0ffee"
+   }
+  ],
+  "updated": [
+   "A",
+   "B",
+   "C",
+   "D",
+   "E",
+   "G",
+   "H"
+  ],
+  "skipped": [
+   "NOPE"
+  ]
+ },
+ "refs-update-keep": {
+  "rows": [
+   {
+    "key": "A",
+    "plans": [],
+    "files": {},
+    "fp_files": "e3b0c44298fc1c14",
+    "jira_updated": "j9",
+    "fp_links": "l9",
+    "rules": "r9",
+    "fp_prods": {},
+    "audited_at": "old",
+    "extra": 1,
+    "z": 2
+   }
+  ],
+  "updated": [
+   "A"
+  ],
+  "skipped": []
+ },
+ "section-adjacent": [
+  "Task 1:",
+  "Task 1: a "
+ ],
+ "sections": [
+  "## Task 1: one  \r\nbuild a\t\n\n",
+  "### Task 2: two\nbuild b\n",
+  "## Task 2.1: sub\nx\n#### Task 3: deep\n\n\n",
+  null,
+  null,
+  "#### Task 3: deep\n\n\n",
+  "Task 1: a\n"
+ ],
+ "stale-changed": {
+  "stale": [
+   {
+    "key": "A",
+    "reasons": [
+     "plan",
+     "links"
+    ],
+    "via": null
+   },
+   {
+    "key": "B",
+    "reasons": [
+     "jira",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "C",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "B"
+   },
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   }
+  ],
+  "clean": 4,
+  "ref": "main"
+ },
+ "stale-clean": {
+  "stale": [
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   }
+  ],
+  "clean": 7,
+  "ref": "HEAD"
+ },
+ "stale-files": {
+  "stale": [
+   {
+    "key": "A",
+    "reasons": [
+     "files"
+    ],
+    "via": null
+   },
+   {
+    "key": "B",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "C",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "B"
+   },
+   {
+    "key": "D",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "E"
+   },
+   {
+    "key": "E",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "D"
+   },
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "G",
+    "reasons": [
+     "files"
+    ],
+    "via": null
+   },
+   {
+    "key": "H",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "G"
+   }
+  ],
+  "clean": 0,
+  "ref": null
+ },
+ "stale-fp-prods-mismatch": {
+  "stale": [
+   {
+    "key": "C",
+    "reasons": [
+     "producer_changed"
+    ],
+    "via": "B"
+   },
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   }
+  ],
+  "clean": 6,
+  "ref": null
+ },
+ "stale-full": {
+  "stale": [
+   {
+    "key": "A",
+    "reasons": [
+     "full"
+    ],
+    "via": null
+   },
+   {
+    "key": "B",
+    "reasons": [
+     "full",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "C",
+    "reasons": [
+     "full",
+     "producer_changed"
+    ],
+    "via": "B"
+   },
+   {
+    "key": "D",
+    "reasons": [
+     "full",
+     "producer_changed"
+    ],
+    "via": "E"
+   },
+   {
+    "key": "E",
+    "reasons": [
+     "full",
+     "producer_changed"
+    ],
+    "via": "D"
+   },
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "full",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "G",
+    "reasons": [
+     "full"
+    ],
+    "via": null
+   },
+   {
+    "key": "H",
+    "reasons": [
+     "full",
+     "producer_changed"
+    ],
+    "via": "G"
+   }
+  ],
+  "clean": 0,
+  "ref": null
+ },
+ "stale-keys": [
+  [
+   "A",
+   "B",
+   "C",
+   "F"
+  ],
+  [
+   "A",
+   "F"
+  ]
+ ],
+ "stale-model-refs-default": {
+  "stale": [
+   {
+    "key": "A",
+    "reasons": [
+     "files"
+    ],
+    "via": null
+   }
+  ],
+  "clean": 0,
+  "ref": null
+ },
+ "stale-rules": {
+  "stale": [
+   {
+    "key": "A",
+    "reasons": [
+     "rules"
+    ],
+    "via": null
+   },
+   {
+    "key": "B",
+    "reasons": [
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "C",
+    "reasons": [
+     "rules",
+     "producer_changed"
+    ],
+    "via": "B"
+   },
+   {
+    "key": "D",
+    "reasons": [
+     "rules",
+     "producer_changed"
+    ],
+    "via": "E"
+   },
+   {
+    "key": "E",
+    "reasons": [
+     "rules",
+     "producer_changed"
+    ],
+    "via": "D"
+   },
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "rules",
+     "producer_changed"
+    ],
+    "via": "A"
+   },
+   {
+    "key": "G",
+    "reasons": [
+     "rules"
+    ],
+    "via": null
+   },
+   {
+    "key": "H",
+    "reasons": [
+     "rules",
+     "producer_changed"
+    ],
+    "via": "G"
+   }
+  ],
+  "clean": 0,
+  "ref": null
+ },
+ "stale-unavailable": {
+  "stale": [
+   {
+    "key": "F",
+    "reasons": [
+     "files",
+     "producer_changed"
+    ],
+    "via": "A"
+   }
+  ],
+  "clean": 7,
+  "ref": null
+ }
+}

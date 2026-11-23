@@ -1,0 +1,2318 @@
+{
+ "adf": [
+  "###### Title\n## Sub\na\n@Ben@\n\n- one\n\n- two\n\n```\nx = 1\n```\nraw",
+  "",
+  202,
+  {
+   "(error)": "JiraError",
+   "message": "issue text is not valid ADF: \"content\" must be an array",
+   "code": "bad_input"
+  },
+  "# \n"
+ ],
+ "changelog": [
+  [
+   {
+    "id": "",
+    "created": "2026-01-01",
+    "author": "Ana",
+    "items": [
+     {
+      "field": "status",
+      "from": "To Do",
+      "to": "Done"
+     }
+    ]
+   },
+   {
+    "id": "",
+    "created": "",
+    "author": "",
+    "items": []
+   }
+  ],
+  {
+   "(error)": "JiraError",
+   "message": "not a Jira issue key",
+   "code": "bad_key"
+  }
+ ],
+ "client-body-cap": {
+  "(error)": "JiraError",
+  "message": "Jira answered with a body over 50 bytes on GET /rest/api/3/myself",
+  "code": "too_large"
+ },
+ "client-config": [
+  {
+   "(error)": "JiraError",
+   "message": "auth.mode must be scoped, site-token or datacenter",
+   "code": "bad_config"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "scoped mode needs a cloudId (see docs/JIRA.md)",
+   "code": "bad_config"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "an email and an API token are required",
+   "code": "no_credentials"
+  },
+  {
+   "host": "jira.corp"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "an email and an API token are required",
+   "code": "no_credentials"
+  },
+  "site-token"
+ ],
+ "client-rate-limited": {
+  "e": {
+   "(error)": "JiraError",
+   "message": "rate limited after 2 retries",
+   "code": "rate_limited"
+  },
+  "sleeps": [
+   10,
+   20
+  ]
+ },
+ "client-requests": {
+  "r": [
+   {
+    "accountId": "acc-1",
+    "timeZone": "Europe/Berlin"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "redirect refused on GET /rest/api/3/issue/ABC-1 (status 302); Authorization is never forwarded",
+    "code": "redirect"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 400 on GET /rest/api/3/issue/ABC-1: bad ?jql?; x y",
+    "code": "bad_request"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 400 on GET /rest/api/3/issue/ABC-1",
+    "code": "bad_request"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 401 on GET /rest/api/3/issue/ABC-1",
+    "code": "auth"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 403 on GET /rest/api/3/issue/ABC-1",
+    "code": "forbidden"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 404 on GET /rest/api/3/issue/ABC-1",
+    "code": "not_found"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 500 on GET /rest/api/3/issue/ABC-1",
+    "code": "http"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 200 with a non-JSON body on GET /rest/api/3/issue/ABC-1",
+    "code": "bad_json"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "network error on GET /rest/api/3/issue/ABC-1: socket hang up",
+    "code": "network"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "network error on GET /rest/api/3/issue/ABC-1: timeout",
+    "code": "network"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "rate-limit quota exhausted (quota-exceeded); stopping, resets at 2026-05-01T13:00:00.000Z",
+    "code": "quota"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "rate limited, Retry-After 999s exceeds the 120s limit; stopping, retry after 2026-05-01T12:16:39.000Z",
+    "code": "rate_limit_wait"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "blocked: DELETE /rest/api/3/issue/ABC-1 is not on the read-only allowlist",
+    "code": "read_only"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "blocked: GET /rest/api/3/issue/abc-1 is not on the read-only allowlist",
+    "code": "read_only"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "blocked: GET /rest/api/2/myself is not on the read-only allowlist",
+    "code": "read_only"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "blocked: GET 5 is not on the read-only allowlist",
+    "code": "read_only"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "blocked: GET /rest/api/3/myself?x=1 is not on the read-only allowlist",
+    "code": "read_only"
+   }
+  ],
+  "log": [
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/myself  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/myself  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/myself  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/ABC-1?fields=summary  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/myself  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/myself  redirect=manual auth=Basic"
+  ],
+  "sleeps": [
+   2000,
+   20
+  ],
+  "says": [
+   "GET /rest/api/3/myself -> 429",
+   "GET /rest/api/3/myself -> 429",
+   "GET /rest/api/3/myself -> 200",
+   "GET /rest/api/3/issue/ABC-1 -> 302",
+   "GET /rest/api/3/issue/ABC-1 -> 400",
+   "GET /rest/api/3/issue/ABC-1 -> 400",
+   "GET /rest/api/3/issue/ABC-1 -> 401",
+   "GET /rest/api/3/issue/ABC-1 -> 403",
+   "GET /rest/api/3/issue/ABC-1 -> 404",
+   "GET /rest/api/3/issue/ABC-1 -> 500",
+   "GET /rest/api/3/issue/ABC-1 -> 200",
+   "GET /rest/api/3/myself -> 429",
+   "GET /rest/api/3/myself -> 429"
+  ]
+ },
+ "client-stream": {
+  "a": 1
+ },
+ "cloud-calls": {
+  "out": [
+   {
+    "issues": [
+     {
+      "key": "A-1"
+     }
+    ],
+    "cursor": "p2",
+    "last": false
+   },
+   {
+    "issues": [
+     {
+      "key": "A-2"
+     }
+    ],
+    "cursor": null,
+    "last": true
+   },
+   {
+    "issues": [],
+    "cursor": null,
+    "last": true
+   },
+   7,
+   null,
+   {
+    "fields": {}
+   },
+   [
+    {
+     "id": "1"
+    },
+    {
+     "id": "2"
+    }
+   ],
+   []
+  ],
+  "log": [
+   "POST https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/search/jql {\"jql\":\"project = A\",\"fields\":[\"summary\"],\"maxResults\":1} redirect=manual auth=Basic",
+   "POST https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/search/jql {\"jql\":\"project = A\",\"fields\":[\"summary\"],\"maxResults\":1,\"nextPageToken\":\"p2\"} redirect=manual auth=Basic",
+   "POST https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/search/jql {\"jql\":\"q\",\"fields\":[\"x\"],\"maxResults\":5} redirect=manual auth=Basic",
+   "POST https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/search/approximate-count {\"jql\":\"project = A\"} redirect=manual auth=Basic",
+   "POST https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/search/approximate-count {\"jql\":\"project = A\"} redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/A-1?fields=summary%2Cstatus  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/A-1/changelog?startAt=0&maxResults=100  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/A-1/changelog?startAt=1&maxResults=100  redirect=manual auth=Basic",
+   "GET https://api.atlassian.com/ex/jira/cloud-id-1234/rest/api/3/issue/A-1/changelog?startAt=0&maxResults=100  redirect=manual auth=Basic"
+  ],
+  "now": "2026-05-01T12:00:00.000Z",
+  "identity": {
+   "cloud_id": "cloud-id-1234"
+  },
+  "mode": "scoped"
+ },
+ "credentials": [
+  {
+   "email": "dev@example.invalid",
+   "source": "env",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"env\"}"
+  },
+  {
+   "email": "",
+   "source": "env",
+   "token": "TOKEN",
+   "json": "{\"email\":\"\",\"source\":\"env\"}"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "JIRA_EMAIL is not an email address",
+   "code": "bad_credentials"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "token from env is malformed (8+ printable characters, no spaces)",
+   "code": "bad_credentials"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "op",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"op\"}"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "op",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"op\"}"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "JIRA_OP_REF must look like op://vault/item/field",
+   "code": "bad_credentials"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "op read failed for JIRA_OP_REF (is the 1Password CLI signed in?)",
+   "code": "no_credentials"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "op returned an empty or multi-line secret",
+   "code": "bad_credentials"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "op returned an empty or multi-line secret",
+   "code": "bad_credentials"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "keychain",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"keychain\"}"
+  },
+  {
+   "email": "",
+   "source": "keychain",
+   "token": "TOKEN",
+   "json": "{\"email\":\"\",\"source\":\"keychain\"}"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "keychain",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"keychain\"}"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "no Jira credentials: set JIRA_EMAIL and JIRA_API_TOKEN, or JIRA_OP_REF, or store the token in the OS keychain (see docs/JIRA.md)",
+   "code": "no_credentials"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "no Jira credentials: set JIRA_EMAIL and JIRA_API_TOKEN, or JIRA_OP_REF, or store the token in the OS keychain (see docs/JIRA.md)",
+   "code": "no_credentials"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "keychain",
+   "token": "TOKENx",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"keychain\"}"
+  },
+  {
+   "email": "dev@example.invalid",
+   "source": "keychain",
+   "token": "TOKEN",
+   "json": "{\"email\":\"dev@example.invalid\",\"source\":\"keychain\"}"
+  }
+ ],
+ "dc-calls": {
+  "d": [
+   {
+    "issues": [
+     {
+      "key": "A-1"
+     },
+     {
+      "key": "A-2"
+     }
+    ],
+    "cursor": 2,
+    "last": false
+   },
+   {
+    "issues": [
+     {
+      "key": "A-3"
+     }
+    ],
+    "cursor": 3,
+    "last": true
+   },
+   {
+    "issues": [],
+    "cursor": 0,
+    "last": true
+   },
+   4,
+   {
+    "timeZone": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "changelog is only implemented for Cloud",
+    "code": "unsupported"
+   }
+  ],
+  "log": [
+   "POST https://jira.corp:8443/jira/rest/api/2/search {\"jql\":\"q\",\"fields\":[\"a\"],\"startAt\":0,\"maxResults\":2} redirect=manual auth=Bearer",
+   "POST https://jira.corp:8443/jira/rest/api/2/search {\"jql\":\"q\",\"fields\":[\"a\"],\"startAt\":2,\"maxResults\":2} redirect=manual auth=Bearer",
+   "POST https://jira.corp:8443/jira/rest/api/2/search {\"jql\":\"q\",\"fields\":[\"a\"],\"startAt\":0,\"maxResults\":2} redirect=manual auth=Bearer",
+   "POST https://jira.corp:8443/jira/rest/api/2/search {\"jql\":\"q\",\"fields\":[\"key\"],\"maxResults\":0} redirect=manual auth=Bearer",
+   "GET https://jira.corp:8443/jira/rest/api/2/myself  redirect=manual auth=Bearer"
+  ],
+  "identity": {
+   "host": "jira.corp"
+  }
+ },
+ "error": [
+  "JiraError",
+  "x",
+  "m Authorization: [redacted]",
+  418,
+  "later",
+  "(undefined)"
+ ],
+ "hosts": [
+  [
+   "a.example.com",
+   "b.example.com:8443"
+  ],
+  [
+   "c.example.com",
+   "5"
+  ],
+  [],
+  [
+   "a.atlassian.net"
+  ],
+  [
+   "jira.corp:8443"
+  ],
+  [],
+  []
+ ],
+ "import": [
+  {
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "jql": "p",
+     "complete": false,
+     "source": "import",
+     "imported_at": "2026-05-01T12:00:00.000Z",
+     "received_count": 2,
+     "pull": "import",
+     "content_hash": "3a61c7a017331ba5cfbaa7f63ab8b5298dece9665aeaa17830db336a06c15e72"
+    },
+    "issues": [
+     {
+      "key": "A-1",
+      "summary": "new",
+      "status": "",
+      "assignee": "",
+      "updated": "2026-04-06T00:00:00Z",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "blocks",
+        "dir": "out"
+       }
+      ]
+     },
+     {
+      "key": "A-2",
+      "summary": "",
+      "status": "",
+      "assignee": "",
+      "updated": "2026-04-01T00:00:00Z",
+      "resolutiondate": "",
+      "issuelinks": []
+     }
+    ]
+   },
+   "imported": 2,
+   "dropped": 1,
+   "changedKeys": [
+    "A-1",
+    "A-2"
+   ],
+   "summary": "imported 2 issue(s) (changed 2, dropped 1); snapshot now 2 issues, partial, hash 3a61c7"
+  },
+  {
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "jql": "p",
+     "complete": false,
+     "source": "import",
+     "imported_at": "2026-05-01T12:00:00.000Z",
+     "received_count": 1,
+     "pull": "import",
+     "content_hash": "fef1e8d889d4f5affd6f2bbda33e31d8c1f5878a0dcf450dffac4be066ed1505"
+    },
+    "issues": [
+     {
+      "key": "A-1",
+      "updated": "2026-04-05T00:00:00Z",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "blocks",
+        "dir": "out"
+       }
+      ]
+     }
+    ]
+   },
+   "imported": 1,
+   "dropped": 0,
+   "changedKeys": [],
+   "summary": "imported 1 issue(s) (changed 0, dropped 0); snapshot now 1 issues, partial, hash fef1e8"
+  },
+  {
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "source": "import",
+     "imported_at": "2026-05-01T12:00:00.000Z",
+     "received_count": 1,
+     "complete": false,
+     "pull": "import",
+     "content_hash": "3ab8f2217dbab7b364c6e2641aef079bd7b863db31aa8e02ce289872700061ca"
+    },
+    "issues": [
+     {
+      "key": "C-1",
+      "summary": "",
+      "status": "",
+      "assignee": "",
+      "updated": "",
+      "resolutiondate": "",
+      "issuelinks": []
+     }
+    ]
+   },
+   "imported": 1,
+   "dropped": 0,
+   "changedKeys": [
+    "C-1"
+   ],
+   "summary": "imported 1 issue(s) (changed 1, dropped 0); snapshot now 1 issues, partial, hash 3ab8f2"
+  },
+  {
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "source": "import",
+     "imported_at": "2026-05-01T12:00:00.000Z",
+     "received_count": 1,
+     "complete": false,
+     "pull": "import",
+     "content_hash": "62ef45736f86af1fac141ed1240545983b0d54a160408a409320d90ea5526e93"
+    },
+    "issues": [
+     {
+      "key": "D-1",
+      "summary": "",
+      "status": "",
+      "assignee": "",
+      "updated": "",
+      "resolutiondate": "",
+      "issuelinks": []
+     }
+    ]
+   },
+   "imported": 1,
+   "dropped": 0,
+   "changedKeys": [
+    "D-1"
+   ],
+   "summary": "imported 1 issue(s) (changed 1, dropped 0); snapshot now 1 issues, partial, hash 62ef45"
+  },
+  {
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "source": "import",
+     "imported_at": "2026-05-01T12:00:00.000Z",
+     "received_count": 0,
+     "complete": false,
+     "pull": "import",
+     "content_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "issues": []
+   },
+   "imported": 0,
+   "dropped": 0,
+   "changedKeys": [],
+   "summary": "imported 0 issue(s) (changed 0, dropped 0); snapshot now 0 issues, partial, hash 4f53cd"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "no issues found in the input (expected an array, {issues:[..]}, {issues:{nodes:[..]}} or one issue)",
+   "code": "bad_input"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "no issues found in the input (expected an array, {issues:[..]}, {issues:{nodes:[..]}} or one issue)",
+   "code": "bad_input"
+  }
+ ],
+ "issue-text": [
+  "# ABC-9\nStatus:  | updated \n\n## Summary\n<untrusted src=\"jira:ABC-9\" n=\"\" len=\"48\">\nABC-9 summary,status,updated,description,comment\n</untrusted>\n\n## Description\n(empty)\n\n## Comments (0)\n",
+  {
+   "(error)": "JiraError",
+   "message": "not a Jira issue key (expected like ABC-123)",
+   "code": "bad_key"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "not a Jira issue key (expected like ABC-123)",
+   "code": "bad_key"
+  }
+ ],
+ "normalize": [
+  {
+   "key": "A-1",
+   "summary": "sum A-1",
+   "status": "To Do",
+   "assignee": "Ana",
+   "updated": "2026-04-01T10:00:00Z",
+   "resolutiondate": "",
+   "issuelinks": [
+    {
+     "key": "B-1",
+     "type": "",
+     "dir": "in",
+     "rel": "is blocked by"
+    }
+   ],
+   "sprint": [
+    {
+     "id": 0,
+     "name": "",
+     "state": ""
+    },
+    {
+     "id": 7,
+     "name": "Sprint 7",
+     "state": "ACTIVE"
+    },
+    {
+     "id": 9,
+     "name": "S ?9?",
+     "state": "future"
+    }
+   ]
+  },
+  {
+   "key": "A-2",
+   "summary": "",
+   "status": "",
+   "assignee": "",
+   "updated": "",
+   "resolutiondate": "",
+   "issuelinks": [],
+   "sprint": [
+    {
+     "id": 3,
+     "name": "S3",
+     "state": "closed"
+    }
+   ]
+  },
+  {
+   "key": "A-3",
+   "summary": "",
+   "status": "",
+   "assignee": "",
+   "updated": "",
+   "resolutiondate": "",
+   "issuelinks": [],
+   "sprint": [
+    {
+     "id": 4,
+     "name": "",
+     "state": ""
+    }
+   ]
+  },
+  {
+   "key": "A-4",
+   "summary": "",
+   "status": "",
+   "assignee": "",
+   "updated": "",
+   "resolutiondate": "",
+   "issuelinks": [],
+   "sprint": [
+    {
+     "id": 81,
+     "name": "S81",
+     "state": ""
+    },
+    {
+     "id": 82,
+     "name": "S82",
+     "state": ""
+    },
+    {
+     "id": 83,
+     "name": "S83",
+     "state": ""
+    },
+    {
+     "id": 84,
+     "name": "S84",
+     "state": ""
+    },
+    {
+     "id": 85,
+     "name": "S85",
+     "state": ""
+    },
+    {
+     "id": 86,
+     "name": "S86",
+     "state": ""
+    },
+    {
+     "id": 87,
+     "name": "S87",
+     "state": ""
+    },
+    {
+     "id": 88,
+     "name": "S88",
+     "state": ""
+    },
+    {
+     "id": 89,
+     "name": "S89",
+     "state": ""
+    },
+    {
+     "id": 90,
+     "name": "S90",
+     "state": ""
+    },
+    {
+     "id": 91,
+     "name": "S91",
+     "state": ""
+    },
+    {
+     "id": 92,
+     "name": "S92",
+     "state": ""
+    },
+    {
+     "id": 93,
+     "name": "S93",
+     "state": ""
+    },
+    {
+     "id": 94,
+     "name": "S94",
+     "state": ""
+    },
+    {
+     "id": 95,
+     "name": "S95",
+     "state": ""
+    },
+    {
+     "id": 96,
+     "name": "S96",
+     "state": ""
+    },
+    {
+     "id": 97,
+     "name": "S97",
+     "state": ""
+    },
+    {
+     "id": 98,
+     "name": "S98",
+     "state": ""
+    },
+    {
+     "id": 99,
+     "name": "S99",
+     "state": ""
+    },
+    {
+     "id": 100,
+     "name": "S100",
+     "state": ""
+    }
+   ]
+  },
+  {
+   "key": "A-5",
+   "summary": "",
+   "status": "",
+   "assignee": "",
+   "updated": "",
+   "resolutiondate": "",
+   "issuelinks": [],
+   "sprint": []
+  },
+  null,
+  null,
+  {
+   "key": "A-6",
+   "summary": "",
+   "status": "",
+   "assignee": "",
+   "updated": "",
+   "resolutiondate": "",
+   "issuelinks": []
+  }
+ ],
+ "pull-bad-input": [
+  {
+   "(error)": "JiraError",
+   "message": "refusing an empty or ORDER BY-only JQL: Jira rejects it, add a restriction (for example project = ABC)",
+   "code": "unbounded_jql"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "JQL is too long",
+   "code": "bad_jql"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "fields must be an explicit non-empty list of field ids (no *all, no negations)",
+   "code": "bad_fields"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "fields must be an explicit non-empty list of field ids (no *all, no negations)",
+   "code": "bad_fields"
+  }
+ ],
+ "pull-bad-tz": {
+  "ok": true,
+  "complete": true,
+  "snapshot": {
+   "schema": 1,
+   "meta": {
+    "jql": "project = A",
+    "fetched_at": "2026-05-01T12:00:00.000Z",
+    "mode": "scoped",
+    "cloud_id": "cloud-id-1234",
+    "expected_count": 2,
+    "received_count": 0,
+    "count_drift": -2,
+    "complete": true,
+    "content_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "pull": "full",
+    "delta_runs": 0
+   },
+   "issues": []
+  },
+  "mode": "full",
+  "changedKeys": [],
+  "removedKeys": [
+   "A-1",
+   "A-2"
+  ],
+  "received": 0,
+  "warnings": [],
+  "windowMinutes": 0,
+  "reason": "bad-since",
+  "summary": "pulled 0 issues (full, removed 2), drift -2, complete, hash 4f53cd"
+ },
+ "pull-delta": {
+  "r": {
+   "ok": true,
+   "complete": true,
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "jql": "project = A",
+     "fetched_at": "2026-05-01T12:00:00.000Z",
+     "mode": "scoped",
+     "cloud_id": "cloud-id-1234",
+     "expected_count": 9,
+     "received_count": 3,
+     "count_drift": -6,
+     "complete": true,
+     "content_hash": "5b0fda88f4de91161354286a8a0fa2bb88093b8ea24b94d424377d47fee0a991",
+     "pull": "delta",
+     "delta_runs": 1
+    },
+    "issues": [
+     {
+      "key": "A-1",
+      "summary": "sum A-1",
+      "status": "To Do",
+      "assignee": "Ana",
+      "updated": "2026-04-01T10:00:00.000+0000",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "",
+        "dir": "in",
+        "rel": "is blocked by"
+       }
+      ],
+      "sprint": []
+     },
+     {
+      "key": "A-2",
+      "summary": "sum A-2",
+      "status": "To Do",
+      "assignee": "Ana",
+      "updated": "2026-04-03T10:00:00Z",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "",
+        "dir": "in",
+        "rel": "is blocked by"
+       }
+      ],
+      "sprint": []
+     },
+     {
+      "key": "A-3",
+      "summary": "sum A-3",
+      "status": "To Do",
+      "assignee": "Ana",
+      "updated": "2026-04-03T11:00:00Z",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "",
+        "dir": "in",
+        "rel": "is blocked by"
+       }
+      ],
+      "sprint": []
+     }
+    ]
+   },
+   "mode": "delta",
+   "changedKeys": [
+    "A-2",
+    "A-3"
+   ],
+   "removedKeys": [],
+   "received": 3,
+   "warnings": [
+    "count_drift"
+   ],
+   "windowMinutes": 5,
+   "reason": "",
+   "summary": "pulled 3 issues (delta 2, window 5m), drift -6, complete, hash 5b0fda, WARN count_drift"
+  },
+  "calls": [
+   {
+    "jql": "(project = A) AND updated >= \"2026-04-02 09:55\" ORDER BY key ASC",
+    "fields": [
+     "assignee",
+     "customfield_1",
+     "issuelinks",
+     "resolutiondate",
+     "status",
+     "summary",
+     "updated"
+    ],
+    "pageSize": 100,
+    "cursor": null
+   }
+  ]
+ },
+ "pull-drift": {
+  "ok": true,
+  "complete": true,
+  "snapshot": {
+   "schema": 1,
+   "meta": {
+    "jql": "project = A",
+    "fetched_at": "2026-05-01T12:00:00.000Z",
+    "mode": "scoped",
+    "cloud_id": "cloud-id-1234",
+    "expected_count": 200,
+    "received_count": 3,
+    "count_drift": -197,
+    "complete": true,
+    "content_hash": "bb8765112c2dacb57b1afa159d10dd414f5ff6bf5b23006520192886e68334ad",
+    "pull": "full",
+    "delta_runs": 0
+   },
+   "issues": [
+    {
+     "key": "A-1",
+     "summary": "sum A-1",
+     "status": "To Do",
+     "assignee": "Ana",
+     "updated": "2026-04-01T10:00:00Z",
+     "resolutiondate": "",
+     "issuelinks": [
+      {
+       "key": "B-1",
+       "type": "",
+       "dir": "in",
+       "rel": "is blocked by"
+      }
+     ]
+    },
+    {
+     "key": "A-2",
+     "summary": "sum A-2",
+     "status": "To Do",
+     "assignee": "Ana",
+     "updated": "2026-04-01T10:00:00Z",
+     "resolutiondate": "",
+     "issuelinks": [
+      {
+       "key": "B-1",
+       "type": "",
+       "dir": "in",
+       "rel": "is blocked by"
+      }
+     ]
+    },
+    {
+     "key": "A-3",
+     "summary": "sum A-3",
+     "status": "To Do",
+     "assignee": "Ana",
+     "updated": "2026-04-01T10:00:00Z",
+     "resolutiondate": "",
+     "issuelinks": [
+      {
+       "key": "B-1",
+       "type": "",
+       "dir": "in",
+       "rel": "is blocked by"
+      }
+     ]
+    }
+   ]
+  },
+  "mode": "full",
+  "changedKeys": [],
+  "removedKeys": [],
+  "received": 3,
+  "warnings": [
+   "count_drift"
+  ],
+  "windowMinutes": 5,
+  "reason": "no-previous",
+  "summary": "pulled 3 issues (full), drift -197, complete, hash bb8765, WARN count_drift"
+ },
+ "pull-failures": [
+  {
+   "ok": false,
+   "complete": false,
+   "snapshot": null,
+   "code": "pagination_loop",
+   "error": "Jira returned the same page cursor twice",
+   "resetAt": "(undefined)",
+   "received": 0,
+   "warnings": [],
+   "changedKeys": [],
+   "removedKeys": [],
+   "summary": "INCOMPLETE after 0 issues (pagination_loop): Jira returned the same page cursor twice; nothing written"
+  },
+  {
+   "ok": false,
+   "complete": false,
+   "snapshot": null,
+   "code": "pagination_stalled",
+   "error": "Jira returned several empty pages without finishing",
+   "resetAt": "(undefined)",
+   "received": 0,
+   "warnings": [],
+   "changedKeys": [],
+   "removedKeys": [],
+   "summary": "INCOMPLETE after 0 issues (pagination_stalled): Jira returned several empty pages without finishing; nothing written"
+  },
+  {
+   "ok": false,
+   "complete": false,
+   "snapshot": null,
+   "code": "rate_limited",
+   "error": "slow",
+   "resetAt": "2026-05-02T00:00:00.000Z",
+   "received": 0,
+   "warnings": [],
+   "changedKeys": [],
+   "removedKeys": [],
+   "summary": "INCOMPLETE after 0 issues (rate_limited, resets 2026-05-02T00:00:00.000Z): slow; nothing written"
+  },
+  {
+   "ok": false,
+   "complete": false,
+   "snapshot": null,
+   "code": "internal",
+   "error": "unexpected error: boom",
+   "resetAt": "(undefined)",
+   "received": 0,
+   "warnings": [],
+   "changedKeys": [],
+   "removedKeys": [],
+   "summary": "INCOMPLETE after 0 issues (internal): unexpected error: boom; nothing written"
+  },
+  {
+   "ok": false,
+   "complete": false,
+   "snapshot": null,
+   "code": "too_many_pages",
+   "error": "stopped after 1 pages",
+   "resetAt": "(undefined)",
+   "received": 1,
+   "warnings": [],
+   "changedKeys": [],
+   "removedKeys": [],
+   "summary": "INCOMPLETE after 1 issues (too_many_pages): stopped after 1 pages; nothing written"
+  }
+ ],
+ "pull-full": {
+  "full": {
+   "ok": true,
+   "complete": true,
+   "snapshot": {
+    "schema": 1,
+    "meta": {
+     "jql": "project = A",
+     "fetched_at": "2026-05-01T12:00:00.000Z",
+     "mode": "scoped",
+     "cloud_id": "cloud-id-1234",
+     "expected_count": 2,
+     "received_count": 2,
+     "count_drift": 0,
+     "complete": true,
+     "content_hash": "613acd35d8d82547f4ed30b59218326a5ef60b336f5477c8d0557bc5c2d4e62d",
+     "pull": "full",
+     "delta_runs": 0
+    },
+    "issues": [
+     {
+      "key": "A-1",
+      "summary": "sum A-1",
+      "status": "To Do",
+      "assignee": "Ana",
+      "updated": "2026-04-01T10:00:00.000+0000",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "",
+        "dir": "in",
+        "rel": "is blocked by"
+       }
+      ],
+      "sprint": []
+     },
+     {
+      "key": "A-2",
+      "summary": "sum A-2",
+      "status": "To Do",
+      "assignee": "Ana",
+      "updated": "2026-04-02T10:00:00.000+0000",
+      "resolutiondate": "",
+      "issuelinks": [
+       {
+        "key": "B-1",
+        "type": "",
+        "dir": "in",
+        "rel": "is blocked by"
+       }
+      ],
+      "sprint": []
+     }
+    ]
+   },
+   "mode": "full",
+   "changedKeys": [],
+   "removedKeys": [],
+   "received": 4,
+   "warnings": [
+    "invalid_key_dropped:1"
+   ],
+   "windowMinutes": 5,
+   "reason": "no-previous",
+   "summary": "pulled 2 issues (full), drift 0, complete, hash 613acd, WARN invalid_key_dropped:1"
+  },
+  "calls": [
+   {
+    "jql": "project = A ORDER BY key ASC",
+    "fields": [
+     "assignee",
+     "customfield_1",
+     "issuelinks",
+     "resolutiondate",
+     "status",
+     "summary",
+     "updated"
+    ],
+    "pageSize": 100,
+    "cursor": null
+   },
+   {
+    "jql": "project = A ORDER BY key ASC",
+    "fields": [
+     "assignee",
+     "customfield_1",
+     "issuelinks",
+     "resolutiondate",
+     "status",
+     "summary",
+     "updated"
+    ],
+    "pageSize": 100,
+    "cursor": "c2"
+   }
+  ]
+ },
+ "pull-no-tz": {
+  "ok": true,
+  "complete": true,
+  "snapshot": {
+   "schema": 1,
+   "meta": {
+    "jql": "project = A",
+    "fetched_at": "2026-05-01T12:00:00.000Z",
+    "mode": "scoped",
+    "cloud_id": "cloud-id-1234",
+    "expected_count": 2,
+    "received_count": 0,
+    "count_drift": -2,
+    "complete": true,
+    "content_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "pull": "full",
+    "delta_runs": 0
+   },
+   "issues": []
+  },
+  "mode": "full",
+  "changedKeys": [],
+  "removedKeys": [
+   "A-1",
+   "A-2"
+  ],
+  "received": 0,
+  "warnings": [
+   "delta_unavailable:no-timezone"
+  ],
+  "windowMinutes": 5,
+  "reason": "no-timezone",
+  "summary": "pulled 0 issues (full, removed 2), drift -2, complete, hash 4f53cd, WARN delta_unavailable:no-timezone"
+ },
+ "pull-reconcile": {
+  "ok": true,
+  "complete": true,
+  "snapshot": {
+   "schema": 1,
+   "meta": {
+    "jql": "project = A",
+    "fetched_at": "2026-05-01T12:00:00.000Z",
+    "mode": "scoped",
+    "cloud_id": "cloud-id-1234",
+    "expected_count": null,
+    "received_count": 1,
+    "count_drift": null,
+    "complete": true,
+    "content_hash": "91ca826741814911d523a53ba82e83687070f6b273285ea89735b03c66253f67",
+    "pull": "full",
+    "delta_runs": 0
+   },
+   "issues": [
+    {
+     "key": "A-1",
+     "summary": "sum A-1",
+     "status": "To Do",
+     "assignee": "Ana",
+     "updated": "2026-04-01T10:00:00.000+0000",
+     "resolutiondate": "",
+     "issuelinks": [
+      {
+       "key": "B-1",
+       "type": "",
+       "dir": "in",
+       "rel": "is blocked by"
+      }
+     ],
+     "sprint": []
+    }
+   ]
+  },
+  "mode": "full",
+  "changedKeys": [],
+  "removedKeys": [
+   "A-2"
+  ],
+  "received": 1,
+  "warnings": [
+   "count_unavailable"
+  ],
+  "windowMinutes": 5,
+  "reason": "reconcile",
+  "summary": "pulled 1 issues (full, removed 1), drift n/a, complete, hash 91ca82, WARN count_unavailable"
+ },
+ "redact": [
+  "Authorization: [redacted] and bearer=xyz",
+  "token Bearer [redacted]",
+  "[redacted]",
+  "",
+  "authorization=\"[redacted]\"",
+  "short Basic abc"
+ ],
+ "render": [
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"26\">\nFix <\\untrusted> the thing\n</untrusted>\n\n## Description\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"60\">\n###### Title\n## Sub\na\n@Ben@\n\n- one\n\n- two\n\n```\nx = 1\n```\nraw\n</untrusted>\n\n## Comments (2)\n- [Ana, 2026-04-02]:\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"57\">\n###### Title ## Sub a @Ben@ - one - two ``` x = 1 ``` raw\n</untrusted>\n- [unknown, ]:\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"0\">\n\n</untrusted>\n... 1 more comments not fetched\n",
+  "# AB C-2\nStatus:  | updated \n\n## Summary\n(empty)\n\n## Description\n(empty)\n\n## Comments (0)\n",
+  "# ABC-3\nStatus:  | updated \n\n## Summary\n(empty)\n\n## Description\n(empty)\n\n## Comments (0)\n",
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n\n... 465 more chars\n",
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"26\">\nFix <\\untrusted> the th\n</untrusted>\n... 405 more chars\n",
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"26\">\nFix <\\untrusted> the thing\n</untrusted>\n\n## Description\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"60\">\n####\n</untrusted>\n... 325 more chars\n",
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"26\">\nFix <\\untrusted> the thing\n</untrusted>\n\n## Description\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"60\">\n###### Title\n## Sub\na\n@Ben@\n\n- one\n\n- two\n\n```\nx = 1\n```\nraw\n\n</untrusted>\n... 265 more chars\n",
+  "# ABC-1\nStatus: Done | updated 2026-04-01\n\n## Summary\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"26\">\nFix <\\untrusted> the thing\n</untrusted>\n\n## Description\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"60\">\n###### Title\n## Sub\na\n@Ben@\n\n- one\n\n- two\n\n```\nx = 1\n```\nraw\n</untrusted>\n\n## Comments (2)\n- [Ana, 2026-04-02]:\n<untrusted src=\"jira:ABC-1\" n=\"\" len=\"57\">\n###### Title ## Sub a @Ben@ - one - two ``` x = 1\n</untrusted>\n... 125 more chars\n"
+ ],
+ "snapshot": [
+  "{\"schema\":1,\"meta\":{\"source\":\"import\",\"imported_at\":\"2026-05-01T12:00:00.000Z\",\"received_count\":1,\"complete\":false,\"pull\":\"import\",\"content_hash\":\"3831b670d65e1ba12cfc099956c1a2487655999d7f1a10216eb95c659538e5cf\"}}\n{\"key\":\"A-1\",\"summary\":\"sum A-1\",\"status\":\"To Do\",\"assignee\":\"Ana\",\"updated\":\"2026-04-01T10:00:00Z\",\"resolutiondate\":\"\",\"issuelinks\":[{\"key\":\"B-1\",\"type\":\"\",\"dir\":\"in\",\"rel\":\"is blocked by\"}]}\n",
+  {
+   "schema": 1,
+   "meta": {
+    "source": "import",
+    "imported_at": "2026-05-01T12:00:00.000Z",
+    "received_count": 1,
+    "complete": false,
+    "pull": "import",
+    "content_hash": "3831b670d65e1ba12cfc099956c1a2487655999d7f1a10216eb95c659538e5cf"
+   },
+   "issues": [
+    {
+     "key": "A-1",
+     "summary": "sum A-1",
+     "status": "To Do",
+     "assignee": "Ana",
+     "updated": "2026-04-01T10:00:00Z",
+     "resolutiondate": "",
+     "issuelinks": [
+      {
+       "key": "B-1",
+       "type": "",
+       "dir": "in",
+       "rel": "is blocked by"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "A-1": {
+    "summary": "sum A-1",
+    "status": "To Do",
+    "assignee": "Ana",
+    "updated": "2026-04-01T10:00:00Z",
+    "resolved": "",
+    "blockedBy": [
+     "B-1"
+    ]
+   }
+  },
+  {
+   "(error)": "JiraError",
+   "message": "unsupported snapshot schema",
+   "code": "bad_snapshot"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "unsupported snapshot schema",
+   "code": "bad_snapshot"
+  },
+  {
+   "(error)": "JiraError",
+   "message": "unsupported snapshot schema",
+   "code": "bad_snapshot"
+  }
+ ],
+ "times": [
+  1775037600000,
+  1775030400120,
+  1775057400123,
+  1775034000000,
+  "NaN",
+  "NaN"
+ ],
+ "validate": [
+  [
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "origin": "https://team.atlassian.net",
+    "host": "team.atlassian.net",
+    "kind": "site",
+    "basePath": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: path not allowed",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "origin": "https://team.atlassian.net",
+    "host": "team.atlassian.net",
+    "kind": "site",
+    "basePath": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: path not allowed",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: site is not in the user-level site allowlist (BRAIN_JIRA_SITES)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: site is not in the user-level site allowlist (BRAIN_JIRA_SITES)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "origin": "https://jira.corp:8443",
+    "host": "jira.corp",
+    "kind": "datacenter",
+    "basePath": "/jira"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "origin": "https://jira.corp:8443",
+    "host": "jira.corp",
+    "kind": "datacenter",
+    "basePath": "/jira"
+   }
+  ],
+  [
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "origin": "https://api.atlassian.com",
+    "host": "api.atlassian.com",
+    "kind": "gateway",
+    "basePath": ""
+   },
+   {
+    "origin": "https://team.atlassian.net",
+    "host": "team.atlassian.net",
+    "kind": "site",
+    "basePath": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: path not allowed",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "origin": "http://127.0.0.1:9",
+    "host": "127.0.0.1",
+    "kind": "loopback",
+    "basePath": ""
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: path not allowed",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not on the Atlassian allowlist",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: non-default port",
+    "code": "bad_host"
+   }
+  ],
+  [
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: https required",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: userinfo",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: query or fragment",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: backslash or percent-escape",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: empty",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: whitespace, control or non-ASCII character",
+    "code": "bad_host"
+   },
+   {
+    "origin": "http://127.0.0.1:9",
+    "host": "127.0.0.1",
+    "kind": "loopback",
+    "basePath": ""
+   },
+   {
+    "origin": "http://localhost",
+    "host": "localhost",
+    "kind": "loopback",
+    "basePath": "/x"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "code": "bad_host"
+   }
+  ]
+ ],
+ "validate-type": {
+  "(error)": "JiraError",
+  "message": "base URL rejected: empty",
+  "code": "bad_host"
+ },
+ "verify": [
+  [
+   "ok",
+   {
+    "timeZone": "Europe/Berlin"
+   },
+   {
+    "timeZone": "Europe/Berlin"
+   }
+  ],
+  [
+   "anon",
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   }
+  ],
+  [
+   "inactive",
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   }
+  ],
+  [
+   "empty",
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   }
+  ],
+  [
+   "401",
+   {
+    "(error)": "JiraError",
+    "message": "Jira rejected the credentials (401 on /myself). Scoped tokens need mode \"scoped\" + cloudId (api.atlassian.com gateway); unscoped tokens need mode \"site-token\"; Data Center needs a PAT",
+    "code": "auth"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   }
+  ],
+  [
+   "500",
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered 500 on GET /rest/api/3/myself",
+    "code": "http"
+   },
+   {
+    "(error)": "JiraError",
+    "message": "Jira answered /myself with an anonymous, empty or inactive identity: the token is not being accepted (wrong mode for this token type?)",
+    "code": "anonymous"
+   }
+  ],
+  [
+   "no-tz",
+   {
+    "timeZone": ""
+   },
+   {
+    "timeZone": ""
+   }
+  ]
+ ]
+}

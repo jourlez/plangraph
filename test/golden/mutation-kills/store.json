@@ -1,0 +1,990 @@
+{
+ "attr-big": [
+  [
+   ".gitattributes refused: larger than 262144 bytes",
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+  ],
+  {
+   "(error)": "Error",
+   "message": "refusing to read .gitattributes: larger than 262144 bytes",
+   "code": "ATTR_REFUSED"
+  }
+ ],
+ "attr-dir": [
+  [
+   ".gitattributes refused: not a regular file",
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+  ],
+  {
+   "(error)": "Error",
+   "message": "refusing to read .gitattributes: not a regular file",
+   "code": "ATTR_REFUSED"
+  }
+ ],
+ "attr-symlink": [
+  [
+   ".gitattributes refused: it is a symlink",
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+  ],
+  {
+   "(error)": "Error",
+   "message": "refusing to read .gitattributes: it is a symlink",
+   "code": "ATTR_REFUSED"
+  }
+ ],
+ "attr-unreadable": [
+  "Error EACCES EACCES: permission denied, open '<path>",
+  "Error EACCES EACCES: permission denied, open '<path>"
+ ],
+ "canon-file-edges.jsonl": "{\"consumer\":\"C0\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L0\",\"k\":\"k0\",\"key\":\"B\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"consumer\":\"C0\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L2\",\"k\":\"k2\",\"key\":\"A\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"consumer\":\"C1\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L0\",\"k\":\"k3\",\"key\":\"A\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"consumer\":\"C1\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L1\",\"k\":\"k1\",\"key\":\"A\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n",
+ "canon-file-evidence.jsonl": "{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":2,\"text\":\"t\",\"version\":\"current\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":1,\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":2,\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"B\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":1,\"text\":\"t\",\"version\":\"current\"}\n",
+ "canon-file-fallback": [
+  "{\"a\":1}\n{\"b\":1}\n",
+  "",
+  "{\"k\":1}\n{\"k\":2}\n"
+ ],
+ "canon-file-findings.jsonl": "{\"key\":\"A\",\"kind\":\"x\",\"text\":\"t\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"verdict\":\"v\",\"version\":\"current\"}\n{\"key\":\"A\",\"kind\":\"x\",\"text\":\"t\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"A\",\"kind\":\"x\",\"text\":\"t\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"B\",\"kind\":\"x\",\"text\":\"t\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"verdict\":\"v\",\"version\":\"current\"}\n",
+ "canon-file-learnings.jsonl": "{\"id\":\"L0\",\"kind\":\"x\",\"text\":\"t\",\"source\":\"s\",\"consumer\":\"C0\",\"k\":\"k0\",\"key\":\"B\",\"producer\":\"P\",\"sp\":1,\"verdict\":\"v\",\"version\":\"current\"}\n{\"id\":\"L0\",\"kind\":\"x\",\"text\":\"t\",\"source\":\"s\",\"consumer\":\"C1\",\"k\":\"k3\",\"key\":\"A\",\"producer\":\"P\",\"sp\":1,\"verdict\":\"v\",\"version\":\"old\"}\n{\"id\":\"L1\",\"kind\":\"x\",\"text\":\"t\",\"source\":\"s\",\"consumer\":\"C1\",\"k\":\"k1\",\"key\":\"A\",\"producer\":\"P\",\"sp\":2,\"verdict\":\"v\",\"version\":\"old\"}\n{\"id\":\"L2\",\"kind\":\"x\",\"text\":\"t\",\"source\":\"s\",\"consumer\":\"C0\",\"k\":\"k2\",\"key\":\"A\",\"producer\":\"P\",\"sp\":2,\"verdict\":\"v\",\"version\":\"current\"}\n",
+ "canon-file-meta.jsonl": "{\"k\":\"k0\",\"consumer\":\"C0\",\"id\":\"L0\",\"key\":\"B\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"k\":\"k1\",\"consumer\":\"C1\",\"id\":\"L1\",\"key\":\"A\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"k\":\"k2\",\"consumer\":\"C0\",\"id\":\"L2\",\"key\":\"A\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"k\":\"k3\",\"consumer\":\"C1\",\"id\":\"L0\",\"key\":\"A\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n",
+ "canon-file-open-items.jsonl": "{\"key\":\"A\",\"kind\":\"x\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"key\":\"A\",\"kind\":\"x\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"A\",\"kind\":\"x\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"B\",\"kind\":\"x\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n",
+ "canon-file-refs.jsonl": "{\"key\":\"A\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"key\":\"A\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"A\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"key\":\"B\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n",
+ "canon-file-schedule.jsonl": "{\"version\":\"current\",\"key\":\"A\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\"}\n{\"version\":\"current\",\"key\":\"B\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\"}\n{\"version\":\"old\",\"key\":\"A\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\"}\n{\"version\":\"old\",\"key\":\"A\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\"}\n",
+ "canon-file-tickets.jsonl": "{\"key\":\"A\",\"sp\":1,\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"A\",\"sp\":2,\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"text\":\"t\",\"version\":\"current\"}\n{\"key\":\"A\",\"sp\":2,\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"B\",\"sp\":1,\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"kind\":\"x\",\"producer\":\"P\",\"source\":\"s\",\"text\":\"t\",\"version\":\"current\"}\n",
+ "canon-line": [
+  "{\"key\":\"A\",\"summary\":\"s\",\"sp\":2,\"z\":1}",
+  "{\"key\":\"K\",\"plans\":[\"a\",\"b\"],\"files\":{\"x\":2,\"y\":1}}",
+  {
+   "(error)": "TypeError",
+   "message": "record must be a JSON object"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "record must be a JSON object"
+  }
+ ],
+ "canon-text": [
+  "{\"key\":\"A\",\"sp\":1}\n{\"key\":\"B\"}\n",
+  {
+   "(error)": "IngestError",
+   "message": "x.jsonl:1: invalid JSON at column 1"
+  },
+  [
+   {
+    "a": 1
+   }
+  ]
+ ],
+ "canon-value": [
+  "{\"a\":\"x\",\"b\":[3,1,{\"y\":null}]}",
+  "[\"a\",\"b\"]",
+  "null",
+  "null",
+  "[]",
+  "1",
+  "{\"own\":1}"
+ ],
+ "defaults": [
+  {
+   "key": "K",
+   "plans": [],
+   "files": {},
+   "fp_files": "",
+   "jira_updated": "",
+   "audited_at": ""
+  },
+  {
+   "consumer": "A",
+   "producer": "B",
+   "kind": "x",
+   "note": ""
+  },
+  {
+   "a": 1
+  }
+ ],
+ "doctor-installed": {
+  "installed": false,
+  "attributes": true,
+  "config": true,
+  "executable": false,
+  "driver": "no-such-brain-merge-on-path %O %A %B %P",
+  "problems": [
+   "merge driver executable not found: no-such-brain-merge-on-path"
+  ]
+ },
+ "doctor-none": {
+  "installed": false,
+  "attributes": false,
+  "config": false,
+  "executable": false,
+  "driver": "",
+  "problems": [
+   ".gitattributes lacks \".brain/*.jsonl merge=brain-jsonl\"",
+   "git config merge.brain-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)"
+  ]
+ },
+ "doctor-other-dir": {
+  "installed": false,
+  "attributes": false,
+  "config": true,
+  "executable": false,
+  "driver": "no-such-brain-merge-on-path %O %A %B %P",
+  "problems": [
+   ".gitattributes lacks \"elsewhere/*.jsonl merge=brain-jsonl\"",
+   "merge driver executable not found: no-such-brain-merge-on-path"
+  ]
+ },
+ "doctor-shim-empty": {
+  "installed": true,
+  "attributes": true,
+  "config": true,
+  "executable": true,
+  "driver": "<repo>/data-dir/bin/brain-merge %O %A %B %P",
+  "problems": [
+   "merge driver shim has an unreadable or empty driver.target in <repo>/data-dir: run `brain doctor --fix`",
+   "merge driver shim has an unreadable or empty driver.node in <repo>/data-dir: run `brain doctor --fix`"
+  ]
+ },
+ "doctor-shim-missing": {
+  "installed": true,
+  "attributes": true,
+  "config": true,
+  "executable": true,
+  "driver": "<repo>/data-dir/bin/brain-merge %O %A %B %P",
+  "problems": [
+   "merge driver.target points to a missing file: <repo>/missing.mjs: run `brain doctor --fix`",
+   "merge driver.node points to a missing file: <repo>/missing-node: run `brain doctor --fix`"
+  ]
+ },
+ "doctor-shim-ok": [],
+ "doctor-versioned": {
+  "installed": false,
+  "attributes": true,
+  "config": true,
+  "executable": false,
+  "driver": "/u/.claude/plugins/cache/x/1/bin/brain-merge %O %A %B %P",
+  "problems": [
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+  ]
+ },
+ "driver-default": [
+  {
+   "gitattributes": ".brain/*.jsonl merge=brain-jsonl",
+   "driver": "brain-merge %O %A %B %P"
+  },
+  ".brain/*.jsonl merge=brain-jsonl\n"
+ ],
+ "driver-on-path": true,
+ "driver-refusals": [
+  {
+   "(error)": "TypeError",
+   "message": "refusing a versioned plugin-cache driver path (/plugins/cache/ is deleted after a plugin update); pass the stable shim from ensureStableDriver"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -"
+  }
+ ],
+ "driver-unreadable": "ok",
+ "evidence-order": "{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v4\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v3\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v1\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v0\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v7\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v6\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v2\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v5\"}\n",
+ "format": [
+  [
+   "missing",
+   {
+    "format_version": 0,
+    "min_reader": 0,
+    "legacy": true
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "code": "NEEDS_MIGRATION"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "code": "NEEDS_MIGRATION"
+   }
+  ],
+  [
+   "ok",
+   {
+    "format_version": 1,
+    "min_reader": 1,
+    "legacy": false
+   },
+   {
+    "version": 1,
+    "min_reader": 1,
+    "legacy": false,
+    "status": "ok"
+   },
+   {
+    "version": 1,
+    "min_reader": 1,
+    "legacy": false,
+    "status": "ok"
+   }
+  ],
+  [
+   "bom",
+   {
+    "format_version": 1,
+    "min_reader": 0,
+    "x": 1,
+    "legacy": false
+   },
+   {
+    "version": 1,
+    "min_reader": 0,
+    "legacy": false,
+    "status": "ok"
+   },
+   {
+    "version": 1,
+    "min_reader": 0,
+    "legacy": false,
+    "status": "ok"
+   }
+  ],
+  [
+   "bad-json",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: not valid JSON",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: not valid JSON",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: not valid JSON",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "array",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "negative",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "float",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: format_version must be a non-negative integer",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "min-above",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "min-negative",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "min-float",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   }
+  ],
+  [
+   "newer",
+   {
+    "format_version": 3,
+    "min_reader": 1,
+    "legacy": false
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 1) is newer than this tool supports (1): upgrade the brain tool",
+    "code": "TOO_NEW"
+   },
+   {
+    "version": 3,
+    "min_reader": 1,
+    "legacy": false,
+    "status": "newer-readable"
+   }
+  ],
+  [
+   "newer-hard",
+   {
+    "format_version": 3,
+    "min_reader": 3,
+    "legacy": false
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the brain tool",
+    "code": "TOO_NEW"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the brain tool",
+    "code": "TOO_NEW"
+   }
+  ],
+  [
+   "old",
+   {
+    "format_version": 0,
+    "min_reader": 0,
+    "legacy": false
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "code": "NEEDS_MIGRATION"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "code": "NEEDS_MIGRATION"
+   }
+  ]
+ ],
+ "format-null": "FormatError BAD_FORMAT format.json: format_version must be a non-negative integer",
+ "format-refusals": [
+  {
+   "(error)": "FormatError",
+   "message": "format.json: is a symlink",
+   "code": "BAD_FORMAT"
+  },
+  {
+   "(error)": "FormatError",
+   "message": "format.json: not a regular file",
+   "code": "BAD_FORMAT"
+  },
+  {
+   "(error)": "FormatError",
+   "message": "format.json: too large",
+   "code": "BAD_FORMAT"
+  }
+ ],
+ "format-write": [
+  "{\"format_version\":1,\"min_reader\":1,\"note\":\"keep\"}\n",
+  "{\"format_version\":1,\"min_reader\":0}\n"
+ ],
+ "format-write-order": "{\"format_version\":1,\"min_reader\":1,\"a\":1,\"zz\":2}\n",
+ "guard-cannot-create": "EACCES",
+ "guard-fresh-dead": {
+  "(error)": "Error",
+  "message": "could not take lock .lock: locked by pid 4194317"
+ },
+ "install": [
+  {
+   "gitattributes": ".brain/*.jsonl merge=brain-jsonl",
+   "driver": "'/opt/brain'\\''s tools/brain-merge' %O %A %B %P"
+  },
+  "*.md text\n.brain/*.jsonl merge=brain-jsonl\n",
+  {
+   "gitattributes": "data/brain/*.jsonl merge=brain-jsonl",
+   "driver": "no-such-brain-merge-on-path %O %A %B %P"
+  },
+  "*.md text\n.brain/*.jsonl merge=brain-jsonl\ndata/brain/*.jsonl merge=brain-jsonl\n"
+ ],
+ "install-quoted-doctor": [
+  {
+   "gitattributes": ".brain/*.jsonl merge=brain-jsonl",
+   "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P"
+  },
+  "project-brain jsonl three-way merge\n",
+  {
+   "installed": true,
+   "attributes": true,
+   "config": true,
+   "executable": true,
+   "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P",
+   "problems": []
+  }
+ ],
+ "keys": [
+  "a\u0000\u00003\u0000",
+  "a | b | ",
+  "tickets.jsonl",
+  "*"
+ ],
+ "lock-unreadable": {
+  "(error)": "Error",
+  "message": "could not take lock .lock: locked"
+ },
+ "migrate-after": [
+  [
+   "tickets.jsonl",
+   "format.json"
+  ],
+  "{\"key\":\"A\"}\n{\"key\":\"B\",\"sp\":1}\n",
+  "{\"format_version\":1,\"min_reader\":1}\n",
+  {
+   "from": 1,
+   "to": 1,
+   "pending": false,
+   "steps": []
+  },
+  {
+   "from": 1,
+   "to": 1,
+   "pending": false,
+   "steps": [],
+   "written": false
+  }
+ ],
+ "migrate-cap": "IngestError  tickets.jsonl: file too large (limit 67108864 bytes)",
+ "migrate-dry": {
+  "from": 0,
+  "to": 1,
+  "pending": true,
+  "steps": [
+   {
+    "from": 0,
+    "to": 1,
+    "describe": "add format.json, canonicalize every known jsonl file",
+    "files": [
+     "tickets.jsonl"
+    ]
+   }
+  ],
+  "written": false
+ },
+ "migrate-none": [
+  {
+   "from": 0,
+   "to": 0,
+   "pending": false,
+   "steps": []
+  }
+ ],
+ "migrate-plan": {
+  "from": 0,
+  "to": 1,
+  "pending": true,
+  "steps": [
+   {
+    "from": 0,
+    "to": 1,
+    "describe": "add format.json, canonicalize every known jsonl file",
+    "files": [
+     "tickets.jsonl"
+    ]
+   }
+  ]
+ },
+ "migrate-raced": {
+  "from": 0,
+  "to": 1,
+  "pending": true,
+  "steps": [
+   {
+    "from": 0,
+    "to": 1,
+    "describe": "",
+    "files": [
+     "x.jsonl"
+    ]
+   }
+  ],
+  "written": true
+ },
+ "migrate-refusals": [
+  "{\"(error)\":\"FormatError\",\"message\":\"<dir>: data format 9 is newer than this tool supports (1): upgrade the brain tool\",\"code\":\"TOO_NEW\"}",
+  {
+   "(error)": "IngestError",
+   "message": "tickets.jsonl: is a symlink, not a regular file"
+  },
+  {
+   "(error)": "IngestError",
+   "message": "tickets.jsonl: not a regular file"
+  },
+  {
+   "(error)": "FormatError",
+   "message": "no migration from format 0",
+   "code": "NO_PATH"
+  },
+  {
+   "from": 0,
+   "to": 3,
+   "pending": true,
+   "steps": [
+    {
+     "from": 0,
+     "to": 1,
+     "describe": "",
+     "files": [
+      "a.jsonl",
+      "b.jsonl"
+     ]
+    },
+    {
+     "from": 1,
+     "to": 3,
+     "describe": "jump",
+     "files": [
+      "c.jsonl"
+     ]
+    }
+   ]
+  },
+  {
+   "from": 0,
+   "to": 3,
+   "pending": true,
+   "steps": [
+    {
+     "from": 0,
+     "to": 1,
+     "describe": "",
+     "files": [
+      "a.jsonl",
+      "b.jsonl"
+     ]
+    },
+    {
+     "from": 1,
+     "to": 3,
+     "describe": "jump",
+     "files": [
+      "c.jsonl"
+     ]
+    }
+   ],
+   "written": true
+  },
+  "anull",
+  "{\"format_version\":3,\"min_reader\":2}\n"
+ ],
+ "migrate-write": {
+  "from": 0,
+  "to": 1,
+  "pending": true,
+  "steps": [
+   {
+    "from": 0,
+    "to": 1,
+    "describe": "add format.json, canonicalize every known jsonl file",
+    "files": [
+     "tickets.jsonl"
+    ]
+   }
+  ],
+  "written": true
+ },
+ "order-all": [
+  [
+   "tickets.jsonl",
+   "tickets.jsonl",
+   [
+    "key",
+    "summary",
+    "epic",
+    "sp",
+    "jira_status",
+    "v2_owner",
+    "v2_sprint",
+    "verdict",
+    "verdict_source",
+    "first_verdict",
+    "impl_status"
+   ],
+   [],
+   {
+    "summary": "",
+    "epic": "",
+    "jira_status": "",
+    "verdict": "",
+    "verdict_source": "",
+    "first_verdict": ""
+   }
+  ],
+  [
+   "edges.jsonl",
+   "edges.jsonl",
+   [
+    "consumer",
+    "producer",
+    "kind",
+    "note"
+   ],
+   [],
+   {
+    "kind": "plan_need",
+    "note": ""
+   }
+  ],
+  [
+   "schedule.jsonl",
+   "schedule.jsonl",
+   [
+    "version",
+    "key",
+    "owner",
+    "sprint"
+   ],
+   [],
+   {
+    "version": "current"
+   }
+  ],
+  [
+   "evidence.jsonl",
+   "evidence.jsonl",
+   [
+    "key",
+    "source",
+    "verdict",
+    "resolution",
+    "needs"
+   ],
+   [],
+   {
+    "resolution": "",
+    "needs": ""
+   }
+  ],
+  [
+   "findings.jsonl",
+   "findings.jsonl",
+   [
+    "key",
+    "kind",
+    "text"
+   ],
+   [],
+   {}
+  ],
+  [
+   "meta.jsonl",
+   "meta.jsonl",
+   [
+    "k",
+    "v"
+   ],
+   [],
+   {}
+  ],
+  [
+   "learnings.jsonl",
+   "learnings.jsonl",
+   [
+    "id",
+    "kind",
+    "topic",
+    "text",
+    "why",
+    "source"
+   ],
+   [],
+   {
+    "why": "",
+    "source": ""
+   }
+  ],
+  [
+   "refs.jsonl",
+   "refs.jsonl",
+   [
+    "key",
+    "plans",
+    "files",
+    "fp_files",
+    "jira_updated",
+    "audited_at"
+   ],
+   [
+    "plans"
+   ],
+   {
+    "plans": [],
+    "files": {},
+    "fp_files": "",
+    "jira_updated": "",
+    "audited_at": ""
+   }
+  ],
+  [
+   "open-items.jsonl",
+   "open-items.jsonl",
+   [
+    "key",
+    "kind",
+    "status"
+   ],
+   [],
+   {}
+  ]
+ ],
+ "order-open-items": "{\"key\":\"A\",\"kind\":\"k\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"x\",\"text\":\"t\"}",
+ "order-tickets": "{\"key\":\"A\",\"summary\":\"s\",\"epic\":\"E\",\"sp\":3,\"jira_status\":\"Done\",\"v2_owner\":\"Ana\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\",\"impl_status\":\"done\",\"aa\":2,\"zz\":1}",
+ "parse-default-name": {
+  "(error)": "IngestError",
+  "message": "input:1: invalid JSON at column 1"
+ },
+ "perm-migrate": "Error EACCES EACCES: permission denied, open '<path>",
+ "perm-records-format-migrate": [
+  "Error EACCES EACCES: permission denied, open '<path>",
+  "Error EACCES EACCES: permission denied, open '<path>"
+ ],
+ "race-fresh-in-steal": {
+  "(error)": "Error",
+  "message": "could not take lock .lock: locked by pid 4194317"
+ },
+ "race-lstat-error": {
+  "(error)": "Error",
+  "message": "denied",
+  "code": "EACCES"
+ },
+ "race-symlink-in-steal": {
+  "(error)": "Error",
+  "message": "lock path is a symlink: .lock",
+  "code": "SYMLINK"
+ },
+ "race-vanished-first-look": {
+  "(error)": "Error",
+  "message": "could not take lock .lock: locked"
+ },
+ "race-vanished-in-steal": "acquired",
+ "read": [
+  [
+   {
+    "key": "B",
+    "plans": [],
+    "files": {},
+    "fp_files": "",
+    "jira_updated": "",
+    "audited_at": ""
+   },
+   {
+    "key": "A",
+    "plans": [
+     "p"
+    ],
+    "files": {},
+    "fp_files": "",
+    "jira_updated": "",
+    "audited_at": ""
+   }
+  ],
+  [
+   {
+    "key": "B"
+   },
+   {
+    "key": "A",
+    "plans": [
+     "p"
+    ]
+   }
+  ],
+  []
+ ],
+ "read-cap": {
+  "(error)": "IngestError",
+  "message": "tickets.jsonl: file too large (limit 67108864 bytes)"
+ },
+ "read-defaults": [
+  [
+   {
+    "key": "A",
+    "consumer": "A",
+    "producer": "B",
+    "id": "L",
+    "source": "s",
+    "kind": "plan_need",
+    "note": ""
+   }
+  ],
+  [
+   {
+    "key": "A",
+    "consumer": "A",
+    "producer": "B",
+    "id": "L",
+    "source": "s",
+    "resolution": "",
+    "needs": ""
+   }
+  ],
+  [
+   {
+    "key": "A",
+    "consumer": "A",
+    "producer": "B",
+    "id": "L",
+    "source": "s",
+    "why": ""
+   }
+  ],
+  [
+   {
+    "key": "A",
+    "consumer": "A",
+    "producer": "B",
+    "id": "L",
+    "source": "s",
+    "version": "current"
+   }
+  ],
+  [
+   {
+    "key": "A",
+    "consumer": "A",
+    "producer": "B",
+    "id": "L",
+    "source": "s",
+    "summary": "",
+    "epic": "",
+    "jira_status": "",
+    "verdict": "",
+    "verdict_source": "",
+    "first_verdict": ""
+   }
+  ]
+ ],
+ "read-refusals": [
+  {
+   "(error)": "IngestError",
+   "message": "link.jsonl: is a symlink, not a regular file"
+  },
+  {
+   "(error)": "IngestError",
+   "message": "dir.jsonl: not a regular file"
+  }
+ ],
+ "retry-looks": [
+  {
+   "(error)": "Error",
+   "message": "could not take lock .lock: locked by pid <self>"
+  },
+  2
+ ],
+ "spec": [
+  "*",
+  "",
+  [],
+  [
+   "order",
+   "sets",
+   "defaults",
+   "id",
+   "sort"
+  ]
+ ],
+ "steal-denied-retries-0": "Error EACCES denied",
+ "steal-rename-error": {
+  "(error)": "Error",
+  "message": "cross device",
+  "code": "EXDEV"
+ },
+ "steal-replaced-identical": [
+  {
+   "(error)": "Error",
+   "message": "could not take lock .lock: locked by pid 4194317"
+  },
+  [
+   ".lock"
+  ]
+ ],
+ "steal-retries-0": "acquired",
+ "steal-rewritten-in-place": [
+  {
+   "(error)": "Error",
+   "message": "could not take lock .lock: locked by pid <self>"
+  },
+  "live2"
+ ],
+ "steal-vanish-retries-0": "acquired",
+ "steal-vanished-retries-0": "ok"
+}

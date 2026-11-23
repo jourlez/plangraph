@@ -1,0 +1,1514 @@
+[
+ {
+  "file": "lib/driver.mjs",
+  "line": "const tmp = `${file}.x-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;",
+  "mutated": "const tmp = `${file}.x-${process.pid}-${crypto.randomBytes(5).toString('hex')}`;",
+  "why": "the temp-name suffix length is unobservable: any random suffix gives a unique sibling name"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "try { st = fs.lstatSync(dir); } catch (e) { if (e.code === 'ENOENT') return false; throw e; }",
+  "mutated": "try { st = fs.lstatSync(dir); } catch (e) { if (e.code === 'ENOENT') return true; throw e; }",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "try { st = fs.lstatSync(dir); } catch (e) { if (e.code === 'ENOENT') return false; throw e; }",
+  "mutated": "try { st = fs.lstatSync(dir); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "if (process.platform === 'win32') return true;",
+  "mutated": "if (process.platform === 'win32') return false;",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws); the early return itself is kept"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "if (process.platform === 'win32') return true;",
+  "mutated": "if (process.platform === 'win32') return null;",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws); the early return itself is kept"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "return true;",
+  "mutated": "return false;",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "return true;",
+  "mutated": "return null;",
+  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
+ },
+ {
+  "file": "lib/driver.mjs",
+  "line": "const abs = (v) => typeof v === 'string' && v !== '' && path.isAbsolute(v);",
+  "mutated": "const abs = (v) => typeof v === 'string' && v !== 'mutant' && path.isAbsolute(v);",
+  "why": "the empty string is never an absolute path, so the !== check is redundant with path.isAbsolute for any string"
+ },
+ {
+  "file": "lib/fsafe.mjs",
+  "line": "const tmp = `${file}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;",
+  "mutated": "const tmp = `${file}.tmp-${process.pid}-${crypto.randomBytes(5).toString('hex')}`;",
+  "why": "the temp-name suffix length is unobservable: any random suffix gives a unique sibling name"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "export const makeGit = (root, { timeoutMs = 30000 } = {}) => (...args) =>",
+  "mutated": "export const makeGit = (root, { timeoutMs = 30001 } = {}) => (...args) =>",
+  "why": "the 30 s git timeout is a hang guard; a 1 ms longer bound is not observable by any finite test"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });",
+  "mutated": "execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 0 << 28, timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });",
+  "why": "the 256 MiB output cap only matters above 256 MiB of git output (Node treats maxBuffer 0 as no limit), beyond any test"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });",
+  "mutated": "execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 29, timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });",
+  "why": "the 256 MiB output cap only matters above 256 MiB of git output (Node treats maxBuffer 0 as no limit), beyond any test"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "const re = (s) => s.replace(/#(?:\\{(\\d{1,2})(?:,(\\d{1,2}))?\\})?/g, (_, a, b) => (a ? `#{${a}${b ? ',' + b : ''}}` : '#')).replace(/[.\\-_ :]/g, (c) => (c === ' ' ? ' ' : '\\\\' + c));",
+  "mutated": "const re = (s) => s.replace(/#(?:\\{(\\d{1,2})(?:,(\\d{1,2}))?\\})?/g, (_, a, b) => (a ? `#{${a}${b ? ',' + b : ''}}` : '#')).replace(/[.\\-_ :]/g, (c) => (c === '' ? ' ' : '\\\\' + c));",
+  "why": "an escaped space and a plain space match the same character in a RegExp without the u flag"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError('ref_heading: template does not compile to a valid pattern'); }",
+  "mutated": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, ''); } catch { throw new TypeError('ref_heading: template does not compile to a valid pattern'); }",
+  "why": "unreachable catch: the template grammar admits only literals and bounded # runs, which always compile"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError('ref_heading: template does not compile to a valid pattern'); }",
+  "mutated": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { ; }",
+  "why": "unreachable catch: the template grammar admits only literals and bounded # runs, which always compile"
+ },
+ {
+  "file": "lib/gitsafe.mjs",
+  "line": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError('ref_heading: template does not compile to a valid pattern'); }",
+  "mutated": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError(''); }",
+  "why": "unreachable catch: the template grammar admits only literals and bounded # runs, which always compile"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "const cv = (v, isSet) => (!isSet && v === undefined ? '\\u0000absent' : canonValue(v, isSet));",
+  "mutated": "const cv = (v, isSet) => (!isSet && v === undefined ? '' : canonValue(v, isSet));",
+  "why": "canonValue never returns the empty string (it is JSON text), so an empty absent-marker is as distinct as the NUL marker"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: true });",
+  "mutated": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: false, configurable: true });",
+  "why": "the merged record is only read by canonLine inside mergeJsonl and never reassigned or redefined, so writable/configurable are unobservable"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: true });",
+  "mutated": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: false });",
+  "why": "the merged record is only read by canonLine inside mergeJsonl and never reassigned or redefined, so writable/configurable are unobservable"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "else if (!o.lines.length) clash(b.lines.length ? 'deleted in ours, edited in theirs' : 'conflict');",
+  "mutated": "else if (!o.lines.length) clash(b.lines.length ? 'deleted in ours, edited in theirs' : '');",
+  "why": "unreachable label: with ours and base both empty the earlier same(o.lines, b.lines) branch already took theirs"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "mutated": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return false; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "why": "the return value of fail() is never read: every caller continues to the next line right after it"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "mutated": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return true; };",
+  "why": "the return value of fail() is never read: every caller continues to the next line right after it"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "mutated": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return null; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "why": "the return value of fail() is never read: every caller continues to the next line right after it"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "mutated": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return null; };",
+  "why": "the return value of fail() is never read: every caller continues to the next line right after it"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length < SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "mutated": "const fail = (at, msg) => { if (total >= SCAN_LIMIT) { stopped = true; return true; } total++; if (errs.length <= SHOWN) errs.push(`${at} ${msg}`); return false; };",
+  "why": "keeping an 11th message is unobservable: IngestError keeps only the first 10 (it slices its input)"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "for (let pos = 0, i = 0; pos <= src.length && !stopped; i++) {",
+  "mutated": "for (let pos = 0, i = 0; pos < src.length && !stopped; i++) {",
+  "why": "the extra pass at pos === src.length reads an empty line, which is skipped"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const CHUNK = 65536;",
+  "mutated": "const CHUNK = 65537;",
+  "why": "the read chunk size is unobservable: the same bytes are read in chunks of either size"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "export function readStreamCapped(fd, maxBytes, { timeoutMs = 30000, fsImpl = fs } = {}) {",
+  "mutated": "export function readStreamCapped(fd, maxBytes, { timeoutMs = 30001, fsImpl = fs } = {}) {",
+  "why": "the 30 s idle timeout default is a hang guard; 1 ms more is not observable by a finite test"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "if (e.code === 'EAGAIN') { if (Date.now() - last > timeoutMs) throw Object.assign(new Error('timed out'), { code: 'TIMEOUT' }); sleepMs(10); continue; }",
+  "mutated": "if (e.code === 'EAGAIN') { if (Date.now() - last > timeoutMs) throw Object.assign(new Error('timed out'), { code: 'TIMEOUT' }); sleepMs(11); continue; }",
+  "why": "the back-off sleep length (10 or 11 ms) is not observable beyond the call-count bound the tests check"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "if (e.code === 'EAGAIN') { if (Date.now() - last > timeoutMs) throw Object.assign(new Error('timed out'), { code: 'TIMEOUT' }); sleepMs(10); continue; }",
+  "mutated": "if (e.code === 'EAGAIN') { if (Date.now() - last >= timeoutMs) throw Object.assign(new Error('timed out'), { code: 'TIMEOUT' }); sleepMs(10); continue; }",
+  "why": "a timeout at exactly timeoutMs idle versus just past it differs only at millisecond-clock granularity"
+ },
+ {
+  "file": "lib/jsonl.mjs",
+  "line": "const fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));",
+  "mutated": "const fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 1));",
+  "why": "O_NONBLOCK is defined on every supported platform, so the || fallback is never used"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
+  "mutated": "conflicts.sort((a, c) => (a.key <= c.key ? -1 : a.key > c.key ? 1 : 0));",
+  "why": "conflict keys are one per id (showKey of distinct ids only collide if a key field itself contains ' | '), so the tie branch is not taken"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
+  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key >= c.key ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
+  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 0 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
+  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 1));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "for (let k = n - 1; k >= 0; k--) {",
+  "mutated": "for (let k = n + 1; k >= 0; k--) {",
+  "why": "this loop only runs when the whole text does not fit, so the extra first candidate (all lines plus a marker) never fits either"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "for (let k = n - 1; k >= 0; k--) {",
+  "mutated": "for (let k = n - 0; k >= 0; k--) {",
+  "why": "this loop only runs when the whole text does not fit, so the extra first candidate (all lines plus a marker) never fits either"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const short = (s, n = 16) => oneLine(s, 4000).slice(0, n);",
+  "mutated": "const short = (s, n = 16) => oneLine(s, 4001).slice(0, n);",
+  "why": "the oneLine cap only marks text over 4000 characters, and the result is cut to at most 21 characters right after"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "if (Number.isInteger(s.sprint)) { if (s.sprint < first) first = s.sprint; if (s.sprint > last) last = s.sprint; }",
+  "mutated": "if (Number.isInteger(s.sprint)) { if (s.sprint <= first) first = s.sprint; if (s.sprint > last) last = s.sprint; }",
+  "why": "assigning the same value again when equal leaves first and last unchanged"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "if (Number.isInteger(s.sprint)) { if (s.sprint < first) first = s.sprint; if (s.sprint > last) last = s.sprint; }",
+  "mutated": "if (Number.isInteger(s.sprint)) { if (s.sprint < first) first = s.sprint; if (s.sprint >= last) last = s.sprint; }",
+  "why": "assigning the same value again when equal leaves first and last unchanged"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const vs = [...vc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([v, c]) => `${c} ${v}`);",
+  "mutated": "const vs = [...vc].sort((a, b) => b[1] - a[1] || (a[0] <= b[0] ? -1 : 1)).map(([v, c]) => `${c} ${v}`);",
+  "why": "the keys being compared are unique in this array (one entry per id), so the tie branch is never taken (verdict names are Map keys)"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const vs = [...vc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([v, c]) => `${c} ${v}`);",
+  "mutated": "const vs = [...vc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 0)).map(([v, c]) => `${c} ${v}`);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const fs = [...fc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k, c]) => `${k} ${c}`);",
+  "mutated": "const fs = [...fc].sort((a, b) => b[1] - a[1] || (a[0] <= b[0] ? -1 : 1)).map(([k, c]) => `${k} ${c}`);",
+  "why": "the keys being compared are unique in this array (one entry per id), so the tie branch is never taken (finding kinds are Map keys)"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const fs = [...fc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([k, c]) => `${k} ${c}`);",
+  "mutated": "const fs = [...fc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 0)).map(([k, c]) => `${k} ${c}`);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "add(2, 'over cap: ' + (over.length ? top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3) : 'none'));",
+  "mutated": "add(3, 'over cap: ' + (over.length ? top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3) : 'none'));",
+  "why": "card line priorities only matter relative to each other: over-cap tied with findings keeps the insertion order, which is the same order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "if (fs.length) add(3, 'findings: ' + top(fs, 3));",
+  "mutated": "if (fs.length) add(4, 'findings: ' + top(fs, 3));",
+  "why": "card line priorities only matter relative to each other: findings tied with the ask line keeps the insertion order, which is the same order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "add(4, CARD_ASK);",
+  "mutated": "add(5, CARD_ASK);",
+  "why": "the ask line already has the largest priority; a larger one keeps the same drop order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const render = (ls) => ls.sort((a, b) => a.i - b.i).map((l) => l.text).join('\\n');",
+  "mutated": "const render = (ls) => ls.sort((a, b) => a.i + b.i).map((l) => l.text).join('\\n');",
+  "why": "card lines are added with priorities in the same order as their index, so the list handed to render is already in index order"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const byPrio = lines.slice().sort((a, b) => a.p - b.p || a.i - b.i);",
+  "mutated": "const byPrio = lines.slice().sort((a, b) => a.p + b.p || a.i - b.i);",
+  "why": "card lines are added with priorities in the same order as their index, so ordering by index or by priority gives the same list"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const byPrio = lines.slice().sort((a, b) => a.p - b.p || a.i - b.i);",
+  "mutated": "const byPrio = lines.slice().sort((a, b) => a.p - b.p || a.i + b.i);",
+  "why": "card lines are added with priorities in the same order as their index, so ordering by index or by priority gives the same list"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const byPrio = lines.slice().sort((a, b) => a.p - b.p || a.i - b.i);",
+  "mutated": "const byPrio = lines.slice().sort((a, b) => a.p - b.p && a.i - b.i);",
+  "why": "card lines are added with priorities in the same order as their index, so ordering by index or by priority gives the same list"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "for (let n = 0; n < byPrio.length; n++) {",
+  "mutated": "for (let n = 0; n <= byPrio.length; n++) {",
+  "why": "the loop always breaks before the end: the whole card does not fit on this path and the last line added is never priority 0"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const cand = kept.concat(byPrio[n]); const dropped = byPrio.length - cand.length;",
+  "mutated": "const cand = kept.concat(byPrio[n]); const dropped = byPrio.length + cand.length;",
+  "why": "the dropped count only sizes the omitted-lines marker during the search; with at most 5 card lines both values have one digit"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "const text = render(cand.slice()) + (dropped ? `\\n... ${dropped} lines omitted` : '');",
+  "mutated": "const text = render(cand.slice()) + (dropped ? `\\n... ${dropped} lines omitted` : 'mutant');",
+  "why": "dropped is 0 only for the full card, which does not fit on this path whatever the suffix"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "return clean(budget(render(kept) + (dropped ? `\\n... ${dropped} lines omitted` : ''), Math.max(1, max)).text + tail);",
+  "mutated": "return clean(budget(render(kept) + (dropped ? `\\n... ${dropped} lines omitted` : 'mutant'), Math.max(1, max)).text + tail);",
+  "why": "dropped is never 0 here: the search always drops at least one line on this path"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key >= b.key ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 0 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 1));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const TINY = 1e-300; let c = 1, d = 1 - ((a + b) * x) / (a + 1); if (Math.abs(d) < TINY) d = TINY; d = 1 / d; let h = d;",
+  "mutated": "const TINY = 1e-300; let c = 1, d = 1 - ((a + b) * x) / (a + 1); if (Math.abs(d) <= TINY) d = TINY; d = 1 / d; let h = d;",
+  "why": "differs only when |d| or |c| equals 1e-300 exactly, which the Lentz iteration does not produce for the parameters it is called with"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d; h *= d * c;",
+  "mutated": "d = 1 + aa * d; if (Math.abs(d) <= TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d; h *= d * c;",
+  "why": "differs only when |d| or |c| equals 1e-300 exactly, which the Lentz iteration does not produce for the parameters it is called with"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d; h *= d * c;",
+  "mutated": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) <= TINY) c = TINY; d = 1 / d; h *= d * c;",
+  "why": "differs only when |d| or |c| equals 1e-300 exactly, which the Lentz iteration does not produce for the parameters it is called with"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d;",
+  "mutated": "d = 1 + aa * d; if (Math.abs(d) <= TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d;",
+  "why": "differs only when |d| or |c| equals 1e-300 exactly, which the Lentz iteration does not produce for the parameters it is called with"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) < TINY) c = TINY; d = 1 / d;",
+  "mutated": "d = 1 + aa * d; if (Math.abs(d) < TINY) d = TINY; c = 1 + aa / c; if (Math.abs(c) <= TINY) c = TINY; d = 1 / d;",
+  "why": "differs only when |d| or |c| equals 1e-300 exactly, which the Lentz iteration does not produce for the parameters it is called with"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "for (let m = 1; m <= 500; m++) {",
+  "mutated": "for (let m = 1; m < 500; m++) {",
+  "why": "the continued fraction converges in far fewer than 499 steps for every (x, a, b) the forecaster passes, so the cap is never reached"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "for (let m = 1; m <= 500; m++) {",
+  "mutated": "for (let m = 1; m <= 501; m++) {",
+  "why": "the continued fraction converges in far fewer than 499 steps for every (x, a, b) the forecaster passes, so the cap is never reached"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;",
+  "mutated": "const del = d * c; h *= del; if (false) break;",
+  "why": "the convergence test only stops the loop early; after convergence each factor is 1 within 1e-15, so the result agrees to rounding (checked to 12 digits)"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;",
+  "mutated": "const del = d * c; h *= del; if (Math.abs(del + 1) < 1e-15) break;",
+  "why": "the convergence test only stops the loop early; after convergence each factor is 1 within 1e-15, so the result agrees to rounding (checked to 12 digits)"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;",
+  "mutated": "const del = d * c; h *= del; if (Math.abs(del - 0) < 1e-15) break;",
+  "why": "the convergence test only stops the loop early; after convergence each factor is 1 within 1e-15, so the result agrees to rounding (checked to 12 digits)"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const del = d * c; h *= del; if (Math.abs(del - 1) < 1e-15) break;",
+  "mutated": "const del = d * c; h *= del; if (Math.abs(del - 1) <= 1e-15) break;",
+  "why": "the convergence test only stops the loop early; after convergence each factor is 1 within 1e-15, so the result agrees to rounding (checked to 12 digits)"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "if (x <= 0) return 0; if (x >= 1) return 1;",
+  "mutated": "if (x < 0) return 0; if (x >= 1) return 1;",
+  "why": "at x = 0 and x = 1 the general formula returns exactly 0 and 1 (x^a or (1-x)^b is 0), the same as the guards"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "if (x <= 0) return 0; if (x >= 1) return 1;",
+  "mutated": "if (x <= 0) return 0; if (x > 1) return 1;",
+  "why": "at x = 0 and x = 1 the general formula returns exactly 0 and 1 (x^a or (1-x)^b is 0), the same as the guards"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "return x < (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "mutated": "return x <= (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "why": "both branches compute the same I_x(a,b) (symmetry relation); the switch point only changes the convergence speed, results agree to 12 digits"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "return x < (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "mutated": "return x < (a - 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "why": "both branches compute the same I_x(a,b) (symmetry relation); the switch point only changes the convergence speed, results agree to 12 digits"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "return x < (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "mutated": "return x < (a + 1) / (a + b - 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "why": "both branches compute the same I_x(a,b) (symmetry relation); the switch point only changes the convergence speed, results agree to 12 digits"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "return x < (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "mutated": "return x < (a + 0) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "why": "both branches compute the same I_x(a,b) (symmetry relation); the switch point only changes the convergence speed, results agree to 12 digits"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "return x < (a + 1) / (a + b + 2) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "mutated": "return x < (a + 1) / (a + b + 3) ? (bt * betacf(x, a, b)) / a : 1 - (bt * betacf(1 - x, b, a)) / b;",
+  "why": "both branches compute the same I_x(a,b) (symmetry relation); the switch point only changes the convergence speed, results agree to 12 digits"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "mutated": "let lo = 0, hi = 1; for (let i = 1; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "why": "after about 55 halvings the bracket is two adjacent doubles and the midpoint stops moving, so 199 or 201 halvings give the same value"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "mutated": "let lo = 0, hi = 1; for (let i = 0; i < 201; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "why": "after about 55 halvings the bracket is two adjacent doubles and the midpoint stops moving, so 199 or 201 halvings give the same value"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "mutated": "let lo = 0, hi = 1; for (let i = 0; i <= 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "why": "after about 55 halvings the bracket is two adjacent doubles and the midpoint stops moving; an exact tie with p has measure zero"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) < p) lo = m; else hi = m; }",
+  "mutated": "let lo = 0, hi = 1; for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; if (regIncBeta(m, a, b) <= p) lo = m; else hi = m; }",
+  "why": "after about 55 halvings the bracket is two adjacent doubles and the midpoint stops moving; an exact tie with p has measure zero"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const s = x < 0 ? -1 : 1, z = Math.abs(x) / Math.SQRT2, t = 1 / (1 + 0.3275911 * z);",
+  "mutated": "const s = x <= 0 ? -1 : 1, z = Math.abs(x) / Math.SQRT2, t = 1 / (1 + 0.3275911 * z);",
+  "why": "at x = 0 the erf approximation gives 0.5 plus or minus 5e-10, inside the documented 1.5e-7 error of the formula"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "export const pinball = (q, tau, y) => (y >= q ? tau * (y - q) : (1 - tau) * (q - y));",
+  "mutated": "export const pinball = (q, tau, y) => (y > q ? tau * (y - q) : (1 - tau) * (q - y));",
+  "why": "at y = q both branches give 0"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const sd = (a) => { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); };",
+  "mutated": "const sd = (a) => { if (a.length < 2) return null; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); };",
+  "why": "sd is only used in arithmetic, where null and 0 behave the same; arrays shorter than 2 only come from a one-sprint training window"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "export function makeSeq(n, L, rnd) { L = Math.max(1, Math.min(L, n)); let start = 0, off = L; return () => { if (off >= L) { start = Math.floor(rnd() * n); off = 0; } return (start + off++) % n; }; }",
+  "mutated": "export function makeSeq(n, L, rnd) { L = Math.max(0, Math.min(L, n)); let start = 0, off = L; return () => { if (off >= L) { start = Math.floor(rnd() * n); off = 0; } return (start + off++) % n; }; }",
+  "why": "makeSeq behaves the same with L = 0 and L = 1 (off >= L draws a new start at every call), and the initial start is always overwritten by the first draw"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "export function makeSeq(n, L, rnd) { L = Math.max(1, Math.min(L, n)); let start = 0, off = L; return () => { if (off >= L) { start = Math.floor(rnd() * n); off = 0; } return (start + off++) % n; }; }",
+  "mutated": "export function makeSeq(n, L, rnd) { L = Math.max(1, Math.min(L, n)); let start = 1, off = L; return () => { if (off >= L) { start = Math.floor(rnd() * n); off = 0; } return (start + off++) % n; }; }",
+  "why": "makeSeq behaves the same with L = 0 and L = 1 (off >= L draws a new start at every call), and the initial start is always overwritten by the first draw"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "if (done.length >= 20) { const r1 = lag1(done); return Math.abs(r1) < 1.96 / Math.sqrt(done.length) ? { L: 1, r1, why: 'lag-1 negligible' } : { L: 2, r1, why: 'lag-1 significant' }; }",
+  "mutated": "if (done.length >= 20) { const r1 = lag1(done); return Math.abs(r1) <= 1.96 / Math.sqrt(done.length) ? { L: 1, r1, why: 'lag-1 negligible' } : { L: 2, r1, why: 'lag-1 significant' }; }",
+  "why": "an exact tie between |r1| and 1.96/sqrt(n) has measure zero for real data"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "for (let i = 0; i < N; i++) { tot += r[i] * r[i]; for (let j = i + 1; j < N; j++) { const sp = person[i] === person[j], ss = sprint[i] === sprint[j]; if (sp && !ss) { cp += r[i] * r[j]; np++; } else if (ss && !sp) { cs += r[i] * r[j]; ns++; } } }",
+  "mutated": "for (let i = 0; i < N; i++) { tot += r[i] * r[i]; for (let j = i + 0; j < N; j++) { const sp = person[i] === person[j], ss = sprint[i] === sprint[j]; if (sp && !ss) { cp += r[i] * r[j]; np++; } else if (ss && !sp) { cs += r[i] * r[j]; ns++; } } }",
+  "why": "a pair (i, i) shares both person and sprint, so it contributes to neither sum"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "for (let i = 0; i < N; i++) { tot += r[i] * r[i]; for (let j = i + 1; j < N; j++) { const sp = person[i] === person[j], ss = sprint[i] === sprint[j]; if (sp && !ss) { cp += r[i] * r[j]; np++; } else if (ss && !sp) { cs += r[i] * r[j]; ns++; } } }",
+  "mutated": "for (let i = 0; i < N; i++) { tot += r[i] * r[i]; for (let j = i + 1; j <= N; j++) { const sp = person[i] === person[j], ss = sprint[i] === sprint[j]; if (sp && !ss) { cp += r[i] * r[j]; np++; } else if (ss && !sp) { cs += r[i] * r[j]; ns++; } } }",
+  "why": "index N is past the end: person[N] and sprint[N] are undefined, so the extra pair contributes to neither sum"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "let sigma = Math.sqrt(res.reduce((s, v) => s + v * v, 0) / Math.max(1, N - 1)); if (N < 15) sigma = Math.max(0.25, sigma);",
+  "mutated": "let sigma = Math.sqrt(res.reduce((s, v) => s + v * v, 0) / Math.max(0, N - 1)); if (N < 15) sigma = Math.max(0.25, sigma);",
+  "why": "this branch only runs with N >= 5, so N - 1 >= 4 and the floor at 0 or 1 never binds"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "ve = Math.max(1e-4, sigma * sigma - vp - vs); if (N < 15) ve = Math.max(ve, 0.25 ** 2 - vp - vs);",
+  "mutated": "ve = Math.max(1e-4, sigma * sigma - vp - vs); if (N < 15) ve = Math.max(ve, 0.25 ** 3 - vp - vs);",
+  "why": "below 15 rows sigma is floored at 0.25, so sigma^2 - vp - vs already exceeds the second floor whatever its constant"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const left = new Map(keys.map((k) => [k, prod.get(k).length])), by = (a, b) => model.sched.get(a).sprint - model.sched.get(b).sprint || (a < b ? -1 : 1);",
+  "mutated": "const left = new Map(keys.map((k) => [k, prod.get(k).length])), by = (a, b) => model.sched.get(a).sprint - model.sched.get(b).sprint || (a <= b ? -1 : 1);",
+  "why": "ticket keys are unique, so the tie branch of the key comparison is never taken"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const left = new Map(keys.map((k) => [k, prod.get(k).length])), by = (a, b) => model.sched.get(a).sprint - model.sched.get(b).sprint || (a < b ? -1 : 1);",
+  "mutated": "const left = new Map(keys.map((k) => [k, prod.get(k).length])), by = (a, b) => model.sched.get(a).sprint - model.sched.get(b).sprint || (a < b ? -1 : 0);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const e = mode === 'ticket' ? par.se * normal(rnd) : 0, mu = mode === 'ticket' ? par.mu[sizeClass(g.sp.get(k))] : 0, cap = capOf(cfg, o);",
+  "mutated": "const e = mode === 'ticket' ? par.se * normal(rnd) : 1, mu = mode === 'ticket' ? par.mu[sizeClass(g.sp.get(k))] : 0, cap = capOf(cfg, o);",
+  "why": "e and mu are only used in ticket mode; in capacity mode their value is never read"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const e = mode === 'ticket' ? par.se * normal(rnd) : 0, mu = mode === 'ticket' ? par.mu[sizeClass(g.sp.get(k))] : 0, cap = capOf(cfg, o);",
+  "mutated": "const e = mode === 'ticket' ? par.se * normal(rnd) : 0, mu = mode === 'ticket' ? par.mu[sizeClass(g.sp.get(k))] : 1, cap = capOf(cfg, o);",
+  "why": "e and mu are only used in ticket mode; in capacity mode their value is never read"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "while (s < start + H) { const u = used.get(o + '|' + s) || 0, z = size(s); if (u === 0 || u + z <= cap) { used.set(o + '|' + s, u + z); break; } s++; }",
+  "mutated": "while (s <= start + H) { const u = used.get(o + '|' + s) || 0, z = size(s); if (u === 0 || u + z <= cap) { used.set(o + '|' + s, u + z); break; } s++; }",
+  "why": "a ticket placed at exactly start + H is marked dead by the next line either way"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "at.set(k, s); if (s > last) last = s;",
+  "mutated": "at.set(k, s); if (s >= last) last = s;",
+  "why": "assigning the same value again when equal leaves last unchanged"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "model: predictDone(train, h, runs, rnd, L), iid: predictDone(train, h, runs, rnd, 1),",
+  "mutated": "model: predictDone(train, h, runs, rnd, L), iid: predictDone(train, h, runs, rnd, 0),",
+  "why": "makeSeq clamps the block length to at least 1, so 0 and 1 are the same"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "mutated": "const beats = n > 0 && (res.model.crps <= bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "why": "an exact tie between the model score and the best baseline score has measure zero"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "mutated": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball <= bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "why": "an exact tie between the model score and the best baseline score has measure zero"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "mutated": "const beats = n >= 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "why": "with n = 0 every score is NaN and both comparisons are false, so n > 0 and n >= 0 give the same beats"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "mutated": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] < 0.8 && 0.8 <= ci[1];",
+  "why": "a Clopper-Pearson bound equal to exactly 0.8 has measure zero"
+ },
+ {
+  "file": "lib/forecast.mjs",
+  "line": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 <= ci[1];",
+  "mutated": "const beats = n > 0 && (res.model.crps < bestC || res.model.pinball < bestP), ci = res.model.cover.ci, consistent = n > 0 && ci[0] <= 0.8 && 0.8 < ci[1];",
+  "why": "a Clopper-Pearson bound equal to exactly 0.8 has measure zero"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (cut > 0 && /[\\uD800-\\uDBFF]/.test(t[cut - 1])) cut--;",
+  "mutated": "if (cut >= 0 && /[\\uD800-\\uDBFF]/.test(t[cut - 1])) cut--;",
+  "why": "at cut 0 t[-1] is undefined and the surrogate test is false, so cut > 0 and cut >= 0 behave the same"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (!line.includes('<')) return line;",
+  "mutated": "if (false) return line;",
+  "why": "the early return only skips work: a line without < has no tag to neutralize, so processing it returns it unchanged"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (!line.includes('<')) return line;",
+  "mutated": "if (!line.includes('')) return line;",
+  "why": "includes(empty) is always true, so the early return never fires and every line is processed, which returns lines without < unchanged"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "/** @type {number[]} */ const starts = []; for (let k = 0, at = 0; k < lines.length; k++) { starts.push(at); at += lines[k].length + 1; }",
+  "mutated": "/** @type {number[]} */ const starts = []; for (let k = 0, at = 1; k < lines.length; k++) { starts.push(at); at += lines[k].length + 1; }",
+  "why": "every start offset shifts by the same 1, and the lookup key is computed from those same offsets, so the same lines match"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "const m = i + 1 < lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "mutated": "const m = i - 1 < lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "why": "on the last line an opener has no line after it: the offset lookup gives undefined and the line is guarded as plain text either way"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "const m = i + 1 < lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "mutated": "const m = i + 0 < lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "why": "on the last line an opener has no line after it: the offset lookup gives undefined and the line is guarded as plain text either way"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "const m = i + 1 < lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "mutated": "const m = i + 1 <= lines.length ? FENCE_OPEN.exec(lines[i]) : null;",
+  "why": "on the last line an opener has no line after it: the offset lookup gives undefined and the line is guarded as plain text either way"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (close !== undefined && close > i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "mutated": "if (close !== undefined && close >= i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "why": "close is a line index found by offset, never i + 1 (the body has at least the line after the opener) and always below lines.length"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (close !== undefined && close > i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "mutated": "if (close !== undefined && close > i + 1 && close <= lines.length && lines[close] === '</untrusted>') {",
+  "why": "close is a line index found by offset, never i + 1 (the body has at least the line after the opener) and always below lines.length"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (close !== undefined && close > i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "mutated": "if (close !== undefined && close > i - 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "why": "close is always at least i + 2 when defined, so comparing with i - 1 is the same test"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (close !== undefined && close > i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "mutated": "if (close !== undefined && close > i + 0 && close < lines.length && lines[close] === '</untrusted>') {",
+  "why": "close is always at least i + 2 when defined, so comparing with i + 0 is the same test"
+ },
+ {
+  "file": "lib/sanitize.mjs",
+  "line": "if (close !== undefined && close > i + 1 && close < lines.length && lines[close] === '</untrusted>') {",
+  "mutated": "if (close !== undefined && close > i + 1 && close < lines.length || lines[close] === '</untrusted>') {",
+  "why": "when close is defined it is above i + 1 and below lines.length, so only lines[close] decides; when undefined, lines[undefined] is not the tag"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const DEFAULT_RULE = { owner: 'ticket-owner', due: 'before_ticket_sprint' };",
+  "mutated": "const DEFAULT_RULE = { owner: '', due: 'before_ticket_sprint' };",
+  "why": "an empty owner falls through to the ticket owner exactly like ticket-owner, and an empty due falls back to before_ticket_sprint"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const DEFAULT_RULE = { owner: 'ticket-owner', due: 'before_ticket_sprint' };",
+  "mutated": "const DEFAULT_RULE = { owner: 'ticket-owner', due: '' };",
+  "why": "an empty owner falls through to the ticket owner exactly like ticket-owner, and an empty due falls back to before_ticket_sprint"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const d = String(rule.due || 'before_ticket_sprint');",
+  "mutated": "const d = String(rule.due || '');",
+  "why": "an empty due string is neither sprint:N nor n_before, so the function returns the ticket sprint, as before_ticket_sprint does"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const isTicketRelative = (rule) => !/^sprint:/.test(String(rule.due || 'before_ticket_sprint'));",
+  "mutated": "const isTicketRelative = (rule) => !/^sprint:/.test(String(rule.due || ''));",
+  "why": "an empty due string does not start with sprint:, the same answer as before_ticket_sprint"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const o = {}; for (const k of ORDER) if (i[k] !== undefined && !(k !== 'due_sprint' && i[k] === null)) o[k] = i[k];",
+  "mutated": "const o = {}; for (const k of ORDER) if (i[k] !== undefined && !(k !== '' && i[k] === null)) o[k] = i[k];",
+  "why": "a null due_sprint dropped here is restored on the next line (o.due_sprint = i.due_sprint ?? null), so the output is the same"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "if (String(text ?? '').length > MAX_FINDINGS_BYTES) return { findings, errors: [`${name}: input larger than ${MAX_FINDINGS_BYTES} bytes, refused`], total: 1 };",
+  "mutated": "if (String(text ?? 'mutant').length > MAX_FINDINGS_BYTES) return { findings, errors: [`${name}: input larger than ${MAX_FINDINGS_BYTES} bytes, refused`], total: 1 };",
+  "why": "the length check only decides the 8 MiB refusal; undefined text is read as empty by the line split right after, whatever the fallback here"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const lt = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const lt = (a, b) => (a <= b ? -1 : a > b ? 1 : 0);",
+  "why": "lt sorts keys, which are unique, or digest lines, where equal strings are interchangeable, so the tie branch never changes a result"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const lt = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const lt = (a, b) => (a < b ? -1 : a >= b ? 1 : 0);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const lt = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const lt = (a, b) => (a < b ? -1 : a > b ? 0 : 0);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const lt = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const lt = (a, b) => (a < b ? -1 : a > b ? 1 : 1);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const trimEndBlank = (l) => { let e = l.length; while (e > 0 && (l.charCodeAt(e - 1) === 32 || l.charCodeAt(e - 1) === 9)) e--; return e === l.length ? l : l.slice(0, e); };",
+  "mutated": "const trimEndBlank = (l) => { let e = l.length; while (e >= 0 && (l.charCodeAt(e - 1) === 32 || l.charCodeAt(e - 1) === 9)) e--; return e === l.length ? l : l.slice(0, e); };",
+  "why": "at e = 0, charCodeAt(-1) is NaN, which is neither a space nor a tab, so the loop stops at 0 either way"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const idx = new Map(), low = new Map(), on = new Set(), stack = [], eff = new Map(); let i = 0;",
+  "mutated": "const idx = new Map(), low = new Map(), on = new Set(), stack = [], eff = new Map(); let i = 1;",
+  "why": "Tarjan indexes are only compared with each other, so starting the counter at 1 instead of 0 gives the same components"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const parts = ms.map((m) => m + ':' + ((own.get(m) || NONE)[c] ?? '-')); // '-' = unavailable now; skipped at compare time",
+  "mutated": "const parts = ms.map((m) => m + ':' + ((own.get(m) || NONE)[c] ?? '')); // '-' = unavailable now; skipped at compare time",
+  "why": "the placeholder for an unavailable class is never hashed: a digest is only computed when every class value is available"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const dist = new Map([...reasons.keys()].map((k) => [k, 0]));",
+  "mutated": "const dist = new Map([...reasons.keys()].map((k) => [k, 1]));",
+  "why": "distances are only compared with each other to pick the nearest changed producer, so a uniform offset of 1 changes nothing"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const cmp = (a, b) => (a <= b ? -1 : a > b ? 1 : 0);",
+  "why": "cmp sorts unique keys and owners (one row per person, one entry per ticket), so its tie branch is never taken"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const cmp = (a, b) => (a < b ? -1 : a >= b ? 1 : 0);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const cmp = (a, b) => (a < b ? -1 : a > b ? 0 : 0);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);",
+  "mutated": "const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 1);",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a !== 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === '' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === '' ? null : +b.slice(1)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(0), b === 'No sprint' ? null : +b.slice(1)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(0)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/openitems.mjs",
+  "line": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : +b.slice(1)));",
+  "mutated": "const names = [...groups.keys()].sort(byOwner ? lt : (a, b) => cmpDue(a === 'No sprint' ? null : +a.slice(1), b === 'No sprint' ? null : -b.slice(1)));",
+  "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? a.conflict.ours[0] ?? '') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 1));",
+  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 0 : (a.lines[0] ?? a.conflict.ours[0] ?? '') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 1));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? a.conflict.ours[0] ?? '') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 1));",
+  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? a.conflict.ours[0] ?? '') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/merge.mjs",
+  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? a.conflict.ours[0] ?? '') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 1));",
+  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? a.conflict.ours[0] ?? 'mutant') < (c.lines[0] ?? c.conflict.ours[0] ?? '') ? -1 : 1));",
+  "why": "every record line starts with {, which sorts after the letter m, so comparing an empty-ours block as mutant instead of empty gives the same answers"
+ },
+ {
+  "file": "lib/render.mjs",
+  "line": "over.sort((a, b) => b.x - a.x || (a.o < b.o ? -1 : a.o > b.o ? 1 : a.sprint - b.sprint));",
+  "mutated": "over.sort((a, b) => b.x - a.x || (a.o < b.o ? -1 : a.o > b.o ? 0 : a.sprint - b.sprint));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "if (recKeys.join('\\0') !== prods.join('\\0')) mism.push(...new Set([...prods.filter((p) => !(p in row.fp_prods)), ...recKeys.filter((p) => !prods.includes(p))]));",
+  "mutated": "if (recKeys.join('') !== prods.join('\\0')) mism.push(...new Set([...prods.filter((p) => !(p in row.fp_prods)), ...recKeys.filter((p) => !prods.includes(p))]));",
+  "why": "with equal producer sets the joined strings differ but both filters stay empty, and with different sets both joins differ anyway, so mism is the same"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "if (recKeys.join('\\0') !== prods.join('\\0')) mism.push(...new Set([...prods.filter((p) => !(p in row.fp_prods)), ...recKeys.filter((p) => !prods.includes(p))]));",
+  "mutated": "if (recKeys.join('\\0') !== prods.join('')) mism.push(...new Set([...prods.filter((p) => !(p in row.fp_prods)), ...recKeys.filter((p) => !prods.includes(p))]));",
+  "why": "with equal producer sets the joined strings differ but both filters stay empty, and with different sets both joins differ anyway, so mism is the same"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "if (!e || e.code || e.signal || typeof e.status !== 'number') return false;",
+  "mutated": "if (!e || e.code || e.signal || typeof e.status !== 'number') return null;",
+  "why": "isAbsentError is only used as a condition, where null and false behave the same"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "if (/end-of-options/.test(msg)) return false;",
+  "mutated": "if (/end-of-options/.test(msg)) return null;",
+  "why": "isAbsentError is only used as a condition, where null and false behave the same"
+ },
+ {
+  "file": "lib/stale.mjs",
+  "line": "const msg = String(e.stderr || e.message || '');",
+  "mutated": "const msg = String(e.stderr || e.message || 'mutant');",
+  "why": "the fallback text only feeds two regex tests that a placeholder word cannot match, so an empty and a placeholder message classify the same"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 0 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order (the replaced comparison only decides a positive result)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[0] > b[1] ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order (the replaced comparison only decides a positive result)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[0] ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order (the replaced comparison only decides a positive result)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 0 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order (the replaced comparison only decides a positive result)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 1));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order (the replaced comparison only decides a positive result)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] <= b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order; a tie on the line itself means identical lines, which the next loop collapses into one"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));",
+  "mutated": "rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] >= b[1] ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order; a tie on the line itself means identical lines, which the next loop collapses into one"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const sha = (s, n = 32) => crypto.createHash('sha256').update(s).digest('hex').slice(0, n);",
+  "mutated": "const sha = (s, n = 33) => crypto.createHash('sha256').update(s).digest('hex').slice(0, n);",
+  "why": "sha prefixes are only used as identities and sort keys; a 33-character prefix orders and distinguishes like the 32-character one"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "const ORDER = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
+  "mutated": "const ORDER = ['', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
+  "why": "CONFIG is the first code: with it removed from ORDER, indexOf gives -1, which still sorts it before every other code"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "let maxS = 0; for (const p of sched.values()) if (placed(p) && p.sprint > maxS) maxS = p.sprint;",
+  "mutated": "let maxS = 0; for (const p of sched.values()) if (placed(p) && p.sprint >= maxS) maxS = p.sprint;",
+  "why": "assigning the same value again when equal leaves maxS unchanged"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "const min = ownNumber(mins, person, 0); if (!(min > 0)) continue;",
+  "mutated": "const min = ownNumber(mins, person, 0); if (false) continue;",
+  "why": "with a minimum of 0 the loop below can never report (no load is below 0), so skipping or running it is the same"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "const min = ownNumber(mins, person, 0); if (!(min > 0)) continue;",
+  "mutated": "const min = ownNumber(mins, person, 0); if (!(min >= 0)) continue;",
+  "why": "with a minimum of 0 the loop below can never report (no load is below 0), so skipping or running it is the same"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "if (color.get(root)) continue;",
+  "mutated": "if (false) continue;",
+  "why": "re-entering a finished root only revisits finished nodes (colour 2), which are skipped, and any cycle is deduplicated by its id"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "if (top[1] >= ps.length) { color.set(top[0], 2); stack.pop(); path.pop(); continue; }",
+  "mutated": "if (top[1] >= ps.length) { color.set(top[0], 3); stack.pop(); path.pop(); continue; }",
+  "why": "only colour 1 (on the path) is tested; any other truthy colour means finished"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "const mi = cyc.reduce((b, x, i) => (x < cyc[b] ? i : b), 0);",
+  "mutated": "const mi = cyc.reduce((b, x, i) => (x <= cyc[b] ? i : b), 0);",
+  "why": "a cycle path never repeats a key, so the tie branch of the minimum search is never taken"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "const mi = cyc.reduce((b, x, i) => (x < cyc[b] ? i : b), 0);",
+  "mutated": "const mi = cyc.reduce((b, x, i) => (x < cyc[b] ? i : b), 1);",
+  "why": "the reduce compares every element, so starting the minimum search at index 1 instead of 0 finds the same minimum (a one-element cycle rotates to itself)"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key >= b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "function frozenSet(model) { const f = (model.config || {}).frozen_statuses; return new Set([...closedSet(model), ...(Array.isArray(f) ? f : ['Done', 'In Progress'])]); }",
+  "mutated": "function frozenSet(model) { const f = (model.config || {}).frozen_statuses; return new Set([...closedSet(model), ...(Array.isArray(f) ? f : ['', 'In Progress'])]); }",
+  "why": "Done is always in the closed set that frozenSet starts from, so dropping it from the default list changes nothing"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const P = (k) => (k === key ? { owner, sprint } : model.sched.get(k));",
+  "mutated": "const P = (k) => (k !== key ? { owner, sprint } : model.sched.get(k));",
+  "why": "P(x) is only used for its truthiness, and both branches give an object for every key reached here"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const q = [key]; let guard = 0;",
+  "mutated": "const q = [key]; let guard = 1;",
+  "why": "the guard only bounds the ripple loop at 100000 steps, which a finite plan never reaches; the loop ends when the queue empties"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "while (q.length && guard++ < 100000) {",
+  "mutated": "while (q.length && guard-- < 100000) {",
+  "why": "the guard only bounds the ripple loop at 100000 steps, which a finite plan never reaches; the loop ends when the queue empties"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "while (q.length && guard++ < 100000) {",
+  "mutated": "while (q.length && guard++ <= 100000) {",
+  "why": "the guard only bounds the ripple loop at 100000 steps, which a finite plan never reaches; the loop ends when the queue empties"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "while (q.length && guard++ < 100000) {",
+  "mutated": "while (q.length && guard++ < 100001) {",
+  "why": "the guard only bounds the ripple loop at 100000 steps, which a finite plan never reaches; the loop ends when the queue empties"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const x = q.shift(), px = P(x) && rip.has(x) ? rip.get(x).to : model.sched.get(x);",
+  "mutated": "const x = q.shift(), px = P(x) || rip.has(x) ? rip.get(x).to : model.sched.get(x);",
+  "why": "P(x) is always truthy, and every key in the queue was put into rip first, so both forms take rip.get(x).to"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const pm = proposeMove(model, mv, { ...opts, allowSlip: true, noSuggest: true });",
+  "mutated": "const pm = proposeMove(model, mv, { ...opts, allowSlip: true, noSuggest: false });",
+  "why": "proposeMove calls whatif with noSuggest: true itself, so the value passed in is overridden"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "less(x, y) { for (let i = 0; i < x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] < y.pr[i]; return x.id < y.id; }",
+  "mutated": "less(x, y) { for (let i = 0; i <= x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] < y.pr[i]; return x.id < y.id; }",
+  "why": "the heap compares equal-length priority tuples and unique ids: the extra index compares undefined with undefined, the unequal-branch <= equals <, and ids never tie"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "less(x, y) { for (let i = 0; i < x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] < y.pr[i]; return x.id < y.id; }",
+  "mutated": "less(x, y) { for (let i = 0; i < x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] <= y.pr[i]; return x.id < y.id; }",
+  "why": "the heap compares equal-length priority tuples and unique ids: the extra index compares undefined with undefined, the unequal-branch <= equals <, and ids never tie"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "less(x, y) { for (let i = 0; i < x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] < y.pr[i]; return x.id < y.id; }",
+  "mutated": "less(x, y) { for (let i = 0; i < x.pr.length; i++) if (x.pr[i] !== y.pr[i]) return x.pr[i] < y.pr[i]; return x.id <= y.id; }",
+  "why": "the heap compares equal-length priority tuples and unique ids: the extra index compares undefined with undefined, the unequal-branch <= equals <, and ids never tie"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const ser = (ov) => [...ov].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('|');",
+  "mutated": "const ser = (ov) => [...ov].sort((a, b) => (a[0] <= b[0] ? -1 : 1)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('|');",
+  "why": "the serialized keys are unique ticket keys, so the tie branch is never taken"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const ser = (ov) => [...ov].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('|');",
+  "mutated": "const ser = (ov) => [...ov].sort((a, b) => (a[0] < b[0] ? -1 : 0)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('|');",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so returning 0 instead of 1 for a > b cannot change the order"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 0 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail <= b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "why": "violations of one code and key are produced in detail order (sorted producers, a depth-first search over sorted keys) and equal details are identical, so the detail tie-break never reorders; a random search over 30000 plans found no difference"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? +1 : a.detail > b.detail ? 1 : 0));",
+  "why": "violations of one code and key are produced in detail order (sorted producers, a depth-first search over sorted keys), so the detail tie-break never reorders; a random search over 30000 plans found no difference"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -0 : a.detail > b.detail ? 1 : 0));",
+  "why": "violations of one code and key are produced in detail order (sorted producers, a depth-first search over sorted keys), so the detail tie-break never reorders; a random search over 30000 plans found no difference"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail >= b.detail ? 1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 0 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
+  "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 1));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
+ },
+ {
+  "file": "lib/verify.mjs",
+  "line": "if (p.sprint > end) end = p.sprint;",
+  "mutated": "if (p.sprint >= end) end = p.sprint;",
+  "why": "assigning the same value again when equal leaves end unchanged"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "if (t.verdict && t.verdict !== 'READY') why.push('verdict');",
+  "mutated": "if (t.verdict && t.verdict !== 'READY') why.push('');",
+  "why": "why is only tested for length and for the word waits; an empty reason string still makes it non-empty, so the classification is the same"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "for (const k of q) depth.set(k, 1);",
+  "mutated": "for (const k of q) depth.set(k, 0);",
+  "why": "depths are only compared with each other (and hops come from the chain length), so starting every root at 0 instead of 1 changes nothing"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "if (!depth.has(v) || d > depth.get(v) || (d === depth.get(v) && cmp(u, prev.get(v)) < 0)) { depth.set(v, d); prev.set(v, u); }",
+  "mutated": "if (!depth.has(v) || d > depth.get(v) || (d === depth.get(v) && cmp(u, prev.get(v)) <= 0)) { depth.set(v, d); prev.set(v, u); }",
+  "why": "cmp of two keys is 0 only for the same key, so <= 0 and < 1 select exactly what < 0 selects"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "if (!depth.has(v) || d > depth.get(v) || (d === depth.get(v) && cmp(u, prev.get(v)) < 0)) { depth.set(v, d); prev.set(v, u); }",
+  "mutated": "if (!depth.has(v) || d > depth.get(v) || (d === depth.get(v) && cmp(u, prev.get(v)) < 1)) { depth.set(v, d); prev.set(v, u); }",
+  "why": "cmp of two keys is 0 only for the same key, so <= 0 and < 1 select exactly what < 0 selects"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "for (let k = end; k !== undefined && k !== null && chain.length <= keys.length; k = prev.get(k)) chain.push(k);",
+  "mutated": "for (let k = end; k !== undefined && k !== null && chain.length < keys.length; k = prev.get(k)) chain.push(k);",
+  "why": "prev links are acyclic, so a chain never holds more than keys.length entries: stopping at < or <= keys.length builds the same chain"
+ },
+ {
+  "file": "lib/report.mjs",
+  "line": "const htmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');",
+  "mutated": "const htmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '').replace(/>/g, '&gt;').replace(/\"/g, '&quot;').replace(/'/g, '&#39;');",
+  "why": "every value placed in the HTML went through oneLine, which already replaced < with ?, so no < is left to escape"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (!Number.isInteger(pid) || pid <= 0) return false;",
+  "mutated": "if (!Number.isInteger(pid) || pid <= 0) return null;",
+  "why": "pidAlive and readLock results are only used as conditions or for .pid, where null, 0 and false behave the same"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "catch { return null; } finally { if (fd !== undefined) fs.closeSync(fd); }",
+  "mutated": "catch { return 0; } finally { if (fd !== undefined) fs.closeSync(fd); }",
+  "why": "pidAlive and readLock results are only used as conditions or for .pid, where null, 0 and false behave the same"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "return false;",
+  "mutated": "return null;",
+  "why": "stealStale result is only used as a condition, where null and false behave the same"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (!(Date.now() - st.mtimeMs > staleMs && !(owner && pidAlive(owner.pid)))) return false; // changed since the first look: not stale any more",
+  "mutated": "if (!(Date.now() - st.mtimeMs > staleMs && !(owner && pidAlive(owner.pid)))) return null; // changed since the first look: not stale any more",
+  "why": "stealStale result is only used as a condition, where null and false behave the same"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "return false;",
+  "mutated": "return true;",
+  "why": "after a live owner is put back, retrying at once only meets the same live lock again: the caller ends in the same wait or refusal"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "mutated": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW && 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "why": "the lock path was lstat-checked for a symlink just before (refused there), and a JSON value that is not an object has no pid either way"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "mutated": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j || typeof j === 'object' ? j : null; }",
+  "why": "the lock path was lstat-checked for a symlink just before (refused there), and a JSON value that is not an object has no pid either way"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "mutated": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 1)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "why": "O_NOFOLLOW is defined on every supported platform, so the || fallback is never used"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, 'utf8')); return j && typeof j === 'object' ? j : null; }",
+  "mutated": "try { fd = fs.openSync(lockPath, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0)); const j = JSON.parse(fs.readFileSync(fd, '')); return j && typeof j === 'object' ? j : null; }",
+  "why": "readFileSync without an encoding returns a Buffer, which JSON.parse reads the same way"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { const gst = fs.lstatSync(guard); if (Date.now() - gst.mtimeMs > staleMs && !pidAlive(readLock(guard)?.pid)) fs.rmSync(guard, { force: true }); } catch { /* gone */ }",
+  "mutated": "try { const gst = fs.lstatSync(guard); if (Date.now() - gst.mtimeMs >= staleMs && !pidAlive(readLock(guard)?.pid)) fs.rmSync(guard, { force: true }); } catch { /* gone */ }",
+  "why": "a guard aged exactly staleMs milliseconds cannot be produced on purpose; the comparison differs only at that instant"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (!(Date.now() - st.mtimeMs > staleMs && !(owner && pidAlive(owner.pid)))) return false; // changed since the first look: not stale any more",
+  "mutated": "if (!(Date.now() - st.mtimeMs >= staleMs && !(owner && pidAlive(owner.pid)))) return false; // changed since the first look: not stale any more",
+  "why": "a lock aged exactly staleMs milliseconds cannot be produced on purpose; the comparison differs only at that instant"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { const gst = fs.lstatSync(guard); if (Date.now() - gst.mtimeMs > staleMs && !pidAlive(readLock(guard)?.pid)) fs.rmSync(guard, { force: true }); } catch { /* gone */ }",
+  "mutated": "try { const gst = fs.lstatSync(guard); if (Date.now() - gst.mtimeMs > staleMs && !pidAlive(readLock(guard)?.pid)) fs.rmSync(guard, { force: false }); } catch { /* gone */ }",
+  "why": "the guard file was just lstat-ed; force only matters if it vanishes in between, a race the force flag only hides"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (same) { fs.rmSync(stale, { force: true }); return true; }",
+  "mutated": "if (same) { fs.rmSync(stale, { force: false }); return true; }",
+  "why": "the stale file was just renamed into place by this process; force only matters if it vanishes in between"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { if (fs.lstatSync(lockPath).ino === st2.ino) fs.rmSync(stale, { force: true }); } catch { /* nothing at the path */ }",
+  "mutated": "try { if (fs.lstatSync(lockPath).ino === st2.ino) fs.rmSync(stale, { force: false }); } catch { /* nothing at the path */ }",
+  "why": "the stale file was just renamed into place by this process; force only matters if it vanishes in between"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "} finally { fs.closeSync(gfd); fs.rmSync(guard, { force: true }); }",
+  "mutated": "} finally { fs.closeSync(gfd); fs.rmSync(guard, { force: false }); }",
+  "why": "the guard file was created by this process in the same call; force only matters if it vanishes in between"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const stale = `${lockPath}.stale-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;",
+  "mutated": "const stale = `${lockPath}.stale-${process.pid}-${crypto.randomBytes(5).toString('hex')}`;",
+  "why": "the temp-name suffix length is unobservable: any random suffix gives a unique sibling name"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "export function acquireLock(lockPath, { retries = 100, waitMs = 20, staleMs = 30000, onStealDecision } = {}) {",
+  "mutated": "export function acquireLock(lockPath, { retries = 101, waitMs = 20, staleMs = 30000, onStealDecision } = {}) {",
+  "why": "the defaults (100 retries, 20 ms wait, 30 s staleness) differ by one unit only in timing, which no test can observe without a real clock race"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "export function acquireLock(lockPath, { retries = 100, waitMs = 20, staleMs = 30000, onStealDecision } = {}) {",
+  "mutated": "export function acquireLock(lockPath, { retries = 100, waitMs = 21, staleMs = 30000, onStealDecision } = {}) {",
+  "why": "the defaults (100 retries, 20 ms wait, 30 s staleness) differ by one unit only in timing, which no test can observe without a real clock race"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "export function acquireLock(lockPath, { retries = 100, waitMs = 20, staleMs = 30000, onStealDecision } = {}) {",
+  "mutated": "export function acquireLock(lockPath, { retries = 100, waitMs = 20, staleMs = 30001, onStealDecision } = {}) {",
+  "why": "the defaults (100 retries, 20 ms wait, 30 s staleness) differ by one unit only in timing, which no test can observe without a real clock race"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (Date.now() - st.mtimeMs > staleMs && !(owner && pidAlive(owner.pid))) {",
+  "mutated": "if (Date.now() - st.mtimeMs > staleMs || !(owner && pidAlive(owner.pid))) {",
+  "why": "stealStale re-checks the same age-and-owner condition with && under its guard, so a lock that is not stale by both measures is never taken"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (e.code === 'NOT_A_FILE' || e.code === 'EISDIR') throw bad('not a regular file');",
+  "mutated": "if (e.code === 'NOT_A_FILE' || e.code === '') throw bad('not a regular file');",
+  "why": "readCapped reports a directory as NOT_A_FILE (fstat check), never EISDIR, so the second alternative is never true"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (!j || typeof j !== 'object' || Array.isArray(j) || !Number.isInteger(j.format_version) || j.format_version < 0) throw bad('format_version must be a non-negative integer');",
+  "mutated": "if (!j || typeof j !== 'object' && Array.isArray(j) || !Number.isInteger(j.format_version) || j.format_version < 0) throw bad('format_version must be a non-negative integer');",
+  "why": "for a non-null value that is not an object or is an array, the format_version check right after throws the same message"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "export function checkFormat(dir, supported = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = 'write' } = {}) {",
+  "mutated": "export function checkFormat(dir, supported = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = '' } = {}) {",
+  "why": "checkFormat only tests mode === read; any other value, empty included, is the write mode"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 1));",
+  "mutated": "const ops = m.plan(dir, read).sort((a, b) => (a.file <= b.file ? -1 : 1));",
+  "why": "migration plans list each file once, so the tie branch is never taken"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 1));",
+  "mutated": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 0));",
+  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so returning 0 instead of 1 for a > b cannot change the order"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "mutated": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "mutated": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', '', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "mutated": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', ''], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "mutated": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '', GIT_EDITOR: 'true' } });",
+  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
+  "mutated": "const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: '' } });",
+  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "const tryGit = (cwd, args) => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String(e.stderr || e.message) }; } };",
+  "mutated": "const tryGit = (cwd, args) => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String(e.stderr && e.message) }; } };",
+  "why": "the err field of a failed tryGit is never read (only ok and out are)"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (!st.isFile()) throw refused('not a regular file');",
+  "mutated": "if (false) throw refused('not a regular file');",
+  "why": "a directory or FIFO is also refused by readCapped as NOT_A_FILE with the same message, so this early refusal changes nothing"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (e.code === 'NOT_A_FILE') throw refused('not a regular file');",
+  "mutated": "if (false) throw refused('not a regular file');",
+  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (e.code === 'NOT_A_FILE') throw refused('not a regular file');",
+  "mutated": "if (e.code === '') throw refused('not a regular file');",
+  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "if (e.code === 'NOT_A_FILE') throw refused('not a regular file');",
+  "mutated": "if (e.code === 'NOT_A_FILE') throw refused('');",
+  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "try { fd = fs.openSync(f, 'r'); const buf = Buffer.alloc(4096); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
+  "mutated": "try { fd = fs.openSync(f, 'r'); const buf = Buffer.alloc(4097); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
+  "why": "the buffer is one byte larger than the 4096 bytes read into it, which never shows"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "let text = '', refusedWhy = '';",
+  "mutated": "let text = 'mutant', refusedWhy = '';",
+  "why": "the initial text is only read when the attributes file was refused, and then no line can match the driver line either way"
+ },
+ {
+  "file": "lib/store.mjs",
+  "line": "executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || '').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));",
+  "mutated": "executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || 'mutant').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));",
+  "why": "PATH is always set where the tool runs, so the fallback is never used"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const t = model.tickets.get(k); if (!t) continue;",
+  "mutated": "const t = model.tickets.get(k); if (false) continue;",
+  "why": "a schedule row without a ticket adds 0 points (spOf of undefined) and its member entry is skipped later because it has no positive points"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "let used = 0; for (const p of model.sched.values()) if (p.sprint > used) used = p.sprint;",
+  "mutated": "let used = 0; for (const p of model.sched.values()) if (p.sprint >= used) used = p.sprint;",
+  "why": "replacing used by an equal sprint value changes nothing"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (load > cap) out.push({ t: 'C', owner: o, sprint: Number(s), load, cap, delta });",
+  "mutated": "if (load > cap) out.push({ t: '', owner: o, sprint: Number(s), load, cap, delta });",
+  "why": "violation type '' still takes the non-'H' (capacity) branch in optsFor, and H violations are listed first anyway"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (!movable(k)) return false;",
+  "mutated": "if (!movable(k)) return null;",
+  "why": "null and false are both falsy to every caller of canMove"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (k === key) return !!opts.allowSlip && o === cur2.owner && s > cur2.sprint && s <= max && !(o === cur.owner && sprint < cur.sprint && s >= cur.sprint);",
+  "mutated": "if (k === key) return !!opts.allowSlip && o === cur2.owner && s >= cur2.sprint && s <= max && !(o === cur.owner && sprint < cur.sprint && s >= cur.sprint);",
+  "why": "an option that leaves the requested ticket in its current slot (s equal to the current sprint) repeats a state already seen or a forced loop, so the search ends the same; the second compare only differs when sprint equals cur.sprint with the same owner, which whatif rejects as SAME_SLOT before the search"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (k === key) return !!opts.allowSlip && o === cur2.owner && s > cur2.sprint && s <= max && !(o === cur.owner && sprint < cur.sprint && s >= cur.sprint);",
+  "mutated": "if (k === key) return !!opts.allowSlip && o === cur2.owner && s > cur2.sprint && s <= max && !(o === cur.owner && sprint <= cur.sprint && s >= cur.sprint);",
+  "why": "an option that leaves the requested ticket in its current slot (s equal to the current sprint) repeats a state already seen or a forced loop, so the search ends the same; the second compare only differs when sprint equals cur.sprint with the same owner, which whatif rejects as SAME_SLOT before the search"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const ser = (ov) => [...ov].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('|');",
+  "mutated": "const ser = (ov) => [...ov].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([k, v]) => `${k}:${v.owner}:${v.sprint}`).join('');",
+  "why": "the serialized state only deduplicates states; keys are ticket keys and owners never contain ':' followed by a sprint number, so no two different states collide without the separator"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "let work = 0; const workLimit = opts.workLimit ?? 60000; // violation scans; bounds total effort independent of the node budget",
+  "mutated": "let work = 1; const workLimit = opts.workLimit ?? 60000; // violation scans; bounds total effort independent of the node budget",
+  "why": "work is reset to 0 at the start of every run() before closure can read it"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (++work > workLimit) return { dead: true, over: true };",
+  "mutated": "if (++work > workLimit) return { dead: true, over: false };",
+  "why": "the over flag is never read"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const v = vs.find((x) => x.t === 'H') || vs[0], os = optsFor(v, ov);",
+  "mutated": "const v = vs.find((x) => x.t === '') || vs[0], os = optsFor(v, ov);",
+  "why": "violations lists every H violation before any capacity violation, so vs[0] is the first H when one exists"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const slip = (ov.get(key)?.sprint ?? sprint) - sprint;",
+  "mutated": "const slip = (ov.get(key)?.sprint ?? sprint) + sprint;",
+  "why": "slip only orders the heap; adding instead of subtracting the request sprint shifts every slip by the same constant 2*sprint"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "let moved = 0; for (const k of ov.keys()) if (k !== key) moved++;",
+  "mutated": "let moved = 1; for (const k of ov.keys()) if (k !== key) moved++;",
+  "why": "moved only orders the heap; starting at 1 shifts every value by the same constant"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const heap = new Heap(), seen = new Set(); let id = 0, pops = 0; work = 0;",
+  "mutated": "const heap = new Heap(), seen = new Set(); let id = 1, pops = 0; work = 0;",
+  "why": "ids only break ties in insertion order; starting at 1 keeps the order"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "push(seed, 0);",
+  "mutated": "push(seed, 1);",
+  "why": "steps only orders the heap; starting the seed at 1 shifts every value by the same constant"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "if (r.exhausted) { approx = true; r = run(true); }",
+  "mutated": "if (r.exhausted) { approx = false; r = run(true); }",
+  "why": "approx only feeds searchComplete as !approx && r.complete, and the greedy run always returns complete false"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "return { ok: true, moves, reasons: [], shifted: moves.length - 1, ownerChanges: moves.filter((m) => m.from.owner !== m.to.owner && m.key !== key).length, slipped: moves[0].to.sprint - sprint, searchComplete: !approx && r.complete, nodes: r.pops };",
+  "mutated": "return { ok: true, moves, reasons: [], shifted: moves.length - 1, ownerChanges: moves.filter((m) => m.from.owner !== m.to.owner && m.key !== key).length, slipped: moves[0].to.sprint - sprint, searchComplete: !approx || r.complete, nodes: r.pops };",
+  "why": "searchComplete: when approx is true r comes from the greedy run whose complete is false, so && and || give the same value"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "const bad = after.filter((v) => !baseSet.has(sig(v)) && !(v.code === 'CAPACITY' && baseCap.has(v.key) && parseInt(v.detail, 10) <= baseCap.get(v.key)));",
+  "mutated": "const bad = after.filter((v) => !baseSet.has(sig(v)) && !(v.code === 'CAPACITY' && baseCap.has(v.key) && parseInt(v.detail, 10) < baseCap.get(v.key)));",
+  "why": "a capacity cell with the same load as the baseline has the same detail text, so its signature is already in baseSet and the comparison is never reached"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "for (let i = 0; i < 100000; i++) {",
+  "mutated": "for (let i = 1; i < 100000; i++) {",
+  "why": "unreachable bound: every iteration increments work and returns at workLimit (default 60000) or on a repeated state first"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "for (let i = 0; i < 100000; i++) {",
+  "mutated": "for (let i = 0; i < 100001; i++) {",
+  "why": "unreachable bound: every iteration increments work and returns at workLimit (default 60000) or on a repeated state first"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "for (let i = 0; i < 100000; i++) {",
+  "mutated": "for (let i = 0; i <= 100000; i++) {",
+  "why": "unreachable bound: every iteration increments work and returns at workLimit (default 60000) or on a repeated state first"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "for (let i = 0; i < 100000; i++) {",
+  "mutated": "for (let i = 0; i < 100000; i--) {",
+  "why": "unreachable bound: every iteration increments work and returns at workLimit (default 60000) or on a repeated state first"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "return { dead: true };",
+  "mutated": "return null;",
+  "why": "unreachable: the loop above always returns first (see the 100000 bound on line 231)"
+ },
+ {
+  "file": "lib/whatif.mjs",
+  "line": "return { dead: true };",
+  "mutated": "return { dead: false };",
+  "why": "unreachable: the loop above always returns first (see the 100000 bound on line 231)"
+ }
+]

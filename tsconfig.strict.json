@@ -1,5 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "strict": true, "noImplicitAny": true },
-  "include": ["lib/sanitize.mjs", "lib/gitsafe.mjs", "lib/fsafe.mjs", "lib/schema.mjs", "lib/steer.mjs", "src/**/*.mjs", "mcp/*.mjs", "scripts/typecheck.mjs"]
+  "include": ["lib/sanitize.mjs", "lib/gitsafe.mjs", "lib/fsafe.mjs", "lib/schema.mjs", "lib/steer.mjs", "src/**/*.mjs", "mcp/*.mjs", "scripts/typecheck.mjs", "scripts/mutate-all.mjs", "test/mutate-all.test.mjs", "test/mutation-kills-*.test.mjs", "test/helpers/golden-json.mjs", "test/helpers/cli-fixture.mjs"]
+
 }

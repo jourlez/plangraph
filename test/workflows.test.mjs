@@ -10,7 +10,7 @@ import path from 'node:path';
 
 const ROOT = path.join(import.meta.dirname, '..');
 const GH = path.join(ROOT, '.github');
-const WF = ['ci.yml', 'release.yml'];
+const WF = ['ci.yml', 'release.yml', 'mutation.yml'];
 const read = (...p) => fs.readFileSync(path.join(GH, ...p), 'utf8');
 const lines = (t) => t.split('\n');
 const usesLines = (t) => lines(t).map((l, i) => [i, l]).filter(([, l]) => /^\s*(-\s+)?uses:/.test(l));
@@ -124,7 +124,7 @@ test('ci.yml: no continue-on-error anywhere, and the coverage floors and include
   for (const f of WF) assert.ok(!/continue-on-error:\s*true/i.test(read('workflows', f)), `${f} lets a failure pass`);
   const t = read('workflows', 'ci.yml');
   const floor = (k) => Number(new RegExp(`--test-coverage-${k}=(\\d+)`).exec(t)?.[1]);
-  assert.ok(floor('lines') >= 98 && floor('branches') >= 90 && floor('functions') >= 96, 'coverage floors were lowered or removed');
+  assert.ok(floor('lines') >= 99 && floor('branches') >= 95 && floor('functions') >= 98, 'coverage floors were lowered or removed');
   assert.ok(t.includes("--test-coverage-include='lib/**'") && t.includes("--test-coverage-include='src/**'"), 'src/** must stay in coverage');
   assert.equal((t.match(/--experimental-test-coverage/g) ?? []).length, 1, 'the suite runs once, with coverage, not twice');
 });
@@ -193,4 +193,14 @@ test('ci.yml: every job has a timeout; concurrency cancels superseded runs but n
     assert.match(job(t, name), new RegExp(`^ {4}timeout-minutes: ${mins}\\b`, 'm'), `${name} timeout`);
   }
   assert.match(t, /^concurrency:\n {2}group: .+\n {2}cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}$/m);
+});
+
+test('mutation.yml: the mutation smoke reports without gating, and its npm scripts exist', () => {
+  const t = read('workflows', 'mutation.yml');
+  assert.match(t, /run: npm run mutate:smoke -- --informational$/m);
+  const scripts = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
+  assert.match(scripts['mutate:smoke'], /scripts\/mutate-all\.mjs .*--limit 40 --seed 1/);
+  assert.match(scripts['mutate:all'], /scripts\/mutate-all\.mjs/);
+  assert.ok(!/uses: \.\/\.github\/workflows\/mutation\.yml/.test(read('workflows', 'release.yml')), 'the release must not wait on the informational mutation job');
+
 });

@@ -1,0 +1,2746 @@
+{
+ "assess-7": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 20,
+    "added": 0,
+    "carried": 15
+   },
+   {
+    "sprint": 2,
+    "planned": 35,
+    "done": 21,
+    "added": 0,
+    "carried": 14
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 22,
+    "added": 0,
+    "carried": 13
+   },
+   {
+    "sprint": 4,
+    "planned": 35,
+    "done": 23,
+    "added": 0,
+    "carried": 12
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 40,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 41,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 42,
+    "added": 0,
+    "carried": 0
+   }
+  ],
+  "n": 7,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": []
+ },
+ "assess-8": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 20,
+    "added": 0,
+    "carried": 15
+   },
+   {
+    "sprint": 2,
+    "planned": 35,
+    "done": 21,
+    "added": 0,
+    "carried": 14
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 22,
+    "added": 0,
+    "carried": 13
+   },
+   {
+    "sprint": 4,
+    "planned": 35,
+    "done": 23,
+    "added": 0,
+    "carried": 12
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 24,
+    "added": 0,
+    "carried": 11
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 40,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 41,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 42,
+    "added": 0,
+    "carried": 0
+   }
+  ],
+  "n": 8,
+  "lackFrac": 0,
+  "shift": true,
+  "reasons": [
+   "mean done shifted 86% in the last 3 sprints"
+  ]
+ },
+ "assess-config-cuts": {
+  "records": [
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 30,
+    "added": 1,
+    "carried": 6
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 26,
+    "added": 1,
+    "carried": 10
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 27,
+    "added": 0,
+    "carried": 8
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8
+   },
+   {
+    "sprint": 11,
+    "planned": 35,
+    "done": 28,
+    "added": 1,
+    "carried": 8
+   },
+   {
+    "sprint": 12,
+    "planned": 35,
+    "done": 25,
+    "added": 1,
+    "carried": 11
+   }
+  ],
+  "n": 7,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S6: only 7 sprint(s) since"
+  ]
+ },
+ "assess-cut-last": {
+  "records": [
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8
+   }
+  ],
+  "n": 1,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S10 (within last 3 sprints): only 1 sprint(s) since"
+  ]
+ },
+ "assess-cut-last-minus-2": {
+  "records": [
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 27,
+    "added": 0,
+    "carried": 8
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8
+   }
+  ],
+  "n": 3,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S8 (within last 3 sprints): only 3 sprint(s) since"
+  ]
+ },
+ "assess-cut-last-minus-3": {
+  "records": [
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 26,
+    "added": 1,
+    "carried": 10
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 27,
+    "added": 0,
+    "carried": 8
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8
+   }
+  ],
+  "n": 4,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S7: only 4 sprint(s) since"
+  ]
+ },
+ "assess-lacking": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 31,
+    "added": 0,
+    "carried": 4
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 35,
+    "added": 1,
+    "carried": 1
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 29,
+    "added": 3,
+    "carried": 9
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 26,
+    "added": 1,
+    "carried": 10
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   }
+  ],
+  "n": 5,
+  "lackFrac": 0.5,
+  "shift": false,
+  "reasons": [
+   "50% of sprints lack actuals"
+  ]
+ },
+ "assess-length-change": {
+  "records": [
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 29,
+    "added": 3,
+    "carried": 9,
+    "length": 14
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 30,
+    "added": 1,
+    "carried": 6,
+    "length": 14
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 26,
+    "added": 1,
+    "carried": 10,
+    "length": 14
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 27,
+    "added": 0,
+    "carried": 8,
+    "length": 14
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5,
+    "length": 14
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8,
+    "length": 14
+   },
+   {
+    "sprint": 11,
+    "planned": 35,
+    "done": 28,
+    "added": 1,
+    "carried": 8,
+    "length": 14
+   },
+   {
+    "sprint": 12,
+    "planned": 35,
+    "done": 25,
+    "added": 1,
+    "carried": 11,
+    "length": 14
+   }
+  ],
+  "n": 8,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S5: only 8 sprint(s) since"
+  ]
+ },
+ "assess-shift": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 31,
+    "added": 0,
+    "carried": 4
+   },
+   {
+    "sprint": 2,
+    "planned": 35,
+    "done": 30,
+    "added": 3,
+    "carried": 8
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 35,
+    "added": 1,
+    "carried": 1
+   },
+   {
+    "sprint": 4,
+    "planned": 35,
+    "done": 31,
+    "added": 2,
+    "carried": 6
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 29,
+    "added": 3,
+    "carried": 9
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 30,
+    "added": 1,
+    "carried": 6
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 26,
+    "added": 1,
+    "carried": 10
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 27,
+    "added": 0,
+    "carried": 8
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 60,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 11,
+    "planned": 35,
+    "done": 62,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 12,
+    "planned": 35,
+    "done": 61,
+    "added": 0,
+    "carried": 0
+   }
+  ],
+  "n": 12,
+  "lackFrac": 0,
+  "shift": true,
+  "reasons": [
+   "mean done shifted 104% in the last 3 sprints"
+  ]
+ },
+ "assess-shift-edges": [
+  {
+   "records": [
+    {
+     "sprint": 1,
+     "planned": 35,
+     "done": 30,
+     "added": 0,
+     "carried": 5
+    },
+    {
+     "sprint": 2,
+     "planned": 35,
+     "done": 31,
+     "added": 0,
+     "carried": 4
+    },
+    {
+     "sprint": 3,
+     "planned": 35,
+     "done": 30,
+     "added": 0,
+     "carried": 5
+    },
+    {
+     "sprint": 4,
+     "planned": 35,
+     "done": 31,
+     "added": 0,
+     "carried": 4
+    },
+    {
+     "sprint": 5,
+     "planned": 35,
+     "done": 30,
+     "added": 0,
+     "carried": 5
+    },
+    {
+     "sprint": 6,
+     "planned": 35,
+     "done": 39,
+     "added": 0,
+     "carried": 0
+    },
+    {
+     "sprint": 7,
+     "planned": 35,
+     "done": 40,
+     "added": 0,
+     "carried": 0
+    },
+    {
+     "sprint": 8,
+     "planned": 35,
+     "done": 39,
+     "added": 0,
+     "carried": 0
+    }
+   ],
+   "n": 8,
+   "lackFrac": 0,
+   "shift": false,
+   "reasons": []
+  },
+  {
+   "records": [
+    {
+     "sprint": 1,
+     "planned": 35,
+     "done": 0,
+     "added": 0,
+     "carried": 35
+    },
+    {
+     "sprint": 2,
+     "planned": 35,
+     "done": 0,
+     "added": 0,
+     "carried": 35
+    },
+    {
+     "sprint": 3,
+     "planned": 35,
+     "done": 0,
+     "added": 0,
+     "carried": 35
+    },
+    {
+     "sprint": 4,
+     "planned": 35,
+     "done": 0,
+     "added": 0,
+     "carried": 35
+    },
+    {
+     "sprint": 5,
+     "planned": 35,
+     "done": 0,
+     "added": 0,
+     "carried": 35
+    },
+    {
+     "sprint": 6,
+     "planned": 35,
+     "done": 5,
+     "added": 0,
+     "carried": 30
+    },
+    {
+     "sprint": 7,
+     "planned": 35,
+     "done": 5,
+     "added": 0,
+     "carried": 30
+    },
+    {
+     "sprint": 8,
+     "planned": 35,
+     "done": 5,
+     "added": 0,
+     "carried": 30
+    }
+   ],
+   "n": 8,
+   "lackFrac": 0,
+   "shift": false,
+   "reasons": []
+  },
+  {
+   "records": [
+    {
+     "sprint": 1,
+     "planned": 35,
+     "done": 10,
+     "added": 0,
+     "carried": 25
+    },
+    {
+     "sprint": 2,
+     "planned": 35,
+     "done": 14,
+     "added": 0,
+     "carried": 21
+    },
+    {
+     "sprint": 3,
+     "planned": 35,
+     "done": 10,
+     "added": 0,
+     "carried": 25
+    },
+    {
+     "sprint": 4,
+     "planned": 35,
+     "done": 14,
+     "added": 0,
+     "carried": 21
+    },
+    {
+     "sprint": 5,
+     "planned": 35,
+     "done": 10,
+     "added": 0,
+     "carried": 25
+    },
+    {
+     "sprint": 6,
+     "planned": 35,
+     "done": 14,
+     "added": 0,
+     "carried": 21
+    },
+    {
+     "sprint": 7,
+     "planned": 35,
+     "done": 16,
+     "added": 0,
+     "carried": 19
+    },
+    {
+     "sprint": 8,
+     "planned": 35,
+     "done": 15,
+     "added": 0,
+     "carried": 20
+    },
+    {
+     "sprint": 9,
+     "planned": 35,
+     "done": 17,
+     "added": 0,
+     "carried": 18
+    }
+   ],
+   "n": 9,
+   "lackFrac": 0,
+   "shift": true,
+   "reasons": [
+    "mean done shifted 33% in the last 3 sprints"
+   ]
+  },
+  {
+   "records": [
+    {
+     "sprint": 4,
+     "planned": 35,
+     "done": 31,
+     "added": 2,
+     "carried": 6
+    },
+    {
+     "sprint": 5,
+     "planned": 35,
+     "done": 29,
+     "added": 3,
+     "carried": 9
+    },
+    {
+     "sprint": 6,
+     "planned": 35,
+     "done": 30,
+     "added": 1,
+     "carried": 6
+    },
+    {
+     "sprint": 7,
+     "planned": 35,
+     "done": 26,
+     "added": 1,
+     "carried": 10
+    },
+    {
+     "sprint": 8,
+     "planned": 35,
+     "done": 27,
+     "added": 0,
+     "carried": 8
+    },
+    {
+     "sprint": 9,
+     "planned": 35,
+     "done": 30,
+     "added": 0,
+     "carried": 5
+    },
+    {
+     "sprint": 10,
+     "planned": 35,
+     "done": 29,
+     "added": 2,
+     "carried": 8
+    }
+   ],
+   "n": 7,
+   "lackFrac": 0.3,
+   "shift": false,
+   "reasons": []
+  }
+ ],
+ "assess-shift-zero-se": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 2,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 4,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 7,
+    "planned": 35,
+    "done": 50,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 8,
+    "planned": 35,
+    "done": 50,
+    "added": 0,
+    "carried": 0
+   },
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 50,
+    "added": 0,
+    "carried": 0
+   }
+  ],
+  "n": 9,
+  "lackFrac": 0,
+  "shift": true,
+  "reasons": [
+   "mean done shifted 67% in the last 3 sprints"
+  ]
+ },
+ "assess-team-change": {
+  "records": [
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8,
+    "team": 6
+   },
+   {
+    "sprint": 11,
+    "planned": 35,
+    "done": 28,
+    "added": 1,
+    "carried": 8,
+    "team": 6
+   },
+   {
+    "sprint": 12,
+    "planned": 35,
+    "done": 25,
+    "added": 1,
+    "carried": 11,
+    "team": 6
+   }
+  ],
+  "n": 3,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S10 (within last 3 sprints): only 3 sprint(s) since"
+  ]
+ },
+ "assess-two-cuts": {
+  "records": [
+   {
+    "sprint": 9,
+    "planned": 35,
+    "done": 30,
+    "added": 0,
+    "carried": 5
+   },
+   {
+    "sprint": 10,
+    "planned": 35,
+    "done": 29,
+    "added": 2,
+    "carried": 8
+   },
+   {
+    "sprint": 11,
+    "planned": 35,
+    "done": 28,
+    "added": 1,
+    "carried": 8
+   },
+   {
+    "sprint": 12,
+    "planned": 35,
+    "done": 25,
+    "added": 1,
+    "carried": 11
+   }
+  ],
+  "n": 4,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S9: only 4 sprint(s) since"
+  ]
+ },
+ "assess-unsorted-and-cut-before-start": {
+  "records": [
+   {
+    "sprint": 1,
+    "planned": 35,
+    "done": 31,
+    "added": 0,
+    "carried": 4
+   },
+   {
+    "sprint": 2,
+    "planned": 35,
+    "done": 30,
+    "added": 3,
+    "carried": 8
+   },
+   {
+    "sprint": 3,
+    "planned": 35,
+    "done": 35,
+    "added": 1,
+    "carried": 1
+   },
+   {
+    "sprint": 4,
+    "planned": 35,
+    "done": 31,
+    "added": 2,
+    "carried": 6
+   },
+   {
+    "sprint": 5,
+    "planned": 35,
+    "done": 29,
+    "added": 3,
+    "carried": 9
+   },
+   {
+    "sprint": 6,
+    "planned": 35,
+    "done": 30,
+    "added": 1,
+    "carried": 6
+   }
+  ],
+  "n": 6,
+  "lackFrac": 0,
+  "shift": false,
+  "reasons": [
+   "regime change at S0: only 6 sprint(s) since"
+  ]
+ },
+ "backtest-13": {
+  "h": 1,
+  "n": 10,
+  "origins": 10,
+  "methods": {
+   "model": {
+    "crps": 0.923138125,
+    "pinball": 0.395,
+    "pit": 10,
+    "cover": {
+     "k": 10,
+     "n": 10,
+     "nominal": 0.8,
+     "ci": [
+      0.691502892181,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": 0.91646625,
+    "pinball": 0.38,
+    "pit": 10,
+    "cover": {
+     "k": 10,
+     "n": 10,
+     "nominal": 0.8,
+     "ci": [
+      0.691502892181,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 0.868692704253,
+    "pinball": 0.37484211907,
+    "pit": 10,
+    "cover": {
+     "k": 7,
+     "n": 10,
+     "nominal": 0.8,
+     "ci": [
+      0.34754714994,
+      0.933260488822
+     ]
+    }
+   },
+   "naive": {
+    "crps": 1.2,
+    "pinball": 0.6,
+    "pit": 10,
+    "cover": {
+     "k": 2,
+     "n": 10,
+     "nominal": 0.8,
+     "ci": [
+      0.0252107263268,
+      0.556095462308
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 10,
+   "brier": 0.298713769316,
+   "brierNaive": 0.5,
+   "brierClimatology": 0.297823888363
+  }
+ },
+ "backtest-14": {
+  "h": 1,
+  "n": 11,
+  "origins": 11,
+  "methods": {
+   "model": {
+    "crps": 0.898697159091,
+    "pinball": 0.393181818182,
+    "pit": 11,
+    "cover": {
+     "k": 11,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.715085847082,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": 0.896359659091,
+    "pinball": 0.379545454545,
+    "pit": 11,
+    "cover": {
+     "k": 11,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.715085847082,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 0.866468432528,
+    "pinball": 0.379801783257,
+    "pit": 11,
+    "cover": {
+     "k": 8,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.390257440428,
+      0.939782265827
+     ]
+    }
+   },
+   "naive": {
+    "crps": 1.18181818182,
+    "pinball": 0.584090909091,
+    "pit": 11,
+    "cover": {
+     "k": 2,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.0228311983,
+      0.51775585236
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 11,
+   "brier": 0.297916229232,
+   "brierNaive": 0.545454545455,
+   "brierClimatology": 0.293476262148
+  }
+ },
+ "backtest-30": {
+  "h": 1,
+  "n": 27,
+  "origins": 27,
+  "methods": {
+   "model": {
+    "crps": 0.869641203704,
+    "pinball": 0.367592592593,
+    "pit": 27,
+    "cover": {
+     "k": 27,
+     "n": 27,
+     "nominal": 0.8,
+     "ci": [
+      0.872297132385,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": 0.86342037037,
+    "pinball": 0.381481481481,
+    "pit": 27,
+    "cover": {
+     "k": 27,
+     "n": 27,
+     "nominal": 0.8,
+     "ci": [
+      0.872297132385,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 0.894349945904,
+    "pinball": 0.390958005769,
+    "pit": 27,
+    "cover": {
+     "k": 18,
+     "n": 27,
+     "nominal": 0.8,
+     "ci": [
+      0.460392713908,
+      0.834811820313
+     ]
+    }
+   },
+   "naive": {
+    "crps": 1.18518518519,
+    "pinball": 0.592592592593,
+    "pit": 27,
+    "cover": {
+     "k": 5,
+     "n": 27,
+     "nominal": 0.8,
+     "ci": [
+      0.0630000065377,
+      0.380829879094
+     ]
+    }
+   }
+  },
+  "beats": true,
+  "consistent": false,
+  "passed": false,
+  "commit": {
+   "n": 27,
+   "brier": 0.27545752578,
+   "brierNaive": 0.481481481481,
+   "brierClimatology": 0.275768847216
+  }
+ },
+ "backtest-ar-gate": [
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   false,
+   true
+  ],
+  [
+   21,
+   true,
+   false,
+   false,
+   false,
+   true
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   true,
+   true,
+   true,
+   true,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   true,
+   false,
+   false,
+   false
+  ],
+  [
+   21,
+   false,
+   false,
+   false,
+   false,
+   false
+  ]
+ ],
+ "backtest-empty": {
+  "h": 1,
+  "n": 0,
+  "origins": [],
+  "methods": {
+   "model": {
+    "crps": "NaN",
+    "pinball": "NaN",
+    "pit": [],
+    "cover": {
+     "k": 0,
+     "n": 0,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": "NaN",
+    "pinball": "NaN",
+    "pit": [],
+    "cover": {
+     "k": 0,
+     "n": 0,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": "NaN",
+    "pinball": "NaN",
+    "pit": [],
+    "cover": {
+     "k": 0,
+     "n": 0,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      1
+     ]
+    }
+   },
+   "naive": {
+    "crps": "NaN",
+    "pinball": "NaN",
+    "pit": [],
+    "cover": {
+     "k": 0,
+     "n": 0,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": false,
+  "passed": false,
+  "commit": null
+ },
+ "backtest-h1": {
+  "h": 1,
+  "n": 13,
+  "origins": [
+   {
+    "t": 3,
+    "trainN": 3,
+    "y": 33
+   },
+   {
+    "t": 4,
+    "trainN": 4,
+    "y": 30
+   },
+   {
+    "t": 5,
+    "trainN": 5,
+    "y": 30
+   },
+   {
+    "t": 6,
+    "trainN": 6,
+    "y": 31
+   },
+   {
+    "t": 7,
+    "trainN": 7,
+    "y": 27
+   },
+   {
+    "t": 8,
+    "trainN": 8,
+    "y": 32
+   },
+   {
+    "t": 9,
+    "trainN": 9,
+    "y": 26
+   },
+   {
+    "t": 10,
+    "trainN": 10,
+    "y": 31
+   },
+   {
+    "t": 11,
+    "trainN": 11,
+    "y": 33
+   },
+   {
+    "t": 12,
+    "trainN": 12,
+    "y": 25
+   },
+   {
+    "t": 13,
+    "trainN": 13,
+    "y": 29
+   },
+   {
+    "t": 14,
+    "trainN": 14,
+    "y": 28
+   },
+   {
+    "t": 15,
+    "trainN": 15,
+    "y": 26
+   }
+  ],
+  "methods": {
+   "model": {
+    "crps": 1.78663846154,
+    "pinball": 0.8,
+    "pit": [
+     1,
+     0.503333333333,
+     0.515,
+     0.715,
+     0.0833333333333,
+     0.89
+    ],
+    "cover": {
+     "k": 9,
+     "n": 13,
+     "nominal": 0.8,
+     "ci": [
+      0.385738338249,
+      0.909079605428
+     ]
+    }
+   },
+   "iid": {
+    "crps": 1.75458205128,
+    "pinball": 0.794230769231,
+    "pit": [
+     1,
+     0.516666666667,
+     0.535,
+     0.77,
+     0.07,
+     0.816666666667
+    ],
+    "cover": {
+     "k": 9,
+     "n": 13,
+     "nominal": 0.8,
+     "ci": [
+      0.385738338249,
+      0.909079605428
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 1.73944741011,
+    "pinball": 0.795532491273,
+    "pit": [
+     0.973333333333,
+     0.51,
+     0.563333333333,
+     0.64,
+     0.02,
+     0.803333333333
+    ],
+    "cover": {
+     "k": 8,
+     "n": 13,
+     "nominal": 0.8,
+     "ci": [
+      0.315777602914,
+      0.86142066111
+     ]
+    }
+   },
+   "naive": {
+    "crps": 5.69230769231,
+    "pinball": 2.41923076923,
+    "pit": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "cover": {
+     "k": 0,
+     "n": 13,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      0.247052638
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 13,
+   "brier": 0,
+   "brierNaive": 1,
+   "brierClimatology": 0.0443073722308
+  }
+ },
+ "backtest-h2-block1": {
+  "h": 2,
+  "n": 11,
+  "origins": [
+   {
+    "t": 4,
+    "trainN": 4,
+    "y": 60
+   },
+   {
+    "t": 5,
+    "trainN": 5,
+    "y": 61
+   },
+   {
+    "t": 6,
+    "trainN": 6,
+    "y": 58
+   },
+   {
+    "t": 7,
+    "trainN": 7,
+    "y": 59
+   },
+   {
+    "t": 8,
+    "trainN": 8,
+    "y": 58
+   },
+   {
+    "t": 9,
+    "trainN": 9,
+    "y": 57
+   },
+   {
+    "t": 10,
+    "trainN": 10,
+    "y": 64
+   },
+   {
+    "t": 11,
+    "trainN": 11,
+    "y": 58
+   },
+   {
+    "t": 12,
+    "trainN": 12,
+    "y": 54
+   },
+   {
+    "t": 13,
+    "trainN": 13,
+    "y": 57
+   },
+   {
+    "t": 14,
+    "trainN": 14,
+    "y": 54
+   }
+  ],
+  "methods": {
+   "model": {
+    "crps": 1.74111010101,
+    "pinball": 0.843181818182,
+    "pit": [
+     0.581666666667,
+     0.703333333333,
+     0.27,
+     0.391666666667,
+     0.383333333333,
+     0.148333333333
+    ],
+    "cover": {
+     "k": 9,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.48224414764,
+      0.9771688017
+     ]
+    }
+   },
+   "iid": {
+    "crps": 1.74387979798,
+    "pinball": 0.847727272727,
+    "pit": [
+     0.566666666667,
+     0.69,
+     0.32,
+     0.366666666667,
+     0.403333333333,
+     0.146666666667
+    ],
+    "cover": {
+     "k": 8,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.390257440428,
+      0.939782265827
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 2.07396670003,
+    "pinball": 1.0230392037,
+    "pit": [
+     0.35,
+     0.25,
+     0.06,
+     0.00666666666667,
+     0.393333333333,
+     0.26
+    ],
+    "cover": {
+     "k": 8,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0.390257440428,
+      0.939782265827
+     ]
+    }
+   },
+   "naive": {
+    "crps": 11.8181818182,
+    "pinball": 5.02272727273,
+    "pit": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "cover": {
+     "k": 0,
+     "n": 11,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      0.284914152918
+     ]
+    }
+   }
+  },
+  "beats": true,
+  "consistent": true,
+  "passed": true,
+  "commit": null
+ },
+ "backtest-negative-gauss": {
+  "h": 1,
+  "n": 5,
+  "origins": 5,
+  "methods": {
+   "model": {
+    "crps": 6.45368888889,
+    "pinball": 2.9,
+    "pit": 5,
+    "cover": {
+     "k": 5,
+     "n": 5,
+     "nominal": 0.8,
+     "ci": [
+      0.478176249895,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": 7.04648888889,
+    "pinball": 2.9,
+    "pit": 5,
+    "cover": {
+     "k": 5,
+     "n": 5,
+     "nominal": 0.8,
+     "ci": [
+      0.478176249895,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 6.26117701946,
+    "pinball": 2.51648470657,
+    "pit": 5,
+    "cover": {
+     "k": 5,
+     "n": 5,
+     "nominal": 0.8,
+     "ci": [
+      0.478176249895,
+      1
+     ]
+    }
+   },
+   "naive": {
+    "crps": 10,
+    "pinball": 5.15,
+    "pit": 5,
+    "cover": {
+     "k": 0,
+     "n": 5,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      0.521823750105
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 5,
+   "brier": 0.326195011338,
+   "brierNaive": 0.4,
+   "brierClimatology": 0.310888888889
+  }
+ },
+ "backtest-one-origin": {
+  "h": 1,
+  "n": 1,
+  "origins": 1,
+  "methods": {
+   "model": {
+    "crps": 0.490025,
+    "pinball": 0.325,
+    "pit": 1,
+    "cover": {
+     "k": 1,
+     "n": 1,
+     "nominal": 0.8,
+     "ci": [
+      0.025,
+      1
+     ]
+    }
+   },
+   "iid": {
+    "crps": 0.5213,
+    "pinball": 0.325,
+    "pit": 1,
+    "cover": {
+     "k": 1,
+     "n": 1,
+     "nominal": 0.8,
+     "ci": [
+      0.025,
+      1
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 1.04625957557,
+    "pinball": 0.576491299347,
+    "pit": 1,
+    "cover": {
+     "k": 1,
+     "n": 1,
+     "nominal": 0.8,
+     "ci": [
+      0.025,
+      1
+     ]
+    }
+   },
+   "naive": {
+    "crps": 4,
+    "pinball": 1.7,
+    "pit": 1,
+    "cover": {
+     "k": 0,
+     "n": 1,
+     "nominal": 0.8,
+     "ci": [
+      0,
+      0.975
+     ]
+    }
+   }
+  },
+  "beats": true,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 1,
+   "brier": 0,
+   "brierNaive": 1,
+   "brierClimatology": 0.25
+  }
+ },
+ "backtest-planned-1": {
+  "h": 1,
+  "n": 4,
+  "origins": 4,
+  "methods": {
+   "model": {
+    "crps": 0.6172375,
+    "pinball": 0.35,
+    "pit": 4,
+    "cover": {
+     "k": 3,
+     "n": 4,
+     "nominal": 0.8,
+     "ci": [
+      0.194120449683,
+      0.99369053679
+     ]
+    }
+   },
+   "iid": {
+    "crps": 0.58994375,
+    "pinball": 0.3375,
+    "pit": 4,
+    "cover": {
+     "k": 3,
+     "n": 4,
+     "nominal": 0.8,
+     "ci": [
+      0.194120449683,
+      0.99369053679
+     ]
+    }
+   },
+   "gauss": {
+    "crps": 0.549245992156,
+    "pinball": 0.271360481078,
+    "pit": 4,
+    "cover": {
+     "k": 3,
+     "n": 4,
+     "nominal": 0.8,
+     "ci": [
+      0.194120449683,
+      0.99369053679
+     ]
+    }
+   },
+   "naive": {
+    "crps": 0.5,
+    "pinball": 0.25,
+    "pit": 4,
+    "cover": {
+     "k": 2,
+     "n": 4,
+     "nominal": 0.8,
+     "ci": [
+      0.0675859864885,
+      0.932414013511
+     ]
+    }
+   }
+  },
+  "beats": false,
+  "consistent": true,
+  "passed": false,
+  "commit": {
+   "n": 4,
+   "brier": 0.326111111111,
+   "brierNaive": 0.25,
+   "brierClimatology": 0.270902777778
+  }
+ },
+ "conformal": [
+  {
+   "n": 3,
+   "index": 2,
+   "q": 2,
+   "infinite": false
+  },
+  {
+   "n": 5,
+   "index": 6,
+   "q": "Infinity",
+   "infinite": true
+  },
+  {
+   "n": 10,
+   "index": 9,
+   "q": 9,
+   "infinite": false
+  }
+ ],
+ "crps": [
+  0.375,
+  2,
+  1.33333333333,
+  4.56
+ ],
+ "decide": [
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "REFUSED",
+  "PRIOR-ONLY",
+  "REFUSED",
+  "REFUSED",
+  "PRIOR-ONLY",
+  "PRIOR-ONLY",
+  "REFUSED",
+  "REFUSED",
+  "PRIOR-ONLY",
+  "PROVISIONAL",
+  "PRIOR-ONLY",
+  "PRIOR-ONLY",
+  "PROVISIONAL",
+  "PROVISIONAL",
+  "PRIOR-ONLY",
+  "PRIOR-ONLY",
+  "PROVISIONAL",
+  "CALIBRATED",
+  "PROVISIONAL",
+  "PRIOR-ONLY",
+  "PROVISIONAL",
+  "CALIBRATED",
+  "PROVISIONAL",
+  "PRIOR-ONLY",
+  "PROVISIONAL"
+ ],
+ "decide-lack-edge": [
+  "PROVISIONAL",
+  "PRIOR-ONLY"
+ ],
+ "draws-correlated": [
+  0.526863601694,
+  0.365724111807,
+  0.0279776320106
+ ],
+ "draws-independent": [
+  0.454595614756,
+  0.222675652476,
+  0.400664564033
+ ],
+ "draws-scalar-mu": [
+  0.671045461011,
+  0.48565598406,
+  0.195738341238
+ ],
+ "factors": [
+  -0.0558695942581,
+  -0.0602038067356,
+  -0.0558695942581,
+  -0.226966555017,
+  -0.119913622319,
+  -0.226966555017
+ ],
+ "fc-actuals-15-16": [
+  "plan-graph, ticket-level noise (ticket-level n=15)",
+  "plan-graph, ticket-level noise (ticket-level n=16)"
+ ],
+ "fc-defaults": {
+  "state": "REFUSED",
+  "n": 0,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": null,
+  "reasons": [
+   "insufficient history"
+  ],
+  "runs": 0,
+  "text": "FORECAST [REFUSED n=0] plan ? pts: no probability: insufficient history",
+  "tokens": 18
+ },
+ "fc-flat-12": {
+  "state": "PROVISIONAL",
+  "n": 12,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 150,
+  "lastDone": 12,
+  "probs": [
+   {
+    "sprint": 18,
+    "p": 1,
+    "se": 0
+   },
+   {
+    "sprint": 19,
+    "p": 1,
+    "se": 0
+   }
+  ],
+  "percentiles": {
+   "P50": 18,
+   "P80": 18,
+   "P90": 18
+  },
+  "runs": 2000,
+  "step": 10,
+  "block": 2,
+  "mode": "flat backlog, capacity process",
+  "backtest": {
+   "k": 6,
+   "n": 9,
+   "ci": [
+    0.299295056209,
+    0.92514536858
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S18: >90% | by S19: >90% | P50 S18 P80 S18 P90 S18 (backtest 6/9 inside, CI 30-93%, no baseline beaten)",
+  "tokens": 44
+ },
+ "fc-flat-32-targets": {
+  "state": "PROVISIONAL",
+  "n": 32,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 200,
+  "lastDone": 32,
+  "probs": [
+   {
+    "sprint": 38,
+    "p": 0,
+    "se": 0
+   },
+   {
+    "sprint": 39,
+    "p": 0.759,
+    "se": 0.00956344603164
+   },
+   {
+    "sprint": 40,
+    "p": 1,
+    "se": 0
+   }
+  ],
+  "percentiles": {
+   "P50": 39,
+   "P80": 40,
+   "P90": 40,
+   "P95": 40
+  },
+  "runs": 2000,
+  "step": 5,
+  "block": 1,
+  "mode": "flat backlog, capacity process",
+  "backtest": {
+   "k": 22,
+   "n": 29,
+   "ci": [
+    0.564599654011,
+    0.897016449227
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PROVISIONAL n=32, model-conditional, not a prediction] done by S38: <5% | by S39: ~75% | by S40: >95% | P50 S39 P80 S40 P90 S40 P95 S40 (backtest 22/29 inside, CI 56-90%, no baseline beaten)",
+  "tokens": 50
+ },
+ "fc-flat-7": {
+  "state": "PRIOR-ONLY",
+  "n": 7,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 120,
+  "lastDone": 7,
+  "probs": [
+   {
+    "sprint": 11,
+    "p": 0.1385,
+    "se": 0.00772391578152,
+    "lo": 0,
+    "hi": 0.384
+   },
+   {
+    "sprint": 12,
+    "p": 1,
+    "se": 0,
+    "lo": 0.9,
+    "hi": 1
+   }
+  ],
+  "percentiles": {
+   "P50": 12,
+   "P80": 12
+  },
+  "runs": 2000,
+  "step": 10,
+  "block": 2,
+  "mode": "flat backlog, capacity process",
+  "backtest": {
+   "k": 2,
+   "n": 4,
+   "ci": [
+    0.0675859864885,
+    0.932414013511
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PRIOR-ONLY n=7, model-conditional, not a prediction] done by S11: 0-40% | by S12: 90-100% | P50 S12 P80 S12 (backtest 2/4 inside, CI 7-93%, no baseline beaten)",
+  "tokens": 43
+ },
+ "fc-n10": "FORECAST [PROVISIONAL n=10, model-conditional, not a prediction] done by S13: >90% | by S14: >90% | P50 S13 P80 S13 P90 S13 (backtest 4/7 inside, CI 18-90%, no baseline beaten)",
+ "fc-n11": "FORECAST [PROVISIONAL n=11, model-conditional, not a prediction] done by S14: >90% | by S15: >90% | P50 S14 P80 S14 P90 S14 (backtest 7/8 inside, CI 47-100%, no baseline beaten)",
+ "fc-n20": "FORECAST [CALIBRATED n=20, model-conditional, not a prediction] done by S24: >95% | by S25: >95% | P50 S24 P80 S24 P90 S24 (backtest 12/17 inside, CI 44-90%)",
+ "fc-n21": "FORECAST [PROVISIONAL n=21, model-conditional, not a prediction] done by S25: >95% | by S26: >95% | P50 S25 P80 S25 P90 S25 (backtest 14/18 inside, CI 52-94%, no baseline beaten)",
+ "fc-n30": "FORECAST [PROVISIONAL n=30, model-conditional, not a prediction] done by S35: >95% | by S36: >95% | P50 S35 P80 S35 P90 S35 P95 S35 (backtest 24/27 inside, CI 71-98%, no baseline beaten)",
+ "fc-n31": "FORECAST [CALIBRATED n=31, model-conditional, not a prediction] done by S36: >95% | by S37: >95% | P50 S36 P80 S36 P90 S36 P95 S36 (backtest 19/28 inside, CI 48-84%)",
+ "fc-n5": "FORECAST [PRIOR-ONLY n=5, model-conditional, not a prediction] done by S7: 60-100% | by S8: 90-100% | P50 S7 P80 S8 (backtest 1/2 inside, CI 1-99%, no baseline beaten)",
+ "fc-n6": "FORECAST [PRIOR-ONLY n=6, model-conditional, not a prediction] done by S8: 40-100% | by S9: 90-100% | P50 S8 P80 S9 (backtest 1/3 inside, CI 1-91%, no baseline beaten)",
+ "fc-plan-22": {
+  "state": "PROVISIONAL",
+  "n": 22,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 46,
+  "lastDone": 22,
+  "probs": [
+   {
+    "sprint": 4,
+    "p": 0,
+    "se": 0
+   },
+   {
+    "sprint": 5,
+    "p": 1,
+    "se": 0
+   }
+  ],
+  "percentiles": {
+   "P50": 5,
+   "P80": 5,
+   "P90": 5
+  },
+  "runs": 2000,
+  "step": 5,
+  "block": 1,
+  "mode": "plan-graph, capacity process",
+  "backtest": {
+   "k": 18,
+   "n": 19,
+   "ci": [
+    0.739719345805,
+    0.998668371196
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PROVISIONAL n=22, model-conditional, not a prediction] done by S4: <5% | by S5: >95% | P50 S5 P80 S5 P90 S5 (backtest 18/19 inside, CI 74-100%, no baseline beaten)",
+  "tokens": 44
+ },
+ "fc-plan-loop-other-error": {
+  "(error)": "TypeError",
+  "message": "broken model"
+ },
+ "fc-plan-mode-capacity-with-actuals": {
+  "state": "PROVISIONAL",
+  "n": 11,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 46,
+  "lastDone": 11,
+  "probs": [
+   {
+    "sprint": 5,
+    "p": 1,
+    "se": 0
+   },
+   {
+    "sprint": 6,
+    "p": 1,
+    "se": 0
+   },
+   {
+    "sprint": 7,
+    "p": 1,
+    "se": 0
+   }
+  ],
+  "percentiles": {
+   "P50": 5,
+   "P80": 5,
+   "P90": 5
+  },
+  "runs": 2000,
+  "step": 10,
+  "block": 2,
+  "mode": "plan-graph, capacity process",
+  "backtest": {
+   "k": 5,
+   "n": 8,
+   "ci": [
+    0.244863216367,
+    0.914766585863
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PROVISIONAL n=11, model-conditional, not a prediction] done by S5: >90% | by S6: >90% | by S7: >90% | P50 S5 P80 S5 P90 S5 (backtest 5/8 inside, CI 24-91%, no baseline beaten)",
+  "tokens": 47
+ },
+ "fc-plan-ticket-actuals": {
+  "state": "PROVISIONAL",
+  "n": 11,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 46,
+  "lastDone": 11,
+  "probs": [
+   {
+    "sprint": 5,
+    "p": 0.9035,
+    "se": 0.00660256578915
+   },
+   {
+    "sprint": 6,
+    "p": 0.998,
+    "se": 0.000998999499499
+   },
+   {
+    "sprint": 7,
+    "p": 1,
+    "se": 0
+   }
+  ],
+  "percentiles": {
+   "P50": 5,
+   "P80": 5,
+   "P90": 5
+  },
+  "runs": 2000,
+  "step": 10,
+  "block": 2,
+  "mode": "plan-graph, ticket-level noise (ticket-level n=20)",
+  "backtest": {
+   "k": 5,
+   "n": 8,
+   "ci": [
+    0.244863216367,
+    0.914766585863
+   ],
+   "beats": false,
+   "passed": false
+  },
+  "reasons": [],
+  "text": "FORECAST [PROVISIONAL n=11, model-conditional, not a prediction] done by S5: >90% | by S6: >90% | by S7: >90% | P50 S5 P80 S5 P90 S5 (backtest 5/8 inside, CI 24-91%, no baseline beaten)",
+  "tokens": 47
+ },
+ "fc-refuse-loop": {
+  "state": "REFUSED",
+  "n": 8,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": null,
+  "reasons": [
+   "the links contain a loop (run `brain check`)"
+  ],
+  "runs": 0,
+  "text": "FORECAST [REFUSED n=8] plan ? pts: no probability: the links contain a loop (run `brain check`)",
+  "tokens": 24
+ },
+ "fc-refuse-nothing-left": {
+  "state": "REFUSED",
+  "n": 8,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 0,
+  "reasons": [
+   "nothing left to forecast: every planned ticket is done"
+  ],
+  "runs": 0,
+  "text": "FORECAST [REFUSED n=8] plan 0 pts: no probability: nothing left to forecast: every planned ticket is done",
+  "tokens": 27
+ },
+ "fc-refuse-short": {
+  "state": "REFUSED",
+  "n": 4,
+  "tag": "model-conditional, not a prediction",
+  "planPoints": 10,
+  "reasons": [
+   "insufficient history"
+  ],
+  "runs": 0,
+  "text": "FORECAST [REFUSED n=4] plan 10 pts: no probability: insufficient history",
+  "tokens": 18
+ },
+ "fit-14-low-spread": {
+  "source": "pooled",
+  "n": 14,
+  "mu": {
+   "S": 0.103331825301,
+   "M": 0.103331825301,
+   "L": 0.103331825301
+  },
+  "sp": 0.1,
+  "ss": 0.1,
+  "se": 0.206155281281,
+  "sigma": 0.25,
+  "label": "pooled n=14"
+ },
+ "fit-15-L1": {
+  "source": "pooled",
+  "n": 15,
+  "mu": {
+   "S": 0.105227832521,
+   "M": 0.105227832521,
+   "L": 0.105227832521
+  },
+  "sp": 0.0816496580928,
+  "ss": 0.0707106781187,
+  "se": 0.01,
+  "sigma": 0.00836817153835,
+  "label": "pooled n=15"
+ },
+ "fit-15-L3": {
+  "source": "class",
+  "n": 15,
+  "mu": {
+   "S": 0.105227832521,
+   "M": 0.105227832521,
+   "L": 0.105227832521
+  },
+  "sp": 0.0816496580928,
+  "ss": 0.0707106781187,
+  "se": 0.01,
+  "sigma": 0.00836817153835,
+  "label": "ticket-level n=15"
+ },
+ "fit-15-low-spread": {
+  "source": "class",
+  "n": 15,
+  "mu": {
+   "S": 0.106219597792,
+   "M": 0.104125871108,
+   "L": 0.105227832521
+  },
+  "sp": 0.0816496580928,
+  "ss": 0.0707106781187,
+  "se": 0.01,
+  "sigma": 0.00817708559068,
+  "label": "ticket-level n=15"
+ },
+ "fit-15-noL": {
+  "source": "class",
+  "n": 15,
+  "mu": {
+   "S": 0.104467449861,
+   "M": 0.106051580402,
+   "L": 0.105227832521
+  },
+  "sp": 0.0816496580928,
+  "ss": 0.0707106781187,
+  "se": 0.01,
+  "sigma": 0.00825571264502,
+  "label": "ticket-level n=15"
+ },
+ "fit-16-wide": {
+  "source": "class",
+  "n": 16,
+  "mu": {
+   "S": 0.793943860176,
+   "M": 0.792779287319,
+   "L": 0.793943860176
+  },
+  "sp": 0.5,
+  "ss": 0.0707106781187,
+  "se": 0.909048566539,
+  "sigma": 1.03988907886,
+  "label": "ticket-level n=16"
+ },
+ "fit-class-18": {
+  "source": "class",
+  "n": 18,
+  "mu": {
+   "S": 0.0168921851407,
+   "M": 0.0554029546128,
+   "L": 0.203265884232
+  },
+  "sp": 0.0755928946018,
+  "ss": 0.0666666666667,
+  "se": 0.166897505285,
+  "sigma": 0.194970529642,
+  "label": "ticket-level n=18"
+ },
+ "fit-class-24": {
+  "source": "class",
+  "n": 24,
+  "mu": {
+   "S": 0.0558181406834,
+   "M": 0.0800681277469,
+   "L": 0.0322392907726
+  },
+  "sp": 0.0755928946018,
+  "ss": 0.1634044102,
+  "se": 0.272378397398,
+  "sigma": 0.326504637572,
+  "label": "ticket-level n=24"
+ },
+ "fit-one-person-one-sprint-20": {
+  "source": "class",
+  "n": 20,
+  "mu": {
+   "S": 0.0416623334619,
+   "M": 0.0656314519765,
+   "L": -0.0536609005943
+  },
+  "sp": 0.0894427191,
+  "ss": 0.0894427191,
+  "se": 0.287484775589,
+  "sigma": 0.314081989607,
+  "label": "ticket-level n=20"
+ },
+ "fit-pooled-16-missing-class-count": {
+  "source": "class",
+  "n": 16,
+  "mu": {
+   "S": -0.0502646538969,
+   "M": -0.0458902242093,
+   "L": -0.661303919295
+  },
+  "sp": 0.0755928946018,
+  "ss": 0.0798382988913,
+  "se": 0.504386990589,
+  "sigma": 0.516231223348,
+  "label": "ticket-level n=16"
+ },
+ "fit-pooled-9": {
+  "source": "pooled",
+  "n": 9,
+  "mu": {
+   "S": 0.0473005757102,
+   "M": 0.0473005757102,
+   "L": 0.0473005757102
+  },
+  "sp": 0.1,
+  "ss": 0.1,
+  "se": 0.210404791581,
+  "sigma": 0.253515633286,
+  "label": "pooled n=9"
+ },
+ "normCdf": [
+  0.00134996728131,
+  0.0668072309765,
+  0.420740315376,
+  0.579259684624,
+  0.841344736168,
+  0.993790319889
+ ],
+ "normal": [
+  0.395354596772,
+  0.240678221952,
+  -0.60117946772,
+  0.68288281325,
+  -0.35696162811,
+  -1.32055105214
+ ],
+ "pinball": [
+  1.8,
+  0.2,
+  0,
+  0.25
+ ],
+ "pit": [
+  0.5,
+  0,
+  1,
+  0.5
+ ],
+ "plan-L1-default-noise-ticket": {
+  "ends": [
+   [
+    "4",
+    266
+   ],
+   [
+    "5",
+    1358
+   ],
+   [
+    "6",
+    359
+   ],
+   [
+    "7",
+    17
+   ]
+  ],
+  "planned": 4,
+  "start": 1,
+  "points": 46,
+  "tickets": 17,
+  "missingSp": 2,
+  "L": 1,
+  "mode": "ticket"
+ },
+ "plan-capacity": {
+  "ends": [
+   [
+    "13",
+    2000
+   ]
+  ],
+  "planned": 4,
+  "start": 9,
+  "points": 46,
+  "tickets": 17,
+  "missingSp": 2,
+  "L": 2,
+  "mode": "capacity"
+ },
+ "plan-capacity-start1": {
+  "ends": [
+   [
+    "4",
+    2000
+   ]
+  ],
+  "planned": 4,
+  "start": 1,
+  "points": 36,
+  "tickets": 15,
+  "missingSp": 2,
+  "L": 2,
+  "mode": "capacity"
+ },
+ "plan-horizon-2": {
+  "ends": [
+   [
+    "Infinity",
+    2000
+   ]
+  ],
+  "planned": 4,
+  "start": 1,
+  "points": 46,
+  "tickets": 17,
+  "missingSp": 2,
+  "L": 2,
+  "mode": "capacity"
+ },
+ "plan-ticket": {
+  "ends": [
+   [
+    "4",
+    201
+   ],
+   [
+    "5",
+    1559
+   ],
+   [
+    "6",
+    237
+   ],
+   [
+    "7",
+    3
+   ]
+  ],
+  "planned": 4,
+  "start": 1,
+  "points": 46,
+  "tickets": 17,
+  "missingSp": 2,
+  "L": 2,
+  "mode": "ticket"
+ },
+ "predictDone-L1": [
+  95,
+  95,
+  96,
+  92,
+  93,
+  89,
+  90,
+  91,
+  90,
+  93,
+  95,
+  97
+ ],
+ "render-calibrated-25": "FORECAST [CALIBRATED n=25, model-conditional, not a prediction] done by S5: <5% | by S6: ~50% | by S7: >95% | P50 S6 P80 S7 P90 >S63 (backtest 16/20 inside, CI 56-94%) [a; b]",
+ "render-edges": [
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: ~10% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: <10% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: ~90% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: >90% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: <10% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: >90% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: >90% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: <10% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: ~50% | P50 S6",
+  "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: ~60% | P50 S6",
+  "FORECAST [PROVISIONAL n=20, model-conditional, not a prediction] done by S5: ~5% | P50 S6",
+  "FORECAST [PROVISIONAL n=21, model-conditional, not a prediction] done by S5: ~5% | P50 S6",
+  "FORECAST [PRIOR-ONLY n=6, model-conditional, not a prediction] done by S5: 10-100% | P50 S6"
+ ],
+ "render-no-beat": "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: <10% | by S6: ~50% | by S7: >90% | P50 S6 P80 S7 P90 >S63 (backtest 3/9 inside, CI 7-70%, no baseline beaten)",
+ "render-prior-only": "FORECAST [PRIOR-ONLY n=6, model-conditional, not a prediction] done by S5: 10-70% | P50 S6 P80 S7 P90 >S63",
+ "render-provisional": "FORECAST [PROVISIONAL n=12, model-conditional, not a prediction] done by S5: <10% | by S6: ~50% | by S7: >90% | P50 S6 P80 S7 P90 >S63",
+ "render-refused": [
+  "FORECAST [REFUSED n=2] plan ? pts: no probability: insufficient history",
+  "FORECAST [REFUSED n=2] plan 30 pts: no probability: x; y"
+ ],
+ "simulateFinish-L3": [
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3,
+  3
+ ]
+}

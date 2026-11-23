@@ -1,0 +1,1259 @@
+{
+ "collector": [
+  "line 0\nline 1\nline 2",
+  "{\"v\":2,\"cmd\":\"x\",\"ok\":false,\"exit\":1,\"data\":{\"lines\":[\"line 0\",\"line 1\",\"line 2\",\"... 4 more\"]},\"fresh\":{\"fp\":\"a\",\"built\":\"b\"},\"next\":[]}",
+  ""
+ ],
+ "collector-strict": [
+  {
+   "(error)": "TypeError",
+   "message": "io.out takes exactly one line (it got a line break): use io.outBlock(lines) for multi-line output"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "io.out takes exactly one line (it got a line break): use io.outBlock(lines) for multi-line output"
+  },
+  "(undefined)"
+ ],
+ "did-you-mean": [
+  "ticket",
+  null,
+  "stale",
+  null,
+  "a",
+  "verify"
+ ],
+ "err-text": [
+  "a b <\\untrusted>c",
+  "xxxxxxxxxx…[+40 chars]",
+  ""
+ ],
+ "error-lines": [
+  [
+   [
+    "error: bad <x> thing",
+    "try: brain explain"
+   ],
+   [
+    "error: bad <x> thing",
+    "try: brain explain stale"
+   ]
+  ],
+  [
+   [
+    "error: broken",
+    "try: brain build"
+   ],
+   [
+    "error: broken",
+    "try: brain build"
+   ]
+  ],
+  [
+   [
+    "error: no index",
+    "try: brain build"
+   ],
+   [
+    "error: no index",
+    "try: brain build"
+   ]
+  ],
+  [
+   [
+    "error: no node",
+    "try: brain doctor"
+   ],
+   [
+    "error: no node",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: outside",
+    "try: brain explain"
+   ],
+   [
+    "error: outside",
+    "try: brain explain stale"
+   ]
+  ],
+  [
+   [
+    "error: odd",
+    "try: brain explain"
+   ],
+   [
+    "error: odd",
+    "try: brain explain stale"
+   ]
+  ],
+  [
+   [
+    "error: internal error: x",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: x",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: y",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: y",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: z",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: z",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: t",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: t",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: string error",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: string error",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: null",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: null",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: internal error: fmt",
+    "try: brain doctor"
+   ],
+   [
+    "error: internal error: fmt",
+    "try: brain doctor"
+   ]
+  ],
+  [
+   [
+    "error: i",
+    "try: brain doctor"
+   ],
+   [
+    "error: i",
+    "try: brain doctor"
+   ]
+  ]
+ ],
+ "exit-codes": [
+  {
+   "OK": 0,
+   "NOT_OK": 1,
+   "USAGE": 2,
+   "DATA": 2,
+   "NO_INDEX": 2,
+   "STALE": 2,
+   "ENV": 3,
+   "REFUSED": 4,
+   "UNKNOWN": 5,
+   "ABORTED": 5,
+   "VERIFY_FAILED": 6
+  },
+  [
+   [
+    0,
+    "ok"
+   ],
+   [
+    1,
+    "negative answer"
+   ],
+   [
+    2,
+    "usage or data error"
+   ],
+   [
+    3,
+    "environment missing"
+   ],
+   [
+    4,
+    "refused"
+   ],
+   [
+    5,
+    "internal error"
+   ]
+  ],
+  [
+   2,
+   2,
+   2,
+   3,
+   4,
+   5,
+   5,
+   5,
+   5,
+   5,
+   5,
+   5,
+   5,
+   2
+  ]
+ ],
+ "floor": [
+  "24.2",
+  "try: install Node 24.2 or newer",
+  "brain needs Node >= 24.2 (found v1.2.3v1.2.3v1.2.3v1); it uses node:sqlite and current ES features",
+  [
+   true,
+   false,
+   true,
+   true,
+   false,
+   true,
+   true,
+   false,
+   false,
+   false,
+   true,
+   true
+  ]
+ ],
+ "mcp-handle": {
+  "out": [
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32700,
+     "message": "parse error"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32600,
+     "message": "invalid request: batches are not supported"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+     "code": -32600,
+     "message": "server not initialized"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "error": {
+     "code": -32600,
+     "message": "server not initialized"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "error": {
+     "code": -32602,
+     "message": "invalid params: protocolVersion must be a string"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "result": {
+     "protocolVersion": "2025-11-25",
+     "capabilities": {
+      "tools": {
+       "listChanged": false
+      }
+     },
+     "serverInfo": {
+      "name": "project-brain",
+      "version": "0.1.0"
+     }
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "error": {
+     "code": -32600,
+     "message": "already initialized"
+    }
+   },
+   null,
+   {
+    "jsonrpc": "2.0",
+    "id": "p",
+    "result": {}
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 6,
+    "result": {
+     "tools": [
+      {
+       "name": "ready",
+       "title": "May this ticket start now?",
+       "description": "Definition of ready for one ticket: READY TO START, or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `brain ready KEY`.",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string",
+          "description": "Ticket key, e.g. ABC-123 or sp:<plan>/<task>"
+         },
+         "verbose": {
+          "type": "boolean",
+          "description": "Longer answer (the CLI -v)"
+         }
+        },
+        "required": [
+         "key"
+        ],
+        "additionalProperties": false
+       },
+       "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+       }
+      },
+      {
+       "name": "whatif",
+       "title": "Dry run of a move",
+       "description": "Dry run of reassigning a ticket (to) or moving it to a sprint: OK, or NO with the broken rules and a repair. Never changes anything. Same text as `brain whatif KEY`.",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string",
+          "description": "Ticket key, e.g. ABC-123 or sp:<plan>/<task>"
+         },
+         "to": {
+          "type": "string",
+          "description": "New owner"
+         },
+         "sprint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "New sprint"
+         },
+         "earlier": {
+          "type": "boolean"
+         },
+         "owner_change": {
+          "type": "boolean"
+         },
+         "slip": {
+          "type": "boolean"
+         },
+         "strict": {
+          "type": "boolean"
+         },
+         "verbose": {
+          "type": "boolean",
+          "description": "Longer answer (the CLI -v)"
+         }
+        },
+        "required": [
+         "key"
+        ],
+        "additionalProperties": false
+       },
+       "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+       }
+      },
+      {
+       "name": "ticket",
+       "title": "One ticket",
+       "description": "One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `brain ticket KEY`.",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string",
+          "description": "Ticket key, e.g. ABC-123 or sp:<plan>/<task>"
+         },
+         "verbose": {
+          "type": "boolean",
+          "description": "Longer answer (the CLI -v)"
+         }
+        },
+        "required": [
+         "key"
+        ],
+        "additionalProperties": false
+       },
+       "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+       }
+      }
+     ]
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "error": {
+     "code": -32602,
+     "message": "invalid params: unknown cursor"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 8,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "ran ready -- T-1\nwarn"
+      }
+     ],
+     "isError": false
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 9,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "ran ready -- T-2\nwarn"
+      }
+     ],
+     "isError": true
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 10,
+    "result": {
+     "content": [
+      {
+       "type": "text",
+       "text": "invalid arguments: key must be a ticket key such as ABC-123 or sp:<plan>/<task>"
+      }
+     ],
+     "isError": true
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 11,
+    "error": {
+     "code": -32602,
+     "message": "unknown tool"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 12,
+    "error": {
+     "code": -32602,
+     "message": "invalid params: name must be a string"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 13,
+    "error": {
+     "code": -32602,
+     "message": "invalid params: arguments must be an object"
+    }
+   },
+   {
+    "jsonrpc": "2.0",
+    "id": 14,
+    "error": {
+     "code": -32601,
+     "message": "method not found"
+    }
+   },
+   null,
+   {
+    "jsonrpc": "2.0",
+    "id": 16,
+    "error": {
+     "code": -32600,
+     "message": "invalid request"
+    }
+   },
+   null,
+   null,
+   {
+    "jsonrpc": "2.0",
+    "id": null,
+    "error": {
+     "code": -32700,
+     "message": "parse error"
+    }
+   }
+  ],
+  "calls": [
+   [
+    [
+     "ready",
+     "--",
+     "T-1"
+    ],
+    "/w"
+   ],
+   [
+    [
+     "ready",
+     "--",
+     "T-2"
+    ],
+    "/w"
+   ]
+  ]
+ },
+ "mcp-internal-error": [
+  {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "result": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {
+     "tools": {
+      "listChanged": false
+     }
+    },
+    "serverInfo": {
+     "name": "project-brain",
+     "version": "0.1.0"
+    }
+   }
+  },
+  {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "error": {
+    "code": -32603,
+    "message": "internal error"
+   }
+  }
+ ],
+ "mcp-serve": [
+  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"project-brain\",\"version\":\"0.1.0\"}}}",
+  "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}",
+  "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"message too large\"}}",
+  "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{}}"
+ ],
+ "parse-bad-spec": [
+  {
+   "(error)": "TypeError",
+   "message": "option type of --q must be string, boolean, integer or number"
+  },
+  {
+   "values": {},
+   "positionals": [
+    "x",
+    "y"
+   ]
+  }
+ ],
+ "parse-grid": [
+  [
+   "a",
+   {
+    "values": {},
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a b",
+   {
+    "values": {},
+    "positionals": [
+     "a",
+     "b"
+    ]
+   }
+  ],
+  [
+   "",
+   {
+    "(error)": "BrainError",
+    "message": "expected at least 1 argument, got 0",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a b c",
+   {
+    "(error)": "BrainError",
+    "message": "expected at most 2 arguments, got 3",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --n 3",
+   {
+    "values": {
+     "n": 3
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --n 0",
+   {
+    "(error)": "BrainError",
+    "message": "--n: must be between 1 and 9",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --n 10",
+   {
+    "(error)": "BrainError",
+    "message": "--n: must be between 1 and 9",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --n 1.5",
+   {
+    "(error)": "BrainError",
+    "message": "--n: expected an integer",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --n -0",
+   {
+    "(error)": "BrainError",
+    "message": "Option '--n' argument is ambiguous. Did you forget to specify the option argument for '--n'? To specify an option argument starting with a dash use '--n=-XYZ'.",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x -2.5",
+   {
+    "(error)": "BrainError",
+    "message": "Option '--x' argument is ambiguous. Did you forget to specify the option argument for '--x'? To specify an option argument starting with a dash use '--x=-XYZ'.",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x 1e3",
+   {
+    "(error)": "BrainError",
+    "message": "--x: expected a number",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x  1",
+   {
+    "(error)": "BrainError",
+    "message": "--x: expected a number",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x +1",
+   {
+    "(error)": "BrainError",
+    "message": "--x: expected a number",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x 11111111111111111111111111111111111111111",
+   {
+    "(error)": "BrainError",
+    "message": "--x: expected a number",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --x 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+   {
+    "(error)": "BrainError",
+    "message": "--x: expected a number",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --n 99999999999999999",
+   {
+    "(error)": "BrainError",
+    "message": "--n: expected an integer",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a -s v",
+   {
+    "values": {
+     "s": "v"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --s=v",
+   {
+    "values": {
+     "s": "v"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --b",
+   {
+    "values": {
+     "b": true
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --b=yes",
+   {
+    "(error)": "BrainError",
+    "message": "Option '--b' does not take an argument",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --s",
+   {
+    "(error)": "BrainError",
+    "message": "Option '-s, --s ?value?' argument missing",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --m x --m y",
+   {
+    "values": {
+     "m": [
+      "x",
+      "y"
+     ]
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --many 1 --many z",
+   {
+    "(error)": "BrainError",
+    "message": "--many: expected an integer",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --req",
+   {
+    "(error)": "BrainError",
+    "message": "needs a value for --req",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --req -x",
+   {
+    "(error)": "BrainError",
+    "message": "needs a value for --req",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --req=-x",
+   {
+    "values": {
+     "req": "-x"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --req -",
+   {
+    "values": {
+     "req": "-"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --nn 3",
+   {
+    "(error)": "BrainError",
+    "message": "unknown option --nn; did you mean --n?",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --zzz",
+   {
+    "(error)": "BrainError",
+    "message": "unknown option --zzz",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a --qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+   {
+    "(error)": "BrainError",
+    "message": "unknown option --qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq…[+22 chars]",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a -z",
+   {
+    "(error)": "BrainError",
+    "message": "unknown option -z",
+    "code": "USAGE"
+   }
+  ],
+  [
+   "a -- --n",
+   {
+    "values": {},
+    "positionals": [
+     "a",
+     "--n"
+    ]
+   }
+  ],
+  [
+   "a --n 9",
+   {
+    "values": {
+     "n": 9
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --n 1",
+   {
+    "values": {
+     "n": 1
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --req value",
+   {
+    "values": {
+     "req": "value"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ],
+  [
+   "a --req v",
+   {
+    "values": {
+     "req": "v"
+    },
+    "positionals": [
+     "a"
+    ]
+   }
+  ]
+ ],
+ "parse-positionals": [
+  {
+   "values": {},
+   "positionals": []
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 0 arguments, got 1",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 0 arguments, got 3",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 1 argument, got 0",
+   "code": "USAGE"
+  },
+  {
+   "values": {},
+   "positionals": [
+    "a"
+   ]
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 1 argument, got 3",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 2 arguments, got 0",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 2 arguments, got 1",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected 2 arguments, got 3",
+   "code": "USAGE"
+  },
+  {
+   "values": {},
+   "positionals": []
+  },
+  {
+   "values": {},
+   "positionals": [
+    "a"
+   ]
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected at most 1 argument, got 3",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected at least 2 arguments, got 0",
+   "code": "USAGE"
+  },
+  {
+   "(error)": "BrainError",
+   "message": "expected at least 2 arguments, got 1",
+   "code": "USAGE"
+  },
+  {
+   "values": {},
+   "positionals": [
+    "a",
+    "b",
+    "c"
+   ]
+  }
+ ],
+ "registry": [
+  {
+   "options": {
+    "a": {
+     "type": "string"
+    }
+   },
+   "positionals": [
+    0,
+    1
+   ],
+   "summary": "s",
+   "writes": "none",
+   "guard": "none"
+  },
+  "s",
+  "(undefined)",
+  {
+   "(error)": "TypeError",
+   "message": "command ok is already registered"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c0: run must be a function"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c1: summary must be a non-empty string"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c2: positionals must be [min, max] with 0 <= min <= max"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c3: positionals must be [min, max] with 0 <= min <= max"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c4: option type of --a must be string, boolean, integer or number"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c5: writes must be text, index, file or none"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "c6: guard must be none, soft, strict or a function"
+  },
+  {
+   "options": {
+    "json": {
+     "type": "boolean"
+    }
+   },
+   "positionals": [
+    0,
+    1
+   ],
+   "summary": "s",
+   "writes": "none",
+   "guard": "none"
+  },
+  {
+   "(error)": "TypeError",
+   "message": "command name must be lowercase letters, digits and dashes"
+  }
+ ],
+ "rel-dir": [
+  "in .brain/x",
+  "./y",
+  "z",
+  "/r/z",
+  "/r/d/z"
+ ],
+ "strict-env": [
+  true,
+  false,
+  true
+ ],
+ "tool-argv": [
+  [
+   "ready",
+   "--",
+   "T-1"
+  ],
+  {
+   "(error)": "ArgError",
+   "message": "unknown argument (allowed: key, verbose)"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "key must be a ticket key such as ABC-123 or sp:<plan>/<task>"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "key must be a ticket key such as ABC-123 or sp:<plan>/<task>"
+  },
+  [
+   "whatif",
+   "--to=Ana",
+   "--sprint=3",
+   "--",
+   "T-1"
+  ],
+  {
+   "(error)": "ArgError",
+   "message": "sprint must be a whole number from 0 to 100000"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "sprint must be a whole number from 0 to 100000"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "unknown argument (allowed: key, to, sprint, earlier, owner_change, slip, strict, verbose)"
+  },
+  [
+   "ticket",
+   "--",
+   "T-1"
+  ],
+  {
+   "(error)": "ArgError",
+   "message": "key must be a ticket key such as ABC-123 or sp:<plan>/<task>"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "key must be a ticket key such as ABC-123 or sp:<plan>/<task>"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "unknown argument (allowed: key, verbose)"
+  },
+  {
+   "(error)": "ArgError",
+   "message": "unknown tool"
+  }
+ ],
+ "tools": [
+  [
+   "ready",
+   "whatif",
+   "ticket"
+  ],
+  [
+   "2025-11-25",
+   "2025-06-18",
+   "2025-03-26",
+   "2024-11-05"
+  ]
+ ],
+ "try-of": [
+  [
+   "brain explain",
+   "brain explain ready"
+  ],
+  [
+   "brain build",
+   "brain build"
+  ],
+  [
+   "brain build",
+   "brain build"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain explain",
+   "brain explain ready"
+  ],
+  [
+   "brain explain",
+   "brain explain ready"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ],
+  [
+   "brain doctor",
+   "brain doctor"
+  ]
+ ]
+}

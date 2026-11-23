@@ -1,0 +1,27 @@
+name: mutation
+# Informational mutation smoke: 40 seeded mutants of the core library modules (scripts/mutate-all.mjs). It reports survivors in the
+# job summary and never fails the run (--informational); it is not a required check. The whole-library run (`npm run mutate:all`)
+# takes hours and is run locally.
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: mutation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  smoke:
+    name: mutation smoke (informational)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: mutation smoke (reports, does not gate)
+        run: npm run mutate:smoke -- --informational

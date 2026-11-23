@@ -1,0 +1,1064 @@
+{
+ "blocking": [
+  [
+   {
+    "key": "A-2",
+    "kind": "fixed",
+    "owner": "Ben",
+    "due_sprint": 9,
+    "status": "open",
+    "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   {
+    "key": "A-2",
+    "kind": "other",
+    "owner": "Ben",
+    "due_sprint": 6,
+    "status": "open",
+    "text": ""
+   },
+   {
+    "key": "A-2",
+    "kind": "spike",
+    "owner": "Ana",
+    "due_sprint": 4,
+    "status": "open",
+    "text": "try the parser"
+   }
+  ],
+  true,
+  true,
+  true,
+  true,
+  false
+ ],
+ "close-errors": [
+  {
+   "(error)": "Error",
+   "message": "closeItem: no open item K-1|manual"
+  },
+  {
+   "(error)": "Error",
+   "message": "reopenItem: K-1|manual is not closed"
+  }
+ ],
+ "closed": [
+  {
+   "key": "K-1",
+   "kind": "manual",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "done",
+   "text": "spaced text",
+   "source": "manual",
+   "closed_at": "2026-02-02",
+   "closed_by": "Ben",
+   "close_note": "done it"
+  }
+ ],
+ "closed-now": [
+  {
+   "key": "K-1",
+   "kind": "manual",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "done",
+   "text": "spaced text",
+   "source": "manual",
+   "closed_at": "2026-03-03"
+  }
+ ],
+ "closed-set": [
+  "A-1|b|c",
+  "GONE|decision"
+ ],
+ "compact": "open items: 10 (due S1: 1)\n- B-1 question S1 Cleo: who signs off?\n- A-1 b|c S3 Ana: pipe kind\n- A-1 decision S4 Dora: also the cache | pick a database\n- A-2 other S6 Ben: \n- A-2 fixed S9 Ben: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n... 5 more",
+ "compact-limit": "open items: 10 (due S1: 1)\n- B-1 question S1 Cleo: who signs off?\n- A-1 b|c S3 Ana: pipe kind\n... 8 more",
+ "compact-me": "open items: 10 (2 yours, due S4: 3)\n- A-1 b|c S3 Ana: pipe kind\n- C-9 spike - Ana: unscheduled spike\n- B-1 question S1 Cleo: who signs off?\n- A-1 decision S4 Dora: also the cache | pick a database\n- A-2 other S6 Ben: \n... 5 more",
+ "compact-no-dues": "open items: 1\n- A k - x: t",
+ "compact-none": "open items: 0",
+ "compact-tiny": "open items: 10 (due S1: 1)\n... 10 more",
+ "derived": [
+  {
+   "key": "A-1",
+   "kind": "b|c",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "open",
+   "text": "pipe kind"
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database"
+  },
+  {
+   "key": "A-1|b",
+   "kind": "c",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "pipe key"
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Ben",
+   "due_sprint": 9,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": ""
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser"
+  },
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?"
+  },
+  {
+   "key": "C-9",
+   "kind": "question",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled"
+  },
+  {
+   "key": "C-9",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled spike"
+  },
+  {
+   "key": "ab",
+   "kind": "cd",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "one"
+  },
+  {
+   "key": "abc",
+   "kind": "d",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "two"
+  }
+ ],
+ "derived-default-config": [
+  {
+   "key": "A-1",
+   "kind": "b|c",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "open",
+   "text": "pipe kind"
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "open",
+   "text": "also the cache | pick a database"
+  },
+  {
+   "key": "A-1|b",
+   "kind": "c",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "pipe key"
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": ""
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": "try the parser"
+  },
+  {
+   "key": "B-1",
+   "kind": "noise",
+   "owner": "Cleo",
+   "due_sprint": 2,
+   "status": "open",
+   "text": "ignored"
+  },
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 2,
+   "status": "open",
+   "text": "who signs off?"
+  },
+  {
+   "key": "C-9",
+   "kind": "question",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled"
+  },
+  {
+   "key": "C-9",
+   "kind": "spike",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled spike"
+  },
+  {
+   "key": "ab",
+   "kind": "cd",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "one"
+  },
+  {
+   "key": "abc",
+   "kind": "d",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "two"
+  }
+ ],
+ "derived-default-rule": [
+  {
+   "key": "A-1",
+   "kind": "b|c",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "pipe kind"
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "also the cache | pick a database"
+  },
+  {
+   "key": "A-1|b",
+   "kind": "c",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "pipe key"
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": ""
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "try the parser"
+  },
+  {
+   "key": "B-1",
+   "kind": "noise",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "ignored"
+  },
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "who signs off?"
+  },
+  {
+   "key": "C-9",
+   "kind": "question",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "unscheduled"
+  },
+  {
+   "key": "C-9",
+   "kind": "spike",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "unscheduled spike"
+  },
+  {
+   "key": "ab",
+   "kind": "cd",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "one"
+  },
+  {
+   "key": "abc",
+   "kind": "d",
+   "owner": "Eve",
+   "due_sprint": 7,
+   "status": "open",
+   "text": "two"
+  }
+ ],
+ "derived-extra": [
+  {
+   "key": "Z-1",
+   "kind": "k",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "t"
+  }
+ ],
+ "effective-due": [
+  [
+   "A-1",
+   "b|c",
+   3
+  ],
+  [
+   "A-1",
+   "decision",
+   4
+  ],
+  [
+   "A-1|b",
+   "c",
+   null
+  ],
+  [
+   "A-2",
+   "fixed",
+   9
+  ],
+  [
+   "A-2",
+   "other",
+   6
+  ],
+  [
+   "A-2",
+   "spike",
+   4
+  ],
+  [
+   "B-1",
+   "question",
+   1
+  ],
+  [
+   "C-9",
+   "question",
+   null
+  ],
+  [
+   "C-9",
+   "spike",
+   null
+  ],
+  [
+   "GONE",
+   "decision",
+   null
+  ],
+  [
+   "M-1",
+   "manual",
+   2
+  ],
+  [
+   "ab",
+   "cd",
+   null
+  ],
+  [
+   "abc",
+   "d",
+   null
+  ]
+ ],
+ "overdue-S1": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": false
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": false
+  }
+ ],
+ "overdue-S2": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": false
+  }
+ ],
+ "overdue-S3": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": true
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database",
+   "late": false
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser",
+   "late": false
+  }
+ ],
+ "overdue-S4": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": true
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database",
+   "late": false
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser",
+   "late": false
+  }
+ ],
+ "overdue-S5": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": true
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database",
+   "late": true
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser",
+   "late": true
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": "",
+   "late": false
+  }
+ ],
+ "overdue-S8": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": true
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database",
+   "late": true
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser",
+   "late": true
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": "",
+   "late": true
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Ben",
+   "due_sprint": 9,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "late": false
+  }
+ ],
+ "overdue-lead0": [
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?",
+   "late": true
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine",
+   "late": true
+  }
+ ],
+ "overdue-nulls": [
+  {
+   "key": "P",
+   "kind": "k",
+   "status": "open",
+   "due_sprint": 1,
+   "source": "manual",
+   "late": true
+  },
+  {
+   "key": "Q",
+   "kind": "k",
+   "status": "open",
+   "due_sprint": 1,
+   "source": "manual",
+   "late": true
+  }
+ ],
+ "parse-1001-errors": {
+  "total": 1000,
+  "errors": [
+   "findings:10: invalid JSON",
+   "... and at least 990 more (scan stopped after 1000 errors)"
+  ],
+  "n": 11
+ },
+ "parse-12-errors": {
+  "findings": [],
+  "errors": [
+   "findings:1: invalid JSON",
+   "findings:2: invalid JSON",
+   "findings:3: invalid JSON",
+   "findings:4: invalid JSON",
+   "findings:5: invalid JSON",
+   "findings:6: invalid JSON",
+   "findings:7: invalid JSON",
+   "findings:8: invalid JSON",
+   "findings:9: invalid JSON",
+   "findings:10: invalid JSON",
+   "... and 2 more"
+  ],
+  "total": 12
+ },
+ "parse-bom-default-name": {
+  "findings": [
+   {
+    "key": "A",
+    "kind": "k",
+    "text": "t"
+   }
+  ],
+  "errors": [
+   "findings:2: invalid JSON"
+  ],
+  "total": 1
+ },
+ "parse-error": {
+  "(error)": "IngestError",
+  "message": "open-items.jsonl:1: missing \"kind\""
+ },
+ "parse-mixed": {
+  "findings": [
+   {
+    "key": "A-1",
+    "kind": "risk",
+    "text": "ok <b>"
+   }
+  ],
+  "errors": [
+   "f.jsonl:3: invalid JSON",
+   "f.jsonl:4: needs string key, kind and text",
+   "f.jsonl:5: needs string key, kind and text",
+   "f.jsonl:6: invalid key",
+   "f.jsonl:7: invalid key",
+   "f.jsonl:8: invalid kind",
+   "f.jsonl:9: invalid key"
+  ],
+  "total": 7
+ },
+ "parse-undefined": {
+  "findings": [],
+  "errors": [],
+  "total": 0
+ },
+ "parsed": [
+  {
+   "key": "A",
+   "kind": "k",
+   "owner": "Ana",
+   "due_sprint": null,
+   "status": "open",
+   "text": "u"
+  },
+  {
+   "key": "B",
+   "kind": "k",
+   "due_sprint": null,
+   "status": "open",
+   "text": "t",
+   "closed_at": "2026-01-01",
+   "closed_by": "x",
+   "close_note": "n",
+   "source": "manual",
+   "alpha": 1,
+   "zeta": 2
+  }
+ ],
+ "reconciled": [
+  {
+   "key": "A-1",
+   "kind": "b|c",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "done",
+   "text": "pipe kind",
+   "closed_at": "2026-01-01",
+   "closed_by": "Ana"
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database"
+  },
+  {
+   "key": "A-1|b",
+   "kind": "c",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "pipe key"
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Ben",
+   "due_sprint": 9,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": ""
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser"
+  },
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?"
+  },
+  {
+   "key": "C-9",
+   "kind": "question",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled"
+  },
+  {
+   "key": "C-9",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled spike"
+  },
+  {
+   "key": "GONE",
+   "kind": "decision",
+   "status": "done",
+   "closed_at": "2026-01-02",
+   "owner": "x",
+   "text": "history"
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine"
+  },
+  {
+   "key": "ab",
+   "kind": "cd",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "one"
+  },
+  {
+   "key": "abc",
+   "kind": "d",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "two"
+  }
+ ],
+ "reconciled-prune": [
+  {
+   "key": "A-1",
+   "kind": "b|c",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "done",
+   "text": "pipe kind",
+   "closed_at": "2026-01-01",
+   "closed_by": "Ana"
+  },
+  {
+   "key": "A-1",
+   "kind": "decision",
+   "owner": "Dora",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "also the cache | pick a database"
+  },
+  {
+   "key": "A-1|b",
+   "kind": "c",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "pipe key"
+  },
+  {
+   "key": "A-2",
+   "kind": "fixed",
+   "owner": "Ben",
+   "due_sprint": 9,
+   "status": "open",
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "key": "A-2",
+   "kind": "other",
+   "owner": "Ben",
+   "due_sprint": 6,
+   "status": "open",
+   "text": ""
+  },
+  {
+   "key": "A-2",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": 4,
+   "status": "open",
+   "text": "try the parser"
+  },
+  {
+   "key": "B-1",
+   "kind": "question",
+   "owner": "Cleo",
+   "due_sprint": 1,
+   "status": "open",
+   "text": "who signs off?"
+  },
+  {
+   "key": "C-9",
+   "kind": "question",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled"
+  },
+  {
+   "key": "C-9",
+   "kind": "spike",
+   "owner": "Ana",
+   "due_sprint": null,
+   "status": "open",
+   "text": "unscheduled spike"
+  },
+  {
+   "key": "M-1",
+   "kind": "manual",
+   "status": "open",
+   "source": "manual",
+   "due_sprint": 2,
+   "owner": "Ana",
+   "text": "mine"
+  },
+  {
+   "key": "ab",
+   "kind": "cd",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "one"
+  },
+  {
+   "key": "abc",
+   "kind": "d",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "two"
+  }
+ ],
+ "register-errors": [
+  {
+   "(error)": "Error",
+   "message": "registerItem: key and kind are required"
+  },
+  {
+   "(error)": "Error",
+   "message": "registerItem: K-1|manual exists"
+  }
+ ],
+ "registered": [
+  {
+   "key": "K-1",
+   "kind": "manual",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "spaced text",
+   "source": "manual"
+  }
+ ],
+ "registered-defaults": [
+  {
+   "key": "K-0",
+   "kind": "manual",
+   "owner": "Ana",
+   "due_sprint": 3,
+   "status": "open",
+   "text": "",
+   "source": "manual"
+  },
+  {
+   "key": "K-1",
+   "kind": "manual",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "spaced text",
+   "source": "manual"
+  }
+ ],
+ "render-by-due": "# Open items\n\nGenerated by `brain open-items --write` (do not edit). 10 open, 1 closed.\n\n## S1 (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | B-1 | question | who signs off? |\n\n## S3 (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S3 | A-1 | b\\|c | pipe kind |\n\n## S4 (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S4 | A-1 | decision | also the cache \\| pick a database |\n\n## S6 (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S6 | A-2 | other |  |\n\n## S9 (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S9 | A-2 | fixed | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx |\n\n## No sprint (5 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| - | A-1\\|b | c | pipe key |\n| - | C-9 | question | unscheduled |\n| - | C-9 | spike | unscheduled spike |\n| - | ab | cd | one |\n| - | abc | d | two |\n\n## Closed (1)\n| Key | Kind | Owner | Closed | By | Note |\n|---|---|---|---|---|---|\n| A-2 | spike | Ana | 2026-04-04 | Ben \\| Co | n<o>te |\n",
+ "render-by-owner": "# Open items\n\nGenerated by `brain open-items --write` (do not edit). 10 open, 1 closed.\n\n## Ana (2 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S3 | A-1 | b\\|c | pipe kind |\n| - | C-9 | spike | unscheduled spike |\n\n## Ben (2 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S6 | A-2 | other |  |\n| S9 | A-2 | fixed | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx |\n\n## Cleo (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | B-1 | question | who signs off? |\n\n## Dora (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S4 | A-1 | decision | also the cache \\| pick a database |\n\n## unassigned (4 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| - | A-1\\|b | c | pipe key |\n| - | C-9 | question | unscheduled |\n| - | ab | cd | one |\n| - | abc | d | two |\n\n## Closed (1)\n| Key | Kind | Owner | Closed | By | Note |\n|---|---|---|---|---|---|\n| A-2 | spike | Ana | 2026-04-04 | Ben \\| Co | n<o>te |\n",
+ "render-empty": "# Open items\n\nGenerated by `brain open-items --write` (do not edit). 0 open, 0 closed.\n",
+ "reopened": [
+  {
+   "key": "K-1",
+   "kind": "manual",
+   "owner": "unassigned",
+   "due_sprint": null,
+   "status": "open",
+   "text": "spaced text",
+   "source": "manual"
+  }
+ ],
+ "serialized": "{\"key\":\"A\",\"kind\":\"k\",\"owner\":\"Ana\",\"due_sprint\":null,\"status\":\"open\",\"text\":\"u\"}\n{\"key\":\"B\",\"kind\":\"k\",\"due_sprint\":null,\"status\":\"open\",\"text\":\"t\",\"closed_at\":\"2026-01-01\",\"closed_by\":\"x\",\"close_note\":\"n\",\"source\":\"manual\",\"alpha\":1,\"zeta\":2}\n",
+ "serialized-empty": ""
+}

@@ -12,6 +12,22 @@ Goal: the best planning memory for AI coding agents. Hard rules, in priority ord
 
 Exhaustive small-scope suite: `npm run assure` (minutes; `test/assure/`) checks verify, check/verify CLI agreement, whatif/proposeMove, whatif --relieve, merge, stale, ready (single and bulk), forecast gates and the canonical round trip against clean-room oracles on EVERY instance up to small bounds (each file's header states them; a reduced variant runs in every `node --test test/*.test.mjs` run as `test/assure.test.mjs`). It is exhaustive within those bounds, not a proof beyond them.
 
+Mutation testing: `npm run mutate` runs 38 hand-written mutants of known past defects (all must be killed). `npm run mutate:all`
+(`scripts/mutate-all.mjs`, long run) generates every mutant of `lib/`, `lib/integrations/`, `src/` and `mcp/` (relational, arithmetic,
+logical, boolean, condition negation, return value, string literal, off-by-one, guard and throw removal; never comments, JSDoc, regex
+literals or import specifiers), applies each to a temporary copy of the repository, syntax-checks it and runs the test files mapped to
+that file (tier 1: direct importers that run in under 10 s; tier 2, only for tier-1 survivors: slower importers and tests reaching it
+transitively or through `bin/brain`). A failing
+test or a timeout kills a mutant (timeouts are counted in their own column); a mutant that does not parse is left out. The score is
+(killed + timeout) / (mutants - invalid - reviewed equivalents). Equivalent mutants are listed, each with a one-line reason, in
+`scripts/mutate/equivalent.json`; keep that list tiny and re-justify an entry when its line changes (a stale entry fails a full run).
+Results are resumable from `$TMPDIR/brain-mutate-all/`; `--files`, `--limit N --seed S`, `--shard N/M`, `--jobs J`, `--max-tier 1`.
+`npm run mutate:smoke` (40 seeded mutants of core modules with fast tests: verify, whatif, merge, gitsafe, fsafe, forecast, report; tier 1) runs in CI as the informational `mutation`
+workflow: it reports survivors in the job summary and never fails the run. A surviving mutant is answered with a behavior test that
+kills it (`test/mutation-kills-*.test.mjs`; their JSON goldens are in `test/golden/mutation-kills/`, rewritten with `UPDATE_GOLDEN=1`
+after an intended output change and reviewed as a diff), or with an equivalence entry, never with a test of the mutant's text.
+
+
 Ownership: each worker edits ONLY the files assigned to it (new files under `lib/`, `test/`, and where stated `bin/brain-solve`, docs). Do NOT edit `bin/brain`, `hooks/`, `skills/`, `README.md`, `lib/model.mjs`, `lib/jsonl.mjs`, `test/smoke.sh`, `test/fixtures/gen.mjs`; the integrator wires modules into the CLI. If you need a change in one of those, describe it in your final report.
 
 Model shape (`lib/model.mjs`): `{ tickets: Map<key,row>, edges: [{consumer,producer,kind,note}], prods: Map<consumer,[producer]>, cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}> (current schedule), config, findings, evidence, learnings, refs }`. `config.caps[person] ?? config.caps.default` is capacity in story points per person per sprint (`capOf`). `ticket.sp` is story points. A link "consumer needs producer". **Strict handoff rule:** `sprint[consumer] >= sprint[producer] + (owner[consumer] !== owner[producer] ? 1 : 0)`: another person's output must land in an earlier sprint; the same person may share the sprint.

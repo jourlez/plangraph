@@ -1,0 +1,858 @@
+{
+ "propose-limits": [
+  "T-1 {\"budget\":1}: false false 2 CONSUMER_EARLY S2 Ben, needs S4; CAPACITY 9/4; NO_REPAIR search budget 1 exhausted",
+  "T-1 {\"budget\":3}: false false 4 CONSUMER_EARLY S2 Ben, needs S4; CAPACITY 9/4; NO_REPAIR search budget 3 exhausted",
+  "T-1 {\"workLimit\":2}: false false 2 CONSUMER_EARLY S2 Ben, needs S4; CAPACITY 9/4; NO_REPAIR search budget 20000 exhausted",
+  "T-1 {\"workLimit\":20}: false false 4 CONSUMER_EARLY S2 Ben, needs S4; CAPACITY 9/4; NO_REPAIR search budget 20000 exhausted",
+  "T-2 {\"budget\":1}: false false 2 CONSUMER_EARLY S3 Ana, needs S4; CONSUMER_EARLY S3 Cleo, needs S4; NO_REPAIR search budget 1 exhausted",
+  "T-2 {\"budget\":3}: false false 4 CONSUMER_EARLY S3 Ana, needs S4; CONSUMER_EARLY S3 Cleo, needs S4; NO_REPAIR search budget 3 exhausted",
+  "T-2 {\"workLimit\":2}: false false 2 CONSUMER_EARLY S3 Ana, needs S4; CONSUMER_EARLY S3 Cleo, needs S4; NO_REPAIR search budget 20000 exhausted",
+  "T-2 {\"workLimit\":20}: false false 7 CONSUMER_EARLY S3 Ana, needs S4; CONSUMER_EARLY S3 Cleo, needs S4; NO_REPAIR search budget 20000 exhausted",
+  "T-3 {\"budget\":1}: false true 0 CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-3 {\"budget\":3}: false true 0 CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-3 {\"workLimit\":2}: false true 0 CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-3 {\"workLimit\":20}: false true 0 CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-4 {\"budget\":1}: true true 0 ",
+  "T-4 {\"budget\":3}: true true 0 ",
+  "T-4 {\"workLimit\":2}: true true 0 ",
+  "T-4 {\"workLimit\":20}: true true 0 ",
+  "T-5 {\"budget\":1}: false false 2 CAPACITY 6/4; NO_REPAIR search budget 1 exhausted",
+  "T-5 {\"budget\":3}: true false 2 ",
+  "T-5 {\"workLimit\":2}: false false 2 CAPACITY 6/4; NO_REPAIR search budget 20000 exhausted",
+  "T-5 {\"workLimit\":20}: true true 4 ",
+  "T-6 {\"budget\":1}: false undefined undefined SAME_SLOT already Ana S3",
+  "T-6 {\"budget\":3}: false undefined undefined SAME_SLOT already Ana S3",
+  "T-6 {\"workLimit\":2}: false undefined undefined SAME_SLOT already Ana S3",
+  "T-6 {\"workLimit\":20}: false undefined undefined SAME_SLOT already Ana S3",
+  "T-7 {\"budget\":1}: false undefined undefined SAME_SLOT already Cleo S3",
+  "T-7 {\"budget\":3}: false undefined undefined SAME_SLOT already Cleo S3",
+  "T-7 {\"workLimit\":2}: false undefined undefined SAME_SLOT already Cleo S3",
+  "T-7 {\"workLimit\":20}: false undefined undefined SAME_SLOT already Cleo S3",
+  "T-8 {\"budget\":1}: false true 1 PRODUCER_LATE S3 Cleo, needs S2 for handoff; CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-8 {\"budget\":3}: false true 1 PRODUCER_LATE S3 Cleo, needs S2 for handoff; CAPACITY 5/4; NO_REPAIR no repair exists under the move rules",
+  "T-8 {\"workLimit\":2}: false false 1 PRODUCER_LATE S3 Cleo, needs S2 for handoff; CAPACITY 5/4; NO_REPAIR search budget 20000 exhausted",
+  "T-8 {\"workLimit\":20}: false true 1 PRODUCER_LATE S3 Cleo, needs S2 for handoff; CAPACITY 5/4; NO_REPAIR no repair exists under the move rules"
+ ],
+ "propose-sweep-21": [
+  "T-1@1S: SAME_SLOT n- s- c-",
+  "T-1@1E: SAME_SLOT n- s- c-",
+  "T-1@1O: SAME_SLOT n- s- c-",
+  "T-1@1SOE: SAME_SLOT n- s- c-",
+  "T-1@3S: CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3E: CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3O: CONSUMER_EARLY,CAPACITY,NO_REPAIR n22 s- ctrue",
+  "T-1@3SOE: CONSUMER_EARLY,CAPACITY,NO_REPAIR n31 s- ctrue",
+  "T-2@1S: SAME_SLOT n- s- c-",
+  "T-2@1E: SAME_SLOT n- s- c-",
+  "T-2@1O: SAME_SLOT n- s- c-",
+  "T-2@1SOE: SAME_SLOT n- s- c-",
+  "T-2@3S: T-2>Ana3,T-5>Ana3 n1 s0 ctrue",
+  "T-2@3E: T-2>Ana3,T-5>Ana3 n1 s0 ctrue",
+  "T-2@3O: T-2>Ana3,T-5>Ana3 n1 s0 ctrue",
+  "T-2@3SOE: T-2>Ana3,T-5>Ana3 n1 s0 ctrue",
+  "T-3@1S: SAME_SLOT n- s- c-",
+  "T-3@1E: SAME_SLOT n- s- c-",
+  "T-3@1O: SAME_SLOT n- s- c-",
+  "T-3@1SOE: SAME_SLOT n- s- c-",
+  "T-3@3S: T-3>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-3@3E: T-3>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-3@3O: T-3>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-3@3SOE: T-3>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-4@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n6 s- ctrue",
+  "T-4@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n6 s- ctrue",
+  "T-4@3S: CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-4@3E: CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-4@3O: CONSUMER_EARLY,NO_REPAIR n6 s- ctrue",
+  "T-4@3SOE: CONSUMER_EARLY,NO_REPAIR n7 s- ctrue",
+  "T-5@1S: SAME_SLOT n- s- c-",
+  "T-5@1E: SAME_SLOT n- s- c-",
+  "T-5@1O: SAME_SLOT n- s- c-",
+  "T-5@1SOE: SAME_SLOT n- s- c-",
+  "T-5@3S: T-5>Ana3 n0 s0 ctrue",
+  "T-5@3E: T-5>Ana3 n0 s0 ctrue",
+  "T-5@3O: T-5>Ana3 n0 s0 ctrue",
+  "T-5@3SOE: T-5>Ana3 n0 s0 ctrue",
+  "T-6@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n9712 s- ctrue",
+  "T-6@3S: SAME_SLOT n- s- c-",
+  "T-6@3E: SAME_SLOT n- s- c-",
+  "T-6@3O: SAME_SLOT n- s- c-",
+  "T-6@3SOE: SAME_SLOT n- s- c-",
+  "T-7@1S: SAME_SLOT n- s- c-",
+  "T-7@1E: SAME_SLOT n- s- c-",
+  "T-7@1O: SAME_SLOT n- s- c-",
+  "T-7@1SOE: SAME_SLOT n- s- c-",
+  "T-7@3S: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3E: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3O: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3SOE: T-7>Cleo3 n0 s0 ctrue",
+  "T-8@1S: SAME_SLOT n- s- c-",
+  "T-8@1E: SAME_SLOT n- s- c-",
+  "T-8@1O: SAME_SLOT n- s- c-",
+  "T-8@1SOE: SAME_SLOT n- s- c-",
+  "T-8@3S: T-8>Ben4 n2 s1 ctrue",
+  "T-8@3E: CAPACITY,NO_REPAIR n2 s- ctrue",
+  "T-8@3O: CAPACITY,NO_REPAIR n6 s- ctrue",
+  "T-8@3SOE: T-8>Ben4 n2 s1 cfalse"
+ ],
+ "propose-sweep-24": [
+  "T-1@1S: SAME_SLOT n- s- c-",
+  "T-1@1E: SAME_SLOT n- s- c-",
+  "T-1@1O: SAME_SLOT n- s- c-",
+  "T-1@1SOE: SAME_SLOT n- s- c-",
+  "T-1@3S: CONSUMER_EARLY,CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3E: CONSUMER_EARLY,CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3O: CONSUMER_EARLY,CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-2@1S: SAME_SLOT n- s- c-",
+  "T-2@1E: SAME_SLOT n- s- c-",
+  "T-2@1O: SAME_SLOT n- s- c-",
+  "T-2@1SOE: SAME_SLOT n- s- c-",
+  "T-2@3S: T-2>Ana3 n0 s0 ctrue",
+  "T-2@3E: T-2>Ana3 n0 s0 ctrue",
+  "T-2@3O: T-2>Ana3 n0 s0 ctrue",
+  "T-2@3SOE: T-2>Ana3 n0 s0 ctrue",
+  "T-3@1S: SAME_SLOT n- s- c-",
+  "T-3@1E: SAME_SLOT n- s- c-",
+  "T-3@1O: SAME_SLOT n- s- c-",
+  "T-3@1SOE: SAME_SLOT n- s- c-",
+  "T-3@3S: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@3E: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@3O: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n27 s- ctrue",
+  "T-3@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n31 s- ctrue",
+  "T-4@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@3S: T-4>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-4@3E: T-4>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-4@3O: T-4>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-4@3SOE: T-4>Cleo3,T-7>Cleo4 n2 s0 ctrue",
+  "T-5@1S: SAME_SLOT n- s- c-",
+  "T-5@1E: SAME_SLOT n- s- c-",
+  "T-5@1O: SAME_SLOT n- s- c-",
+  "T-5@1SOE: SAME_SLOT n- s- c-",
+  "T-5@3S: T-5>Cleo3,T-6>Cleo3 n1 s0 ctrue",
+  "T-5@3E: T-5>Cleo3,T-6>Cleo3 n1 s0 ctrue",
+  "T-5@3O: T-5>Cleo3,T-6>Cleo3 n1 s0 ctrue",
+  "T-5@3SOE: T-5>Cleo3,T-6>Cleo3 n1 s0 ctrue",
+  "T-6@1S: SAME_SLOT n- s- c-",
+  "T-6@1E: SAME_SLOT n- s- c-",
+  "T-6@1O: SAME_SLOT n- s- c-",
+  "T-6@1SOE: SAME_SLOT n- s- c-",
+  "T-6@3S: T-6>Cleo3 n0 s0 ctrue",
+  "T-6@3E: T-6>Cleo3 n0 s0 ctrue",
+  "T-6@3O: T-6>Cleo3 n0 s0 ctrue",
+  "T-6@3SOE: T-6>Cleo3 n0 s0 ctrue",
+  "T-7@1S: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1E: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1O: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1SOE: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@3S: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3E: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3O: T-7>Cleo3 n0 s0 ctrue",
+  "T-7@3SOE: T-7>Cleo3 n0 s0 ctrue",
+  "T-8@1S: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-8@1E: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-8@1O: PRODUCER_LATE,NO_REPAIR n2 s- ctrue",
+  "T-8@1SOE: PRODUCER_LATE,NO_REPAIR n2 s- ctrue",
+  "T-8@3S: T-8>Ben3 n0 s0 ctrue",
+  "T-8@3E: T-8>Ben3 n0 s0 ctrue",
+  "T-8@3O: T-8>Ben3 n0 s0 ctrue",
+  "T-8@3SOE: T-8>Ben3 n0 s0 ctrue"
+ ],
+ "propose-sweep-28": [
+  "T-1@1S: SAME_SLOT n- s- c-",
+  "T-1@1E: SAME_SLOT n- s- c-",
+  "T-1@1O: SAME_SLOT n- s- c-",
+  "T-1@1SOE: SAME_SLOT n- s- c-",
+  "T-1@3S: T-1>Ben3 n0 s0 ctrue",
+  "T-1@3E: T-1>Ben3 n0 s0 ctrue",
+  "T-1@3O: T-1>Ben3 n0 s0 ctrue",
+  "T-1@3SOE: T-1>Ben3 n0 s0 ctrue",
+  "T-2@1S: SAME_SLOT n- s- c-",
+  "T-2@1E: SAME_SLOT n- s- c-",
+  "T-2@1O: SAME_SLOT n- s- c-",
+  "T-2@1SOE: SAME_SLOT n- s- c-",
+  "T-2@3S: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-2@3E: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-2@3O: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-2@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-3@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-3@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-3@3S: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n5 s- ctrue",
+  "T-3@3E: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n9 s- ctrue",
+  "T-3@3O: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n113 s- ctrue",
+  "T-3@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,CAPACITY,NO_REPAIR n141 s- ctrue",
+  "T-4@1S: SAME_SLOT n- s- c-",
+  "T-4@1E: SAME_SLOT n- s- c-",
+  "T-4@1O: SAME_SLOT n- s- c-",
+  "T-4@1SOE: SAME_SLOT n- s- c-",
+  "T-4@3S: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-4@3E: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n3 s- ctrue",
+  "T-4@3O: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n118 s- ctrue",
+  "T-4@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n232 s- ctrue",
+  "T-5@1S: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-5@1E: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-5@1O: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-5@1SOE: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-5@3S: CONSUMER_EARLY,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-5@3E: CONSUMER_EARLY,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-5@3O: CONSUMER_EARLY,CAPACITY,NO_REPAIR n3 s- ctrue",
+  "T-5@3SOE: CONSUMER_EARLY,CAPACITY,NO_REPAIR n4 s- ctrue",
+  "T-6@1S: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1E: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1O: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@1SOE: PRODUCER_LATE,PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@3S: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@3E: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@3O: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-6@3SOE: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1S: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-7@1E: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-7@1O: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-7@1SOE: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-7@3S: T-7>Ana3 n0 s0 ctrue",
+  "T-7@3E: T-7>Ana3 n0 s0 ctrue",
+  "T-7@3O: T-7>Ana3 n0 s0 ctrue",
+  "T-7@3SOE: T-7>Ana3 n0 s0 ctrue",
+  "T-8@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-8@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-8@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n301 s- ctrue",
+  "T-8@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n3089 s- ctrue",
+  "T-8@3S: T-8>Cleo3 n0 s0 ctrue",
+  "T-8@3E: T-8>Cleo3 n0 s0 ctrue",
+  "T-8@3O: T-8>Cleo3 n0 s0 ctrue",
+  "T-8@3SOE: T-8>Cleo3 n0 s0 ctrue"
+ ],
+ "propose-sweep-30": [
+  "T-1@1S: SAME_SLOT n- s- c-",
+  "T-1@1E: SAME_SLOT n- s- c-",
+  "T-1@1O: SAME_SLOT n- s- c-",
+  "T-1@1SOE: SAME_SLOT n- s- c-",
+  "T-1@3S: CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3E: CONSUMER_EARLY,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-1@3O: CONSUMER_EARLY,CAPACITY,NO_REPAIR n126 s- ctrue",
+  "T-1@3SOE: CONSUMER_EARLY,CAPACITY,NO_REPAIR n530 s- ctrue",
+  "T-2@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-2@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-2@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n4 s- ctrue",
+  "T-2@1SOE: PRODUCER_LATE,CAPACITY,NO_REPAIR n4 s- ctrue",
+  "T-2@3S: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-2@3E: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n0 s- ctrue",
+  "T-2@3O: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n48 s- ctrue",
+  "T-2@3SOE: CONSUMER_EARLY,CONSUMER_EARLY,NO_REPAIR n104 s- ctrue",
+  "T-3@1S: SAME_SLOT n- s- c-",
+  "T-3@1E: SAME_SLOT n- s- c-",
+  "T-3@1O: SAME_SLOT n- s- c-",
+  "T-3@1SOE: SAME_SLOT n- s- c-",
+  "T-3@3S: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@3E: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@3O: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-3@3SOE: CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-4@1S: SAME_SLOT n- s- c-",
+  "T-4@1E: SAME_SLOT n- s- c-",
+  "T-4@1O: SAME_SLOT n- s- c-",
+  "T-4@1SOE: SAME_SLOT n- s- c-",
+  "T-4@3S: T-4>Ben3 n0 s0 ctrue",
+  "T-4@3E: T-4>Ben3 n0 s0 ctrue",
+  "T-4@3O: T-4>Ben3 n0 s0 ctrue",
+  "T-4@3SOE: T-4>Ben3 n0 s0 ctrue",
+  "T-5@1S: SAME_SLOT n- s- c-",
+  "T-5@1E: SAME_SLOT n- s- c-",
+  "T-5@1O: SAME_SLOT n- s- c-",
+  "T-5@1SOE: SAME_SLOT n- s- c-",
+  "T-5@3S: T-5>Cleo4 n2 s1 ctrue",
+  "T-5@3E: CAPACITY,NO_REPAIR n2 s- ctrue",
+  "T-5@3O: T-5>Cleo3,T-7>Ben3 n4 s0 ctrue",
+  "T-5@3SOE: T-5>Cleo3,T-7>Ben3 n5 s0 ctrue",
+  "T-6@1S: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-6@1E: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-6@1O: PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-6@1SOE: T-6>Ana2,T-2>Ana2 n13 s1 ctrue",
+  "T-6@3S: SAME_SLOT n- s- c-",
+  "T-6@3E: SAME_SLOT n- s- c-",
+  "T-6@3O: SAME_SLOT n- s- c-",
+  "T-6@3SOE: SAME_SLOT n- s- c-",
+  "T-7@1S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1E: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1O: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-7@1SOE: T-7>Cleo2,T-2>Cleo1,T-5>Ana1 n107 s1 ctrue",
+  "T-7@3S: SAME_SLOT n- s- c-",
+  "T-7@3E: SAME_SLOT n- s- c-",
+  "T-7@3O: SAME_SLOT n- s- c-",
+  "T-7@3SOE: SAME_SLOT n- s- c-",
+  "T-8@1S: PRODUCER_LATE,PRODUCER_LATE,PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-8@1E: PRODUCER_LATE,PRODUCER_LATE,PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-8@1O: PRODUCER_LATE,PRODUCER_LATE,PRODUCER_LATE,NO_REPAIR n0 s- ctrue",
+  "T-8@1SOE: T-8>Ana3,T-2>Cleo1,T-5>Ana1,T-6>Ana2,T-7>Cleo2 n26 s2 cfalse",
+  "T-8@3S: PRODUCER_LATE,CAPACITY,NO_REPAIR n0 s- ctrue",
+  "T-8@3E: PRODUCER_LATE,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-8@3O: PRODUCER_LATE,CAPACITY,NO_REPAIR n1 s- ctrue",
+  "T-8@3SOE: T-8>Ana3,T-2>Cleo1,T-5>Ana1,T-6>Ana2,T-7>Cleo2 n667 s0 ctrue"
+ ],
+ "whatif-capacity-alt": [
+  "NO: M -> Ana S1. CAPACITY Ana S1 (7/5). Fix: keep S1 (1 other shifts, 0 owner changes).",
+  "NO: M -> Ana S1. CAPACITY Ana S1 (5/2). Fix: move to S2 (0 others shift, 0 owner changes; apply with --slip).",
+  [
+   {
+    "code": "CAPACITY",
+    "key": "Ana S1",
+    "detail": "7/5",
+    "fix": "Ana has room in S3"
+   }
+  ]
+ ],
+ "whatif-diamond": [
+  {
+   "key": "A",
+   "from": {
+    "owner": "Ana",
+    "sprint": 2
+   },
+   "to": {
+    "owner": "Ana",
+    "sprint": 3
+   },
+   "why": "requested"
+  },
+  {
+   "key": "C",
+   "from": {
+    "owner": "Van Der Berg",
+    "sprint": 3
+   },
+   "to": {
+    "owner": "Van Der Berg",
+    "sprint": 4
+   },
+   "why": "consumer of A needs S4"
+  },
+  {
+   "key": "E",
+   "from": {
+    "owner": "Van Derk",
+    "sprint": 4
+   },
+   "to": {
+    "owner": "Van Derk",
+    "sprint": 5
+   },
+   "why": "consumer of C needs S5"
+  }
+ ],
+ "whatif-edges": [
+  {
+   "owner": "ana",
+   "sprint": 2
+  },
+  null,
+  {
+   "owner": "ANA",
+   "sprint": 2
+  },
+  {
+   "owner": "Van Der Berg",
+   "sprint": 2
+  },
+  {
+   "owner": "Van Derk",
+   "sprint": 2
+  },
+  {
+   "owner": "ana diaz",
+   "sprint": 2
+  },
+  {
+   "owner": "Ana\tDiaz",
+   "sprint": 2
+  },
+  {
+   "ok": true,
+   "reasons": [],
+   "ripple": [
+    {
+     "key": "B",
+     "from": {
+      "owner": "ana",
+      "sprint": 1
+     },
+     "to": {
+      "owner": "ana",
+      "sprint": 2
+     },
+     "why": "requested"
+    }
+   ],
+   "load": {
+    "ana": {
+     "1": {
+      "before": 0,
+      "after": 0,
+      "cap": 4
+     },
+     "2": {
+      "before": 0,
+      "after": 0,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": null,
+   "freed": {
+    "owner": "ana",
+    "sprint": 1,
+    "sp": 0
+   }
+  },
+  {
+   "ok": true,
+   "reasons": [],
+   "ripple": [
+    {
+     "key": "D",
+     "from": {
+      "owner": "Ana\tDiaz",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Ana\tDiaz",
+      "sprint": 1
+     },
+     "why": "requested"
+    }
+   ],
+   "load": {
+    "Ana\tDiaz": {
+     "1": {
+      "before": 0,
+      "after": 0,
+      "cap": 4
+     },
+     "3": {
+      "before": 0,
+      "after": 0,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": null,
+   "freed": {
+    "owner": "Ana\tDiaz",
+    "sprint": 3,
+    "sp": 0
+   }
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "OUT_OF_RANGE",
+     "key": "A",
+     "detail": "S0 outside S1..S5",
+     "fix": "use S1..S5"
+    }
+   ],
+   "ripple": [
+    {
+     "key": "A",
+     "from": {
+      "owner": "Ana",
+      "sprint": 2
+     },
+     "to": {
+      "owner": "Ana",
+      "sprint": 0
+     },
+     "why": "requested"
+    }
+   ],
+   "load": {
+    "Ana": {
+     "0": {
+      "before": 0,
+      "after": 2,
+      "cap": 4
+     },
+     "2": {
+      "before": 2,
+      "after": 0,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": null,
+   "freed": {
+    "owner": "Ana",
+    "sprint": 2,
+    "sp": 2
+   }
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "OUT_OF_RANGE",
+     "key": "A",
+     "detail": "S9 outside S1..S5",
+     "fix": "use S1..S5"
+    },
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "C",
+     "detail": "S3 Van Der Berg, needs S10",
+     "fix": "move C to S10+ or A to <=S2"
+    },
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "E",
+     "detail": "S4 Van Derk, needs S10",
+     "fix": "move E to S10+ or A to <=S3"
+    }
+   ],
+   "ripple": [
+    {
+     "key": "A",
+     "from": {
+      "owner": "Ana",
+      "sprint": 2
+     },
+     "to": {
+      "owner": "Ana",
+      "sprint": 9
+     },
+     "why": "requested"
+    },
+    {
+     "key": "C",
+     "from": {
+      "owner": "Van Der Berg",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Van Der Berg",
+      "sprint": 10
+     },
+     "why": "consumer of A needs S10"
+    },
+    {
+     "key": "E",
+     "from": {
+      "owner": "Van Derk",
+      "sprint": 4
+     },
+     "to": {
+      "owner": "Van Derk",
+      "sprint": 11
+     },
+     "why": "consumer of C needs S11"
+    }
+   ],
+   "load": {
+    "Ana": {
+     "2": {
+      "before": 2,
+      "after": 0,
+      "cap": 4
+     },
+     "9": {
+      "before": 0,
+      "after": 2,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": null,
+   "freed": {
+    "owner": "Ana",
+    "sprint": 2,
+    "sp": 2
+   }
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "C",
+     "detail": "S3 Van Der Berg, needs S5",
+     "fix": "move C to S5+ or A to <=S2"
+    },
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "E",
+     "detail": "S4 Van Derk, needs S5",
+     "fix": "move E to S5+ or A to <=S3"
+    }
+   ],
+   "ripple": [
+    {
+     "key": "A",
+     "from": {
+      "owner": "Ana",
+      "sprint": 2
+     },
+     "to": {
+      "owner": "Ana",
+      "sprint": 4
+     },
+     "why": "requested"
+    },
+    {
+     "key": "C",
+     "from": {
+      "owner": "Van Der Berg",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Van Der Berg",
+      "sprint": 5
+     },
+     "why": "consumer of A needs S5"
+    },
+    {
+     "key": "E",
+     "from": {
+      "owner": "Van Derk",
+      "sprint": 4
+     },
+     "to": {
+      "owner": "Van Derk",
+      "sprint": 6
+     },
+     "why": "consumer of C needs S6"
+    }
+   ],
+   "load": {
+    "Ana": {
+     "2": {
+      "before": 2,
+      "after": 0,
+      "cap": 4
+     },
+     "4": {
+      "before": 0,
+      "after": 2,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": {
+    "none": true
+   },
+   "freed": {
+    "owner": "Ana",
+    "sprint": 2,
+    "sp": 2
+   }
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "PRODUCER_LATE",
+     "key": "A",
+     "detail": "S2 Ana, needs S1 for handoff",
+     "fix": "move C to S3+ or give it to Ana from S2"
+    }
+   ],
+   "ripple": [
+    {
+     "key": "C",
+     "from": {
+      "owner": "Van Der Berg",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Van Der Berg",
+      "sprint": 2
+     },
+     "why": "requested"
+    }
+   ],
+   "load": {
+    "Van Der Berg": {
+     "2": {
+      "before": 0,
+      "after": 2,
+      "cap": 4
+     },
+     "3": {
+      "before": 2,
+      "after": 0,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": {
+    "none": true
+   },
+   "freed": {
+    "owner": "Van Der Berg",
+    "sprint": 3,
+    "sp": 2
+   }
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "UNKNOWN_TICKET",
+     "key": "NOT-A-TICKET",
+     "detail": "not in plan",
+     "fix": "check the key"
+    }
+   ],
+   "ripple": [],
+   "load": {},
+   "started": false,
+   "suggestion": null
+  },
+  {
+   "ok": false,
+   "moves": [],
+   "reasons": [
+    {
+     "code": "UNKNOWN_TICKET",
+     "key": "NOPE",
+     "detail": "not in plan",
+     "fix": "check the key"
+    }
+   ]
+  },
+  {
+   "ok": true,
+   "moves": [
+    {
+     "key": "A",
+     "from": {
+      "owner": "Ana",
+      "sprint": 2
+     },
+     "to": {
+      "owner": "Ana",
+      "sprint": 9
+     }
+    },
+    {
+     "key": "C",
+     "from": {
+      "owner": "Van Der Berg",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Van Der Berg",
+      "sprint": 10
+     }
+    },
+    {
+     "key": "E",
+     "from": {
+      "owner": "Van Derk",
+      "sprint": 4
+     },
+     "to": {
+      "owner": "Van Derk",
+      "sprint": 11
+     }
+    }
+   ],
+   "reasons": [],
+   "shifted": 2,
+   "ownerChanges": 0,
+   "slipped": 0,
+   "searchComplete": true,
+   "nodes": 1
+  },
+  {
+   "ok": false,
+   "reasons": [
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "C",
+     "detail": "S3 Van Der Berg, needs S21",
+     "fix": "move C to S21+ or A to <=S2"
+    },
+    {
+     "code": "CONSUMER_EARLY",
+     "key": "E",
+     "detail": "S4 Van Derk, needs S21",
+     "fix": "move E to S21+ or A to <=S3"
+    }
+   ],
+   "ripple": [
+    {
+     "key": "A",
+     "from": {
+      "owner": "Ana",
+      "sprint": 2
+     },
+     "to": {
+      "owner": "Ana",
+      "sprint": 20
+     },
+     "why": "requested"
+    },
+    {
+     "key": "C",
+     "from": {
+      "owner": "Van Der Berg",
+      "sprint": 3
+     },
+     "to": {
+      "owner": "Van Der Berg",
+      "sprint": 21
+     },
+     "why": "consumer of A needs S21"
+    },
+    {
+     "key": "E",
+     "from": {
+      "owner": "Van Derk",
+      "sprint": 4
+     },
+     "to": {
+      "owner": "Van Derk",
+      "sprint": 22
+     },
+     "why": "consumer of C needs S22"
+    }
+   ],
+   "load": {
+    "Ana": {
+     "2": {
+      "before": 2,
+      "after": 0,
+      "cap": 4
+     },
+     "20": {
+      "before": 0,
+      "after": 2,
+      "cap": 4
+     }
+    }
+   },
+   "started": false,
+   "suggestion": {
+    "none": true
+   },
+   "freed": {
+    "owner": "Ana",
+    "sprint": 2,
+    "sp": 2
+   }
+  }
+ ]
+}

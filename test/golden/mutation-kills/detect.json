@@ -1,0 +1,538 @@
+{
+ "disabled": {
+  "tools": [
+   {
+    "name": "superpowers",
+    "state": "installed",
+    "evidence": [
+     "installed: superpowers@a"
+    ],
+    "notes": [],
+    "version": "1.0.0"
+   },
+   {
+    "name": "openwolf",
+    "state": "disabled",
+    "evidence": [
+     ".wolf/ is a directory",
+     ".wolf/hooks/session-start.js exists",
+     "hook registered in project settings.json",
+     ".wolf/config.json openwolf.enabled is false"
+    ],
+    "notes": []
+   },
+   {
+    "name": "caveman",
+    "state": "absent",
+    "evidence": [],
+    "notes": []
+   },
+   {
+    "name": "context7",
+    "state": "absent",
+    "evidence": [],
+    "notes": []
+   },
+   {
+    "name": "gitkraken",
+    "state": "installed",
+    "evidence": [
+     "installed: gitkraken-hooks@e"
+    ],
+    "notes": [
+     "logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app"
+    ],
+    "version": "3.0.0"
+   }
+  ],
+  "connectorHints": [
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__getJiraIssue",
+    "purpose": "read one Jira issue"
+   },
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__searchJiraIssuesUsingJql",
+    "purpose": "search Jira issues by JQL (delta import)"
+   },
+   {
+    "name": "slack",
+    "glob": "mcp__*Slack*__slack_send_message_draft",
+    "purpose": "draft a message for a person to send"
+   },
+   {
+    "name": "meetings",
+    "glob": "mcp__*Meetings*__get_meeting_action_items",
+    "purpose": "read meeting action items"
+   },
+   {
+    "name": "google-drive",
+    "glob": "mcp__*Google_Drive*__read_file_content",
+    "purpose": "read a spec or plan document"
+   },
+   {
+    "name": "claude-docs",
+    "glob": "mcp__*Claude_Docs*__create",
+    "purpose": "create an editable living document"
+   },
+   {
+    "name": "artifacts",
+    "glob": "Artifact",
+    "purpose": "publish a private page (a tool named Artifact, not an MCP server)"
+   }
+  ],
+  "budget": {
+   "items": [
+    {
+     "name": "openwolf",
+     "tokens": 1067,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "brain card",
+     "tokens": 185,
+     "source": "measured 2026-11-22 on one machine"
+    }
+   ],
+   "total": 1252
+  }
+ },
+ "hook-not-registered": {
+  "tools": [
+   {
+    "name": "superpowers",
+    "state": "installed",
+    "evidence": [
+     "installed: superpowers@a"
+    ],
+    "notes": [],
+    "version": "1.0.0"
+   },
+   {
+    "name": "openwolf",
+    "state": "protocol-only",
+    "evidence": [
+     ".wolf/ is a directory",
+     ".wolf/hooks/session-start.js exists"
+    ],
+    "notes": [
+     "no hook registered in any settings file"
+    ]
+   },
+   {
+    "name": "caveman",
+    "state": "absent",
+    "evidence": [],
+    "notes": []
+   },
+   {
+    "name": "context7",
+    "state": "absent",
+    "evidence": [],
+    "notes": []
+   },
+   {
+    "name": "gitkraken",
+    "state": "installed",
+    "evidence": [
+     "installed: gitkraken-hooks@e"
+    ],
+    "notes": [
+     "logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app"
+    ],
+    "version": "3.0.0"
+   }
+  ],
+  "connectorHints": [
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__getJiraIssue",
+    "purpose": "read one Jira issue"
+   },
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__searchJiraIssuesUsingJql",
+    "purpose": "search Jira issues by JQL (delta import)"
+   },
+   {
+    "name": "slack",
+    "glob": "mcp__*Slack*__slack_send_message_draft",
+    "purpose": "draft a message for a person to send"
+   },
+   {
+    "name": "meetings",
+    "glob": "mcp__*Meetings*__get_meeting_action_items",
+    "purpose": "read meeting action items"
+   },
+   {
+    "name": "google-drive",
+    "glob": "mcp__*Google_Drive*__read_file_content",
+    "purpose": "read a spec or plan document"
+   },
+   {
+    "name": "claude-docs",
+    "glob": "mcp__*Claude_Docs*__create",
+    "purpose": "create an editable living document"
+   },
+   {
+    "name": "artifacts",
+    "glob": "Artifact",
+    "purpose": "publish a private page (a tool named Artifact, not an MCP server)"
+   }
+  ],
+  "budget": {
+   "items": [
+    {
+     "name": "openwolf",
+     "tokens": 1067,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "brain card",
+     "tokens": 185,
+     "source": "measured 2026-11-22 on one machine"
+    }
+   ],
+   "total": 1252
+  }
+ },
+ "protocol-only": {
+  "tools": [
+   {
+    "name": "superpowers",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "openwolf",
+    "state": "protocol-only",
+    "evidence": [
+     ".wolf/ is a directory",
+     "~/.openwolf/registry.json exists (project not listed)"
+    ],
+    "notes": [
+     "no .wolf/hooks/session-start.js",
+     "no hook registered in any settings file"
+    ]
+   },
+   {
+    "name": "caveman",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "context7",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "gitkraken",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   }
+  ],
+  "connectorHints": [
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__getJiraIssue",
+    "purpose": "read one Jira issue"
+   },
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__searchJiraIssuesUsingJql",
+    "purpose": "search Jira issues by JQL (delta import)"
+   },
+   {
+    "name": "slack",
+    "glob": "mcp__*Slack*__slack_send_message_draft",
+    "purpose": "draft a message for a person to send"
+   },
+   {
+    "name": "meetings",
+    "glob": "mcp__*Meetings*__get_meeting_action_items",
+    "purpose": "read meeting action items"
+   },
+   {
+    "name": "google-drive",
+    "glob": "mcp__*Google_Drive*__read_file_content",
+    "purpose": "read a spec or plan document"
+   },
+   {
+    "name": "claude-docs",
+    "glob": "mcp__*Claude_Docs*__create",
+    "purpose": "create an editable living document"
+   },
+   {
+    "name": "artifacts",
+    "glob": "Artifact",
+    "purpose": "publish a private page (a tool named Artifact, not an MCP server)"
+   }
+  ],
+  "budget": {
+   "items": [
+    {
+     "name": "openwolf",
+     "tokens": 1067,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "brain card",
+     "tokens": 185,
+     "source": "measured 2026-11-22 on one machine"
+    }
+   ],
+   "total": 1252
+  }
+ },
+ "rich": {
+  "tools": [
+   {
+    "name": "superpowers",
+    "state": "enabled",
+    "evidence": [
+     "installed: superpowers@a",
+     "installed: superpowers@old",
+     "enabled: superpowers@a in project settings.json"
+    ],
+    "notes": [
+     "ignored 1 entries with unsafe names"
+    ],
+    "version": "5.0.1"
+   },
+   {
+    "name": "openwolf",
+    "state": "active",
+    "evidence": [
+     ".wolf/ is a directory",
+     ".wolf/hooks/session-start.js exists",
+     "hook registered in conf/claude.json",
+     ".wolf/hooks/runtime.json version 1.4.0",
+     "~/.openwolf/registry.json lists this project"
+    ],
+    "notes": [],
+    "version": "1.4.0"
+   },
+   {
+    "name": "caveman",
+    "state": "enabled",
+    "evidence": [
+     "installed: caveman@b",
+     "enabled: caveman@b in project settings.local.json",
+     "~/.claude/.caveman-active"
+    ],
+    "notes": [
+     "~/.claude/.caveman-active exists (a global hint, not per-session truth)",
+     "CAVEMAN_DEFAULT_MODE=off"
+    ],
+    "version": "1.2.3"
+   },
+   {
+    "name": "context7",
+    "state": "installed",
+    "evidence": [
+     "installed: context7@d"
+    ],
+    "notes": [
+     "disabled in settings"
+    ],
+    "version": "0.9.1"
+   },
+   {
+    "name": "gitkraken",
+    "state": "enabled",
+    "evidence": [
+     "installed: gitkraken-hooks@e",
+     "enabled: gitkraken-hooks@e in user settings.json",
+     "~/Library/Caches/GitKrakenCLI exists (contents never read)"
+    ],
+    "notes": [
+     "logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app"
+    ],
+    "version": "2.0.0"
+   },
+   {
+    "name": "extra",
+    "state": "enabled",
+    "evidence": [
+     "installed: extra@f",
+     "enabled: extra@f in project settings.json"
+    ],
+    "version": "0.0.1"
+   }
+  ],
+  "connectorHints": [
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__getJiraIssue",
+    "purpose": "read one Jira issue"
+   },
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__searchJiraIssuesUsingJql",
+    "purpose": "search Jira issues by JQL (delta import)"
+   },
+   {
+    "name": "slack",
+    "glob": "mcp__*Slack*__slack_send_message_draft",
+    "purpose": "draft a message for a person to send"
+   },
+   {
+    "name": "meetings",
+    "glob": "mcp__*Meetings*__get_meeting_action_items",
+    "purpose": "read meeting action items"
+   },
+   {
+    "name": "google-drive",
+    "glob": "mcp__*Google_Drive*__read_file_content",
+    "purpose": "read a spec or plan document"
+   },
+   {
+    "name": "claude-docs",
+    "glob": "mcp__*Claude_Docs*__create",
+    "purpose": "create an editable living document"
+   },
+   {
+    "name": "artifacts",
+    "glob": "Artifact",
+    "purpose": "publish a private page (a tool named Artifact, not an MCP server)"
+   }
+  ],
+  "budget": {
+   "items": [
+    {
+     "name": "superpowers",
+     "tokens": 871,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "openwolf",
+     "tokens": 1067,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "caveman",
+     "tokens": 936,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "gitkraken",
+     "tokens": 0,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "extra",
+     "tokens": 0,
+     "source": "measured 2026-11-22 on one machine"
+    },
+    {
+     "name": "brain card",
+     "tokens": 185,
+     "source": "measured 2026-11-22 on one machine"
+    }
+   ],
+   "total": 3059
+  }
+ },
+ "throwing-fs": {
+  "tools": [
+   {
+    "name": "superpowers",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "openwolf",
+    "state": "absent",
+    "evidence": [],
+    "notes": []
+   },
+   {
+    "name": "caveman",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "context7",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   },
+   {
+    "name": "gitkraken",
+    "state": "absent",
+    "evidence": [],
+    "notes": [
+     "unreadable"
+    ]
+   }
+  ],
+  "connectorHints": [
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__getJiraIssue",
+    "purpose": "read one Jira issue"
+   },
+   {
+    "name": "atlassian",
+    "glob": "mcp__*Atlassian*__searchJiraIssuesUsingJql",
+    "purpose": "search Jira issues by JQL (delta import)"
+   },
+   {
+    "name": "slack",
+    "glob": "mcp__*Slack*__slack_send_message_draft",
+    "purpose": "draft a message for a person to send"
+   },
+   {
+    "name": "meetings",
+    "glob": "mcp__*Meetings*__get_meeting_action_items",
+    "purpose": "read meeting action items"
+   },
+   {
+    "name": "google-drive",
+    "glob": "mcp__*Google_Drive*__read_file_content",
+    "purpose": "read a spec or plan document"
+   },
+   {
+    "name": "claude-docs",
+    "glob": "mcp__*Claude_Docs*__create",
+    "purpose": "create an editable living document"
+   },
+   {
+    "name": "artifacts",
+    "glob": "Artifact",
+    "purpose": "publish a private page (a tool named Artifact, not an MCP server)"
+   }
+  ],
+  "budget": {
+   "items": [
+    {
+     "name": "brain card",
+     "tokens": 185,
+     "source": "measured 2026-11-22 on one machine"
+    }
+   ],
+   "total": 185
+  }
+ }
+}
