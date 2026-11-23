@@ -1,4 +1,4 @@
-# project-brain and the other installed tools
+# open-brain and the other installed tools
 
 Research date 2026-11-22. Scope: caveman, context7, gitkraken-hooks, and the hosted connectors (Atlassian, Slack, Artifacts / Claude Docs, Meetings, Google Drive). Every claim carries a tag:
 
@@ -69,7 +69,7 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 | `CAVEMAN_DEFAULT_MODE` env, `<repo>/.caveman/config.json` or `.caveman.json`, `~/.config/caveman/config.json` (`off` disables) | env + 3 stats | per project. VERIFIED-source (`src/hooks/caveman-config.js` header) |
 | `caveman-init` artifacts in a repo: `.cursor/rules/caveman.mdc`, `.windsurf/rules/caveman.md`, `.opencode/AGENTS.md`, a block in `AGENTS.md` | stats | other IDE agents. VERIFIED-source (`src/tools/caveman-init.js`) |
 
-### Interaction with project-brain
+### Interaction with open-brain
 
 - **CLI output: already compatible, change nothing.** brain output is data on stdout, which caveman never rewrites. The CONTRACT (counts first, capped lists, no prose) already matches caveman's goal. Do **not** add a caveman-aware short mode: it would create a second output shape for zero gain and break determinism (CONTRACT rule 6).
 - **Card: compatible.** The card is injected data; caveman does not compress it.
@@ -120,7 +120,7 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 - Agent-side check: "if a tool matching `mcp__*context7*__query-docs` exists".
 - `CONTEXT7_API_KEY` may be empty. The plugin defaults it to `""`. Rate limits without a key: UNVERIFIED.
 
-### Interaction with project-brain
+### Interaction with open-brain
 
 - **Use it for one step in planning: sizing or auditing a ticket whose readiness depends on a library or API fact.** Examples: does Prisma 7 support X, is a Next.js API deprecated, what does ONVO's webhook signing require. If the vendor is on context7, the auditor brief looks it up.
   - Route it through the `docs-researcher` agent, or inside the audit-unit agent, never in the main thread.
@@ -166,7 +166,7 @@ Token figures use the project rule `ceil(chars/4)`. Byte counts are used as an a
 - The binary symlink `~/Library/Application Support/GitKrakenCLI/gk` exists. It points to `versions/gk_3_1_80/gk_3_1_80`. VERIFIED-local.
 - **Drift found:** the plugin is 3.1.79, the binary 3.1.80. VERIFIED-local.
 
-### Interaction with project-brain
+### Interaction with open-brain
 
 - **Git merge driver and `.gitattributes`: no direct interaction from the hooks.** They forward events and never run git. VERIFIED-source (only the command above).
 - **Indirect risk from GitKraken Desktop.** If someone merges or rebases in GitKraken Desktop, custom merge drivers from `.gitattributes` may be ignored. A 2017 report says GitKraken "mostly uses its own built-in git along with its config" and ignored a custom driver ([mirror of SO 43386585](https://kiwix.lema.org/stackoverflow.com_en_all_2023-11/questions/43386585/custom-merge-driver-not-working-in-gitkraken)). Current behavior is UNVERIFIED.

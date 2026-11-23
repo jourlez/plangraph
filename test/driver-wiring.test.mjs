@@ -49,7 +49,7 @@ test('(a) init points git config at the stable shim under the data dir, never a 
   assert.equal(fs.readFileSync(path.join(w.dataDir, 'driver.target'), 'utf8'), path.join(PLUGIN, 'bin/brain-merge') + '\n');
 });
 test('(a2) init run from a copy installed under a plugins/cache path still installs the driver', () => {
-  const w = world(), cache = tmp('dw-cache-'), plug = path.join(cache, 'plugins', 'cache', 'x', 'project-brain', '1.0.0');
+  const w = world(), cache = tmp('dw-cache-'), plug = path.join(cache, 'plugins', 'cache', 'x', 'open-brain', '1.0.0');
   fs.mkdirSync(path.dirname(plug), { recursive: true }); fs.cpSync(copyPlugin(), plug, { recursive: true });
   const r = ok(w.brain(plug, ['init'])); assert.doesNotMatch(r.stderr, /not installed/);
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);

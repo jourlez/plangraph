@@ -9,7 +9,7 @@ import { validateOverlay, OverlayError } from './overlay.mjs';
 export const SCHEMA = 'brain-eval-case/2';
 export const KINDS = ['task', 'control', 'safety', 'trigger'];
 export const SIZES = ['S', 'M', 'L', 'R'];
-export const SKILLS = ['brain', 'brain-audit', 'brain-init', 'brain-onboard', 'brain-plan', 'brain-report', 'whatif'];
+export const SKILLS = ['brain', 'brain-audit', 'brain-autopilot', 'brain-init', 'brain-onboard', 'brain-plan', 'brain-report', 'whatif'];
 export const JOBS = ['onboarding', 'planning', 'replanning', 'reassigning', 'reporting', 'handoff']; // the router skill's jobs
 export const ROLES = ['outcome', 'safety', 'diagnostic', 'judge'];
 export const GRADER_TYPES = ['regex', 'tool_used', 'file_exists', 'llm'];

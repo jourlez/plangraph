@@ -1,4 +1,4 @@
-# project-brain: AI-engineering research and audit
+# open-brain: AI-engineering research and audit
 
 Date: 2026-11-22. Scope: agent-facing design of the `brain` CLI/plugin. Design only; no paid model calls were made and no code was edited.
 
@@ -189,7 +189,7 @@ cp -R "$case_dir/../_gen/fixtures/M/.brain" .brain
 cp "$case_dir/../_gen/fixtures/M/plan.md" plan.md
 node "$plugin_root/bin/brain" build >/dev/null          # BRAIN_DIR default = ./.brain
 ```
-Both arms see the same `.brain/` and `plan.md` (arm A reads them with Grep/Read/jq; arm B asks the CLI). Contamination risk: in arm A the agent could discover `$plugin_root/bin/brain` by absolute path; add a post-hoc check (`tool_used Bash input_match "project-brain/bin/brain"` max 0 with `arm: both`) and discard such runs.
+Both arms see the same `.brain/` and `plan.md` (arm A reads them with Grep/Read/jq; arm B asks the CLI). Contamination risk: in arm A the agent could discover `$plugin_root/bin/brain` by absolute path; add a post-hoc check (`tool_used Bash input_match "open-brain/bin/brain"` max 0 with `arm: both`) and discard such runs.
 
 Task JSON schema (our own runner; the plugin-eval case dir is generated from the same file so there is one source of truth):
 
@@ -277,7 +277,7 @@ B) Our own runner, any condition (headless):
 ```bash
 # condition B (brain), one run
 claude -p "$(jq -r .prompt tasks/t05.json)" \
-  --plugin-dir /path/to/project-brain \
+  --plugin-dir /path/to/open-brain \
   --model claude-sonnet-5-5 --max-turns 12 --max-budget-usd 0.60 \
   --allowedTools 'Bash(brain *)' 'Read' 'Grep' 'Glob' \
   --output-format stream-json --verbose --no-session-persistence \
@@ -289,7 +289,7 @@ claude -p "$(jq -r .prompt tasks/t05.json)" \
 # final line of stream is the result message: cost, usage, session metadata (VERIFIED S9)
 jq -c 'select(.type=="result")' runs/B/t05/1/stream.jsonl
 ```
-Fresh workspace per run (copy fixture, run `brain build`), clean `HOME` to avoid user hooks/skills leaking (`HOME=$(mktemp -d)` plus credentials via `ANTHROPIC_API_KEY`). Check `system/init` event: `plugins` includes `project-brain`, `plugin_errors` absent, `mcp_servers` as expected (VERIFIED S9 "Fail CI when a plugin or MCP server doesn't load").
+Fresh workspace per run (copy fixture, run `brain build`), clean `HOME` to avoid user hooks/skills leaking (`HOME=$(mktemp -d)` plus credentials via `ANTHROPIC_API_KEY`). Check `system/init` event: `plugins` includes `open-brain`, `plugin_errors` absent, `mcp_servers` as expected (VERIFIED S9 "Fail CI when a plugin or MCP server doesn't load").
 
 C) Cache experiment for the card (settles section 1.3 point 2):
 ```bash

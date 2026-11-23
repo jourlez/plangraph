@@ -103,7 +103,7 @@ test('no committable file under evals/ contains a canary name, key or summary ma
 test('the generator refuses to write into this repository, into the source project, or into a non-empty directory (nothing is created)', () => {
   const gen = (out) => spawnSync(process.execPath, [path.join(root, 'evals', 'gen-real.mjs'), '--from', project, '--out', out], { encoding: 'utf8', timeout: 120000 });
   const inRepo = path.join(root, 'evals', 'real-out-should-not-exist');
-  for (const [out, why] of /** @type {Array<[string, RegExp]>} */ ([[inRepo, /project-brain repository/], [path.join(root, 'tmp-real'), /project-brain repository/], [path.join(project, 'eval-out'), /source project/]])) {
+  for (const [out, why] of /** @type {Array<[string, RegExp]>} */ ([[inRepo, /open-brain repository/], [path.join(root, 'tmp-real'), /open-brain repository/], [path.join(project, 'eval-out'), /source project/]])) {
     const r = gen(out);
     assert.equal(r.status, 2, out);
     assert.match(r.stderr, why);

@@ -129,4 +129,4 @@ git commit -m "add the neutral tenant alias"
 - [ ] **Step 3: Bump the version** to `0.3.0` in the four places and update the README Jira paragraph.
 - [ ] **Step 4: Run the Gate and `npm run smoke`.** Expected: PASS.
 - [ ] **Step 5: Commit** `release 0.3.0`.
-- [ ] **Step 6: Publish** after the owner's go-ahead: `git fetch origin`, `C=$(git commit-tree 'HEAD^{tree}' -p origin/main -m "release 0.3.0: tracker provider, tenant alias")`, `git push origin "${C}:refs/heads/main"`; then `claude plugin marketplace update project-brain-marketplace` and `claude plugin update project-brain@project-brain-marketplace`; tell the owner to restart and run `brain doctor --fix`.
+- [ ] **Step 6: Publish** after the owner's go-ahead: `git fetch origin`, `C=$(git commit-tree 'HEAD^{tree}' -p origin/main -m "release 0.3.0: tracker provider, tenant alias")`, `git push origin "${C}:refs/heads/main"`; then `claude plugin marketplace update open-brain-marketplace` and `claude plugin update open-brain@open-brain-marketplace`; tell the owner to restart and run `brain doctor --fix`.

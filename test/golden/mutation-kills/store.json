@@ -482,7 +482,7 @@
    "gitattributes": ".brain/*.jsonl merge=brain-jsonl",
    "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P"
   },
-  "project-brain jsonl three-way merge\n",
+  "open-brain jsonl three-way merge\n",
   {
    "installed": true,
    "attributes": true,

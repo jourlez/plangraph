@@ -1,4 +1,4 @@
-# Engineering contract for project-brain modules
+# Engineering contract for open-brain modules
 
 Goal: the best planning memory for AI coding agents. Hard rules, in priority order:
 

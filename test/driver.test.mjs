@@ -55,7 +55,7 @@ test('shim passes arguments through unchanged', () => {
   const setup = () => { const root = tmp(), dataDir = path.join(root, 'd'), t = echoer(root, 't.mjs', 'T'); return { root, dataDir, t, shim: ensureStableDriver({ dataDir, target: t }) }; };
   const unavailable = (r) => {
     assert.equal(r.status, 2, `status ${r.status} stderr ${r.stderr}`); assert.equal(r.stdout, '');
-    assert.match(r.stderr, /^project-brain: merge driver unavailable \([^)]+\): run 'brain doctor --fix'\n$/);
+    assert.match(r.stderr, /^open-brain: merge driver unavailable \([^)]+\): run 'brain doctor --fix'\n$/);
   };
   test('shim contract: driver.target missing or empty -> one stderr line, exit 2', () => {
     const { dataDir, shim } = setup(); const f = path.join(dataDir, 'driver.target');
@@ -109,14 +109,14 @@ test('data directory trust root: refuses a group/world-writable data dir, a writ
 });
 test('defaultDataDir', () => {
   assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '/var/pd' }, '/h'), '/var/pd');
-  assert.equal(defaultDataDir({}, '/h'), path.join('/h', '.cache', 'project-brain'));
-  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '' }, '/h'), path.join('/h', '.cache', 'project-brain'));
-  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: 'relative' }, '/h'), path.join('/h', '.cache', 'project-brain'));
+  assert.equal(defaultDataDir({}, '/h'), path.join('/h', '.cache', 'open-brain'));
+  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '' }, '/h'), path.join('/h', '.cache', 'open-brain'));
+  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: 'relative' }, '/h'), path.join('/h', '.cache', 'open-brain'));
 });
 const gitRepo = () => { const d = tmp('drv-repo-'); execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d }); return d; };
 test('installMergeDriver refuses a versioned plugin-cache path', () => {
   const d = gitRepo();
-  assert.throws(() => S.installMergeDriver(d, { driverPath: '/home/u/.claude/plugins/cache/mkt/project-brain/1.2.3/bin/brain-merge' }), (e) => e instanceof TypeError && /plugins\/cache/.test(e.message));
+  assert.throws(() => S.installMergeDriver(d, { driverPath: '/home/u/.claude/plugins/cache/mkt/open-brain/1.2.3/bin/brain-merge' }), (e) => e instanceof TypeError && /plugins\/cache/.test(e.message));
 });
 test('doctorMergeDriver reports each stale-shim problem', () => {
   const root = tmp(), dataDir = path.join(root, 'd'); fs.mkdirSync(dataDir);

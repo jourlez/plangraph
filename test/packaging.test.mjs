@@ -15,7 +15,7 @@ test('LICENSE, CHANGELOG.md and SECURITY.md exist and are not stubs', () => {
     assert.ok(fs.existsSync(path.join(root, f)), `${f} is missing`);
     assert.ok(read(f).length > 300, `${f} is too short to be real`);
   }
-  assert.match(read('LICENSE'), /^MIT License\n\nCopyright \(c\) 2026 project-brain authors\n/);
+  assert.match(read('LICENSE'), /^MIT License\n\nCopyright \(c\) 2026 open-brain authors\n/);
   assert.match(read('LICENSE'), /Permission is hereby granted, free of charge/);
 });
 
@@ -28,7 +28,7 @@ test('plugin.json and package.json carry the same version', () => {
 
 test('plugin.json has the required fields', () => {
   const m = json('.claude-plugin/plugin.json');
-  assert.equal(m.name, 'project-brain');
+  assert.equal(m.name, 'open-brain');
   assert.equal(typeof m.version, 'string');
   assert.ok(typeof m.description === 'string' && m.description.length > 20);
   assert.equal(m.license, 'MIT');
@@ -38,7 +38,7 @@ test('plugin.json has the required fields', () => {
   assert.deepEqual(Object.keys(m.author), ['name']);
 });
 
-const REPO = 'https://github.com/jourlez/OpenBrain';
+const REPO = 'https://github.com/jourlez/open-brain';
 
 test('plugin.json declares the verified Claude Code minimum, the one repository and a homepage', () => {
   const m = json('.claude-plugin/plugin.json');
@@ -67,7 +67,7 @@ test('the marketplace entry has no version of its own', () => {
 });
 
 test('manifests and docs name no URL except the one repository and its derived URLs', () => {
-  const ok = /^https:\/\/github\.com\/jourlez\/OpenBrain(\.git|\/issues|\/security\/advisories\/new|\/pulls?|\/blob\/[\w./-]+|\/actions\/workflows\/ci\.yml(\/badge\.svg)?)?$/;
+  const ok = /^https:\/\/github\.com\/jourlez\/open-brain(\.git|\/issues|\/security\/advisories\/new|\/pulls?|\/blob\/[\w./-]+|\/actions\/workflows\/ci\.yml(\/badge\.svg)?)?$/;
   for (const f of ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'package.json', 'README.md', 'SECURITY.md', 'CHANGELOG.md', 'CONTRIBUTING.md']) {
     for (const m of read(f).matchAll(/(?:git\+)?https?:\/\/[^\s"'`)>\]]+/gi)) {
       const u = m[0].replace(/^git\+/, '').replace(/[.,;]+$/, '');
@@ -79,9 +79,9 @@ test('manifests and docs name no URL except the one repository and its derived U
 test('CODEOWNERS names the owner and the install section uses the GitHub shorthand and the real marketplace name', () => {
   assert.match(read('.github/CODEOWNERS'), /^\*\s+@jourlez\s*$/m);
   const r = read('README.md');
-  assert.match(r, /\/plugin marketplace add jourlez\/OpenBrain/);
+  assert.match(r, /\/plugin marketplace add jourlez\/open-brain/);
   const name = json('.claude-plugin/marketplace.json').name;
-  assert.ok(r.includes(`/plugin install project-brain@${name}`));
+  assert.ok(r.includes(`/plugin install open-brain@${name}`));
   assert.match(r, /local path/i);
   assert.equal(/minimum Claude Code version is not verified|manifest sets none/i.test(r), false);
   assert.match(r, /Claude Code 2\.1\.329 or newer/);
@@ -116,10 +116,10 @@ test('every brain command in the README quickstart is a registered command', asy
 
 test('quickstart skill commands exist as skills', () => {
   const t = read('README.md');
-  for (const m of t.matchAll(/\/project-brain:([a-z-]+)/g)) {
+  for (const m of t.matchAll(/\/open-brain:([a-z-]+)/g)) {
     assert.ok(fs.existsSync(path.join(root, 'skills', m[1], 'SKILL.md')), `no skill ${m[1]}`);
   }
-  assert.match(t, /\/project-brain:brain-init/);
+  assert.match(t, /\/open-brain:brain-init/);
 });
 
 test('README states the real status: what was verified, what was not, and the untested newer releases', () => {

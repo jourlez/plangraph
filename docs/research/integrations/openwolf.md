@@ -1,4 +1,4 @@
-# OpenWolf: source-level research for project-brain integration
+# OpenWolf: source-level research for open-brain integration
 
 Date: 2026-11-22. Researched version: **openwolf 2.5.3** (npm, published 2026-10-19).
 
@@ -131,7 +131,7 @@ How OpenWolf parses entries:
 - Digest / reinjection / pre-write: only lines starting with `- ` and not placeholders; the LAST 3 entries are "top rules" (`session-start.js:107-110`, `rule-reinjection.js:16-24`). "Top" means most recent, not most important.
 - Reverse bridge appends a fenced block at the end (`<!-- openwolf:native-memory-index:begin -->` ... `## Native memory index (Claude Code, this machine)` ... list lines ... `<!-- openwolf:native-memory-index:end -->`) (`memory-migrate.js:161-219`).
 
-Local reality (VERIFIED-local, shapes only): the four sections exist; entries are mostly `- [YYYY-MM-DD] Title: long text...` (often 400-700 characters on one line), some `- plain text`, one `- **bold**`, and one `- YYYY-MM-DD text` without brackets. After Decision Log there are agent-invented sections `## YYYY-MM-DD learnings (<topic>)` with plain bullets, which no OpenWolf parser reads. One of those sections is about project-brain itself, i.e. planning-method learnings already leak into cerebrum.
+Local reality (VERIFIED-local, shapes only): the four sections exist; entries are mostly `- [YYYY-MM-DD] Title: long text...` (often 400-700 characters on one line), some `- plain text`, one `- **bold**`, and one `- YYYY-MM-DD text` without brackets. After Decision Log there are agent-invented sections `## YYYY-MM-DD learnings (<topic>)` with plain bullets, which no OpenWolf parser reads. One of those sections is about open-brain itself, i.e. planning-method learnings already leak into cerebrum.
 
 Grammar brain should accept:
 
@@ -351,7 +351,7 @@ Mode legend: **ingest** (copy into brain JSONL), **read-through** (read at query
 
 ### 6.2 Write contention
 
-- buglog: OpenWolf writes through `bug-pending/<uuid>.json` + `buglog.json.lock` + atomic rename; it throws and retains observations if the file is invalid JSON (`bug-journal.js:44-46`). A hand-edited entry (what REUSE.md implies for plugin bugs) can race the hook and, if malformed, stalls all bug recording. Recommendation: **edit REUSE.md: log brain-plugin bugs in the project-brain repo (its own issue tracker or its own `.wolf/buglog.json` when working there), never in a host repo.**
+- buglog: OpenWolf writes through `bug-pending/<uuid>.json` + `buglog.json.lock` + atomic rename; it throws and retains observations if the file is invalid JSON (`bug-journal.js:44-46`). A hand-edited entry (what REUSE.md implies for plugin bugs) can race the hook and, if malformed, stalls all bug recording. Recommendation: **edit REUSE.md: log brain-plugin bugs in the open-brain repo (its own issue tracker or its own `.wolf/buglog.json` when working there), never in a host repo.**
 - STATUS/cerebrum: agent-written, no locks. Brain writes neither.
 - `openwolf update` rewrites the fenced native-memory block inside cerebrum; any brain-authored block in cerebrum would be at risk. Brain writes none.
 
@@ -375,7 +375,7 @@ See 5.7. Also: brain's `rules --repo` must not tempt the model to Read cerebrum 
 
 ### 6.6 License
 
-AGPL-3.0-only. Reading OpenWolf's files is fine; **do not copy OpenWolf code (parsers, regexes beyond trivial format facts) into project-brain** unless project-brain accepts AGPL obligations. Re-implement parsers from the format spec above. (Legal reading UNVERIFIED; this is the cautious default.)
+AGPL-3.0-only. Reading OpenWolf's files is fine; **do not copy OpenWolf code (parsers, regexes beyond trivial format facts) into open-brain** unless open-brain accepts AGPL obligations. Re-implement parsers from the format spec above. (Legal reading UNVERIFIED; this is the cautious default.)
 
 ---
 

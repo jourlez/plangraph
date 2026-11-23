@@ -1,8 +1,8 @@
-# project-brain: plugin excellence research and audit
+# open-brain: plugin excellence research and audit
 
 Date: 2026-11-22. Scope: deep research against primary sources plus an adversarial audit of this repository. Nothing in the plugin was edited; this file is the only output.
 
-Tags: **VERIFIED** = read in a primary source (official docs or repository file) during this session. **SECONDARY** = blog or third-party summary. **UNVERIFIED** = inferred or not testable here. Important limit: the `claude` CLI is not installed in this environment, so nothing below about `claude plugin validate --strict` or `claude plugin eval` was executed against project-brain; those results are predictions from documented rules.
+Tags: **VERIFIED** = read in a primary source (official docs or repository file) during this session. **SECONDARY** = blog or third-party summary. **UNVERIFIED** = inferred or not testable here. Important limit: the `claude` CLI is not installed in this environment, so nothing below about `claude plugin validate --strict` or `claude plugin eval` was executed against open-brain; those results are predictions from documented rules.
 
 Contents: 1. Sources read; 2. What the best plugins do that we do not; 3. Agent Skills spec applied to our skills; 4. Component best practice; 5. Distribution, trust, CI; 6. Security model; 7. Audit gap table; 8. Target layout and manifests; 9. Ready-to-paste artifacts; 10. What could not be verified.
 
@@ -101,14 +101,14 @@ Cost: requires Claude Code >= 2.1.271 for `options`; `engines` field requires >=
 
 ### 4.4 Subagents (`agents/*.md`) worth shipping
 
-VERIFIED: plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation: worktree`, `color`; they ignore `permissionMode`, `hooks`, `mcpServers`. Named `<plugin>:<name>`; invoked with `@agent-project-brain:<name>`.
+VERIFIED: plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, `isolation: worktree`, `color`; they ignore `permissionMode`, `hooks`, `mcpServers`. Named `<plugin>:<name>`; invoked with `@agent-open-brain:<name>`.
 
 Recommendation: promote `briefs/auditor.md`, `reverify.md`, `loop-reader.md` to real agents with a **read-only tool allowlist** (`tools: Read, Grep, Glob, Bash`, `disallowedTools: Write, Edit` except the one output file is a problem: the brief says "the only file you write is your output JSON"; give the agent `Write` but instruct and enforce through a PreToolUse hook? agents cannot carry hooks; so keep `Write` and accept, or have the agent return JSON in its final message and let the parent write it). Benefits: model pinning (`model: sonnet`), `maxTurns: 40` mirrors the brief's "Max 40 tool calls", discoverable via `/agents`, and the tool allowlist enforces "read-only" in code instead of prose. Also add one new agent, `plan-reviewer` (read-only; runs `brain check`, `brain verify`, `brain stale`, summarizes in under 150 tokens). Keep `briefs/` as the canonical text and have `agents/*.md` bodies short and reference them, or delete duplication.
 
 Slash commands: the docs say new work should be skills, not `commands/` (VERIFIED). So `/brain-report` and `/whatif` should be **skills with `disable-model-invocation: true`** (user-triggered, side-effect free), not commands:
 - `skills/whatif/SKILL.md` argument-hint `[KEY] [--to NAME] [--sprint N]`, body runs `brain whatif $ARGUMENTS` (use `$ARGUMENTS` substitution) and shows the result; read-only with `allowed-tools: Bash(brain whatif *)`.
 - `skills/brain-report/SKILL.md` with a `!`brain check || true`` / `!`brain stale --list || true`` dynamic block so the report is assembled before Claude sees it (zero extra turns).
-Note: whatif already exists inside the `brain` skill table; a separate user-invocable `/project-brain:whatif` is a discoverability win, not a capability win.
+Note: whatif already exists inside the `brain` skill table; a separate user-invocable `/open-brain:whatif` is a discoverability win, not a capability win.
 
 ### 4.5 Monitors, LSP, MCP, dependencies, engines
 
@@ -130,13 +130,13 @@ VERIFIED facts:
 - `claude plugin tag [path] [--push] [--dry-run]` creates annotated tag `<name>--v<version>`, checks `plugin.json` and the marketplace entry agree on the version, requires a clean tree, refuses an existing tag. Dependency ranges resolve against these tags.
 - `claude plugin validate <path> [--strict] [--json]`: exit 0/1, 2 on an unexpected error; `--strict` turns warnings into failures; given a directory containing both marketplace.json and plugin.json (v2.1.289+) it validates both plus component files. It does NOT read `.lsp.json`, and for a marketplace run does not open other plugins' skills.
 - `claude plugin eval`: cases in `evals/<case>/prompt.md` + `graders/*.md` (types `regex`, `tool_used`, `tool_order`, `file_exists` free; `llm`, `baseline` call a judge). 3 runs per case by default, with-plugin vs no-plugin baseline (`WITH`, `W/OUT`, `Δ`). CI flags: `--trust-plugin --json results.json --threshold 0.8 --model ... --judge-model ... --no-publish --max-cost-usd N`. Exit 0 pass, 1 below threshold or load/API failure, 2 partial (cost ceiling or auth), 143 timeout. Δ never changes the exit code. Requires Claude Code >= 2.1.269 and Git >= 2.31. Cost is real model spend. Cases cannot use custom code graders.
-- Headless install in CI: `claude plugin marketplace add ./ && claude plugin install project-brain@project-brain-marketplace --scope user` (shell), `--json`, `-y` only matters for command sources; a marketplace added from a local path loads the plugin **in place** (no cache copy, no version needed), which is what you want in CI.
+- Headless install in CI: `claude plugin marketplace add ./ && claude plugin install open-brain@open-brain-marketplace --scope user` (shell), `--json`, `-y` only matters for command sources; a marketplace added from a local path loads the plugin **in place** (no cache copy, no version needed), which is what you want in CI.
 - Trust UI: before install the details pane shows a "Will install" component list and a generic trust warning; a plugin in the official marketplace also shows context cost (our own marketplace shows none). `claude plugin details <name>` prints component inventory and always-on token estimate (measure.md). The `claude-community` catalog pins nearly every entry to a commit SHA and Claude Code refuses a different commit.
 - Signed releases / provenance: Claude Code verifies only `sha` (git sources) and `sha256` (archive sources). It does **not** verify Sigstore/GitHub attestations or git tag signatures (nothing in the install docs mentions it; absence of evidence, UNVERIFIED as a negative). So provenance is a human/CI-verifiable trust signal, not an install-time gate.
 
 Recommended distribution design for a one-plugin, single-repo project (decision with rationale):
 1. Keep the plugin at the repo root with the marketplace in the same repo (what you have; `source: "./"` is the documented single-plugin form, publish.md).
-2. Choose explicit semver: keep `version` in `plugin.json` only, remove it from marketplace entry (already absent). Bump on every release, `claude plugin tag --push`, and document that users should add the marketplace pinned: `claude plugin marketplace add OWNER/project-brain#project-brain--v0.2.0`. That gives exact-version, no-surprise installs; users who want latest add without `#ref`.
+2. Choose explicit semver: keep `version` in `plugin.json` only, remove it from marketplace entry (already absent). Bump on every release, `claude plugin tag --push`, and document that users should add the marketplace pinned: `claude plugin marketplace add OWNER/open-brain#open-brain--v0.2.0`. That gives exact-version, no-surprise installs; users who want latest add without `#ref`.
 3. When the project has external consumers: move the marketplace to a tiny separate repo whose entry uses `github` + `ref` + `sha`, and add the official nightly "bump PR" pattern (bump-plugin-shas.yml) so every release goes through a PR and CI. This is how `claude-plugins-official` treats third parties (VERIFIED).
 4. Release assets: zip + sha256 + GitHub build-provenance attestation, so a cautious org can use an `archive` source with `sha256` (the only integrity-checked non-git form). Attestation verification is manual: `gh attestation verify` (UNVERIFIED version-specific syntax).
 
@@ -148,7 +148,7 @@ Exact CI design (ready to paste) is in section 9.3.
 
 Facts (VERIFIED, security.md): installing a plugin lets it run arbitrary code with user privileges; hooks, monitors, MCP/LSP processes run outside the sandbox and outside permission rules; `bin/` executables are on Bash PATH; skills/agents/commands are instructions that steer the model; auto-update can change files after review; a loaded plugin registers hooks immediately, so review the source before loading.
 
-What project-brain ALREADY does well (keep, and say so in SECURITY.md): network only in `lib/jira.mjs` (contract rule 3); allowlisted Atlassian hosts with an anti-redirect pin (lib/jira.mjs:46-66); tokens from env/1Password/keychain, never argv, never written (docs/JIRA.md); token redaction (lib/jira.mjs:26); committed config treated as untrusted and Data Center host never read from the repo; hook is silent and read-only; zero npm dependencies (no supply chain through npm; Claude Code's auto dependency install would not even trigger without a lockfile, VERIFIED loading.md); the Python solver pins `ortools==9.15.6755` (bin/brain-solve-run:5).
+What open-brain ALREADY does well (keep, and say so in SECURITY.md): network only in `lib/jira.mjs` (contract rule 3); allowlisted Atlassian hosts with an anti-redirect pin (lib/jira.mjs:46-66); tokens from env/1Password/keychain, never argv, never written (docs/JIRA.md); token redaction (lib/jira.mjs:26); committed config treated as untrusted and Data Center host never read from the repo; hook is silent and read-only; zero npm dependencies (no supply chain through npm; Claude Code's auto dependency install would not even trigger without a lockfile, VERIFIED loading.md); the Python solver pins `ortools==9.15.6755` (bin/brain-solve-run:5).
 
 What a high-trust plugin must additionally document and enforce (all missing today, see gaps):
 1. SECURITY.md: threat model in 10 lines (what runs unsandboxed: one SessionStart hook + `bin/*`; what it reads: `.brain/`, `.brainrc`, git; what it writes: `.brain/` and `.git/config` (merge driver) and `~/.cache/project-brain` (venv); network: Atlassian read-only, only on explicit `jira-pull`), a vulnerability disclosure channel, supported versions.
@@ -167,7 +167,7 @@ Severity: P0 = breaks users or trust now; P1 = high; P2 = medium; P3 = polish. E
 
 | ID | Gap | Evidence | Sev | Concrete fix | Effort |
 |---|---|---|---|---|---|
-| GAP-01 | **Git merge driver stores an absolute path into the versioned plugin cache.** After a plugin update the old version directory is orphaned and deleted 14 days later (VERIFIED loading.md "Cleanup of previous versions"), so `git merge` of `.brain/*.jsonl` then fails or falls back to a text merge with conflict markers; `brain doctor` only reports it when run. Worse, `import.meta.dirname` in a marketplace install is the cache path. | bin/brain:95 and bin/brain:502 (`driverPath: path.join(import.meta.dirname,'brain-merge')`); lib/store.mjs:289 writes it into `.git/config`; I reproduced: `git config merge.brain-jsonl.driver` = `<home>/.../project-brain/bin/brain-merge %O %A %B %P` | P0 | Install a stable shim: write `${CLAUDE_PLUGIN_DATA}/bin/brain-merge-shim` (outside the version dir) that `exec node <current-root>/bin/brain-merge "$@"`, and let the SessionStart hook re-run `brain doctor --fix --quiet` (cheap, idempotent) so the shim target tracks the current version. Alternative: driver command `node -e` resolving through `git config` of a user-level path updated by the hook. Add a test that simulates a moved root. | M |
+| GAP-01 | **Git merge driver stores an absolute path into the versioned plugin cache.** After a plugin update the old version directory is orphaned and deleted 14 days later (VERIFIED loading.md "Cleanup of previous versions"), so `git merge` of `.brain/*.jsonl` then fails or falls back to a text merge with conflict markers; `brain doctor` only reports it when run. Worse, `import.meta.dirname` in a marketplace install is the cache path. | bin/brain:95 and bin/brain:502 (`driverPath: path.join(import.meta.dirname,'brain-merge')`); lib/store.mjs:289 writes it into `.git/config`; I reproduced: `git config merge.brain-jsonl.driver` = `<home>/.../open-brain/bin/brain-merge %O %A %B %P` | P0 | Install a stable shim: write `${CLAUDE_PLUGIN_DATA}/bin/brain-merge-shim` (outside the version dir) that `exec node <current-root>/bin/brain-merge "$@"`, and let the SessionStart hook re-run `brain doctor --fix --quiet` (cheap, idempotent) so the shim target tracks the current version. Alternative: driver command `node -e` resolving through `git config` of a user-level path updated by the hook. Add a test that simulates a moved root. | M |
 | GAP-02 | **No CI whatsoever.** 223 unit tests and a smoke test exist but nothing runs them on PR, no `claude plugin validate --strict`, no frontmatter lint, no matrix over OS/Node. Official and top community repos all have CI (VERIFIED). | `ls .github` -> none; `git ls-files` shows no workflows | P0 | Add workflow in section 9.3 (unit on ubuntu+macos, validate --strict, skills-ref, eval on schedule/same-repo PRs). | M |
 | GAP-03 | **No LICENSE file, no CHANGELOG, no SECURITY.md, no CONTRIBUTING.** `plugin.json` says `"license":"MIT"` with no file to back it (official repo enforces a LICENSE per plugin via validate-licenses.yml, VERIFIED). | `git ls-files` (17 files, none of these) | P0 for a trust plugin | Add MIT LICENSE, CHANGELOG.md (Keep a Changelog, with a "Security-relevant" label), SECURITY.md (section 6), CONTRIBUTING.md (point to docs/CONTRACT.md). | S |
 | GAP-04 | **Repository state: 8 modified + 2 untracked files uncommitted, including bin/brain-merge and bin/brain-solve-run, which hooks.json/README rely on; no remote; 7 commits.** A marketplace install of HEAD would miss `brain-merge` and `brain-solve-run` (the README promises both on PATH). | `git status`: ` M bin/brain-solve`, `?? bin/brain-merge`, `?? bin/brain-solve-run` | P0 | Commit; make CI fail on a dirty tree for tag builds; add `claude plugin tag` only from clean tree (the CLI already requires it). | S |
@@ -175,17 +175,17 @@ Severity: P0 = breaks users or trust now; P1 = high; P2 = medium; P3 = polish. E
 | GAP-06 | **Docs contradict code on the Node floor.** README and CONTRACT say 22.13+, code exits at <24, package.json says >=24. A Node 22 user gets exit 2 on every command except the silent hook. | README.md:6; docs/CONTRACT.md:9; bin/brain:48; package.json engines | P1 | Pick 24 (matches code) and fix both docs; add the check to `brain doctor` output and to validate-plugin.mjs (grep README for the number). | S |
 | GAP-07 | **No evals; skill triggering is unmeasured.** The brain skill exists to be triggered by planning questions; nobody knows its hit rate or false-trigger rate. The docs say to use `tool_used: Skill` graders after each description change (VERIFIED). | no `evals/` dir | P1 | Add `evals/` (section 9.5): 4 should-trigger, 3 should-not-trigger, 2 behavior cases (brain ready exit 1 relayed; no Jira write). Run `claude plugin eval . --ablation none --runs 1` locally while iterating, `--threshold 0.8` in CI. | M |
 | GAP-08 | **Skill `brain` has no `allowed-tools`**, so each `brain ...` call needs a permission click; and critical rules sit at the bottom (compaction keeps only the first 5,000 tokens, fine here, but order still matters for attention). | skills/brain/SKILL.md (no allowed-tools; rules after table) | P1 | Add `allowed-tools: Bash(brain ready *) Bash(brain ticket *) Bash(brain neighbors *) Bash(brain chain *) Bash(brain sprint *) Bash(brain person *) Bash(brain blockers) Bash(brain findings *) Bash(brain rules *) Bash(brain check) Bash(brain card *) Bash(brain stale *) Bash(brain whatif *)` and **exclude** `jira-pull`, `schedule-load`, `refs-update`, `export`, `build`, `init`, `compact`, `claim`, `open-items --write/--close`, `whatif --write`. Verify exact rule syntax with a live run (UNVERIFIED: whether the pattern `Bash(brain whatif *)` also matches `--write`; if so drop whatif from the list). | S |
-| GAP-09 | **Plugin-relative paths in skills.** brain-audit tells the model `briefs/auditor.md` and `workflows/audit.workflow.js`; in a user's project these do not exist. `${CLAUDE_PLUGIN_ROOT}` is substituted in skill content (VERIFIED). workflows/audit.workflow.js hard-codes `BRIEF = '/ABSOLUTE/PATH/TO/project-brain/briefs'`. | skills/brain-audit/SKILL.md step 4; workflows/audit.workflow.js:11 | P1 | Write `${CLAUDE_PLUGIN_ROOT}/briefs/auditor.md` in SKILL.md; or better, ship agents (GAP-10) and drop the path-passing. Fix the workflow template to read the path from an argument. | S |
+| GAP-09 | **Plugin-relative paths in skills.** brain-audit tells the model `briefs/auditor.md` and `workflows/audit.workflow.js`; in a user's project these do not exist. `${CLAUDE_PLUGIN_ROOT}` is substituted in skill content (VERIFIED). workflows/audit.workflow.js hard-codes `BRIEF = '/ABSOLUTE/PATH/TO/open-brain/briefs'`. | skills/brain-audit/SKILL.md step 4; workflows/audit.workflow.js:11 | P1 | Write `${CLAUDE_PLUGIN_ROOT}/briefs/auditor.md` in SKILL.md; or better, ship agents (GAP-10) and drop the path-passing. Fix the workflow template to read the path from an argument. | S |
 | GAP-10 | **Briefs are not registered agents.** Read-only is enforced by prose ("Hard rules: READ-ONLY") not by a tool allowlist; no model pin; no `maxTurns`. | briefs/auditor.md, briefs/reverify.md, briefs/loop-reader.md; no `agents/` | P2 | Add `agents/ticket-auditor.md`, `agents/verdict-reverifier.md`, `agents/loop-reader.md`, `agents/plan-reviewer.md` (section 9.6). Keep briefs as source or inline them and delete the duplicates. | M |
-| GAP-11 | **Manifest incomplete for strict validation and trust.** `plugin.json` lacks `author`, `homepage`, `repository`, `engines`, `network`; marketplace lacks top-level `description`, `$schema`, and a distinctive name. `claude plugin validate --strict` is documented to warn on missing author/description/version (VERIFIED) so predicted to FAIL in strict mode (UNVERIFIED: not run). The marketplace name `project-brain-marketplace` is generic enough to collide ("a user can't have two marketplaces with the same name", VERIFIED). | .claude-plugin/plugin.json, marketplace.json | P1 | Section 8 manifests. Marketplace name: `<owner>-plugins` pattern. | S |
+| GAP-11 | **Manifest incomplete for strict validation and trust.** `plugin.json` lacks `author`, `homepage`, `repository`, `engines`, `network`; marketplace lacks top-level `description`, `$schema`, and a distinctive name. `claude plugin validate --strict` is documented to warn on missing author/description/version (VERIFIED) so predicted to FAIL in strict mode (UNVERIFIED: not run). The marketplace name `open-brain-marketplace` is generic enough to collide ("a user can't have two marketplaces with the same name", VERIFIED). | .claude-plugin/plugin.json, marketplace.json | P1 | Section 8 manifests. Marketplace name: `<owner>-plugins` pattern. | S |
 | GAP-12 | **Undisclosed install-time network and code fetch in the solver launcher**: first `brain-solve-run` does `pip install ortools==...` into a venv or `uv run --with`; not mentioned in the README trust text, nor pinned by hash. Contract rule 3 ("no network except lib/jira.mjs") is violated by `bin/brain-solve-run`. | bin/brain-solve-run:5-17 | P1 | Document in README/SECURITY; add `--require-hashes`; amend CONTRACT rule 3 ("or the solver bootstrap, bin/brain-solve-run, which fetches one pinned wheel from PyPI") so the contract stays true; add to `network.hosts`. | S |
 | GAP-13 | **userConfig unused; users cannot turn the SessionStart card off** without disabling the plugin. | hooks.json unconditional | P2 | Add `card` userConfig option (section 8) and pass via exec-form args; fallback env `BRAIN_CARD=off`. | S |
 | GAP-14 | **Hook re-injects on resume/fork** though transcripts already carry the earlier card. | hooks.json matcher `startup|resume|clear|compact|fork`; docs: context saved in transcript (VERIFIED) | P3 | Either keep (refresh is a feature after plan edits) or drop `resume|fork`; best: `brain card` prints a one-line "unchanged since last card (hash)" when the hash equals the one stored in `.brain/.cache`. Measure with `claude plugin details` + /context. | S |
 | GAP-15 | **Validator is hand-rolled and weaker than the CLI**, and uses the 1,536 limit rather than the portable 1,024; no check that every referenced path in skills exists, no frontmatter key allowlist, no LICENSE/CHANGELOG/README install-line check; README claims the install flow was "built to the documented layout but not run in a live session". | test/validate-plugin.mjs:15; README.md "Status and limits" | P2 | Keep it as a fast offline check, but make CI run the real `claude plugin validate . --strict --json` first; lower to 1,024; add skills-ref. Run the live install flow in CI (`claude plugin marketplace add ./`, `install`, `details`) and delete the README caveat once green. | M |
-| GAP-16 | **README facts to correct**: "Run the `/brain-init` skill" (actual command `/project-brain:brain-init`, VERIFIED naming rule); claims Node 22.13+; the "claim" and merge-driver per-clone step lack a "what runs on your machine" block; no uninstall/data-removal note (`CLAUDE_PLUGIN_DATA` deleted on uninstall, VERIFIED, includes the solver venv). | README.md lines 6, 10 | P2 | Rewrite README header per section 9.7. | S |
+| GAP-16 | **README facts to correct**: "Run the `/brain-init` skill" (actual command `/open-brain:brain-init`, VERIFIED naming rule); claims Node 22.13+; the "claim" and merge-driver per-clone step lack a "what runs on your machine" block; no uninstall/data-removal note (`CLAUDE_PLUGIN_DATA` deleted on uninstall, VERIFIED, includes the solver venv). | README.md lines 6, 10 | P2 | Rewrite README header per section 9.7. | S |
 | GAP-17 | **No version-consistency or release gate.** `claude plugin tag` exists for this (VERIFIED) but no release procedure is documented; package.json `version` and plugin.json `version` are both "0.1.0" and can drift (superpowers has `.version-bump.json` + a test for exactly this). | package.json, plugin.json | P2 | Add `scripts/check-version.mjs` (package.json == plugin.json == CHANGELOG top entry) to CI; release via `claude plugin tag --push`. | S |
 | GAP-18 | **`bin/` is Claude-Code-only.** claude.ai and Cowork do not install plugins with `bin/` (VERIFIED); org sync rejects it. Not stated. | README | P3 | State "Claude Code (CLI/IDE) only" in README and `compatibility` of each skill. Alternative (not recommended): move binaries to `scripts/` and call by `${CLAUDE_PLUGIN_ROOT}` in skills, losing bare-command ergonomics. | S |
-| GAP-19 | **Skill description hygiene**: brain-init and brain-audit are `disable-model-invocation: true` yet the brain skill instructs Claude to run `brain init` itself; descriptions are not phrase-driven; no `when_to_use`. | skills/*/SKILL.md | P2 | Section 9.1 rewrites. Decide: init is model-invocable only after the user confirms (remove the flag and add "ask the owner first" in body) OR keep manual and change brain skill line 1 to "tell the owner to run /project-brain:brain-init". | S |
+| GAP-19 | **Skill description hygiene**: brain-init and brain-audit are `disable-model-invocation: true` yet the brain skill instructs Claude to run `brain init` itself; descriptions are not phrase-driven; no `when_to_use`. | skills/*/SKILL.md | P2 | Section 9.1 rewrites. Decide: init is model-invocable only after the user confirms (remove the flag and add "ask the owner first" in body) OR keep manual and change brain skill line 1 to "tell the owner to run /open-brain:brain-init". | S |
 | GAP-20 | **No test for the hook contract.** The hook's guarantees (silent exit 0 without a brain; silent on Node < 24; output < 250 tokens; deterministic) are only covered indirectly by smoke. superpowers/security-guidance test their launchers. | test/smoke.sh; no hook test | P2 | `test/hook.test.mjs`: spawn `bin/brain card --if-present` in an empty temp repo (expect empty stdout, exit 0), in a repo with a brain (expect <= 250 tokens by the contract estimator, byte-identical on 2 runs), with a stripped PATH, with `NODE_OPTIONS` hostile. | S |
 | GAP-21 | **Security-relevant changes are not labeled**; auto-update can alter hooks silently (VERIFIED security.md). | none | P3 | CHANGELOG convention + a CI check that fails if `hooks/`, `bin/`, `.claude-plugin/` changed without a CHANGELOG line. | S |
 
@@ -198,7 +198,7 @@ Not a gap (checked): hook `timeout: 10` is sensible; exec form is used; matcher 
 ### 8.1 Layout
 
 ```
-project-brain/
+open-brain/
 ├── .claude-plugin/
 │   ├── plugin.json              # + author, homepage, repository, engines, network, userConfig
 │   └── marketplace.json         # + $schema, description, distinctive name
@@ -230,13 +230,13 @@ Do not add: `monitors/`, `.mcp.json`, `.lsp.json`, `output-styles/`, `themes/`, 
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "project-brain",
+  "name": "open-brain",
   "displayName": "Project Brain",
   "version": "0.2.0",
   "description": "Planning memory for Claude Code: a dependency graph of tickets, owners and sprints kept as text in git, answered with one cheap command. No model calls.",
   "author": { "name": "OWNER NAME", "url": "https://github.com/OWNER" },
-  "homepage": "https://github.com/OWNER/project-brain",
-  "repository": "https://github.com/OWNER/project-brain",
+  "homepage": "https://github.com/OWNER/open-brain",
+  "repository": "https://github.com/OWNER/open-brain",
   "license": "MIT",
   "keywords": ["planning", "jira", "knowledge-graph", "memory", "scheduling"],
   "engines": { "claude-code": ">=2.1.323" },
@@ -260,11 +260,11 @@ Notes: `$schema` URL is a guess at a public schema location and is ignored at lo
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "OWNER-plugins",
-  "description": "Plugins by OWNER. project-brain: planning memory for Claude Code.",
+  "description": "Plugins by OWNER. open-brain: planning memory for Claude Code.",
   "owner": { "name": "OWNER NAME", "url": "https://github.com/OWNER" },
   "plugins": [
     {
-      "name": "project-brain",
+      "name": "open-brain",
       "source": "./",
       "description": "Planning knowledge graph for Claude Code: query tickets, links, sprints and learnings with one cheap command.",
       "category": "productivity",
@@ -279,7 +279,7 @@ No `version` in the entry (plugin.json wins and a mismatch warns; VERIFIED).
 
 ```json
 {
-  "description": "Inject the project-brain plan card at session start (silent when there is no brain).",
+  "description": "Inject the open-brain plan card at session start (silent when there is no brain).",
   "hooks": {
     "SessionStart": [
       {
@@ -350,7 +350,7 @@ New `skills/brain-report/SKILL.md`:
 ```markdown
 ---
 name: brain-report
-description: Prints a one-screen plan health report (check, stale verdicts, open items, capacity, forecast). Use when the owner runs /project-brain:brain-report or asks for a plan status snapshot.
+description: Prints a one-screen plan health report (check, stale verdicts, open items, capacity, forecast). Use when the owner runs /open-brain:brain-report or asks for a plan status snapshot.
 disable-model-invocation: true
 allowed-tools: Bash(brain check) Bash(brain stale *) Bash(brain open-items *) Bash(brain forecast) Bash(brain card *)
 ---
@@ -384,7 +384,7 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['project-brain--v*']
+    tags: ['open-brain--v*']
   workflow_dispatch:
   schedule:
     - cron: '17 6 * * 1'   # weekly: drift against latest Claude Code + eval baseline
@@ -443,8 +443,8 @@ jobs:
       - name: Local install smoke (marketplace from path loads in place)
         run: |
           claude plugin marketplace add ./
-          claude plugin install project-brain@OWNER-plugins --scope user
-          claude plugin details project-brain | tee details.txt
+          claude plugin install open-brain@OWNER-plugins --scope user
+          claude plugin details open-brain | tee details.txt
           grep -E 'Always-on:.*~[0-9]+ tok' details.txt
           # budget gate: fail if always-on cost exceeds 400 tokens
           node -e "const m=/Always-on:\s*~(\d+)/.exec(require('fs').readFileSync('details.txt','utf8'));if(!m||+m[1]>400){console.error('always-on tokens',m&&m[1]);process.exit(1)}"
@@ -481,12 +481,12 @@ jobs:
 ```
 The `eval` flags and model IDs are taken from the official CI example (plugin-evals.md "Run evals in CI", VERIFIED: `claude-sonnet-5`, `claude-haiku-4-5`); exit 2 means partial (budget/auth) and fails the job, which is correct. Add `evals/results/` to `.gitignore`.
 
-`.github/workflows/release.yml` (tag push `project-brain--v*`):
+`.github/workflows/release.yml` (tag push `open-brain--v*`):
 ```yaml
 name: Release
 on:
   push:
-    tags: ['project-brain--v*']
+    tags: ['open-brain--v*']
 permissions:
   contents: write        # release
   id-token: write        # attestation (OIDC)
@@ -503,15 +503,15 @@ jobs:
       - name: Tag must match manifest and CHANGELOG
         run: |
           V=$(node -p "require('./.claude-plugin/plugin.json').version")
-          test "${GITHUB_REF_NAME}" = "project-brain--v${V}"
+          test "${GITHUB_REF_NAME}" = "open-brain--v${V}"
           grep -q "^## \[${V}\]" CHANGELOG.md
       - name: Build archive and checksum
         run: |
-          git archive --format=zip --prefix=project-brain/ -o project-brain-${GITHUB_REF_NAME#*--v}.zip HEAD
-          sha256sum project-brain-*.zip | tee SHA256SUMS
+          git archive --format=zip --prefix=open-brain/ -o open-brain-${GITHUB_REF_NAME#*--v}.zip HEAD
+          sha256sum open-brain-*.zip | tee SHA256SUMS
       - uses: actions/attest-build-provenance@<SHA>      # SECONDARY: action exists; verify current major
-        with: { subject-path: 'project-brain-*.zip' }
-      - run: gh release create "$GITHUB_REF_NAME" project-brain-*.zip SHA256SUMS --notes-file <(sed -n "/^## \[${GITHUB_REF_NAME#*--v}\]/,/^## \[/p" CHANGELOG.md | sed '$d')
+        with: { subject-path: 'open-brain-*.zip' }
+      - run: gh release create "$GITHUB_REF_NAME" open-brain-*.zip SHA256SUMS --notes-file <(sed -n "/^## \[${GITHUB_REF_NAME#*--v}\]/,/^## \[/p" CHANGELOG.md | sed '$d')
         env: { GH_TOKEN: '${{ github.token }}' }
 ```
 Release procedure (documented in docs/RELEASING.md): bump version in package.json + plugin.json + CHANGELOG; merge; from a clean tree run `claude plugin tag --push` (checks versions agree, clean tree, tag not existing; VERIFIED); CI builds assets and provenance. For consumers who want an integrity-checked install, publish an `archive` entry with the printed `sha256`.
@@ -521,8 +521,8 @@ Release procedure (documented in docs/RELEASING.md): bump version in package.jso
 ### 9.4 Install and update instructions for README
 
 ```
-claude plugin marketplace add OWNER/project-brain#project-brain--v0.2.0   # exact release (recommended)
-claude plugin install project-brain@OWNER-plugins
+claude plugin marketplace add OWNER/open-brain#open-brain--v0.2.0   # exact release (recommended)
+claude plugin install open-brain@OWNER-plugins
 # newest instead: drop the #tag. Auto-update is off for third-party marketplaces unless you turn it on in /plugin.
 ```
 
@@ -553,7 +553,7 @@ input_match: '"skill"\s*:\s*"(?:[\w-]+:)?brain"'
 ```markdown
 ---
 name: ticket-auditor
-description: Adversarially audits one unit of tickets prepared by `brain units` and writes a verdict JSON. Use when /project-brain:brain-audit reaches the audit step, or when asked to try to prove tickets are NOT ready.
+description: Adversarially audits one unit of tickets prepared by `brain units` and writes a verdict JSON. Use when /open-brain:brain-audit reaches the audit step, or when asked to try to prove tickets are NOT ready.
 model: sonnet
 maxTurns: 40
 tools: Read, Grep, Glob, Bash, Write

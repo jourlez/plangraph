@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// brain-mcp: the optional, read-only MCP server (stdio) of project-brain. NOT started by the plugin and not on PATH; an owner who wants
+// brain-mcp: the optional, read-only MCP server (stdio) of open-brain. NOT started by the plugin and not on PATH; an owner who wants
 // it adds it to an MCP config by hand (docs/MCP.md). Tools: ready, whatif (dry run only), ticket; the protocol is in src/mcp.mjs.
 // The repository is the working directory the client starts it in, and the brain dir follows the CLI rules (BRAIN_DIR, .brainrc).
 // stdout carries only JSON-RPC lines; nothing is logged. It exits when stdin closes, after answering what it already read.

@@ -3,7 +3,7 @@
 # requires-python = ">=3.10,<3.15"
 # dependencies = ["ortools==9.15.6755"]
 # ///
-"""Sprint-assignment solver (OR-Tools CP-SAT) for the project-brain plan store. No Jira access, no model calls.
+"""Sprint-assignment solver (OR-Tools CP-SAT) for the open-brain plan store. No Jira access, no model calls.
 
   brain-solve-run --out schedule.json [--end 14] [--time 400] [--workers 10] [--seed 1] [--deterministic]
                   [--baseline current|v2|<archive>] [--freeze K1,K2] [--freeze-file f.json] [--jsonl-dir DIR] [--lns] [--decompose]

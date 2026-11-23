@@ -13,7 +13,7 @@ import { makeContext } from './context.mjs';
 /** @typedef {(argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>, cwd: string }) => Promise<number>} Runner */
 /** @typedef {string | number} Id */
 
-export const SERVER_VERSION = '0.1.2';
+export const SERVER_VERSION = '0.1.3';
 /** Newest first. A requested version in this list is echoed; any other gets the first (the spec: answer the latest one we support). */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];
@@ -152,7 +152,7 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun } = {}) {
         if (!isObject(p) || typeof p.protocolVersion !== 'string') return error(id, ERR.PARAMS, 'invalid params: protocolVersion must be a string');
         initialized = true;
         const version = PROTOCOL_VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : LATEST_PROTOCOL;
-        return result(id, { protocolVersion: version, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'project-brain', version: SERVER_VERSION } });
+        return result(id, { protocolVersion: version, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'open-brain', version: SERVER_VERSION } });
       }
       case 'tools/list':
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');

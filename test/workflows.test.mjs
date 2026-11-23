@@ -183,7 +183,7 @@ test('release.yml: the release job needs verify, checks the tag is on main, and 
   const a = /actions\/attest@[^\n]*\n\s+with:\n\s+subject-path:\s*(.+)\n/.exec(t);
   assert.ok(a, 'no attest subject-path');
   const sp = a[1].trim();
-  assert.ok(!/^["']?\*+["']?$/.test(sp) && /project-brain-/.test(sp), `attest subject-path too broad: ${sp}`);
+  assert.ok(!/^["']?\*+["']?$/.test(sp) && /open-brain-/.test(sp), `attest subject-path too broad: ${sp}`);
 });
 
 test('release.yml: no extra git fetch after persist-credentials: false (fetch-depth: 0 already has origin/main)', () => {

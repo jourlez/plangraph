@@ -1,4 +1,4 @@
-# Patterns and paradigms for project-brain: research and architecture review
+# Patterns and paradigms for open-brain: research and architecture review
 
 Date 2026-11-22. Scope: read `docs/CONTRACT.md`, `FORMAT.md`, `STALE.md`, `SOLVER.md`, `bin/brain`, `bin/brain-merge`, `bin/brain-solve`, `lib/*.mjs`. No project file was modified. Counterexamples were run from the scratchpad (`.../scratchpad/ce/t1.mjs`..`t5.mjs`) against the real `lib/` code.
 

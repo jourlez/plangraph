@@ -126,13 +126,13 @@ function golden(c) {
 const goldenRun = (c) => {
   const size = c.fixture.size;
   const skill = c.expected ? c.expected.skill : 'brain';
-  return { message: `I looked it up.\n${answerLine(golden(c))}`, calls: c.kind === 'trigger' && !c.expected.trigger ? [] : [{ tool: 'Bash', input: 'brain ticket T-1 2>/dev/null' }, { tool: 'Skill', input: `{"skill":"project-brain:${['brain-init', 'brain-audit'].includes(skill) ? 'brain' : skill}"}` }],
+  return { message: `I looked it up.\n${answerLine(golden(c))}`, calls: c.kind === 'trigger' && !c.expected.trigger ? [] : [{ tool: 'Bash', input: 'brain ticket T-1 2>/dev/null' }, { tool: 'Skill', input: `{"skill":"open-brain:${['brain-init', 'brain-audit'].includes(skill) ? 'brain' : skill}"}` }],
     files: [], fileTexts: { 'plan.md': fixtureText(size, 'plan.md'), '.brain/schedule.jsonl': fixtureText(size, 'schedule.jsonl') } };
 };
 
 test('every grader passes on the golden run of every case (llm judges excluded)', () => {
   for (const c of cases.filter((x) => x.truth || x.kind === 'trigger')) {
-    const run = c.truth ? goldenRun(c) : { message: 'A burndown chart; hoisting and the temporal dead zone; npm audit for vulnerabilities; git status; pg_dump and schema; a template with highlights; git init makes a .git repository; rebase replays commits; story point estimate; retryCount.', calls: [] };
+    const run = c.truth ? goldenRun(c) : { message: 'A burndown chart; hoisting and the temporal dead zone; npm audit for vulnerabilities; git status; pg_dump and schema; a template with highlights; git init makes a .git repository; rebase replays commits; story point estimate; retryCount; a roadmap template; brownfield.', calls: [] };
     const r = grade(c, run, { ablation: 'none' });
     assert.deepEqual(r.failed, [], `${c.id}: ${r.failed}`);
   }
@@ -234,7 +234,7 @@ test('no-write cases: the content sentinels catch a changed row, an added or rem
 test('should-not-trigger cases fail on any brain call or skill (router or sub-skill) and pass on an unrelated answer', () => {
   for (const c of cases.filter((x) => x.kind === 'trigger' && !x.expected.trigger)) {
     assert.ok(grade(c, { message: 'x', calls: [{ tool: 'Bash', input: 'brain ticket T-1' }] }).failed.includes('neg-brain-not-used'), c.id);
-    for (const s of ['project-brain:brain', 'brain-audit', 'project-brain:whatif', 'brain-report']) assert.ok(grade(c, { message: 'x', calls: [{ tool: 'Skill', input: `{"skill":"${s}"}` }] }).failed.includes('neg-skill-not-fired'), `${c.id} ${s}`);
+    for (const s of ['open-brain:brain', 'brain-audit', 'open-brain:whatif', 'brain-report']) assert.ok(grade(c, { message: 'x', calls: [{ tool: 'Skill', input: `{"skill":"${s}"}` }] }).failed.includes('neg-skill-not-fired'), `${c.id} ${s}`);
     assert.ok(!grade(c, { message: 'x', calls: [{ tool: 'Bash', input: 'git log' }] }).failed.some((x) => x.startsWith('neg-')));
   }
 });

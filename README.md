@@ -1,8 +1,8 @@
-# project-brain
+# open-brain
 
-[![ci](https://github.com/jourlez/OpenBrain/actions/workflows/ci.yml/badge.svg)](https://github.com/jourlez/OpenBrain/actions/workflows/ci.yml)
+[![ci](https://github.com/jourlez/open-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/jourlez/open-brain/actions/workflows/ci.yml)
 
-project-brain is a Claude Code plugin that keeps a team's sprint plan as a small knowledge graph in git: tickets, dependency links, owners and sprints, readiness verdicts with the evidence behind them, and learnings. Claude answers plan questions ("can this start?", "what breaks if this moves to Ben?", "who is over capacity?") with one local command that prints a few lines, instead of reading the plan files into context. The command checks every answer against two exact rules (a handoff rule and a capacity rule), never calls a model, and never writes to Jira.
+open-brain is a Claude Code plugin that keeps a team's sprint plan as a small knowledge graph in git: tickets, dependency links, owners and sprints, readiness verdicts with the evidence behind them, and learnings. Claude answers plan questions ("can this start?", "what breaks if this moves to Ben?", "who is over capacity?") with one local command that prints a few lines, instead of reading the plan files into context. The command checks every answer against two exact rules (a handoff rule and a capacity rule), never calls a model, and never writes to Jira.
 
 ## Contents
 
@@ -60,8 +60,8 @@ In short: Node 24.2 or newer, git, and Claude Code 2.1.329 or newer. The plugin 
 ### From GitHub, inside Claude Code
 
 ```text
-/plugin marketplace add jourlez/OpenBrain
-/plugin install project-brain@project-brain-marketplace
+/plugin marketplace add jourlez/open-brain
+/plugin install open-brain@open-brain-marketplace
 ```
 
 Restart Claude Code to load the hook, the skills and the commands.
@@ -69,8 +69,8 @@ Restart Claude Code to load the hook, the skills and the commands.
 The same steps from a terminal, with the `claude plugin` CLI:
 
 ```bash
-claude plugin marketplace add jourlez/OpenBrain
-claude plugin install project-brain@project-brain-marketplace
+claude plugin marketplace add jourlez/open-brain
+claude plugin install open-brain@open-brain-marketplace
 ```
 
 Add `--scope project` or `--scope local` to `claude plugin install` to install for one project instead of for your user (the default scope is `user`).
@@ -80,9 +80,9 @@ Add `--scope project` or `--scope local` to `claude plugin install` to install f
 Clone the repository, then add the folder as a marketplace from its local path:
 
 ```bash
-git clone https://github.com/jourlez/OpenBrain.git
-claude plugin marketplace add ./OpenBrain
-claude plugin install project-brain@project-brain-marketplace
+git clone https://github.com/jourlez/open-brain.git
+claude plugin marketplace add ./open-brain
+claude plugin install open-brain@open-brain-marketplace
 ```
 
 Inside Claude Code the equivalent is `/plugin marketplace add <path to the clone>`, then the same `/plugin install` command.
@@ -90,8 +90,8 @@ Inside Claude Code the equivalent is `/plugin marketplace add <path to the clone
 ### Updating
 
 ```bash
-claude plugin marketplace update project-brain-marketplace
-claude plugin update project-brain@project-brain-marketplace
+claude plugin marketplace update open-brain-marketplace
+claude plugin update open-brain@open-brain-marketplace
 ```
 
 Restart Claude Code to apply the update. The git merge driver points at the installed copy through a shim, and the session hook repoints it after an update; `brain doctor` reports a stale target and `brain doctor --fix` repairs it.
@@ -99,8 +99,8 @@ Restart Claude Code to apply the update. The git merge driver points at the inst
 ### Uninstalling
 
 ```bash
-claude plugin uninstall project-brain@project-brain-marketplace
-claude plugin marketplace remove project-brain-marketplace
+claude plugin uninstall open-brain@open-brain-marketplace
+claude plugin marketplace remove open-brain-marketplace
 ```
 
 `--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.brain/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=brain-jsonl` line in `.gitattributes`, and the `merge.brain-jsonl.*` entries in `.git/config`.
@@ -109,14 +109,14 @@ claude plugin marketplace remove project-brain-marketplace
 
 The plugin declares one option, `card`, with the values `auto` (default) and `off`. With `off`, the session hook prints nothing; the `brain` command and the skills still work.
 
-- Inside Claude Code: `/plugin configure project-brain@project-brain-marketplace`.
-- At install time: `claude plugin install project-brain@project-brain-marketplace --config card=off`.
-- Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure project-brain@project-brain-marketplace --values-stdin`.
+- Inside Claude Code: `/plugin configure open-brain@open-brain-marketplace`.
+- At install time: `claude plugin install open-brain@open-brain-marketplace --config card=off`.
+- Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure open-brain@open-brain-marketplace --values-stdin`.
 - For one shell or one machine: set the environment variable `BRAIN_CARD=off`.
 
 ### Verifying the install
 
-1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `project-brain@project-brain-marketplace` should be listed as enabled. `claude plugin details project-brain` lists 7 skills, 1 hook and 0 MCP servers.
+1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `open-brain@open-brain-marketplace` should be listed as enabled. `claude plugin details open-brain` lists 8 skills, 1 hook and 0 MCP servers.
 2. In a Claude Code session, ask Claude to run `brain explain`. It prints the command list. `brain` is on the Bash PATH only inside Claude Code sessions with the plugin enabled; see [Troubleshooting](#troubleshooting) for terminal use.
 3. In a project, run `brain doctor`. It checks Node, the data format, the merge driver and the solver runtime, and exits 0 when all are fine.
 
@@ -126,7 +126,7 @@ Adopting it in another project takes one install and one pasted prompt: see [doc
 
 ## Quickstart
 
-The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/project-brain:brain-init` skill wraps `brain init`. The commands used here are `brain init`, `brain build`, `brain check`, `brain verify`, `brain card`, `brain ready`, `brain blockers`, `brain whatif`, `brain export`, `brain report`, `brain doctor`, `brain integrations`, `brain migrate`, `brain sp-ingest`, `brain refs-update` and `brain stale`.
+The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/open-brain:brain-init` skill wraps `brain init`. The commands used here are `brain init`, `brain build`, `brain check`, `brain verify`, `brain card`, `brain ready`, `brain blockers`, `brain whatif`, `brain export`, `brain report`, `brain doctor`, `brain integrations`, `brain migrate`, `brain sp-ingest`, `brain refs-update` and `brain stale`.
 
 ### A new plan in five minutes
 
@@ -399,7 +399,7 @@ Two more executables ship in `bin/`:
 
 ## Skills
 
-The plugin ships seven skills. Claude picks one from its description, or you invoke it as `/project-brain:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `brain` commands; anything that writes still asks you.
+The plugin ships eight skills. Claude picks one from its description, or you invoke it as `/open-brain:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `brain` commands; anything that writes still asks you.
 
 | Skill | When it is used | What it does | Writes |
 |---|---|---|---|
@@ -407,6 +407,7 @@ The plugin ships seven skills. Claude picks one from its description, or you inv
 | `brain-init` | owner only: "start using the project brain here" | runs `brain init`, guides the config and data, then `build`, `doctor`, `check`, `card --write` | yes, after the owner confirms |
 | `brain-onboard` | bringing existing work (a Jira backlog, superpowers plans) under the brain | doctor, Jira import, `sp-ingest`, OpenWolf rules read-through, build and check, then a gap report | writing commands go through a permission prompt |
 | `brain-plan` | planning a new project or feature | recommends superpowers brainstorming and plan writing, then ingest, solve, verify and handoff | writing commands go through a permission prompt |
+| `brain-autopilot` | the owner hands over a specification or an existing project and wants it planned, documented and put into Jira without being asked questions | classifies greenfield or brownfield, writes roadmap docs and task plans, ingests, solves and verifies, then creates or reconciles Jira only inside the owner's written authorization block; see [docs/AUTOPILOT.md](docs/AUTOPILOT.md) | local files; Jira only through the Atlassian connector, as the block allows |
 | `brain-audit` | owner only: replan, re-verify readiness, "what changed since the last audit" | `stale`, `jira-text`, `units` with a cost preview, then the agent briefs in `briefs/` | writing commands go through a permission prompt |
 | `brain-report` | a status report, sprint review or per-owner update | read-only summary, or `brain report` after a yes; proposes publishing through the Artifact tool or a Slack draft | only `report.*`, after a yes |
 | `whatif` | "what happens if this ticket moves or goes to someone else" | runs the dry run, explains every broken rule and its fix; for overload uses one `--relieve`, for "where can it go" one `--find` | never; the owner runs `--write` |
@@ -500,7 +501,7 @@ The credential is never written to a file, logged, or accepted as a command-line
 `mcp/brain-mcp.mjs` is a read-only MCP server (stdio, no dependencies) with three tools, `ready`, `whatif` (dry run only) and `ticket`, returning the same text as the CLI. It is **off by default**: the plugin has no `mcpServers` entry and no `.mcp.json`, so a default install shows `MCP servers (0)` and pays nothing for it. To enable it for yourself:
 
 ```bash
-claude mcp add brain -- node /absolute/path/to/project-brain/mcp/brain-mcp.mjs
+claude mcp add brain -- node /absolute/path/to/open-brain/mcp/brain-mcp.mjs
 ```
 
 Cost: about 490 estimated tokens of tool definitions per session on a client that loads them up front. Claude Code 2.1.329 was seen to defer them and load them on demand through `ToolSearch`; the size of that deferred entry is not measured. Verified with Claude Code 2.1.329: it connects, lists its tools, and in one owner-run session the model made 3 correct calls. Not verified: other clients, other versions. It duplicates the CLI, so enable it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
@@ -616,7 +617,7 @@ What is verified live, and what only against fixtures:
 |---|---|---|
 | The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `BRAIN_CARD`; run `brain card` by hand to see any error |
 | The session starts with `brain: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet, or the data is in an older format | run `brain build`, or `brain migrate --write` first when the line says so |
-| `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/OpenBrain/bin/brain ...`, or add that `bin/` directory to your PATH |
+| `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/open-brain/bin/brain ...`, or add that `bin/` directory to your PATH |
 | `note: .brain: data format 0 is older than 1` | data written before `format.json` existed | `brain migrate`, then `brain migrate --write` |
 | `STALE: the text files changed since the index was built` | text edited after the last build | `brain build` |
 | `error: the index is stale ... export would overwrite them` | `brain export` over a stale index | `brain build`, then redo the index change |
@@ -635,7 +636,7 @@ What is verified live, and what only against fixtures:
 
 **Where is my data?** In your repository, as JSONL text in the brain directory, versioned by git. Nothing is uploaded. The SQLite index is a local cache you can delete at any time.
 
-**How do I uninstall?** `claude plugin uninstall project-brain@project-brain-marketplace`, then optionally `claude plugin marketplace remove project-brain-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
+**How do I uninstall?** `claude plugin uninstall open-brain@open-brain-marketplace`, then optionally `claude plugin marketplace remove open-brain-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
 
 **Why SQLite, if the text is the truth?** Queries over thousands of tickets and links (chains, loads, readiness) are fast on an index and slow to re-parse every time. The index is rebuilt from text in well under a second at the measured plan size, carries a fingerprint so a stale index is reported, and is never committed. `node:sqlite` is built into Node, so there is no dependency.
 

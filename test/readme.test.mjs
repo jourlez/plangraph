@@ -68,7 +68,7 @@ test('every in-page anchor matches a heading, and the table of contents lists ev
 
 test('the CI badge is exactly this repository\'s ci.yml badge, linked to the workflow page', () => {
   const repo = plugin.repository;
-  assert.equal(repo, 'https://github.com/jourlez/OpenBrain');
+  assert.equal(repo, 'https://github.com/jourlez/open-brain');
   const badge = `[![ci](${repo}/actions/workflows/ci.yml/badge.svg)](${repo}/actions/workflows/ci.yml)`;
   assert.ok(readme.includes(badge), 'badge line missing or changed');
   assert.equal([...readme.matchAll(/badge\.svg/g)].length, 1, 'exactly one badge');

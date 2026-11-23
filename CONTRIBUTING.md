@@ -1,6 +1,6 @@
 # Contributing
 
-Contribute through issues and pull requests on the project's GitHub repository (jourlez/OpenBrain): open an issue first for anything larger than a small fix, then send a pull request that passes the checks below.
+Contribute through issues and pull requests on the project's GitHub repository (jourlez/open-brain): open an issue first for anything larger than a small fix, then send a pull request that passes the checks below.
 
 ## Setup
 - Node 24.2 or newer. There are no runtime dependencies and nothing to install to run the tests.

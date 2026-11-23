@@ -1,4 +1,4 @@
-# project-brain: engineering frontier, threat model and audit
+# open-brain: engineering frontier, threat model and audit
 
 Date: 2026-11-22. Scope: bin/*, lib/*.mjs, hooks/, skills/, docs/CONTRACT.md, docs/JIRA.md, .claude-plugin/*. No project code was modified. All reproductions ran in a throwaway fixture (a git repo made by `brain init` in the session scratchpad, `fx/`, plus decoy targets next to it). Evidence tags: VERIFIED = primary source read or reproduced locally; SECONDARY = reputable secondary source; UNVERIFIED = reasoning or search snippet only.
 
@@ -88,13 +88,13 @@ Zero runtime npm deps (good: `package.json` has no dependencies; node:sqlite bui
 - Consumers verify with `gh attestation verify <file> --repo OWNER/REPO` (add `--signer-workflow` for the reusable workflow).
 - SBOM: with zero npm deps the SBOM is the Python lock plus the Node runtime requirement. Generate CycloneDX for the solver env (`cyclonedx-py` from the lock; UNVERIFIED exact CLI) and attach to the release; prefer attesting the SBOM with `actions/attest` (`sbom-path`) rather than inventing a signing step. Do not claim an SBOM for the JS side beyond "no dependencies", and enforce that claim with a CI test that `package.json` has no `dependencies`/`devDependencies`.
 - cosign: not needed if you use GitHub attestations (they use Sigstore); add cosign only if you must support verification off GitHub (UNVERIFIED necessity).
-- Reproducible builds: there is nothing to compile. Make the release tarball reproducible with `git archive --format=tar --prefix=project-brain-$V/ $TAG | gzip -n` and `export-subst`-free `.gitattributes`; then the sha256 is stable across machines (standard git behavior; also set `SOURCE_DATE_EPOCH` not needed because git archive uses the commit time).
+- Reproducible builds: there is nothing to compile. Make the release tarball reproducible with `git archive --format=tar --prefix=open-brain-$V/ $TAG | gzip -n` and `export-subst`-free `.gitattributes`; then the sha256 is stable across machines (standard git behavior; also set `SOURCE_DATE_EPOCH` not needed because git archive uses the commit time).
 
 ### 3.4 Claude plugin marketplace: minimum safe release process (VERIFIED, code.claude.com/docs/en/plugins/marketplace-reference)
 
 - Plugin sources `github`, `url`, `git-subdir` accept `ref` (branch/tag) and `sha` (full 40-char lowercase commit); with both set, sha wins and install still works if the tag is later deleted. A relative `./` source pins to whatever commit of the marketplace repo the user has.
-- A marketplace itself can be pinned by `ref`, including a full SHA (Claude Code v2.1.324+), except for reserved names: `extraKnownMarketplaces: {"project-brain": {"source": {"source":"github","repo":"OWNER/project-brain","ref":"<40-hex>"}}}`. Plugin `version` is the commit sha when `version` is omitted from both manifests; `plugin.json` wins over the entry (so exactly one of them should set it).
-- Minimum safe process: (1) tag `vX.Y.Z` only from `main` with required reviews; (2) immutable GitHub Release (immutable releases prevent tag move/delete: SECONDARY via Microsoft/GitHub search results) with the attested tarball and its sha256; (3) release notes list the 40-char commit sha and the data `format_version` the release writes; (4) README install line pins the sha (`claude plugin marketplace add OWNER/project-brain#<sha>`); (5) `claude plugin validate .` and `node test/validate-plugin.mjs` are release gates; (6) set `plugin.json` `version` and keep marketplace entry without `version`; (7) never reuse a tag.
+- A marketplace itself can be pinned by `ref`, including a full SHA (Claude Code v2.1.324+), except for reserved names: `extraKnownMarketplaces: {"open-brain": {"source": {"source":"github","repo":"OWNER/open-brain","ref":"<40-hex>"}}}`. Plugin `version` is the commit sha when `version` is omitted from both manifests; `plugin.json` wins over the entry (so exactly one of them should set it).
+- Minimum safe process: (1) tag `vX.Y.Z` only from `main` with required reviews; (2) immutable GitHub Release (immutable releases prevent tag move/delete: SECONDARY via Microsoft/GitHub search results) with the attested tarball and its sha256; (3) release notes list the 40-char commit sha and the data `format_version` the release writes; (4) README install line pins the sha (`claude plugin marketplace add OWNER/open-brain#<sha>`); (5) `claude plugin validate .` and `node test/validate-plugin.mjs` are release gates; (6) set `plugin.json` `version` and keep marketplace entry without `version`; (7) never reuse a tag.
 - Consider declaring `"engines": {"claude-code": ">=2.1.324"}` in the entry only if you accept older versions rejecting `marketplace.json` (VERIFIED warning in the reference: v2.0.15-2.1.75 reject the whole file when `engines` is present). Hook uses `${CLAUDE_PLUGIN_ROOT}/bin/brain` directly; on Windows that script has no `.exe` association (UNVERIFIED, likely broken), prefer `"command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/bin/brain", "card", "--if-present"]`.
 
 ### 3.5 GitHub Actions hardening (VERIFIED, docs.github.com secure-use)
@@ -257,21 +257,21 @@ jobs:
       - name: reproducible source tarball
         run: |
           V="${GITHUB_REF_NAME#v}"
-          git archive --format=tar --prefix="project-brain-$V/" "$GITHUB_SHA" | gzip -n > "project-brain-$V.tar.gz"
-          sha256sum "project-brain-$V.tar.gz" > "project-brain-$V.tar.gz.sha256"
+          git archive --format=tar --prefix="open-brain-$V/" "$GITHUB_SHA" | gzip -n > "open-brain-$V.tar.gz"
+          sha256sum "open-brain-$V.tar.gz" > "open-brain-$V.tar.gz.sha256"
       - name: solver SBOM (CycloneDX) from the lock
         run: |
           pipx run uv export --script bin/brain-solve --format cyclonedx1.5 -o sbom.cdx.json || true
         # UNVERIFIED flag support: confirm `uv export --format` values for your uv version before relying on this step.
       - uses: actions/attest@<SHA> # v4 (successor of attest-build-provenance)
         with:
-          subject-path: project-brain-*.tar.gz
+          subject-path: open-brain-*.tar.gz
       - name: create immutable release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" project-brain-*.tar.gz project-brain-*.tar.gz.sha256 \
-            --title "$GITHUB_REF_NAME" --notes-file <(printf 'Commit: %s\nVerify: gh attestation verify project-brain-*.tar.gz --repo %s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY")
+          gh release create "$GITHUB_REF_NAME" open-brain-*.tar.gz open-brain-*.tar.gz.sha256 \
+            --title "$GITHUB_REF_NAME" --notes-file <(printf 'Commit: %s\nVerify: gh attestation verify open-brain-*.tar.gz --repo %s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY")
 ```
 
 Notes: the build step runs in the same job as attestation, so this is SLSA Build L2; to claim L3, move the tarball+attest steps into a separate reusable workflow in a different repo or path called with `uses:` and verify with `--signer-workflow` (GitHub docs, VERIFIED via search). Enable "immutable releases" and "require actions pinned to SHA" in repo settings, tag protection for `v*`, and Dependabot:

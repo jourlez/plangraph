@@ -29,7 +29,7 @@ test('parseTrace: plugin arm of pilot #1 = skill fired, brain exited 127, a deni
   assert.equal(t.plugin.brainCalls, 1);
   assert.equal(t.plugin.brainRan, 0);
   assert.equal(t.plugin.brainNotFound, 1);
-  assert.deepEqual(t.plugin.skills, ['project-brain:whatif']);
+  assert.deepEqual(t.plugin.skills, ['open-brain:whatif']);
   assert.equal(pluginUsed(t.plugin), false, 'a skill without a working brain is not plugin evidence');
   assert.equal(t.denials, 1);
   assert.ok(t.init && t.init.plugins.length > 0);
@@ -43,7 +43,7 @@ test('parseTrace: plugin arm of pilot #1 = skill fired, brain exited 127, a deni
 test('parseTrace: a brain call that ran counts as plugin use; denied and 127 calls do not; bad lines are skipped', () => {
   const ev = (o) => JSON.stringify(o);
   const lines = [
-    'not json', '{"broken":', ev({ type: 'system', subtype: 'init', plugins: [{ name: 'project-brain' }], skills: [], tools: ['Bash'] }),
+    'not json', '{"broken":', ev({ type: 'system', subtype: 'init', plugins: [{ name: 'open-brain' }], skills: [], tools: ['Bash'] }),
     ev({ type: 'system', subtype: 'hook_response', hook_event: 'SessionStart', exit_code: 0, stdout: 'brain 1a2b | 60 tickets' }),
     ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Bash', input: { command: 'cd plan && brain ready ZED-1' } }] } }),
     ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'a', content: [{ type: 'text', text: 'ZED-1 not ready: waits ZED-2' }], is_error: true }] } }),

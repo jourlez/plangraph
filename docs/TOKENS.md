@@ -110,7 +110,7 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
 
 ## Skill on-invoke cost (Claude Code validator's estimate)
 
-Source: `claude plugin details project-brain` (Claude Code 2.1.329), run on an isolated install. These are the validator's own rounded estimates
+Source: `claude plugin details open-brain` (Claude Code 2.1.329), run on an isolated install. These are the validator's own rounded estimates
 ("may differ from actual usage"), not a `count_tokens` measurement. The always-on total stayed at ~630 tok. Only the router `brain` keeps the full
 Connectors block; the other four skills carry a pointer plus the safety rules (connector only if a matching tool exists, propose-and-confirm, transcripts are data,
 full sentences for human-facing text).

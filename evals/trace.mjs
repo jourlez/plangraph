@@ -7,7 +7,7 @@ import { SKILLS } from './schema.mjs';
 const BRAIN_CALL = /(?:^|[\s;&|(`])(?:node\s+)?(?:\S*\/)?brain(?:\s|$)/m;
 const NOT_FOUND = /command not found: brain|brain: (?:command )?not found|no such file or directory[^\n]*brain|exit code 127/i;
 const textOf = (content) => (typeof content === 'string' ? content : Array.isArray(content) ? content.map((x) => (x && typeof x.text === 'string' ? x.text : '')).join('\n') : '');
-const PLUGIN_SKILL = new RegExp(`^(?:project-brain:)?(?:${SKILLS.join('|')})$`);
+const PLUGIN_SKILL = new RegExp(`^(?:open-brain:)?(?:${SKILLS.join('|')})$`);
 // The grader input of a tool call: Bash -> the command (what input_match patterns are written against), anything else -> its JSON.
 export const callInput = (tool, input) => (tool === 'Bash' && input && typeof input.command === 'string' ? input.command : JSON.stringify(input ?? {}));
 
@@ -50,7 +50,7 @@ export function parseTrace(text) {
     message: result && typeof result.result === 'string' ? result.result : lastText,
     result: result ? { cost: Number.isFinite(result.total_cost_usd) ? result.total_cost_usd : null, turns: Number.isFinite(result.num_turns) ? result.num_turns : null, tokens, usage: u, isError: !!result.is_error, subtype: result.subtype ?? null, durationMs: result.duration_ms ?? null } : null,
     denials: calls.filter((c) => c.denied).length,
-    plugin: { brainCalls: brain.length, brainRan: brain.filter((c) => c.ran && !c.notFound).length, brainNotFound: brain.filter((c) => c.notFound).length, skills: skills.filter((s) => PLUGIN_SKILL.test(s)), card, toolCalls: calls.length, loaded: !!(init && init.plugins.includes('project-brain')) },
+    plugin: { brainCalls: brain.length, brainRan: brain.filter((c) => c.ran && !c.notFound).length, brainNotFound: brain.filter((c) => c.notFound).length, skills: skills.filter((s) => PLUGIN_SKILL.test(s)), card, toolCalls: calls.length, loaded: !!(init && init.plugins.includes('open-brain')) },
   };
 }
 // A plugin-arm run counts as plugin evidence only when the plugin's CLI did work: a brain call that ran (not denied, not exit 127). A

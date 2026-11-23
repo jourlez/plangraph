@@ -1,4 +1,4 @@
-# project-brain: language and platform research and code audit
+# open-brain: language and platform research and code audit
 
 Date: 2026-11-22. Machine: Node v24.18.0 (V8 13.6, ICU 78.3, undici 7.28, SQLite 3.53.1), macOS.
 Scope: bin/brain (547 lines), bin/brain-merge, lib/*.mjs, docs/CONTRACT.md, package.json. No code was edited.

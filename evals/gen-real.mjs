@@ -33,7 +33,7 @@ const inside = (child, parent) => { const r = path.relative(parent, child); retu
 // The output directory must be outside this repository and outside the source project, and empty (or not yet existing).
 export function checkOut(out, { from, repo = REPO_ROOT }) {
   const o = realOrParent(out);
-  if (inside(o, fs.realpathSync(repo))) refuse('refusing to write real-project data inside the project-brain repository; choose a temp directory');
+  if (inside(o, fs.realpathSync(repo))) refuse('refusing to write real-project data inside the open-brain repository; choose a temp directory');
   if (inside(o, fs.realpathSync(from))) refuse('refusing to write inside the source project; choose a temp directory');
   if (fs.existsSync(o)) {
     const st = fs.lstatSync(o);

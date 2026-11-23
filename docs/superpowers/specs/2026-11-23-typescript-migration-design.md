@@ -1,4 +1,4 @@
-# TypeScript migration of project-brain: design
+# TypeScript migration of open-brain: design
 
 Date: 2026-11-23. Status: approved by the owner in conversation, to be executed after the Wednesday token reset.
 Plan: `docs/superpowers/plans/2026-11-23-typescript-migration.md`.
@@ -23,7 +23,7 @@ This supersedes the conclusion of `docs/research/language-platform.md` section 0
 
 - Node 24.18.0 runs `.ts` files directly by stripping types (`process.features.typescript` is `"strip"`), with no flag and no warning on stderr.
 - It rejects TypeScript-only syntax that needs code generation (for example `enum`). `erasableSyntaxOnly` already is `true` in `tsconfig.json`, so `tsc` catches it first.
-- Stripping is refused for files under a `node_modules` directory. The plugin is installed at `~/.claude/plugins/cache/.../project-brain/<version>/`, which has no `node_modules` segment. A test must pin this (section 8).
+- Stripping is refused for files under a `node_modules` directory. The plugin is installed at `~/.claude/plugins/cache/.../open-brain/<version>/`, which has no `node_modules` segment. A test must pin this (section 8).
 - Imports of `.ts` files must name the `.ts` extension. `allowImportingTsExtensions` makes `tsc` accept that.
 - TypeScript 7.0.2 (native compiler) and Biome 2.6.8 are already devDependencies. `@types/node` is 24.19.2.
 - Each load strips the file again. Startup cost is therefore a risk for the `SessionStart` hook, which runs `brain card` on every session (timeout 10 s). Section 8 sets a budget.

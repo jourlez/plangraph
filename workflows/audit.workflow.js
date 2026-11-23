@@ -8,7 +8,7 @@ export const meta = {
   phases: [{ title: 'Audit' }, { title: 'Reverify' }],
 }
 const DIR = '/ABSOLUTE/PATH/TO/UNITS'            // the --out folder of `brain units`
-const BRIEF = '/ABSOLUTE/PATH/TO/project-brain/briefs'
+const BRIEF = '/ABSOLUTE/PATH/TO/open-brain/briefs'
 const units = ['u001', 'u002']                   // ids from DIR/units.json
 const AUDIT = { type: 'object', properties: { unit: { type: 'string' }, ready: { type: 'integer' }, blocked: { type: 'integer' }, external: { type: 'integer' }, unsure: { type: 'integer' }, needs_recheck: { type: 'integer' } }, required: ['unit', 'ready', 'blocked', 'external', 'unsure', 'needs_recheck'] }
 const RV = { type: 'object', properties: { unit: { type: 'string' }, rechecked: { type: 'integer' }, confirmed_block: { type: 'integer' }, block_refuted: { type: 'integer' } }, required: ['unit', 'rechecked', 'confirmed_block', 'block_refuted'] }

@@ -91,7 +91,7 @@ test('the real claude plugin eval loads every case, warns about none, runs the f
   const out = `${r.stdout || ''}${r.stderr || ''}`;
   // the CLI keeps (and seals) the sandbox of a failed run; remove the ones this test caused
   for (const m of out.matchAll(/kept temp \(run failed\): (\/\S+)/g)) { spawnSync('chmod', ['-R', 'u+rwx', m[1]]); fs.rmSync(m[1], { recursive: true, force: true }); }
-  assert.ok(/Plugin under test: "project-brain"/.test(out), out.slice(0, 2000));
+  assert.ok(/Plugin under test: "open-brain"/.test(out), out.slice(0, 2000));
   assert.ok(!/invalid case|case\.yaml:|Couldn't load|unknown frontmatter/.test(out), `the CLI rejected a generated case:\n${out.slice(0, 3000)}`);
   assert.ok(!/cannot pass with the granted tools/.test(out), `a grader cannot pass with the granted tools:\n${out.slice(0, 3000)}`);
   assert.ok(!/scaffold failed/.test(out), `the generated scaffold failed inside the CLI:\n${out.slice(0, 3000)}`);

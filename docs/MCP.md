@@ -18,7 +18,7 @@ Pick one. The server finds the repository from its working directory, the way `b
 1. Claude Code, one project, private to you (stored in your user config, not in the repo):
 
    ```
-   claude mcp add brain -- node /absolute/path/to/project-brain/mcp/brain-mcp.mjs
+   claude mcp add brain -- node /absolute/path/to/open-brain/mcp/brain-mcp.mjs
    ```
 
 2. A project `.mcp.json` you commit in YOUR repository (Claude Code asks each person to approve it once):
@@ -29,13 +29,13 @@ Pick one. The server finds the repository from its working directory, the way `b
        "brain": {
          "type": "stdio",
          "command": "node",
-         "args": ["/absolute/path/to/project-brain/mcp/brain-mcp.mjs"]
+         "args": ["/absolute/path/to/open-brain/mcp/brain-mcp.mjs"]
        }
      }
    }
    ```
 
-Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details project-brain` shows its
+Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details open-brain` shows its
 source). The installed copy's path contains the version, so it changes on update; a checkout does not. Node 24.2 or newer is needed.
 
 Turning it off: `claude mcp remove brain`, or delete the entry. Do not add the snippet to the plugin's own root: Claude Code would then
@@ -108,8 +108,8 @@ only the handshake ("legacy") revisions; clients that also speak those (dual-era
 
 Claude Code 2.1.329 (the native CLI), in an isolated config (`CLAUDE_CONFIG_DIR` and `HOME` set to a temporary directory), 2026-11-22:
 
-- Default plugin install (`claude plugin marketplace add <checkout>`, `claude plugin install project-brain@project-brain-marketplace`,
-  `claude plugin details project-brain`): `MCP servers (0)`, always-on cost `~630 tok`, the same before and after this change.
+- Default plugin install (`claude plugin marketplace add <checkout>`, `claude plugin install open-brain@open-brain-marketplace`,
+  `claude plugin details open-brain`): `MCP servers (0)`, always-on cost `~630 tok`, the same before and after this change.
 - Opt-in: `claude mcp add brain -- <script>` in a scratch git repository, then `claude mcp list` and `claude mcp get brain`:
   `✔ Connected`. A tee wrapper logged the exchange: Claude Code first sent `server/discover` (protocol 2026-07-28), got -32601, fell back
   to `initialize` with `protocolVersion` 2025-11-25, which was echoed, then sent `notifications/initialized` and `tools/list` and got the
@@ -145,7 +145,7 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | - whatif | 833 | 209 |
 | - ticket | 530 | 133 |
 | tools/list reply line | 2024 | 506 |
-| initialize reply line | 169 | 43 |
+| initialize reply line | 166 | 42 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|

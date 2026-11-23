@@ -159,7 +159,7 @@ test('every brain command a skill names is a registered command', () => {
   }
   for (const n of names) for (const m of skills[n].body.matchAll(/`(brain-[a-z-]+)(?= |`)/g)) {
     if (['brain-solve-run', 'brain-solve', 'brain-merge'].includes(m[1])) continue;
-    assert.ok(names.includes(m[1]) || /\/project-brain:/.test(skills[n].body), `${n}: unknown ${m[1]}`);
+    assert.ok(names.includes(m[1]) || /\/open-brain:/.test(skills[n].body), `${n}: unknown ${m[1]}`);
   }
 });
 

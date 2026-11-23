@@ -103,7 +103,7 @@ function hashTree(dir) {
 test('initialize echoes a supported version and answers the latest one for an unsupported version', async () => {
   const r = await session(lines(INIT, req(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {} })));
   assert.equal(r.code, 0);
-  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'project-brain', version: SERVER_VERSION } } });
+  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'open-brain', version: SERVER_VERSION } } });
   assert.deepEqual(r.msgs[1].error.code, -32600, 'a second initialize is refused');
   for (const v of PROTOCOL_VERSIONS) {
     const [m] = await inproc(req(1, 'initialize', { protocolVersion: v, capabilities: {} }) + '\n');
