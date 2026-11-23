@@ -1,0 +1,9 @@
+$ brain ready --person Ana --sprint 1
+exit: 0
+--- stdout
+Ana S1: ready 2 of 5, done 0, not ready 3 (waiting on producers 1, open items 2)
+ready: T-1 T-6
+waiting on producers (1): T-27
+open items (2): T-12 T-5
+(statuses as of the last build: pass --jira snapshot.json for live ones)
+--- stderr

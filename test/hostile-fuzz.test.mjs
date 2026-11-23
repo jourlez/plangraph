@@ -51,7 +51,7 @@ async function makeFixture(/** @type {string} */ root) {
   assert.equal((await run(root, ['init'])).status, 0);
   const B = '.brain/', T = (/** @type {Record<string, unknown>} */ o) => ({ epic: '', jira_status: 'To Do', verdict: '', ...o });
   put(root, B + 'config.json', JSON.stringify({
-    _doc: M('doc'), first_sprint: 1, end_sprint: 6, caps: { default: 10, [OWNER]: 8, [M('capname')]: 3 }, min_per_sprint: { [M('minname')]: 1 }, minimize_load_of: M('minload'),
+    _doc: M('doc'), first_sprint: 1, end_sprint: 6, caps: { default: 10, [OWNER]: 0, [M('capname')]: 3 }, min_per_sprint: { [M('minname')]: 1 }, minimize_load_of: M('minload'),
     default_ref: 'HEAD', brain_rules_version: 1, closed_statuses: ['Done', M('closed')], frozen_statuses: ['Done'], ignore_link_kinds: [M('ignorekind')],
     owner_of_decisions: M('decider'), open_items: { rules: [{ kind: 'gap', owner: M('ruleowner'), due: 'before_ticket_sprint' }] }, jira: { base_url: M('jiraurl'), jql: M('jql') }, extra_name: M('cfgextra'),
   }, null, 2) + '\n');
@@ -115,8 +115,9 @@ after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });
 const SHAPES = {
   ticket: [['H-1'], [KEY], ['H-3']], neighbors: [['H-2', '2'], [KEY]], chain: [['H-3'], [KEY]], sprint: [['2'], ['1']], person: [[OWNER], ['Ana']],
   blockers: [[]], findings: [[], [FKIND], ['gap']], rules: [[], [LTOPIC], ['--repo']], check: [[]], verify: [[], ['sched.json']],
-  ready: [['H-2'], ['H-3'], [KEY], ['H-2', '--jira', 'snap.json'], [OWNER]], card: [[], ['--line'], ['--write'], ['--if-present']],
-  whatif: [['H-2', '--sprint', '1'], ['H-1', '--to', 'Ana', '--sprint', '3'], ['H-2', '--to', OWNER], ['H-2', '--sprint', '4', '--apply-plan'], ['H-1', '--sprint', '2', '--slip', '--apply-plan', '--write'], [KEY, '--sprint', '5']],
+  ready: [['H-2'], ['H-3'], [KEY], ['H-2', '--jira', 'snap.json'], [OWNER], ['--person', OWNER], ['--person', OWNER, '--sprint', '2'], ['--sprint', '2'], ['--person', 'Ana', '--sprint', '3', '--jira', 'snap.json'], ['--person', M('nobody'), '--sprint', '2']], card: [[], ['--line'], ['--write'], ['--if-present']],
+  whatif: [['H-2', '--sprint', '1'], ['H-1', '--to', 'Ana', '--sprint', '3'], ['H-2', '--to', OWNER], ['H-2', '--sprint', '4', '--apply-plan'], ['H-1', '--sprint', '2', '--slip', '--apply-plan', '--write'], [KEY, '--sprint', '5'],
+    ['--relieve', OWNER, '--sprint', '2', '--owner-change'], ['--relieve', OWNER, '--sprint', '1'], ['--relieve', OWNER, '--sprint', '1', '--owner-change', '--earlier'], ['--relieve', 'Ana', '--sprint', '2'], ['--relieve', M('nobody'), '--sprint', '1']],
   'schedule-load': [['sched.json', ARCHIVE]], export: [[]], build: [[]], init: [[]], migrate: [[]], doctor: [[]],
   stale: [[], [SAFE_REFS], [SAFE_REFS, '--list', '--full'], [SAFE_REFS, '--jira', 'snap.json']], 'refs-update': [[], [SAFE_REFS], [SAFE_REFS, 'H-1']],
   units: [['--keys', 'H-1,H-2,H-3', '--out', 'u', '--text', 'jt'], [SAFE_REFS, '--stale', '--full', '--out', 'u2']], bundle: [['H-1', 'H-2', '--text', 'jt'], ['H-3']],
@@ -223,4 +224,15 @@ test('hole: schedule-load echoes the archive name as one sanitized line (it prin
   const r = await run(dir, ['schedule-load', 'sched.json', ARCHIVE]);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, `loaded as current; previous plan kept as ${oneLine(ARCHIVE, 200)}; run \`brain export\` to save it as text\n`);
+});
+test('relieve and bulk ready with hostile names: one sanitized line per name, and no command built from an unsafe key or name', async () => {
+  let r = await run(FIXTURE, ['whatif', '--relieve', OWNER, '--sprint', '2', '--owner-change']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(r.stdout.split('\n').slice(0, 2), [
+    `RELIEF: ${oneLine(OWNER, 60)} S2 1/0 -> 0/0 with 1 move (slip 0, 1 owner change)`,
+    `${oneLine(KEY, 120)} 1 SP: ${oneLine(OWNER, 60)} S2 > Ana S2 | (no shell-safe command: a key or name has unsafe characters)`]);
+  const j = JSON.parse((await run(FIXTURE, ['whatif', '--relieve', OWNER, '--sprint', '2', '--owner-change', '--json'])).stdout);
+  assert.deepEqual([j.data.moves[0].command, j.next], [null, []]);
+  r = await run(FIXTURE, ['ready', '--person', OWNER, '--sprint', '2']);
+  assert.equal(r.stdout.split('\n')[0], `${oneLine(OWNER, 60)} S2: ready 0 of 1, done 0, not ready 1 (waiting on producers 1, open items 1, verdict not READY 1)`);
 });

@@ -52,7 +52,9 @@ eval plan), so other servers do not skew the token counts.
 | `whatif` | `key`, `to`, `sprint`, `earlier`, `owner_change`, `slip`, `strict`, `verbose` | `brain whatif KEY [--to P] [--sprint N] [flags] [-v]`, never `--apply-plan` or `--write` |
 | `ticket` | `key`, `verbose` | `brain ticket KEY [-v]` |
 
-Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command that writes.
+Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command that writes. The bulk forms `brain ready --person NAME
+--sprint N` and `brain whatif --relieve NAME --sprint N` are read-only and bounded, but they are CLI-only on purpose: adding their
+arguments would raise the up-front tool-definition cost every MCP session pays (the table below), for a server that is off by default.
 
 A call runs the same command through the CLI runner (`src/cli.mjs`) with a collecting output, so fencing of untrusted text, output
 sanitization, the 40-line bound, the STALE warning and the error lines are the CLI's own. The result is one text item: the command's

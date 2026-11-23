@@ -168,6 +168,42 @@ export function oracleReady(inst, items = [], snapshot = null) {
   return res;
 }
 
+// ---- bulk ready oracle (`brain ready --person NAME --sprint N`, CONTRACT) ----
+// Scope: the tickets whose current placement is valid and has that owner (exact) and/or that sprint (at least one filter). Within it each
+// ticket is exactly one of: ready (oracleReady), done (its own status closed, as in (1) above), not ready. A not-ready ticket is in every
+// group whose cause it has: verdict (a verdict other than READY), openItems (an open finding or an open register row), waiting (a live
+// producer that is a known ticket and is not done by the producer rule of (5)). Done tickets are in no group.
+/** @param {any} inst @param {any[]} items @param {any} snapshot @param {{ owner?: string, sprint?: number }} filter */
+export function oracleReadyScope(inst, items, snapshot, { owner, sprint }) {
+  const tk = new Map(inst.tickets.map((t) => [t.key, t])), sched = inst.sched || new Map();
+  const sp = (k) => String(k).startsWith('sp:');
+  const statusOf = (t) => (snapshot && has(snapshot, t.key) ? snapshot[t.key]?.status : t.jira_status);
+  const closedList = ['Done', ...((inst.config && inst.config.closed_statuses) || [])];
+  const isDone = (t) => (sp(t.key) ? t.impl_status === 'done' : closedList.includes(statusOf(t)));
+  const shut = new Set(items.filter((i) => i.status === 'done').map((i) => JSON.stringify([i.key, i.kind])));
+  const ready = oracleReady(inst, items, snapshot);
+  const out = { keys: [], ready: [], done: [], notReady: [], waiting: [], openItems: [], verdict: [] };
+  for (const t of [...inst.tickets].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))) {
+    const p = sched.get(t.key);
+    if (!validPlacement(p) || (owner !== undefined && p.owner !== owner) || (sprint !== undefined && p.sprint !== sprint)) continue;
+    if (out.keys.includes(t.key)) continue; // a duplicate ticket row counts once
+    out.keys.push(t.key);
+    if (isDone(t)) { out.done.push(t.key); continue; }
+    if (ready.has(t.key)) { out.ready.push(t.key); continue; }
+    out.notReady.push(t.key);
+    if (t.verdict && t.verdict !== 'READY') out.verdict.push(t.key);
+    if ((inst.findings || []).some((f) => f.key === t.key && !shut.has(JSON.stringify([f.key, f.kind]))) || items.some((i) => i.key === t.key && i.status !== 'done')) out.openItems.push(t.key);
+    const waits = liveEdges(inst).some((e) => {
+      if (e.consumer !== t.key || !tk.has(e.producer)) return false;
+      const q = tk.get(e.producer);
+      if (sp(t.key) && sp(q.key)) return q.impl_status !== 'done';
+      return !closedList.includes(statusOf(q));
+    });
+    if (waits) out.waiting.push(t.key);
+  }
+  return out;
+}
+
 // ---- graph closure oracle (docs/STALE.md): stale = everything reachable from a changed ticket through consumers, any depth ----
 // edges: [[consumer, producer]]; seeds: changed tickets. Returns the set of nodes reachable from the seeds along producer -> consumer.
 export function consumerClosure(edges, seeds) {

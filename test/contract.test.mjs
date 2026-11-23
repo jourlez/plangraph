@@ -165,12 +165,12 @@ test('explain: every registered command within 400 estimated tokens; --json list
   assert.equal(j.v, 2); assert.equal(j.ok, true);
   assert.deepEqual(j.data.commands.map((c) => c.name), NAMES);
   const wi = j.data.commands.find((c) => c.name === 'whatif');
-  assert.equal(wi.writes, 'index'); assert.deepEqual(wi.positionals, [1, 1]);
+  assert.equal(wi.writes, 'index'); assert.deepEqual(wi.positionals, [0, 1]); // a KEY, or --relieve NAME --sprint N
   assert.ok(wi.options.some((o) => o.name === 'sprint' && o.type === 'integer'));
   const one = run(R, ['explain', 'whatif']);
   assert.equal(one.status, 0);
   assert.match(one.stdout, /^whatif: dry run of one reassignment/m);
-  assert.match(one.stdout, /^usage: brain whatif ARG \[options\]$/m);
+  assert.match(one.stdout, /^usage: brain whatif \[ARG\] \[options\]$/m); // the KEY is optional: --relieve NAME --sprint N takes none
   assert.match(one.stdout, /--sprint N/);
   assert.match(one.stdout, /^writes: index$/m);
   assert.ok(estTokens(one.stdout) <= 200, `${estTokens(one.stdout)}`);

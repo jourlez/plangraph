@@ -79,6 +79,8 @@ function normalize(text, root) {
   return t.replace(/\b[0-9a-f]{40}\b/g, '<SHA40>').replace(/"imported_at":"[^"]*"/g, '"imported_at":"<TS>"').replace(/built (<?\d+\w*|just now|moments?) ?\w* ago/g, 'built <AGE> ago').replace(/node v\d+\.\d+\.\d+/g, 'node v<NODE>').replace(/brain-golden-\w+/g, '<TMP>');
 }
 
+// Ana's capacity lowered in config.json (read at run time, not part of the source fingerprint): her sprint loads go over cap for relieve.
+const capAna = (root, cap) => { const f = path.join(root, '.brain/config.json'), c = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify({ ...c, caps: { ...c.caps, Ana: cap } }, null, 2) + '\n'); };
 // A case: { name, args, repo: 'fixture' (default, fresh copy of the built fixture) | 'sp' | 'empty', stdin, setup(root), files: [rel paths printed after the run] }
 const J = (...a) => [...a, '--json'];
 const CASES = [
@@ -99,9 +101,12 @@ const CASES = [
   { name: 'rules-repo-nowolf', args: ['rules', '--repo'], setup: (r) => fs.rmSync(path.join(r, '.wolf'), { recursive: true }) },
   { name: 'check', args: ['check'] }, { name: 'check-json', args: J('check') },
   { name: 'ready', args: ['ready', 'T-8'] }, { name: 'ready-ok', args: ['ready', 'T-1'] }, { name: 'whatif-ok', args: ['whatif', 'T-40', '--sprint', '6'] }, { name: 'ready-json', args: J('ready', 'T-8') }, { name: 'ready-blocked', args: ['ready', 'T-3'] }, { name: 'ready-noarg', args: ['ready'] },
+  { name: 'ready-bulk', args: ['ready', '--person', 'Ana', '--sprint', '1'] }, { name: 'ready-bulk-json', args: J('ready', '--sprint', '3') }, { name: 'ready-bulk-both', args: ['ready', 'T-8', '--sprint', '3'] },
   { name: 'verify', args: ['verify'] }, { name: 'verify-json', args: J('verify') },
   { name: 'whatif', args: ['whatif', 'T-9', '--sprint', '4'] }, { name: 'whatif-json', args: J('whatif', 'T-9', '--sprint', '4') },
   { name: 'whatif-to', args: ['whatif', 'T-9', '--to', 'Ben'] }, { name: 'whatif-noarg', args: ['whatif'] },
+  { name: 'whatif-relieve', args: ['whatif', '--relieve', 'Ana', '--sprint', '3'], setup: (r) => capAna(r, 12) }, { name: 'whatif-relieve-json', args: J('whatif', '--relieve', 'Ana', '--sprint', '3'), setup: (r) => capAna(r, 12) },
+  { name: 'whatif-relieve-none', args: ['whatif', '--relieve', 'Ana', '--sprint', '1'], setup: (r) => capAna(r, 4) }, { name: 'whatif-relieve-write', args: ['whatif', '--relieve', 'Ana', '--sprint', '3', '--write'] },
   { name: 'forecast', args: ['forecast'] }, { name: 'forecast-json', args: J('forecast') },
   { name: 'forecast-nohistory', args: ['forecast'], setup: (r) => fs.rmSync(path.join(r, '.brain/history.jsonl')) },
   { name: 'simulate', args: ['simulate', '--runs', '50', '--seed', '3'] }, { name: 'simulate-json', args: J('simulate', '--runs', '50', '--seed', '3') },

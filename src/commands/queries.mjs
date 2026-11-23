@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { readDataCapped, presentDataFile } from '../../lib/jsonl.mjs';
 import { oneLine, fenceInline } from '../../lib/sanitize.mjs';
 import { makeGit } from '../../lib/gitsafe.mjs';
+import { BrainError } from '../errors.mjs';
 import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
@@ -224,9 +225,50 @@ async function verify(ctx, args) {
 }
 
 // ---- definition of ready: may this ticket be started now? (the rules: lib/ready.mjs, shared with blockers and report) ----
+// Bulk form: `brain ready --person NAME --sprint N` (either filter alone or both, no KEY). The same rules (lib/ready.mjs readyScope over
+// readySet), one answer: counts first, the ready keys (capped, -v more), each not-ready reason with a few example keys, the freshness note.
+// Exit 0 when at least one ticket may start, 1 when none (also when nothing is placed there). --json: every list (capped at 2000) and counts.
+const BULK = { ready: 25, readyV: 500, ex: 5, exV: 50, json: 2000 };
+/** @param {Ctx} ctx @param {Args} args @param {any} R */
+async function readyBulk(ctx, args, R) {
+  const v = args.values, out = ctx.io.out, model = modelFromDb(ctx), sprintN = /** @type {number | undefined} */ (v.sprint);
+  let owner;
+  if (v.person !== undefined) {
+    const W = await import('../../lib/whatif.mjs');
+    owner = W.resolvePerson(model, v.person);
+    if (owner === null) throw new BrainError('USAGE', '--person matches no single person in the plan (exact, case-insensitive or a unique first name)', sprintN === undefined ? {} : { hint: `\`brain sprint ${sprintN}\` lists its owners` });
+  }
+  const snap = v.jira !== undefined ? await loadJiraSnap(/** @type {string} */ (v.jira)) : null;
+  const { items } = await readItems(ctx), s = R.readyScope(model, { owner, sprint: sprintN }, items, snap);
+  const head = [owner === undefined ? '' : w(owner, 60), sprintN === undefined ? '' : `S${sprintN}`].filter(Boolean).join(' ');
+  const verb = verbose(args), list = (/** @type {string[]} */ ks, /** @type {number} */ n) => `${ks.slice(0, n).map((k) => w(k, 120)).join(' ')}${ks.length > n ? ` +${ks.length - n} more` : ''}`;
+  const verdictOf = (/** @type {string} */ k) => w(model.tickets.get(k)?.verdict ?? '');
+  const J = (/** @type {any[]} */ a) => a.slice(0, BULK.json);
+  const data = {
+    person: owner === undefined ? null : w(owner, 60), sprint: sprintN ?? null, total: s.keys.length,
+    counts: { ready: s.ready.length, done: s.done.length, notReady: s.notReady.length, waiting: s.waiting.length, openItems: s.blocked.length, verdict: s.verdict.length },
+    ready: J(s.ready).map((k) => w(k, 120)), done: J(s.done).map((k) => w(k, 120)), notReady: J(s.notReady).map((k) => w(k, 120)), waiting: J(s.waiting).map((k) => w(k, 120)),
+    openItems: J(s.blocked).map((/** @type {{ key: string, kinds: string[] }} */ b) => ({ key: w(b.key, 120), kinds: b.kinds.map((x) => w(x)) })), verdict: J(s.verdict).map((k) => ({ key: w(k, 120), verdict: verdictOf(k) })),
+    statuses: snap ? 'jira snapshot' : 'last build',
+  };
+  const next = nextList([s.ready.length ? nextCommand(['ticket', [s.ready[0]]]) : null, s.notReady.length ? nextCommand(['ready', [s.notReady[0]]]) : null]);
+  if (!s.keys.length) { out(`${head}: no placed tickets`); ctx.io.data?.(data, { next: [] }); return 1; }
+  const groups = /** @type {Array<[string, string[]]>} */ ([['waiting on producers', s.waiting], ['open items', s.blocked.map((/** @type {{ key: string }} */ b) => b.key)], ['verdict not READY', s.verdict]]).filter(([, ks]) => ks.length);
+  out(`${head}: ready ${s.ready.length} of ${s.keys.length}, done ${s.done.length}, not ready ${s.notReady.length}${groups.length ? ` (${groups.map(([n, ks]) => `${n} ${ks.length}`).join(', ')})` : ''}`);
+  out(`ready: ${s.ready.length ? list(s.ready, verb ? BULK.readyV : BULK.ready) : 'none'}`);
+  for (const [n, ks] of groups) out(`${n} (${ks.length}): ${list(ks, verb ? BULK.exV : BULK.ex)}`);
+  if (verb && s.done.length) out(`done (${s.done.length}): ${list(s.done, BULK.exV)}`);
+  if (verb || !snap) out(snap ? '(statuses from the Jira snapshot given)' : '(statuses as of the last build: pass --jira snapshot.json for live ones)');
+  ctx.io.data?.(data, { next });
+  return s.ready.length ? 0 : 1;
+}
+
 /** @param {Ctx} ctx @param {Args} args */
 async function ready(ctx, args) {
-  const R = await import('../../lib/ready.mjs'), [key] = args.positionals, out = ctx.io.out;
+  const R = await import('../../lib/ready.mjs'), [key] = args.positionals, out = ctx.io.out, bulk = args.values.person !== undefined || args.values.sprint !== undefined;
+  if (key !== undefined && bulk) throw usage('ready takes a KEY or --person/--sprint, not both');
+  if (key === undefined && !bulk) throw usage('ready needs a KEY, or --person NAME and/or --sprint N');
+  if (bulk) return readyBulk(ctx, args, R);
   const model = modelFromDb(ctx);
   const data = (/** @type {Record<string, unknown>} */ o, /** @type {string[]} */ next = []) => ctx.io.data?.({ key: w(key, 120), ...o }, { next });
   // the key argument is printed as one sanitized line: it can be a key taken from the data (units --stale, a next command)
@@ -329,6 +371,6 @@ export const commands = {
   rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' }, topic: { type: 'string', missing: TOPIC_USAGE }, all: B }, summary: 'learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)' },
   check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity and loops of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B }, summary: 'independent plan verifier (exit 1 on a violation)' },
-  ready: { run: ready, positionals: [1, 1], options: { jira: { type: 'string' } }, summary: 'may this ticket be started now? (exit 1 with reasons)' },
+  ready: { run: ready, positionals: [0, 1], options: { jira: { type: 'string' }, person: { type: 'string' }, sprint: { type: 'integer' } }, summary: 'may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start' },
   card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: { ...B, writes: ['git-config', 'gitattributes', 'merge-shim'] } }, guard: (/** @type {Record<string, unknown>} */ v) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
 };

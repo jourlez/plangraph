@@ -9,6 +9,16 @@ and the new limits and refusals listed under Changed.
 
 Added:
 
+- Relieve: `brain whatif --relieve NAME --sprint N [--earlier] [--owner-change]` (read-only, `--json` too) lists the smallest valid set of
+  single-ticket moves of that cell's tickets that brings the person's load to cap or under without any new violation (each set checked
+  with verifyPlan), with the exact `brain whatif` dry-run command of each move in an order where each passes alone, or `NO RELIEF` with
+  the reasons; a documented search budget is reported when hit. Changed: `brain whatif` with no argument now says `whatif needs a KEY, or
+  --relieve NAME --sprint N` (it said `expected 1 argument, got 0`).
+- Bulk ready: `brain ready --person NAME --sprint N` (either filter alone or both, no KEY) answers which of those tickets may start now in
+  one call: counts first, the ready keys (capped, `-v` more), each not-ready reason with example keys, `--json` with every list. Same rules
+  as `brain ready KEY` (lib/ready.mjs readyScope over readySet). Changed: `brain ready` with no argument now says `ready needs a KEY, or
+  --person NAME and/or --sprint N` (it said `expected 1 argument, got 0`), and readySet also returns `verdict` (the tickets whose verdict is
+  not READY) and takes an optional `{ keys }`.
 - Optional read-only MCP adapter, off by default: `mcp/brain-mcp.mjs` (stdio, hand-written JSON-RPC, no dependencies) with three tools,
   `ready`, `whatif` (dry run only) and `ticket`, whose text is byte for byte the CLI's. The plugin does not start it (no `mcpServers`,
   no `.mcp.json`; the default install still shows `MCP servers (0)`); docs/MCP.md shows how to opt in and when it is worth it (only if

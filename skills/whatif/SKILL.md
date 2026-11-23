@@ -15,4 +15,6 @@ Propose, the owner confirms, and the owner applies. In this order:
 3. Report in full sentences: every rule the move would break, each with its fix, what improves, and what the owner must decide. Say which command backed each claim.
 4. If the owner agrees, tell the owner the exact command to run themselves, for example `brain whatif KEY --to "Name" --sprint N --apply-plan --write`, and stop. Never run a command with `--write` yourself, never edit the schedule or the brain files by hand, and never write to Jira.
 
+When the owner asks how to relieve an overloaded person in a sprint, run ONE command, `brain whatif --relieve "Name" --sprint N` (add `--earlier` or `--owner-change` only if the owner allows them), never a loop of `brain whatif KEY` trials. It is read-only: it prints the smallest valid set of moves, each with its exact `brain whatif` dry-run command, or `NO RELIEF` with the reasons. Report it in full sentences, then follow step 4 for each move the owner accepts.
+
 If `brain whatif` cannot run, say so and stop.

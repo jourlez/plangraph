@@ -8,12 +8,12 @@ permissions:
   contents: read
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   test:
     name: test (${{ matrix.os }}, node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30 # the mutation run alone takes about 5 minutes
+    timeout-minutes: 30 # measured: ubuntu about 9 minutes, macOS about 20
     strategy:
       fail-fast: false
       matrix:
@@ -30,20 +30,16 @@ jobs:
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           enable-cache: false
-      - name: unit tests
-        run: npm test
-      - name: smoke
-        run: npm run smoke
-      - name: plugin layout
-        run: npm run validate
-      - name: mutation run (every listed mutant must be killed; exits non-zero on a survivor or a stale mutation)
-        run: npm run mutate
-      - name: coverage ratchet (raise these floors when coverage rises, never lower)
+      - name: unit tests with coverage ratchet (one run of the suite; raise these floors when coverage rises, never lower)
         run: >
           node --test --experimental-test-coverage
           --test-coverage-include='lib/**' --test-coverage-include='src/**'
           --test-coverage-lines=98 --test-coverage-branches=90 --test-coverage-functions=96
           test/*.test.mjs
+      - name: smoke
+        run: npm run smoke
+      - name: plugin layout
+        run: npm run validate
       - name: install dev-only tools (typescript, @types/node, biome; exact versions from package-lock.json)
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: typecheck (tsc ratchet over tsconfig.json and tsconfig.strict.json)
@@ -57,6 +53,23 @@ jobs:
           else
             echo "::notice::claude CLI not installed on this runner, plugin validate skipped"
           fi
+  mutation:
+    name: mutation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25 # measured: about 5 minutes on ubuntu
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      # the mutants run the solver tests, which need uv
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: false
+      - name: mutation run (every listed mutant must be killed; exits non-zero on a survivor or a stale mutation)
+        run: npm run mutate
   secrets:
     name: gitleaks
     runs-on: ubuntu-24.04

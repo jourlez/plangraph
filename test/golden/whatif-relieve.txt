@@ -1,0 +1,7 @@
+$ brain whatif --relieve Ana --sprint 3
+exit: 0
+--- stdout
+RELIEF: Ana S3 14/12 -> 10/12 with 1 move (slip 1, 0 owner changes)
+T-33 4 SP: Ana S3 > Ana S4 | brain whatif T-33 --sprint 4
+(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then brain export)
+--- stderr

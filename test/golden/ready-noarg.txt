@@ -2,5 +2,5 @@ $ brain ready
 exit: 2
 --- stdout
 --- stderr
-error: expected 1 argument, got 0
+error: ready needs a KEY, or --person NAME and/or --sprint N
 try: brain explain ready

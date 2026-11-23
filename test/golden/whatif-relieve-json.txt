@@ -1,0 +1,5 @@
+$ brain whatif --relieve Ana --sprint 3 --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"whatif","ok":true,"exit":0,"data":{"relieve":{"person":"Ana","sprint":3},"status":"relief","load":14,"cap":12,"after":10,"slip":1,"ownerChanges":0,"order":"sequential","searchComplete":true,"budget":1000000,"nodes":6,"allowed":["later"],"moves":[{"key":"T-33","sp":4,"from":{"owner":"Ana","sprint":3},"to":{"owner":"Ana","sprint":4},"command":"brain whatif T-33 --sprint 4"}],"reasons":[]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["brain whatif T-33 --sprint 4"]}
+--- stderr

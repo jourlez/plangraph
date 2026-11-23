@@ -4,14 +4,21 @@
 // Families: every graph on up to 4 tickets (self-links included) x every Done/To Do status vector x three Jira snapshots; every per-ticket
 // state (verdict, finding, closing or open register item, status) on up to 2 tickets x every graph x a dangling producer and an ignored
 // link kind; sp: tasks (impl_status) mixed with a Jira ticket on 3 tickets.
+// Bulk form (assureReadyBulk, `brain ready --person NAME --sprint N`): lib/ready.mjs readyScope against oracle.mjs oracleReadyScope on
+// EVERY instance of BULK_BOUNDS and EVERY filter (Ana, Ben, S1, S2, each pair): same scope, same ready set (so bulk == the per-ticket
+// oracle set), same done / not-ready split (ready + done + notReady == scope, each key once), same reason groups (each not-ready ticket in at
+// least one); families: every graph x every Done/To Do vector x every placement (unplaced, Ana S1, Ana S2, Ben S1) on up to 3 tickets, and
+// every per-ticket state (plain, BLOCKED verdict, open register item) on up to 2. The CLI `brain ready --person X --sprint N --json` and
+// `--sprint N --json` (and a lowercase name once) on a stratified subset: data lists and counts equal the oracle, exit 0 iff something is ready.
 // NOT covered: tickets beyond BOUNDS, the reason TEXT of `brain ready` (only the ready/not-ready verdict and that a not-ready answer has a
-// reason), the report's other sections, Jira snapshot files in the .jsonl format (the CLI strata use the legacy JSON map).
+// reason), the report's other sections, Jira snapshot files in the .jsonl format (the CLI strata use the legacy JSON map), the text form
+// of the bulk answer (test/ready-bulk.test.mjs freezes it), names other than Ana/Ben and first-name resolution (test/ready-bulk.test.mjs).
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildModel } from '../../lib/model.mjs';
-import { readySet } from '../../lib/ready.mjs';
-import { oracleReady } from './oracle.mjs';
+import { readySet, readyScope } from '../../lib/ready.mjs';
+import { oracleReady, oracleReadyScope } from './oracle.mjs';
 import { allGraphs, product, keysOf } from './enum.mjs';
 import { makeRepo, run, tmpBase, rmBase } from './cli.mjs';
 
@@ -112,4 +119,80 @@ function causes(x, t) {
   if (x.items.some((i) => i.key === t.key && i.status !== 'done')) c.push('o');
   for (const e of x.inst.edges) if (e.consumer === t.key) c.push(e.producer === 'GHOST' ? 'g' : e.kind === 'ignored' ? 'i' : e.producer === t.key ? 's' : 'p');
   return c.sort().join('');
+}
+
+// ---------- bulk form ----------
+export const BULK_BOUNDS = {
+  full: { graphN: [1, 2, 3], stateN: [1, 2], cliMax: 40 },
+  quick: { graphN: [1, 2], stateN: [1], cliMax: 4 },
+};
+const SLOTS = [null, { owner: 'Ana', sprint: 1 }, { owner: 'Ana', sprint: 2 }, { owner: 'Ben', sprint: 1 }];
+const FILTERS = [{ owner: 'Ana' }, { owner: 'Ben' }, { sprint: 1 }, { sprint: 2 }, { owner: 'Ana', sprint: 1 }, { owner: 'Ana', sprint: 2 }, { owner: 'Ben', sprint: 1 }, { owner: 'Ben', sprint: 2 }];
+const placements = (n) => { const out = []; product(Array.from({ length: n }, () => SLOTS), (v) => out.push(v)); return out; };
+function* bulkInstances(B) {
+  for (const n of B.graphN) {
+    const keys = keysOf(n);
+    for (const g of allGraphs(keys)) for (const sts of statusVectors(n)) for (const pl of placements(n)) {
+      const sched = new Map(); pl.forEach((p, i) => { if (p) sched.set(keys[i], p); });
+      yield { fam: 'bulkGraph', inst: { tickets: keys.map((key, i) => ({ key, sp: 1, jira_status: sts[i] })), edges: g.map(([consumer, producer]) => ({ consumer, producer, kind: 'plan_need' })), sched, config: CONFIG, findings: [] }, items: [] };
+    }
+  }
+  for (const n of B.stateN) {
+    const keys = keysOf(n);
+    for (const g of allGraphs(keys)) for (const pl of placements(n)) {
+      const sched = new Map(); pl.forEach((p, i) => { if (p) sched.set(keys[i], p); });
+      const states = []; product(keys.map(() => [['To Do', ''], ['To Do', 'BLOCKED'], ['To Do', 'item'], ['Done', 'BLOCKED']]), (v) => states.push(v));
+      for (const st of states) {
+        const tickets = keys.map((key, i) => ({ key, sp: 1, jira_status: st[i][0], ...(st[i][1] === 'BLOCKED' ? { verdict: 'BLOCKED' } : {}) }));
+        const items = keys.flatMap((key, i) => (st[i][1] === 'item' ? [{ key, kind: 'question', status: 'open' }] : []));
+        yield { fam: 'bulkState', inst: { tickets, edges: g.map(([consumer, producer]) => ({ consumer, producer, kind: 'plan_need' })), sched, config: CONFIG, findings: [] }, items };
+      }
+    }
+  }
+}
+const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+export async function assureReadyBulk(lvl) {
+  const B = BULK_BOUNDS[lvl], counts = { bulkGraph: 0, bulkState: 0, filters: 0, cliInstances: 0, cliCalls: 0 }, strata = new Map();
+  for (const x of bulkInstances(B)) {
+    const model = buildModel({ tickets: x.inst.tickets, edges: x.inst.edges, config: x.inst.config, findings: x.inst.findings, schedule: [...x.inst.sched].map(([key, p]) => ({ key, ...p })) });
+    let sig = x.fam;
+    for (const f of FILTERS) {
+      const want = oracleReadyScope(x.inst, x.items, null, f), got = readyScope(model, f, x.items, null);
+      for (const k of ['keys', 'ready', 'done', 'notReady', 'waiting', 'verdict']) if (!same(got[k], want[k])) fail(`bulk ${k} differs from the oracle`, { ...x, sched: [...x.inst.sched], f, lib: got[k], oracle: want[k] });
+      if (!same(got.blocked.map((b) => b.key), want.openItems)) fail('bulk open items differ from the oracle', { ...x, sched: [...x.inst.sched], f, lib: got.blocked, oracle: want.openItems });
+      if (got.ready.length + got.done.length + got.notReady.length !== got.keys.length) fail('bulk counts do not add up', { x, f, got });
+      const grouped = new Set([...got.waiting, ...got.verdict, ...got.blocked.map((b) => b.key)]);
+      if (got.notReady.some((k) => !grouped.has(k)) || [...grouped].some((k) => !got.notReady.includes(k))) fail('a not-ready ticket has no group, or a group holds a ready or done ticket', { x, f, got });
+      counts.filters++;
+      sig += `|${want.ready.length}${want.done.length}${want.notReady.length}${want.waiting.length}${want.openItems.length}${want.verdict.length}`;
+    }
+    counts[x.fam]++;
+    if (!strata.has(sig)) strata.set(sig, x);
+  }
+  const base = tmpBase();
+  try {
+    let lower = false;
+    for (const x of [...strata.values()].slice(0, B.cliMax)) {
+      const sched = [...x.inst.sched].map(([key, p]) => ({ version: 'current', key, ...p }));
+      const root = makeRepo(base, { 'format.json': '{"format_version":1,"min_reader":1}\n', 'tickets.jsonl': x.inst.tickets, 'edges.jsonl': x.inst.edges, 'schedule.jsonl': sched, 'findings.jsonl': [], 'open-items.jsonl': x.items, 'config.json': JSON.stringify(x.inst.config) });
+      const b = await run(root, ['build']);
+      if (b.code !== 0) fail('build failed', { x, b });
+      const people = new Set(sched.map((p) => p.owner));
+      for (const f of FILTERS) {
+        if (f.owner !== undefined && !people.has(f.owner)) continue; // an unknown person is a usage error (test/ready-bulk.test.mjs)
+        const name = f.owner !== undefined && !lower ? f.owner.toLowerCase() : f.owner;
+        if (name !== f.owner) lower = true;
+        const r = await run(root, ['ready', ...(name !== undefined ? ['--person', name] : []), ...(f.sprint !== undefined ? ['--sprint', String(f.sprint)] : []), '--json']);
+        const want = oracleReadyScope(x.inst, x.items, null, f), d = JSON.parse(r.out).data;
+        const ok = same(d.ready, want.ready) && same(d.done, want.done) && same(d.notReady, want.notReady) && same(d.waiting, want.waiting) && same(d.openItems.map((o) => o.key), want.openItems) && same(d.verdict.map((o) => o.key), want.verdict)
+          && d.total === want.keys.length && d.counts.ready === want.ready.length && r.code === (want.ready.length ? 0 : 1);
+        if (!ok) fail('CLI bulk ready differs from the oracle', { x: { ...x, sched }, f, out: r.out, code: r.code, oracle: want });
+        counts.cliCalls++;
+      }
+      counts.cliInstances++;
+    }
+  } finally { rmBase(base); }
+  counts.strata = strata.size;
+  return counts;
 }

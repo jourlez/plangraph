@@ -6,10 +6,11 @@ import { assureVerify } from './assure/verify.assure.mjs';
 import { assureWhatif } from './assure/whatif.assure.mjs';
 import { assureMerge } from './assure/merge.assure.mjs';
 import { assureStale } from './assure/stale.assure.mjs';
-import { assureReady } from './assure/ready.assure.mjs';
+import { assureReady, assureReadyBulk } from './assure/ready.assure.mjs';
 import { assureForecast } from './assure/forecast.assure.mjs';
 import { assurePure, assureBuildExport } from './assure/format.assure.mjs';
 import { assureCli } from './assure/cli.assure.mjs';
+import { assureRelieve } from './assure/relieve.assure.mjs';
 
 /** @type {Array<[string, () => unknown]>} */
 const props = [
@@ -19,8 +20,10 @@ const props = [
   ['(d) three-way merge', () => assureMerge('quick')],
   ['(e) stale closure', () => assureStale('quick')],
   ['(f) can start today', () => assureReady('quick')],
+  ['(f) bulk ready', () => assureReadyBulk('quick')],
   ['(g) forecast refusal gates', () => assureForecast('quick')],
   ['(h) canonical round trip', () => assurePure('quick')],
   ['(h) build/export round trip', () => assureBuildExport('quick')],
+  ['(i) relieve minimal moves', () => assureRelieve('quick')],
 ];
 for (const [name, fn] of props) test(`assure quick: ${name}`, async (t) => { t.diagnostic(JSON.stringify(await fn())); });

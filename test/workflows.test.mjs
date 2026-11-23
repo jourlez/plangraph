@@ -71,7 +71,7 @@ test('ci.yml: matrix, commands and gates', () => {
   assert.match(t, /workflow_call:/);
   assert.match(t, /os:\s*\[ubuntu-24\.04,\s*macos-latest\]/);
   assert.match(t, /node:\s*\['24'\]/);
-  for (const c of ['npm test', 'npm run smoke', 'npm run validate', 'node --test --experimental-test-coverage',
+  for (const c of ['npm run smoke', 'npm run validate', 'node --test --experimental-test-coverage',
     '--test-coverage-include=', 'claude plugin validate . --strict', 'gitleaks/gitleaks-action@', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint']) {
     assert.ok(t.includes(c), `missing ${c}`);
   }
@@ -126,6 +126,7 @@ test('ci.yml: no continue-on-error anywhere, and the coverage floors and include
   const floor = (k) => Number(new RegExp(`--test-coverage-${k}=(\\d+)`).exec(t)?.[1]);
   assert.ok(floor('lines') >= 98 && floor('branches') >= 90 && floor('functions') >= 96, 'coverage floors were lowered or removed');
   assert.ok(t.includes("--test-coverage-include='lib/**'") && t.includes("--test-coverage-include='src/**'"), 'src/** must stay in coverage');
+  assert.equal((t.match(/--experimental-test-coverage/g) ?? []).length, 1, 'the suite runs once, with coverage, not twice');
 });
 
 test('release.yml: the release job needs verify, checks the tag is on main, and attests a specific subject', () => {
@@ -151,16 +152,45 @@ test('SECURITY.md explains the organization licence and the data gitleaks-action
   assert.match(t, /owner/i);
 });
 
-// The mutation run is a gate: every listed mutant must be killed (scripts/mutate.mjs exits 1 on a survivor, 2 on a stale mutation or a red
-// baseline), in the test job, as its own named step that runs the npm script (not hidden behind `|| true` or an `if`).
-test('ci.yml: the test job runs `npm run mutate` as its own step, after the unit tests, never allowed to fail', () => {
+// The suite runs ONCE, with the coverage floors, as the matrix job's first step; the mutation run is its own job on ubuntu only, running in parallel.
+test('ci.yml: the test job runs the suite once with the coverage floors, before smoke; `npm test` is not run again', () => {
   const t = read('workflows', 'ci.yml');
-  const job = t.slice(t.indexOf('\n  test:\n'), t.indexOf('\n  secrets:\n'));
-  const steps = [...job.matchAll(/^ {6}- name: (.+)\n {8}run: (.+)$/gm)].map((m) => [m[1], m[2].trim()]);
-  const mutate = steps.findIndex(([, run]) => run === 'npm run mutate'), unit = steps.findIndex(([, run]) => run === 'npm test');
-  assert.ok(mutate >= 0, `no step runs exactly \`npm run mutate\`: ${JSON.stringify(steps)}`);
-  assert.ok(unit >= 0 && unit < mutate, 'the mutation run comes after the unit tests');
-  assert.match(steps[mutate][0], /mutation/i);
+  const j = job(t, 'test');
+  const steps = j.split(/\n {6}- /).slice(1).map((x) => /^name: (.+)\n {8}run: [>|]?\s*([\s\S]*)$/.exec(x)).filter(Boolean).map((m) => [m[1], m[2].replace(/\s+/g, ' ').trim()]);
+  const unit = steps.findIndex(([, r]) => r.startsWith('node --test --experimental-test-coverage') && r.endsWith('test/*.test.mjs'));
+  const smoke = steps.findIndex(([, r]) => r === 'npm run smoke');
+  assert.ok(unit >= 0, `no single coverage+test step: ${JSON.stringify(steps)}`);
+  assert.ok(smoke > unit, 'smoke comes after the unit tests');
+  assert.ok(!steps.some(([, r]) => r === 'npm test'), 'npm test would run the suite a second time');
+  assert.ok(!/npm run mutate/.test(j), 'the mutation run belongs to its own job');
+  const test = steps[unit][1];
+  assert.ok(test.includes("--test-coverage-include='lib/**'") && test.includes("--test-coverage-include='src/**'"));
+  for (const { k, min } of [{ k: 'lines', min: 98 }, { k: 'branches', min: 90 }, { k: 'functions', min: 96 }]) {
+    assert.ok(Number(new RegExp(`--test-coverage-${k}=(\\d+)`).exec(test)?.[1]) >= min, `${k} floor lowered or missing in the unit test step`);
+  }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.test, 'node --test test/*.test.mjs', 'local npm test unchanged');
+});
+
+test('ci.yml: the mutation job is its own required job, ubuntu only, same Node and uv setup, 25 minute cap, never allowed to fail', () => {
+  const t = read('workflows', 'ci.yml');
+  const m = job(t, 'mutation');
+  assert.match(m, /^ {4}runs-on: ubuntu-24\.04$/m, 'mutation runs on ubuntu only, not the OS matrix');
+  assert.ok(!/matrix/.test(m) && !/strategy:/.test(m));
+  assert.ok(!/^ {4}needs:/m.test(m), 'it runs in parallel with the test job');
+  assert.ok(!/^ {4}if:/m.test(m), 'it always runs');
+  assert.match(m, /^ {4}timeout-minutes: 25\b/m);
+  assert.match(m, /actions\/setup-node@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+node-version: '24'/);
+  assert.match(m, /astral-sh\/setup-uv@[0-9a-f]{40}/);
+  assert.match(m, /^ {6}- name: mutation run[^\n]*\n {8}run: npm run mutate$/m, 'a named step runs exactly `npm run mutate`');
+  assert.doesNotMatch(m, /npm run mutate\s*(\|\||;|&)/, 'the step result is not swallowed');
+  assert.ok(!/permissions:/.test(m), 'the mutation job inherits contents: read');
   assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.mutate, 'node scripts/mutate.mjs');
-  assert.doesNotMatch(job, /npm run mutate\s*(\|\||;|&)/, 'the step result is not swallowed');
+});
+
+test('ci.yml: every job has a timeout; concurrency cancels superseded runs but never on main', () => {
+  const t = read('workflows', 'ci.yml');
+  for (const [name, mins] of [['test', 30], ['mutation', 25], ['secrets', 10]]) {
+    assert.match(job(t, name), new RegExp(`^ {4}timeout-minutes: ${mins}\\b`, 'm'), `${name} timeout`);
+  }
+  assert.match(t, /^concurrency:\n {2}group: .+\n {2}cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}$/m);
 });

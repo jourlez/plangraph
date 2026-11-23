@@ -35,15 +35,44 @@ function whatifData(r, key, v, limit) {
   const apply = repairable ? nextCommand(['whatif', [key], ...(v.to !== undefined ? ['--to', [v.to]] : []), ...(v.sprint !== undefined ? ['--sprint', String(v.sprint)] : []), ...FLAGS.filter(need).map((f) => `--${f}`), '--apply-plan']) : null;
   return { data, next: nextList([apply, known ? nextCommand(['ticket', [key], '-v']) : null]) };
 }
+// --relieve PERSON --sprint N: a read-only search (lib/whatif.mjs relieve) for the smallest valid set of single-ticket moves that brings that
+// cell to <= cap; it prints the exact `brain whatif` dry-run command of each move and never writes (--to, --apply-plan, --write refused).
+// Exit 0 when relief was found or none is needed, 1 when none was found. Names and keys are one sanitized line; commands are shell-safe.
+/** @param {Ctx} ctx @param {Args} args @param {any} W @param {any} model */
+function relieveCmd(ctx, args, W, model) {
+  const v = args.values, out = ctx.io.out, sprint = /** @type {number} */ (v.sprint), s = (/** @type {unknown} */ x, n = 60) => oneLine(x ?? '', n);
+  const person = W.resolvePerson(model, v.relieve);
+  if (person === null) throw new BrainError('USAGE', '--relieve matches no single person in the plan (exact, case-insensitive or a unique first name)', { hint: `\`brain sprint ${sprint}\` lists its owners` });
+  const r = W.relieve(model, { person, sprint }, { allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']) });
+  const cmd = (/** @type {any} */ m) => nextCommand(['whatif', [m.key], ...(m.to.owner !== m.from.owner ? ['--to', [m.to.owner]] : []), '--sprint', String(m.to.sprint)]);
+  const limit = verbose(args) ? 100 : 15, keys = verbose(args) ? 50 : 5;
+  for (const line of W.renderRelieve(r, { cmd, limit, keys, name: (/** @type {unknown} */ x) => s(x), key: (/** @type {unknown} */ x) => s(x, 120) })) out(line);
+  const flags = ['earlier', 'owner-change'].filter((f) => !v[f]);
+  const retry = flags.map((f) => nextCommand(['whatif', '--relieve', [person], '--sprint', String(sprint), ...FLAGS.filter((g) => v[g] && g !== 'strict').map((g) => `--${g}`), `--${f}`]));
+  const rs = (/** @type {any[]} */ a) => a.map((x) => ({ code: x.code, keys: x.keys.slice(0, 2000).map((/** @type {unknown} */ k) => s(k, 120)), ...(x.code === 'NOT_ENOUGH' ? { freeable: x.freeable, needed: x.needed } : {}) }));
+  ctx.io.data?.({
+    relieve: { person: s(person), sprint }, status: r.status, load: r.load, cap: r.cap, after: r.after, slip: r.slip, ownerChanges: r.ownerChanges, order: r.order, searchComplete: r.searchComplete, budget: r.budget, nodes: r.nodes, allowed: r.allowed,
+    moves: r.moves.map((/** @type {any} */ m) => ({ key: s(m.key, 120), sp: m.sp, from: { owner: s(m.from.owner), sprint: m.from.sprint }, to: { owner: s(m.to.owner), sprint: m.to.sprint }, command: cmd(m) })), reasons: rs(r.reasons),
+  }, { next: nextList(r.status === 'relief' ? r.moves.map(cmd) : r.status === 'no_relief' ? retry : []) });
+  return r.status === 'no_relief' ? 1 : 0;
+}
+
 /** @param {Ctx} ctx @param {Args} args */
 async function whatif(ctx, args) {
-  const W = await import('../../lib/whatif.mjs'), model = modelFromDb(ctx), v = args.values, out = ctx.io.out;
-  const mv = { key: args.positionals[0], to: v.to, sprint: v.sprint };
+  const v = args.values, key = args.positionals[0];
+  if (v.relieve !== undefined) {
+    if (key !== undefined) throw usage('whatif takes a KEY or --relieve NAME, not both');
+    if (v.to !== undefined || v['apply-plan'] || v.write) throw usage('--relieve is a dry run: --to, --apply-plan and --write are not supported (it prints the whatif command of each move)');
+    if (v.sprint === undefined) throw usage('--relieve needs --sprint N');
+  } else if (key === undefined) throw usage('whatif needs a KEY, or --relieve NAME --sprint N');
+  const W = await import('../../lib/whatif.mjs'), model = modelFromDb(ctx), out = ctx.io.out;
+  const mv = { key, to: v.to, sprint: v.sprint };
   // the schema refuses both at build time; an index built by an older version may still hold them, and whatif must not crash on bad data
   const badSprint = [...model.sched.values()].some((p) => p.sprint != null && !Number.isSafeInteger(p.sprint));
   if (badSprint || [...model.tickets.values()].some((t) => t.sp != null && !(Number.isFinite(t.sp) && t.sp >= 0))) {
     throw dataError('the index holds a sprint that is not a whole number or a negative sp', 'fix schedule.jsonl / tickets.jsonl, then `brain build` (it names the line)');
   }
+  if (v.relieve !== undefined) return relieveCmd(ctx, args, W, model);
   const o = { strict: Boolean(v.strict), allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), allowSlip: Boolean(v.slip) };
   if (!v['apply-plan']) {
     const r = W.whatif(model, mv, o), limit = verbose(args) ? 50 : 8;
@@ -265,7 +294,7 @@ async function doctorWarnings(ctx) {
 const B = { type: 'boolean' };
 const WIRING = ['git-config', 'gitattributes', 'merge-shim']; // what wireMergeDriver writes (src/registry.mjs SIDE_WRITES)
 export const commands = {
-  whatif: { run: whatif, positionals: [1, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs' },
+  whatif: { run: whatif, positionals: [0, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B, relieve: { type: 'string' } }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap (read-only)' },
   'schedule-load': { run: scheduleLoad, positionals: [2, 2], writes: 'index', summary: 'keep the current plan under an archive name and load a new schedule into the index' },
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },

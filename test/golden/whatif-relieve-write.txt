@@ -1,0 +1,6 @@
+$ brain whatif --relieve Ana --sprint 3 --write
+exit: 2
+--- stdout
+--- stderr
+error: --relieve is a dry run: --to, --apply-plan and --write are not supported (it prints the whatif command of each move)
+try: brain explain whatif

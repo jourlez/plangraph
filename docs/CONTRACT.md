@@ -10,7 +10,7 @@ Goal: the best planning memory for AI coding agents. Hard rules, in priority ord
 6. **Determinism.** Same input gives byte-identical output. Sort with plain `<` comparison (not localeCompare). Seeded RNG only (`rng` from the fixtures file; copy the tiny function into lib if the module needs randomness).
 7. **Merge-friendly data.** Text files are JSONL, one record per line, sorted by primary key, canonical key order, `\n` endings, trailing newline.
 
-Exhaustive small-scope suite: `npm run assure` (minutes; `test/assure/`) checks verify, check/verify CLI agreement, whatif/proposeMove, merge, stale, ready, forecast gates and the canonical round trip against clean-room oracles on EVERY instance up to small bounds (each file's header states them; a reduced variant runs in every `node --test test/*.test.mjs` run as `test/assure.test.mjs`). It is exhaustive within those bounds, not a proof beyond them.
+Exhaustive small-scope suite: `npm run assure` (minutes; `test/assure/`) checks verify, check/verify CLI agreement, whatif/proposeMove, whatif --relieve, merge, stale, ready (single and bulk), forecast gates and the canonical round trip against clean-room oracles on EVERY instance up to small bounds (each file's header states them; a reduced variant runs in every `node --test test/*.test.mjs` run as `test/assure.test.mjs`). It is exhaustive within those bounds, not a proof beyond them.
 
 Ownership: each worker edits ONLY the files assigned to it (new files under `lib/`, `test/`, and where stated `bin/brain-solve`, docs). Do NOT edit `bin/brain`, `hooks/`, `skills/`, `README.md`, `lib/model.mjs`, `lib/jsonl.mjs`, `test/smoke.sh`, `test/fixtures/gen.mjs`; the integrator wires modules into the CLI. If you need a change in one of those, describe it in your final report.
 
@@ -59,10 +59,41 @@ carries a line injection.
 `brain explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class plus the merge-driver wiring a command always does (`init`) or a flag adds (`doctor --fix`, `card --heal`: git config, `.gitattributes`, the merge shim), exit codes),
 bounded (the full list under 400 estimated tokens). `--json` on any command prints exactly one v2 envelope on stdout
 `{"v":2,"cmd","ok","exit","data","fresh","next"}`, also when the command printed nothing (`data` is `{ "lines": [] }`) and when it failed
-(the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.mjs` runs every registered command): `data` is structured for `sprint`, `ready`, `whatif` (dry run), `verify` and
+(the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.mjs` runs every registered command): `data` is structured for `sprint`, `ready` (one ticket or the bulk form), `whatif` (dry run, also `--relieve`), `verify` and
 `explain`, and `{ "lines": [...] }` for the others (card and bundle included: their prepared text, line by line); `fresh` is `{ "fp", "built" }` (first 8 hex of the source fingerprint of the text
 now and of the text the index was built from; they differ when the index is stale) or null when the command read no index; `next` holds
 0 to 3 exact follow-up commands, built only from shell-safe values.
+
+Bulk ready (`brain ready --person NAME --sprint N`, either filter alone or both, never with a KEY): the scope is every ticket placed with
+that owner (resolved like `whatif --to`: exact, else a unique case-insensitive match, else a unique first name; anything else is a usage
+error that never echoes the name) and/or in that sprint. Each ticket of the scope is exactly one of ready, done or not ready, by
+`lib/ready.mjs` `readyScope` over the shared `readySet` (no second implementation; `test/assure/ready.assure.mjs` checks it against a
+clean-room oracle on every small instance). Text: one count line first (`<owner> S<n>: ready R of T, done D, not ready N (waiting on
+producers a, open items b, verdict not READY c)`; the groups overlap: a not-ready ticket counts under each of its reasons, and each one is
+under at least one), then the ready keys (25, `-v` 500, then `+N more`), one line per reason with 5 example keys (`-v` 50), with `-v` the
+done keys, and the freshness note. Exit 0 when at least one ticket may start, 1 when none may (also `no placed tickets`). `--json` data:
+`person`, `sprint`, `total`, `counts`, and the lists `ready`, `done`, `notReady`, `waiting`, `openItems` (`{key, kinds}`), `verdict`
+(`{key, verdict}`), each capped at 2000 (the counts are never capped). A KEY together with a filter, or neither, is a usage error.
+
+Relieve (`brain whatif --relieve NAME --sprint N [--earlier] [--owner-change]`, read-only, never with a KEY; `--to`, `--apply-plan` and
+`--write` are usage errors; `--slip` is implied and `--strict` has no effect: frozen tickets never move): `lib/whatif.mjs` `relieve`.
+The name resolves like `whatif --to`. Move space: only the tickets of that cell move, each once, to one slot: the same owner in a later
+sprint; with `--earlier` an earlier one; with `--owner-change` another person (an owner or a caps person) in sprint N or later (earlier too
+with both flags); every sprint in first_sprint..end_sprint. Frozen tickets stay (closed statuses, frozen_statuses as whatif reads them, an
+`sp:` task with impl_status done, N below frozen_before_sprint). A set is valid when, applied together, the cell ends at or under cap,
+every link with a moved ticket at either end (other end a placed ticket) satisfies the strict handoff rule, and every cell that gained
+load ends at or under its owner's cap; the chosen set is checked again with verifyPlan (every violation after must have been there
+before; an internal error otherwise). Choice: fewest moves, then least total |to sprint - N|, then fewest owner changes, then key order
+(moves sorted by key, compared by key, owner, sprint). Search: subsets by size, depth-first assignment with a bound; budget 1,000,000
+steps, each subset step and slot try (`RELIEVE_BUDGET`; `nodes` in --json is what was spent); when it is hit the header says `search budget ... hit: not proven minimal` or `no relief found within the
+search budget ...; not proven impossible`. Text: `RELIEF: <owner> S<n> L/C -> A/C with k moves (slip s, o owner changes)`, one line per
+move with its exact `brain whatif` dry-run command (or `no shell-safe command` when a key or name is not shell-safe), in an order where
+each passes `brain whatif` alone on the plan so far (else a note that the moves only work together), then the dry-run note; `NO RELIEF`
+lists the reasons (FROZEN, NO_SLOT, LINKS, FULL, then NOT_ENOUGH or CONFLICT) with 5 example keys (`-v` 50) and the flags to try; `OK:
+... nothing to relieve` when the load is within cap. Exit 0 for relief or nothing to relieve, 1 for no relief. `--json` data: `relieve`
+`{person, sprint}`, `status` (`relief`, `no_relief`, `none_needed`), loads, `slip`, `ownerChanges`, `order`, `searchComplete`, `budget`, `nodes`,
+`allowed`, `moves` (with `command`), `reasons`; `next` holds the move commands, or the relieve command with a wider flag.
+`test/assure/relieve.assure.mjs` checks it against a clean-room brute force on every small instance (minimality, validity, order).
 
 Session card (`brain card`, the SessionStart hook): a pure function of the data, byte-identical across runs (no clock, no age, no
 modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, the steer

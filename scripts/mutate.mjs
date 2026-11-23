@@ -69,6 +69,22 @@ const MUTATIONS = [
   ['lib/report.mjs', 'over: c.sp > capOf(model.config, c.owner)', 'over: c.sp >= capOf(model.config, c.owner)', ['test/report.test.mjs']],
   ['lib/report.mjs', '(d === depth.get(v) && cmp(u, prev.get(v)) < 0)', '(d === depth.get(v) && cmp(u, prev.get(v)) > 0)', ['test/report.test.mjs']],
   ['lib/ready.mjs', '  if (done) return { found: true, ready: false, done, reasons: [] };', '', ['test/ready.test.mjs', 'test/report.test.mjs']],
+  // bulk ready (`brain ready --person/--sprint`): the scope filter, the verdict group, the cap marker and the exit code
+  ['lib/ready.mjs', '(owner === undefined || s.owner === owner)', '(owner === undefined || s.owner !== undefined)', ['test/ready-bulk.test.mjs', 'test/assure.test.mjs']],
+  ['lib/ready.mjs', "    if (r.reasons.some((x) => x.code === 'VERDICT')) verdict.push(key);", '', ['test/ready-bulk.test.mjs', 'test/assure.test.mjs']],
+  ['src/commands/queries.mjs', '`${ks.slice(0, n).map(', '`${ks.slice(0).map(', ['test/ready-bulk.test.mjs']],
+  ['src/commands/queries.mjs', '  return s.ready.length ? 0 : 1;', '  return 0;', ['test/ready-bulk.test.mjs']],
+  // whatif --relieve: the choice rule, the links inside the cell, both capacity checks, frozen tickets, the budget, the apply order, the CLI
+  ['lib/whatif.mjs', 'if (x.slip !== y.slip) return x.slip < y.slip;', 'if (x.slip !== y.slip) return x.slip > y.slip;', ['test/whatif-relieve.test.mjs', 'test/assure.test.mjs']],
+  ['lib/whatif.mjs', 'if (x.oc !== y.oc) return x.oc < y.oc;', 'if (x.oc !== y.oc) return x.oc > y.oc;', ['test/whatif-relieve.test.mjs']],
+  ['lib/whatif.mjs', 'if (pp && pc && !okLink(pp, pc)) { ok = false; break; }', '', ['test/whatif-relieve.test.mjs', 'test/assure.test.mjs']],
+  ['lib/whatif.mjs', '        if (cur > capOf(cfg, to.owner)) continue;', '', ['test/whatif-relieve.test.mjs', 'test/assure.test.mjs']],
+  ['lib/whatif.mjs', '      if ((loads.get(cellKey(to.owner, to.sprint)) || 0) + sp > capOf(cfg, to.owner)) continue;', '', ['test/whatif-relieve.test.mjs', 'test/golden.test.mjs']],
+  ['lib/whatif.mjs', "return fz.has(t.jira_status) || (String(k).startsWith('sp:')", "return (String(k).startsWith('sp:')", ['test/whatif-relieve.test.mjs', 'test/assure.test.mjs']],
+  ['lib/whatif.mjs', 'budget = opts.budget ?? RELIEVE_BUDGET;', 'budget = Infinity;', ['test/whatif-relieve.test.mjs']],
+  ['lib/whatif.mjs', 'rest.findIndex((m) => whatif(', 'rest.findIndex((m) => true || whatif(', ['test/whatif-relieve.test.mjs', 'test/assure.test.mjs']],
+  ['src/commands/plan.mjs', "  return r.status === 'no_relief' ? 1 : 0;", '  return 0;', ['test/whatif-relieve.test.mjs']],
+  ['src/commands/plan.mjs', "if (v.to !== undefined || v['apply-plan'] || v.write) throw usage(", "if (false) throw usage(", ['test/whatif-relieve.test.mjs']],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }

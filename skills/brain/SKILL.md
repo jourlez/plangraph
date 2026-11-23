@@ -17,7 +17,7 @@ Each step names the tool that owns it. `brain` never does another tool's job. A 
 | **Onboarding** an existing problem | 1. `brain integrations`, then `brain doctor`. 2. Jira (Atlassian connector) for a few tickets: fetch them, then `brain jira-import FILE --out snapshot.jsonl`; for bulk, `brain jira-pull`, then `brain jira-import`. 3. `brain sp-ingest PLAN` for each superpowers plan found. 4. `brain rules --repo` (OpenWolf rules, read-through). 5. `brain build`, then `brain check`. 6. Report the gaps: tickets without owner or sprint, unverified links, failed checks. | No Atlassian connector and no token: the person exports Jira to a file and you run `brain jira-import FILE`. No superpowers plan or no OpenWolf: skip that step and say so. |
 | **Planning** a new project | 1. Recommend superpowers `superpowers:brainstorming`, then `superpowers:writing-plans`; the person starts them. 2. After the plan file is saved, `brain sp-ingest PLAN`. 3. `brain-solve-run --out schedule.json`, and `brain whatif` for any change. 4. `brain verify schedule.json`. 5. Report. 6. Handoff with `brain card --line`. | No superpowers: the person writes the plan in markdown with `### Task N:` headings, then ingest. No solver environment: place tickets by hand and let `brain verify` list what breaks. |
 | **Replanning** | 1. `brain stale --list` (add `--jira snapshot.jsonl` after a refresh). 2. The `brain-audit` skill on the stale tickets only. 3. `brain build`, `brain check`, re-solve, `brain verify`. | No Jira snapshot: stale uses plan and code inputs only, and says so. No agents: the person re-reads only the listed tickets. |
-| **Reassigning** | 1. `brain whatif KEY --to "Name" --sprint N` first, always. 2. Show every broken rule with its fix. 3. Apply only after the owner agrees (`--apply-plan --write`). | No other tool does this: if `brain whatif` cannot run, say so and stop, and never edit the schedule by hand. |
+| **Reassigning** | 1. `brain whatif KEY --to "Name" --sprint N` first, always; to relieve an overloaded person, one `brain whatif --relieve "Name" --sprint N` instead of trying moves one by one. 2. Show every broken rule with its fix. 3. Apply only after the owner agrees (`--apply-plan --write`). | No other tool does this: if `brain whatif` cannot run, say so and stop, and never edit the schedule by hand. |
 | **Reporting** | 1. `brain card`, `brain check`, `brain verify`. 2. Publish through the Artifact tool or Confluence. 3. Slack: write a draft, a person sends it. | No Artifact tool or Confluence: print the report in chat. No Slack connector: show the draft text for the person to paste. |
 | **Handoff** | 1. OpenWolf `/handoff` when OpenWolf is active; include the `brain card --line` line. 2. Otherwise put the same line in the repo's own handoff file (any name, never under `.wolf/`) or in chat. | OpenWolf `protocol-only` means its rules are present but no hooks run: this skill itself prompts for `brain card --line` and the handoff. OpenWolf absent: use the repo's own handoff file or chat. |
 
@@ -49,7 +49,9 @@ Rules for connectors:
 
 ```
 brain ready KEY             may it start? yes/no with every reason; exit 1 if not
+brain ready --person "Name" --sprint N   which of those tickets may start now: counts, ready keys, reasons (one call)
 brain whatif KEY --to "Name" --sprint N   dry run of a move: all broken rules at once, with a fix
+brain whatif --relieve "Name" --sprint N   smallest valid moves that bring that load under cap (read-only, one call)
 brain ticket KEY            verdict, owner, sprint, needs, evidence
 brain neighbors KEY 2       what it needs and what needs it
 brain chain KEY             longest chain behind it: hops, handoffs, critical paths
@@ -64,6 +66,7 @@ brain forecast              delivery forecast; says REFUSED when history is too 
 Output is terse by default; add `-v` for the full list and `--json` for a versioned envelope. A `STALE:` line means the index is older than the text files: run `brain build`.
 
 Rules that matter (full text: `brain rules`):
+- A question about many tickets takes one bulk command: `brain ready --person "Name" --sprint N`, `brain whatif --relieve "Name" --sprint N`. Never loop `brain ready KEY` or `brain whatif` ticket by ticket.
 - Replan incrementally: `stale` first, agents only on stale tickets. To redo failed units start a new run on only those units.
 - Say which check backs "verified" and the covered fraction. Counts in chat, ticket keys only in files.
 - Before moving or reassigning anything run `brain whatif`; never edit the schedule by hand.
