@@ -50,7 +50,7 @@ const WRITES = /** @type {Array<string[]>} */ ([
   ['card', '--write'], ['card', '--heal'], ['export'], ['build'], ['migrate'], ['migrate', '--write'], ['doctor', '--fix'], ['refs-update'], ['refs-update', '--full'],
   ['units', '--keys', 'T-1,T-2', '--out', 'units'], ['units', '--stale', '--out', 'units2'], ['units', '--keys', 'T-1', '--size', '1', '--out', 'u3', '--tokens-per-unit', '100'],
   ['open-items', '--write'], ['open-items', '--register', 'T-1', 'manual', '--text', 'call them', '--owner', 'Ana', '--due', '3'], ['open-items', '--close', 'T-2', 'risk', '--by', 'Ana', '--note', 'decided'],
-  ['open-items', '--reopen', 'T-2', 'risk'], ['whatif', 'T-3', '--sprint', '4', '--write'], ['whatif', 'T-3', '--sprint', '4', '--apply-plan', '--write'], ['schedule-load', 'sched.json', 'v3'], ['schedule-load', 'bad-sched.json', 'v3'],
+  ['open-items', '--reopen', 'T-2', 'risk'], ['whatif', 'T-3', '--sprint', '4', '--write'], ['whatif', 'T-3', '--sprint', '4', '--apply-plan', '--write'], ['schedule-load', 'sched.json', 'v3'], ['schedule-load', 'bad-sched.json', 'v3'], ['schedule-load', 'frozen-sched.json', 'v4'],
   ['learn', '--from-wolf', 'w000000'], ['report'], ['report', '--out', 'docs'], ['sp-ingest', 'docs/superpowers/plans/2026-01-01-widget.md'], ['sp-ingest', 'docs/superpowers/plans/2026-01-01-widget.md', '--owner', 'Ana', '--sprint', '2'],
   ['sp-link', 'T-4', 'sp:2026-01-01-widget/1'], ['jira-text', 'ABC-1', 'ABC-2', '--from-json', 'keyed.json', '--out', 'jt2'], ['refs-update', '--ref', '-bad'], ['jira-text', 'ABC-1', '--from-json', 'issue.json', '--out', 'jt'], ['jira-import', 'issues.json', '--out', 'snap.jsonl'],
 ]);
@@ -59,7 +59,11 @@ test('writing commands: output and the files they change, each on a fresh copy',
   /** @type {Record<string, unknown>} */ const res = {};
   for (const argv of WRITES) {
     const d = copy();
-    fs.writeFileSync(path.join(d, 'sched.json'), JSON.stringify([{ item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));
+    // a valid schedule keeps every other ticket where it is (a Done ticket T-3 may not move or vanish: schedule-load refuses that, see frozen-sched.json)
+    const current = fs.readFileSync(path.join(d, '.brain/schedule.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((r) => !r.version || r.version === 'current');
+    const keep = current.filter((r) => r.key !== 'T-1' && r.key !== 'T-2').map((r) => ({ item: r.key, owner: r.owner, sprint: r.sprint }));
+    fs.writeFileSync(path.join(d, 'sched.json'), JSON.stringify([...keep, { item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));
+    fs.writeFileSync(path.join(d, 'frozen-sched.json'), JSON.stringify([{ item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));
     fs.writeFileSync(path.join(d, 'bad-sched.json'), JSON.stringify({ 'T-1': { owner: 'Ben', sprint: 2 } }));
     fs.writeFileSync(path.join(d, 'issue.json'), JSON.stringify({ fields: { summary: 'Imported', status: { name: 'Done' }, updated: '2026-01-01' } }));
     fs.writeFileSync(path.join(d, 'keyed.json'), JSON.stringify({ 'ABC-1': { fields: { summary: 'First' } }, 'ABC-2': { fields: { summary: 'Second' } } }));

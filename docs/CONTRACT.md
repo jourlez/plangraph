@@ -39,6 +39,23 @@ Ownership: each worker edits ONLY the files assigned to it (new files under `lib
 
 Model shape (`lib/model.mjs`): `{ tickets: Map<key,row>, edges: [{consumer,producer,kind,note}], prods: Map<consumer,[producer]>, cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}> (current schedule), config, findings, evidence, learnings, refs }`. `config.caps[person] ?? config.caps.default` is capacity in story points per person per sprint (`capOf`). `ticket.sp` is story points. A link "consumer needs producer". **Strict handoff rule:** `sprint[consumer] >= sprint[producer] + (owner[consumer] !== owner[producer] ? 1 : 0)`: another person's output must land in an earlier sprint; the same person may share the sprint.
 
+**Frozen history** (stated once, in `lib/frozen.mjs`; `bin/brain-solve` mirrors it and `test/frozen.test.mjs` compares the two on a grid; verify, `whatif` (STARTED and the tickets a
+repair may move), `proposeMove` and `--relieve` all read this one predicate. In `brain whatif`, a closed ticket, a ticket below
+`frozen_before_sprint` or one frozen by the caller is a hard `STARTED` stop; `In Progress` always warns (`STARTED`, warn: someone
+started it, whatever `frozen_statuses` says; `brain init` writes `["Done"]`), and so does any status listed in `frozen_statuses` (a
+stop under `--strict`); only a listed status is frozen for verify, the solver, repairs and relief). CLOSED: an
+`sp:` task with `impl_status` done, or a ticket whose `jira_status` is `Done` or in `closed_statuses`. FROZEN (keeps its slot): closed, or
+`jira_status` in `frozen_statuses` (only what config lists), or `--freeze` / `opts.frozen`, or a current sprint below `frozen_before_sprint`.
+A constraint exists only where at least one side is FREE: a link whose producer is closed is satisfied wherever the producer sits (a
+finished producer cannot be late); a link between two frozen tickets is a fixed fact, never a violation and never a constraint; every other
+link obeys the strict handoff rule. A person-sprint cell's capacity binds only its free load, which must fit in `max(0, cap - frozen load)`:
+a cell of frozen tickets only is never over capacity, and no free story point joins a cell whose frozen load already reaches cap (a 0-SP
+ticket may). `brain verify`/`check`, `brain whatif` (and `--relieve`), `brain ready` and the solver all apply this rule, and the solver never
+moves a frozen ticket or delays a consumer because of a closed producer's slot. `brain verify FILE` checks the file against the frozen
+tickets of the current schedule (`FROZEN_MOVED KEY was O Sn, now ...` for each one it moves or drops), and `brain schedule-load FILE NAME`
+refuses such a file (exit 4, `refusing to load: the schedule moves N frozen ticket(s) (KEYS); a frozen ticket keeps its slot`, nothing
+written; there is no override flag: unfreeze the ticket in the data first).
+
 Final report format from each worker: what you built (files), exact test command and its result, what the tests do not cover, public API (function signatures), and CLI wiring the integrator must add (command name, flags, one example output with its estimated token count).
 
 ## CLI contract (bin/brain)
@@ -102,21 +119,39 @@ Relieve (`brain whatif --relieve NAME --sprint N [--earlier] [--owner-change]`, 
 `--write` are usage errors; `--slip` is implied and `--strict` has no effect: frozen tickets never move): `lib/whatif.mjs` `relieve`.
 The name resolves like `whatif --to`. Move space: only the tickets of that cell move, each once, to one slot: the same owner in a later
 sprint; with `--earlier` an earlier one; with `--owner-change` another person (an owner or a caps person) in sprint N or later (earlier too
-with both flags); every sprint in first_sprint..end_sprint. Frozen tickets stay (closed statuses, frozen_statuses as whatif reads them, an
-`sp:` task with impl_status done, N below frozen_before_sprint). A set is valid when, applied together, the cell ends at or under cap,
-every link with a moved ticket at either end (other end a placed ticket) satisfies the strict handoff rule, and every cell that gained
+with both flags); every sprint in first_sprint..end_sprint. Frozen tickets stay (the one predicate of `lib/frozen.mjs`: closed statuses,
+an `sp:` task with impl_status done, frozen_statuses as config lists them, N below frozen_before_sprint). Frozen history: only the free load of the cell must fit in max(0, cap -
+frozen load), so a cell over cap by frozen tickets alone needs no relief (`OK: ... over capacity (L/C) only by frozen tickets, which are
+history: nothing to relieve`). A set is valid when, applied together, the free load left fits, every link with a moved ticket at either end
+(other end a placed ticket) satisfies the strict handoff rule unless its producer is closed, and every cell that gained
 load ends at or under its owner's cap; the chosen set is checked again with verifyPlan (every violation after must have been there
 before; an internal error otherwise). Choice: fewest moves, then least total |to sprint - N|, then fewest owner changes, then key order
 (moves sorted by key, compared by key, owner, sprint). Search: subsets by size, depth-first assignment with a bound; budget 1,000,000
 steps, each subset step and slot try (`RELIEVE_BUDGET`; `nodes` in --json is what was spent); when it is hit the header says `search budget ... hit: not proven minimal` or `no relief found within the
 search budget ...; not proven impossible`. Text: `RELIEF: <owner> S<n> L/C -> A/C with k moves (slip s, o owner changes)`, one line per
 move with its exact `brain whatif` dry-run command (or `no shell-safe command` when a key or name is not shell-safe), in an order where
-each passes `brain whatif` alone on the plan so far (else a note that the moves only work together), then the dry-run note; `NO RELIEF`
-lists the reasons (FROZEN, NO_SLOT, LINKS, FULL, then NOT_ENOUGH or CONFLICT) with 5 example keys (`-v` 50) and the flags to try; `OK:
+each passes `brain whatif` alone on the plan so far (else a note that the moves only work together and that brain cannot apply moves
+together, since `whatif --apply-plan` applies one move with its own repair; the safe path is a hand-edited schedule checked with `brain
+verify FILE` and loaded with `brain schedule-load`), then the dry-run note; `NO RELIEF`
+lists the reasons (FROZEN, NO_SLOT, LINKS, FULL, then NOT_ENOUGH, NO_ROOM (`the targets have room for X of Y SP`: the target cells
+together have less room than the excess) or CONFLICT) with 5 example keys (`-v` 50) and the flags to try (never `--earlier` when N is
+first_sprint); `OK:
 ... nothing to relieve` when the load is within cap. Exit 0 for relief or nothing to relieve, 1 for no relief. `--json` data: `relieve`
 `{person, sprint}`, `status` (`relief`, `no_relief`, `none_needed`), loads, `slip`, `ownerChanges`, `order`, `searchComplete`, `budget`, `nodes`,
 `allowed`, `moves` (with `command`), `reasons`; `next` holds the move commands, or the relieve command with a wider flag.
 `test/assure/relieve.assure.mjs` checks it against a clean-room brute force on every small instance (minimality, validity, order).
+
+Find (`brain whatif KEY --find [--earlier] [--owner-change] [--strict]`, read-only; `--to`, `--sprint`, `--relieve`, `--apply-plan` and
+`--write` are usage errors; `--slip` is implied): `lib/whatif.mjs` `findSlots`. Slot space (relieve's for one ticket): the same owner in
+every later sprint; with `--earlier` an earlier one; with `--owner-change` every other person (an owner or a caps person) in the current
+sprint or later (earlier too with both); sprints first_sprint..end_sprint; at most `FIND_MAX` (5000) slots are tried. A slot is valid when
+`whatif` says OK (a STARTED warning keeps it, marked; `--strict` makes it a stop) and, applied to a copy, verifyPlan finds nothing it did not
+already find (an internal error otherwise). Ranked by |to sprint - current sprint|, the same owner first, the least load on the target cell,
+owner name, sprint. Text: `FIND KEY (O Sn): V valid slots of T tried (space); best: S5 Ana (no change), ...`, the best 5 (`-v` 20) with
+slip, load and the exact `brain whatif` dry-run command, then the dry-run note; none valid: the reason counts and the flags to try; a key
+whatif stops with STARTED: `no slot: KEY keeps its slot (STARTED: ...)`. Exit 0 when a slot is valid, 1 otherwise. `--json` data: `key`,
+`status` (`found`, `none`, `frozen`, `unknown`), `from`, `tried`, `valid`, `allowed`, `searchComplete`, `slots` (up to 200, with `command`),
+`reasons` ({code: count}); `next` holds the best three commands. `test/assure/find.assure.mjs` checks it against a clean-room brute force.
 
 Session card (`brain card`, the SessionStart hook): a pure function of the data, byte-identical across runs (no clock, no age, no
 modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, the steer

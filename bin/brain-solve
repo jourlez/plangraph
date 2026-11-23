@@ -257,8 +257,8 @@ def load_raw(a):
         dbp = a.db or os.path.join(bd, 'brain.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
         db = open_index(dbp)
         try:
-            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint'), r)) for r in
-                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint FROM ticket ORDER BY key')]
+            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status'), r)) for r in
+                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint, impl_status FROM ticket ORDER BY key')]
             edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
             sched = {}
             for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
@@ -379,16 +379,22 @@ def prepare(a, tickets, edges_raw, sched, cfg):
     if bad: raise invalid(f'--freeze names unknown tickets: {", ".join(bad[:8])}')
     frozen = {ix[k] for k in fz}
     fst = set(cfg.get('frozen_statuses') or [])
-    cst = {'Done'} | {x for x in (cfg.get('closed_statuses') if isinstance(cfg.get('closed_statuses'), list) else []) if isinstance(x, str)}   # closed tickets are always frozen (with a slot)
+    cst = {'Done'} | {x for x in (cfg.get('closed_statuses') if isinstance(cfg.get('closed_statuses'), list) else []) if isinstance(x, str)}
+    # Frozen history, mirroring lib/frozen.mjs (test/frozen.test.mjs compares the two): CLOSED = an sp: task with impl_status done, or a
+    # jira_status Done / in closed_statuses; closed tickets with a current slot are always frozen, whatever frozen_statuses says.
+    pr.closed = {i for i, t in enumerate(tickets) if pr.status[i] in cst or (pr.T[i].startswith('sp:') and t.get('impl_status') == 'done')}
     fb = cfg.get('frozen_before_sprint')
     if fb is not None: sprint_num(fb, 'frozen_before_sprint')
     for i in range(n):
         if fst and pr.status[i] in fst: frozen.add(i)
-        if pr.status[i] in cst and i in pr.cur: frozen.add(i)
+        if i in pr.closed and i in pr.cur: frozen.add(i)
         if fb is not None and i in pr.cur and pr.cur[i][1] < fb: frozen.add(i)
     for i in sorted(frozen):
         if i not in pr.cur: raise invalid(f'frozen ticket {pr.T[i]} has no current schedule slot')
     pr.frozen = {i: (pr.Pi[pr.cur[i][0]], pr.cur[i][1]) for i in sorted(frozen)}
+    # The links that constrain: a constraint exists only where at least one side is free. A link whose producer is closed is satisfied (a
+    # finished producer cannot be late), and a link between two frozen tickets is a fixed fact of history (lib/frozen.mjs).
+    pr.live = [(c, p) for c, p in pr.edges if p not in pr.closed and not (c in pr.frozen and p in pr.frozen)]
     pr.S0 = sprint_num(cfg.get('first_sprint', 1), 'first_sprint')   # free (not frozen) tickets go to sprint S0 or later: no new work lands in a past sprint
     pr.lo = min([pr.S0] + [s for _, s in pr.frozen.values()])   # lowest sprint index in the model: frozen tickets keep their own slot, even below S0
     tgt = a.end if a.end is not None else cfg.get('end_sprint')
@@ -424,16 +430,19 @@ def topo(n, prods, cons):
 
 
 def reduce_links(pr):
-    """Transitive reduction. Safe for the strict handoff rule: [o_c != o_p] <= [o_c != o_m] + [o_m != o_p] (triangle inequality), so
-    c>=m+[c!=m] and m>=p+[m!=p] already imply c>=p+[c!=p]. Checked by property test (same optimum with --no-reduce)."""
+    """Transitive reduction of the live links (pr.live: the ones that constrain; reducing all links first could drop c>p as implied by
+    c>m>p and then drop c>m because m is closed). Safe for the strict handoff rule: [o_c != o_p] <= [o_c != o_m] + [o_m != o_p] (triangle
+    inequality), so c>=m+[c!=m] and m>=p+[m!=p] already imply c>=p+[c!=p]. Checked by property test (same optimum with --no-reduce)."""
+    prods = [[] for _ in range(pr.n)]
+    for c, p in pr.live: prods[c].append(p)
     reach = [0] * pr.n; keep = []
     for c in pr.order:
         under = 0
-        for p in pr.prods[c]: under |= reach[p]
-        for p in pr.prods[c]:
+        for p in prods[c]: under |= reach[p]
+        for p in prods[c]:
             if not (under >> p) & 1: keep.append((c, p))
         reach[c] = under
-        for p in pr.prods[c]: reach[c] |= 1 << p
+        for p in prods[c]: reach[c] |= 1 << p
     return sorted(keep)
 
 
@@ -457,12 +466,13 @@ def verify(pr, assign):
         load[(owner, sprint)] = load.get((owner, sprint), 0) + pr.sp[pr.ix[key]]
         if pr.ix[key] in pr.nd: nd.add((owner, sprint))
         if pr.ix[key] not in pr.frozen and pr.sp[pr.ix[key]] > 0: free.add((owner, sprint))   # a 0-SP free ticket adds nothing to the float sum
-    for (owner, sprint), l in sorted(load.items()):   # a cell of frozen tickets only is what it is (never a tie the solver made)
-        if over(l, pr.capf(owner), (owner, sprint) in nd and (owner, sprint) in free):
+    for (owner, sprint), l in sorted(load.items()):   # capacity binds only free load: a cell without a free story point is history
+        if (owner, sprint) in free and over(l, pr.capf(owner), (owner, sprint) in nd and (owner, sprint) in free):
             bad.append(f'capacity {owner} sprint {sprint}: {us(pr, l)} > {us(pr, pr.capf(owner))}' if l > pr.capf(owner) else
                        f'capacity {owner} sprint {sprint}: {us(pr, l)} reaches {us(pr, pr.capf(owner))} with a story point that is not a binary float')
     for c, p in pr.edges:
         kc, kp = pr.T[c], pr.T[p]
+        if p in pr.closed or (c in pr.frozen and p in pr.frozen): continue   # a closed producer, or two frozen tickets: history, no constraint
         if kc in place and kp in place:
             (oc, sc), (op, sp_) = place[kc], place[kp]
             if sc < sp_ + (0 if oc == op else 1): bad.append(f'handoff {kc}>{kp}: S{sc}/{oc} vs S{sp_}/{op}')
@@ -619,6 +629,9 @@ def build(pr, cp, horizon, links, soft=False):
             # load joining frozen ones that hold such a story point (a 0-SP ticket leaves the float sum exactly as it was). None in an all-integer
             # plan, so its model is unchanged.
             ndt = [(v, i) for (v, _), i in zip(terms[p][k], tix[p][k]) if i in pr.nd or ((p, k) in cnd and pr.sp[i] > 0)]
+            if const[p][k] >= cap:   # frozen load already fills the cell: free load must fit in max(0, cap - frozen) = 0 (a 0-SP ticket may join)
+                if terms[p][k]: m.Add(e == 0)
+                continue
             if ndt and const[p][k] + sum(w for _, w in terms[p][k]) >= cap:
                 y = m.NewBoolVar('')
                 for v, _ in ndt: m.AddImplication(v, y)
@@ -629,12 +642,7 @@ def build(pr, cp, horizon, links, soft=False):
     cx.d = []
     big = horizon - lo + 2
     for c, p in links:
-        if c in pr.frozen and p in pr.frozen:
-            (oc, sc), (op, sp_) = pr.frozen[c], pr.frozen[p]
-            if sc < sp_ + (0 if oc == op else 1):
-                cx.static_bad.append((c, p))
-                if not soft: m.AddBoolOr([])
-            continue
+        if (c in pr.frozen and p in pr.frozen) or p in pr.closed: continue   # history (lib/frozen.mjs): never a constraint, never infeasible
         relax = 0
         if soft: sl = m.NewBoolVar(''); cx.slack.append((c, p, sl)); relax = big * sl
         if nP > 1:
@@ -718,7 +726,7 @@ def explain(pr, cp, a, clock, end, budget):
     if late: out.update(note='frozen tickets already sit after sprint %d: %s' % (end, ', '.join(late[:8])), links=[], n_links=0); return out
     if end < pr.S0 and len(pr.frozen) < pr.n: out['note'] = f'end sprint {end} is before the first sprint {pr.S0}'; return out
     if budget <= 0: out['note'] = 'explanation skipped: no time left'; return out
-    tb = time.time(); cx = build(pr, cp, end, pr.edges, soft=True); budget -= (time.time() - tb) if not a.deterministic else 0
+    tb = time.time(); cx = build(pr, cp, end, pr.live, soft=True); budget -= (time.time() - tb) if not a.deterministic else 0
     if budget <= 0.2: out['note'] = 'explanation skipped: no time left'; return out
     bad = [f'{pr.T[c]}>{pr.T[p]}' for c, p in cx.static_bad]
     cx.m.Minimize(sum(s for _, _, s in cx.slack) if cx.slack else 0)
@@ -726,11 +734,13 @@ def explain(pr, cp, a, clock, end, budget):
     if a.deterministic: clock.dt += sv.deterministic_time
     if st not in (cp.OPTIMAL, cp.FEASIBLE):
         if st != cp.INFEASIBLE: out['note'] = f'explanation inconclusive ({sv.StatusName(st)}) within the time budget'; return out
-        out.update(note=f'infeasible even with every link dropped: capacity or frozen slots alone cannot fit by sprint {end}', links=bad, n_links=len(bad)); return out
+        out.update(note=f'infeasible even with every link dropped: the capacity left beside the frozen tickets cannot hold the free tickets by sprint {end}', links=bad, n_links=len(bad)); return out
+    pinned = 0
     for c, p, s in cx.slack:
-        if sv.Value(s): bad.append(f'{pr.T[c]}>{pr.T[p]}')
+        if sv.Value(s): bad.append(f'{pr.T[c]}>{pr.T[p]}'); pinned += c in pr.frozen
+    if pinned: out.update(pinned=pinned, first=pr.S0)   # links ending at a frozen consumer: a later end sprint does not help them
     bad = sorted(bad); out.update(n_links=len(bad), links=bad[:8], more=max(0, len(bad) - 8), proved_minimal=(st == cp.OPTIMAL))
-    if not bad: out['note'] = 'no link blocks it: capacity or frozen slots do'
+    if not bad: out['note'] = 'no link blocks it: the capacity left beside the frozen tickets does'
     return out
 
 
@@ -738,6 +748,9 @@ def explain_text(ex):
     if 'n_links' not in ex or (not ex.get('links') and ex.get('note')): return ex.get('note', '')
     s = f"{ex['n_links']} links cannot hold with end sprint {ex['end']}: " + ', '.join(ex['links'])
     if ex.get('more'): s += f" ... {ex['more']} more"
+    if ex.get('pinned'):   # never blame the end sprint for frozen history: the frozen consumer's slot is fixed, the free producer starts at first_sprint
+        s += (f"; {ex['pinned']} of them need a free producer before a frozen consumer, which no later end sprint fixes "
+              f"(free tickets start at sprint {ex['first']}: unfreeze the consumer or move first_sprint)")
     return s + ('' if ex.get('proved_minimal', True) else ' (not proved minimal)')
 
 
@@ -874,7 +887,7 @@ def polish(pr, cp, a, clock, links, plan, cur, anytime, comps):
 
 def solve_all(pr, cp, a, clock, anytime):
     stages_meta = []
-    links = pr.edges if a.no_reduce else reduce_links(pr)
+    links = pr.live if a.no_reduce else reduce_links(pr)
     applies = {'end_sprint': True, 'shortfall': bool(pr.minimum), 'load_of': pr.load_of is not None, 'peak_load': pr.load_of is None and pr.balance,
                'owner_changes': any(pr.base_owner[i] in pr.Pi for i in range(pr.n) if i not in pr.frozen)}
     plan = [nm for nm in pr.stage_order if applies[nm]]
@@ -906,7 +919,11 @@ def solve_all(pr, cp, a, clock, anytime):
     for _, s in pr.frozen.values(): m.Add(E >= s)
     if cx.x:   # capacity lower bound on the end sprint: the work that must sit in sprints S0..E (free tickets, and frozen ones from S0 on;
         #        frozen tickets before S0 use no capacity there, and with no free ticket E is just the last frozen sprint)
-        work = sum(pr.sp[i] for i in range(pr.n) if i not in pr.frozen or pr.frozen[i][1] >= pr.S0)
+        #        a frozen cell counts at most its owner's capacity: a frozen cell above cap holds no free work, so it frees no other room)
+        fcell = {}
+        for i, (pi, s) in pr.frozen.items():
+            if s >= pr.S0: fcell[(pi, s)] = fcell.get((pi, s), 0) + pr.sp[i]
+        work = sum(pr.sp[i] for i in range(pr.n) if i not in pr.frozen) + sum(min(v, pr.capf(pr.P[pi])) for (pi, _), v in fcell.items())
         m.Add(E >= pr.S0 + max(0, -(-work // sum(pr.capf(p) for p in pr.P)) - 1))
     cx.aux.append((E, lambda f: max(s for _, s in f.values())))
     info = {'links_total': len(pr.edges), 'links_modeled': len(links), 'horizon': H, 'horizon_from_valid_construction': gok, 'dropped_links': pr.dropped,

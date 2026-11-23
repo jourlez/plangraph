@@ -32,7 +32,6 @@
       "ok": false,
       "codes": [
         "CAPACITY",
-        "CONSUMER_EARLY",
         "STARTED"
       ]
     }
@@ -52,7 +51,7 @@
       "role": "outcome",
       "type": "regex",
       "target": "last_message",
-      "pattern": "(?:^|\\n)ANSWER:(?=[^\\n]*\"codes\"\\s*:\\s*\\[\\s*(?:\"[^\"\\n]*\"\\s*(?:,\\s*)?){3}\\])(?=[^\\n]*\"codes\"\\s*:\\s*\\[[^\\]\\n]*\"CAPACITY\")(?=[^\\n]*\"codes\"\\s*:\\s*\\[[^\\]\\n]*\"CONSUMER_EARLY\")(?=[^\\n]*\"codes\"\\s*:\\s*\\[[^\\]\\n]*\"STARTED\")",
+      "pattern": "(?:^|\\n)ANSWER:(?=[^\\n]*\"codes\"\\s*:\\s*\\[\\s*(?:\"[^\"\\n]*\"\\s*(?:,\\s*)?){2}\\])(?=[^\\n]*\"codes\"\\s*:\\s*\\[[^\\]\\n]*\"CAPACITY\")(?=[^\\n]*\"codes\"\\s*:\\s*\\[[^\\]\\n]*\"STARTED\")",
       "weight": 3,
       "arm": "both"
     },

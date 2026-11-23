@@ -8,16 +8,17 @@
 //   3. the target sprint (default: the current one) is a whole number in first_sprint (default 1) .. end_sprint (default: the last sprint
 //      used in the schedule) (else OUT_OF_RANGE);
 //   4. the target differs from the current slot (else SAME_SLOT);
-//   5. the ticket is not closed (Done or config.closed_statuses: always a stop); a frozen status (config.frozen_statuses, default
-//      Done and In Progress) only warns, and stops under opts.strict (STARTED);
+//   5. the ticket is not frozen as history (oracle.mjs: closed, a key of opts.frozen, a current sprint below frozen_before_sprint: always a
+//      stop); In Progress, and any status listed in config.frozen_statuses, only warns, and stops under opts.strict (STARTED);
 //   6. NEIGHBORHOOD, after applying the move: every live link with the moved ticket at either end, whose other end is a placed ticket,
 //      satisfies the strict handoff rule (PRODUCER_LATE / CONSUMER_EARLY), the moved ticket's own placement used on BOTH ends of a self-link;
+//      a link whose producer is CLOSED (oracle.mjs isClosedTicket) is satisfied wherever the producer sits (frozen history: oracle.mjs);
 //   7. the target cell's load after the move (its current load plus the ticket's points) is at most the target owner's capacity, OR the
 //      move added no load to it (CAPACITY is a NEW violation only, as lib/verify.mjs counts them): a 0-point ticket may move into a cell
 //      that is already over capacity (lib/whatif.mjs header; test/whatif-zero-sp.test.mjs). Encoded as specified.
 //   Cross-check with the verify oracle: a YES move never adds a violation (multiset of oracle violations after minus before is empty).
 // proposeMove (repairs), for every request and every flag combination of {allowSlip, allowEarlier, allowOwnerChange}:
-//   ok => the first move is the request (slipped later only with allowSlip, never another owner), no frozen/Done ticket other than the
+//   ok => the first move is the request (slipped later only with allowSlip, never another owner), no frozen ticket (oracle.mjs) other than the
 //   requested one moves, no other ticket changes owner without allowOwnerChange or ends before its base sprint without allowEarlier, every
 //   sprint is in first..end, and the repaired plan satisfies rule 6 for every moved ticket and rule 7 for every cell whose load grew, adds
 //   no oracle violation; searchComplete => (slipped, shifted) is the lexicographic minimum over the WHOLE move space (brute force on the
@@ -28,7 +29,7 @@
 import assert from 'node:assert/strict';
 import { buildModel } from '../../lib/model.mjs';
 import { whatif, proposeMove } from '../../lib/whatif.mjs';
-import { oracleViolations, capFor, validPlacement, liveEdges, personsOf } from './oracle.mjs';
+import { oracleViolations, capFor, validPlacement, liveEdges, personsOf, isClosedTicket, isFrozenForWindow } from './oracle.mjs';
 import { product, allGraphs, slots, keysOf, bag } from './enum.mjs';
 
 const sp = (t) => (t && typeof t.sp === 'number' && Number.isFinite(t.sp) ? t.sp : 0);
@@ -43,19 +44,16 @@ function resolve(inst, name) {
   const fn = ps.filter((p) => q && p.toLowerCase().split(/\s+/)[0] === q);
   return fn.length === 1 ? fn[0] : null;
 }
-const statusSets = (inst) => {
-  const cfg = inst.config || {};
-  const closed = ['Done', ...(Array.isArray(cfg.closed_statuses) ? cfg.closed_statuses : [])];
-  const frozen = [...closed, ...(Array.isArray(cfg.frozen_statuses) ? cfg.frozen_statuses : ['Done', 'In Progress'])];
-  return { closed, frozen };
-};
+// the statuses that only warn (rule 5): In Progress always, plus what config.frozen_statuses lists
+const warnStatuses = (inst) => { const f = (inst.config || {}).frozen_statuses; return ['In Progress', ...(Array.isArray(f) ? f : [])]; };
+const historyFrozen = (inst, k) => { const cfg = inst.config || {}, cur = inst.sched.get(k); return isClosedTicket(inst, k) || !!(inst.frozen && inst.frozen.has(k)) || (Number.isFinite(cfg.frozen_before_sprint) && validPlacement(cur) && cur.sprint < cfg.frozen_before_sprint); };
 const cellLoad = (inst, sched, o, s) => { let v = 0; for (const [k, p] of sched) if (tget(inst, k) && validPlacement(p) && p.owner === o && p.sprint === s) v += sp(tget(inst, k)); return v; };
 // Rule 6 on a schedule for a set of moved tickets.
 function handoffOk(inst, sched, moved) {
   for (const e of liveEdges(inst)) {
     if (!moved.has(e.consumer) && !moved.has(e.producer)) continue;
     const c = sched.get(e.consumer), p = sched.get(e.producer);
-    if (!tget(inst, e.consumer) || !tget(inst, e.producer) || !validPlacement(c) || !validPlacement(p)) continue;
+    if (!tget(inst, e.consumer) || !tget(inst, e.producer) || !validPlacement(c) || !validPlacement(p) || isClosedTicket(inst, e.producer)) continue;
     if (c.sprint < p.sprint + (c.owner === p.owner ? 0 : 1)) return false;
   }
   return true;
@@ -75,15 +73,15 @@ export function oracleMove(inst, mv, opts = {}) {
   const sprint = mv.sprint ?? cur.sprint, { first, end } = windowOf(inst);
   if (!Number.isInteger(sprint) || sprint < first || sprint > end) codes.add('OUT_OF_RANGE');
   if (owner === cur.owner && sprint === cur.sprint) { codes.add('SAME_SLOT'); return { yes: false, codes, hard: true }; }
-  const { closed, frozen } = statusSets(inst), st = t.jira_status;
+  const st = t.jira_status;
   let warnOnly = false, hard = codes.size > 0;
-  if (st && closed.includes(st)) { codes.add('STARTED'); hard = true; } else if (st && frozen.includes(st)) { codes.add('STARTED'); if (opts.strict) hard = true; else warnOnly = true; }
+  if (historyFrozen(inst, mv.key)) { codes.add('STARTED'); hard = true; } else if (st && warnStatuses(inst).includes(st)) { codes.add('STARTED'); if (opts.strict) hard = true; else warnOnly = true; }
   const after = new Map(inst.sched); after.set(mv.key, { owner, sprint });
   for (const e of liveEdges(inst)) {
     const other = e.consumer === mv.key ? e.producer : e.producer === mv.key ? e.consumer : null;
     if (other === null || e.consumer === e.producer) continue; // a self-link: same placement on both ends, rule holds
     const op = inst.sched.get(other);
-    if (!tget(inst, other) || !validPlacement(op)) continue;
+    if (!tget(inst, other) || !validPlacement(op) || isClosedTicket(inst, e.producer)) continue;
     const c = after.get(e.consumer), p = after.get(e.producer);
     if (c.sprint < p.sprint + (c.owner === p.owner ? 0 : 1)) codes.add(e.consumer === mv.key ? 'PRODUCER_LATE' : 'CONSUMER_EARLY');
   }
@@ -102,12 +100,12 @@ function newViolations(inst, after) {
 
 // Brute force over the whole move space of proposeMove (stated in the header). Returns the lexicographic minimum [slip, shifted] or null.
 function bruteRepair(inst, mv, target, opts) {
-  const cur = inst.sched.get(mv.key), { first, end } = windowOf(inst), { frozen } = statusSets(inst);
+  const cur = inst.sched.get(mv.key), { first, end } = windowOf(inst);
   const people = [...personsOf(inst)].sort();
   const others = [...inst.sched.keys()].filter((k) => k !== mv.key && tget(inst, k) && validPlacement(inst.sched.get(k))).sort();
   const choices = others.map((k) => {
-    const b = inst.sched.get(k), st = tget(inst, k).jira_status;
-    if (st && frozen.includes(st)) return [b];
+    const b = inst.sched.get(k);
+    if (isFrozenForWindow(inst, k)) return [b];
     const out = [b];
     for (const o of opts.allowOwnerChange ? people : [b.owner]) for (let s = Math.max(first, opts.allowEarlier ? first : b.sprint); s <= end; s++) if (!(o === b.owner && s === b.sprint)) out.push({ owner: o, sprint: s });
     return out;
@@ -135,15 +133,15 @@ function repairValid(inst, after, moved) {
 }
 
 function checkRepair(inst, mv, opts, pm, target, brute) {
-  const { first, end } = windowOf(inst), { frozen } = statusSets(inst);
+  const { first, end } = windowOf(inst);
   if (pm.ok) {
     const m0 = pm.moves[0];
     if (m0.key !== mv.key || m0.to.owner !== target.owner || m0.to.sprint < target.sprint || (!opts.allowSlip && m0.to.sprint !== target.sprint)) fail(inst, 'first move is not the request', { mv, opts, pm });
     const after = new Map(inst.sched), moved = new Set();
     for (const m of pm.moves) {
-      const b = inst.sched.get(m.key), st = tget(inst, m.key)?.jira_status;
+      const b = inst.sched.get(m.key);
       if (m.key !== mv.key) {
-        if (st && frozen.includes(st)) fail(inst, 'a frozen or Done ticket was moved', { mv, opts, m });
+        if (isFrozenForWindow(inst, m.key)) fail(inst, 'a frozen or Done ticket was moved', { mv, opts, m });
         if (!opts.allowOwnerChange && m.to.owner !== b.owner) fail(inst, 'owner changed without allowOwnerChange', { mv, opts, m });
         if (!opts.allowEarlier && m.to.sprint < b.sprint) fail(inst, 'moved earlier without allowEarlier', { mv, opts, m });
       }
@@ -198,8 +196,8 @@ const T = (keys, a) => a.map((x) => (typeof x === 'string' ? keys.map((_, i) => 
 export const BOUNDS = {
   full: {
     verdict: [
-      { n: 1, unplaced: true, sps: [[0], [1], [2], [1.5]], caps: [0, 1, 2, 3, 5], sts: ['To Do', 'In Progress', 'Done', 'Closed'], cfgs: [{}, { first_sprint: 2 }, { end_sprint: 4 }, { frozen_statuses: [] }, { closed_statuses: ['Closed'] }, { first_sprint: 2, end_sprint: 2 }], tos: [undefined, 'Ana', 'Ben', 'ana', 'Zed', 'Cleo'], sprintReq: [undefined, 0, 1, 2, 3, 4, 5, 1.5], ghost: true },
-      { n: 2, unplaced: true, sps: [[0, 1], [1, 1], [2, 1], [1, 2], [1.5, 1.5]], caps: [1, 2, 3], sts: ['To Do', 'In Progress', 'Done'], cfgs: [{}, { first_sprint: 2, end_sprint: 4 }] },
+      { n: 1, unplaced: true, sps: [[0], [1], [2], [1.5]], caps: [0, 1, 2, 3, 5], sts: ['To Do', 'In Progress', 'Done', 'Closed'], cfgs: [{}, { first_sprint: 2 }, { end_sprint: 4 }, { frozen_statuses: [] }, { closed_statuses: ['Closed'] }, { first_sprint: 2, end_sprint: 2 }, { frozen_before_sprint: 2 }], tos: [undefined, 'Ana', 'Ben', 'ana', 'Zed', 'Cleo'], sprintReq: [undefined, 0, 1, 2, 3, 4, 5, 1.5], ghost: true },
+      { n: 2, unplaced: true, sps: [[0, 1], [1, 1], [2, 1], [1, 2], [1.5, 1.5]], caps: [1, 2, 3], sts: ['To Do', 'In Progress', 'Done'], cfgs: [{}, { first_sprint: 2, end_sprint: 4 }, { frozen_before_sprint: 2 }] },
       { n: 3, sprints: [1, 2], sps: [[1, 1, 1], [0, 2, 1]], caps: [2, 3], sts: ['To Do', 'In Progress'], cfgs: [{}] },
     ],
     repair: [
@@ -209,7 +207,7 @@ export const BOUNDS = {
   },
   quick: {
     verdict: [
-      { n: 1, unplaced: true, sps: [[1], [1.5]], caps: [0, 2], sts: ['To Do', 'In Progress', 'Done', 'Closed'], cfgs: [{}, { first_sprint: 2 }, { end_sprint: 4 }, { frozen_statuses: [] }, { closed_statuses: ['Closed'] }, { first_sprint: 2, end_sprint: 2 }], tos: [undefined, 'Ana', 'Ben', 'ana', 'Zed', 'Cleo'], sprintReq: [undefined, 0, 1, 2, 3, 4, 5, 1.5], ghost: true },
+      { n: 1, unplaced: true, sps: [[1], [1.5]], caps: [0, 2], sts: ['To Do', 'In Progress', 'Done', 'Closed'], cfgs: [{}, { first_sprint: 2 }, { end_sprint: 4 }, { frozen_statuses: [] }, { closed_statuses: ['Closed'] }, { first_sprint: 2, end_sprint: 2 }, { frozen_before_sprint: 2 }], tos: [undefined, 'Ana', 'Ben', 'ana', 'Zed', 'Cleo'], sprintReq: [undefined, 0, 1, 2, 3, 4, 5, 1.5], ghost: true },
       { n: 2, sprints: [1, 2], sps: [[1, 1], [0, 2]], caps: [2], sts: ['To Do', 'In Progress'], cfgs: [{}] },
     ],
     repair: [{ n: 2, sps: [[2, 1], [0, 2]], caps: [1, 2], sts: [['To Do', 'To Do'], ['To Do', 'Done']], tos: [undefined, 'Ben'], sprintReq: [undefined, 1, 3] }],

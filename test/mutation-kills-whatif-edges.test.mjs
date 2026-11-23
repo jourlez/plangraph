@@ -54,7 +54,7 @@ test('proposeMove: a shifted ticket that keeps its owner is no owner change; the
   const m = buildModel({ tickets: [{ key: 'A', sp: 1 }, { key: 'C', sp: 1 }], edges: [{ producer: 'A', consumer: 'C' }], schedule: [{ key: 'A', owner: 'x', sprint: 1 }, { key: 'C', owner: 'y', sprint: 2 }], config: { end_sprint: 3 } });
   const r = proposeMove(m, { key: 'A', sprint: 2 });
   assert.deepEqual([r.ok, r.shifted, r.ownerChanges, r.slipped], [true, 1, 0, 0]);
-  const stuck = buildModel({ tickets: [{ key: 'A', sp: 1 }, { key: 'C', sp: 1, jira_status: 'In Progress' }], edges: [{ producer: 'A', consumer: 'C' }], schedule: [{ key: 'A', owner: 'x', sprint: 1 }, { key: 'C', owner: 'y', sprint: 2 }], config: { end_sprint: 3 } });
+  const stuck = buildModel({ tickets: [{ key: 'A', sp: 1 }, { key: 'C', sp: 1, jira_status: 'In Progress' }], edges: [{ producer: 'A', consumer: 'C' }], schedule: [{ key: 'A', owner: 'x', sprint: 1 }, { key: 'C', owner: 'y', sprint: 2 }], config: { end_sprint: 3, frozen_statuses: ['In Progress'] } });
   const n = proposeMove(stuck, { key: 'A', sprint: 2 });
   assert.deepEqual(n.reasons.at(-1), { code: 'NO_REPAIR', key: 'A', detail: 'no repair exists under the move rules', fix: 'allow earlier moves, owner changes, slip or overflow' });
 });

@@ -150,7 +150,7 @@ function bruteReady(raw, items, statuses) {
     for (const e of raw.edges) {
       if (e.consumer !== key || skip.has(e.kind) || !tk.has(e.producer)) continue;
       const p = tk.get(e.producer);
-      if (isSp(key) && isSp(e.producer) ? p.impl_status !== 'done' : !closedSt.has(now(e.producer))) ok = false;
+      if (isSp(e.producer) ? p.impl_status !== 'done' : !closedSt.has(now(e.producer))) ok = false; // an sp: producer is done by impl_status, for any consumer
     }
     if (ok) out.push(key);
   }

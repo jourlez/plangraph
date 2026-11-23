@@ -187,16 +187,19 @@ function rules(ctx, args) {
   return 0;
 }
 
+// Frozen history (lib/frozen.mjs): a link with a closed producer, or between two frozen tickets, is no violation; a cell is over cap only
+// when it holds a free ticket with story points.
 /** @param {Ctx} ctx */
-function check(ctx) {
-  const d = ctx.db(), cfg = ctx.config(), skip = new Set(cfg.ignore_link_kinds || []);
+async function check(ctx) {
+  const F = await import('../../lib/frozen.mjs');
+  const d = ctx.db(), cfg = ctx.config(), skip = new Set(cfg.ignore_link_kinds || []), model = modelFromDb(ctx), frozen = F.frozenTest(model);
   const sched = new Map(d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`).map((r) => [r.key, r]));
   const sp = new Map(d.all('SELECT key,sp FROM ticket').map((r) => [r.key, r.sp]));
   const edges = d.all('SELECT consumer,producer,kind FROM edge').filter((e) => !skip.has(e.kind));
-  let viol = 0; const load = new Map();
-  for (const [k, s] of sched) { const id = `${s.owner}|${s.sprint}`; load.set(id, (load.get(id) || 0) + (sp.get(k) || 0)); }
-  for (const e of edges) { const c = sched.get(e.consumer), p = sched.get(e.producer); if (!c || !p) continue; if (p.owner === c.owner ? p.sprint > c.sprint : p.sprint >= c.sprint) viol++; }
-  const over = [...load].filter(([k, v]) => v > capOf(cfg, k.split('|')[0])).length;
+  let viol = 0; const load = new Map(), withFree = new Set();
+  for (const [k, s] of sched) { const id = `${s.owner}|${s.sprint}`; load.set(id, (load.get(id) || 0) + (sp.get(k) || 0)); if ((sp.get(k) || 0) > 0 && model.tickets.has(k) && !frozen(k)) withFree.add(id); }
+  for (const e of edges) { const c = sched.get(e.consumer), p = sched.get(e.producer); if (!c || !p || !F.linkBinds(model, frozen, e.consumer, e.producer)) continue; if (p.owner === c.owner ? p.sprint > c.sprint : p.sprint >= c.sprint) viol++; }
+  const over = [...load].filter(([k, v]) => withFree.has(k) && v > capOf(cfg, k.split('|')[0])).length;
   const ind = /** @type {Map<string, any>} */ (new Map([...sched.keys()].map((k) => [k, 0]))), adj = /** @type {Map<string, any>} */ (new Map([...sched.keys()].map((k) => [k, []])));
   for (const e of edges) if (ind.has(e.consumer) && ind.has(e.producer)) { ind.set(e.consumer, ind.get(e.consumer) + 1); adj.get(e.producer).push(e.consumer); }
   const q = [...ind].filter(([, v]) => v === 0).map((x) => x[0]); let seen = 0;
@@ -216,7 +219,9 @@ async function verify(ctx, args) {
     if (!Array.isArray(rows)) throw dataError('schedule file must be a JSON array of {item, owner, sprint}');
     sched = new Map(rows.map((r) => [r?.item ?? r?.key, { owner: r?.owner, sprint: r?.sprint }]));
   }
-  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']) }), limit = verbose(args) ? 200 : 20;
+  // a schedule file is checked against the frozen tickets of the CURRENT schedule: one it moves or drops is FROZEN_MOVED
+  const frozen = file === undefined ? undefined : (await import('../../lib/frozen.mjs')).frozenSlots(model);
+  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
   ctx.io.data?.({ ok: !v.length, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
     { next: v.length ? nextList([nextCommand(['ticket', [v[0].key], '-v']), file === undefined ? 'brain check' : null]) : [] });
   if (!v.length) { ctx.io.out(`OK plan valid (${model.tickets.size} tickets)`); return 0; } // every ticket (unplaced sp: tasks included)

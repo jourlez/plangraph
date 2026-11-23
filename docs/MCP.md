@@ -154,8 +154,8 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | 15 | ticket {"key":"T-1200"} | 310 | 310 | yes | 405 | 95 | 77 | 101 |
 | 21 | ticket {"key":"T-20"} | 288 | 288 | yes | 383 | 95 | 72 | 96 |
 | 22 | ticket {"key":"T-99999"} | 87 | 87 | yes | 178 | 91 | 22 | 45 |
-| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 589 | 589 | yes | 680 | 91 | 148 | 170 |
-| | total | 2090 | | | 2657 | 567 | | |
+| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 522 | 522 | yes | 613 | 91 | 131 | 154 |
+| | total | 2023 | | | 2590 | 567 | | |
 <!-- MCP-BENCH:END -->
 
 Reading it:

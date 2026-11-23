@@ -14,7 +14,7 @@ const G = (/** @type {string} */ name, /** @type {() => unknown} */ fn) => golde
 test('proposeMove sweep over small tight plans (every ticket, sprint and repair option), and whatif edge models', () => {
   const opts = [{ allowSlip: true }, { allowEarlier: true }, { allowOwnerChange: true }, { allowSlip: true, allowOwnerChange: true, allowEarlier: true }];
   for (const seed of [21, 24, 28, 30]) {
-    const m = buildModel((() => { const p = genPlan({ n: 8, people: 3, seed, cap: 4, density: 0.3 }); p.tickets[2].jira_status = 'In Progress'; p.config.end_sprint = 4; return p; })());
+    const m = buildModel((() => { const p = genPlan({ n: 8, people: 3, seed, cap: 4, density: 0.3 }); p.tickets[2].jira_status = 'In Progress'; p.config.end_sprint = 4; return { ...p, config: { ...p.config, frozen_statuses: ['In Progress'] } }; })());
     /** @type {string[]} */ const res = [];
     for (const key of [...m.sched.keys()].sort()) for (const sprint of [1, 3]) for (const o of opts) {
       const r = proposeMove(m, { key, sprint }, o);
@@ -23,7 +23,7 @@ test('proposeMove sweep over small tight plans (every ticket, sprint and repair 
     G(`propose-sweep-${seed}`, () => res);
   }
   // small search limits: the exhausted search falls back to the greedy order (searchComplete false) or gives up
-  const tight = buildModel((() => { const p = genPlan({ n: 8, people: 3, seed: 30, cap: 4, density: 0.3 }); p.tickets[2].jira_status = 'In Progress'; p.config.end_sprint = 4; return p; })());
+  const tight = buildModel((() => { const p = genPlan({ n: 8, people: 3, seed: 30, cap: 4, density: 0.3 }); p.tickets[2].jira_status = 'In Progress'; p.config.end_sprint = 4; return { ...p, config: { ...p.config, frozen_statuses: ['In Progress'] } }; })());
   G('propose-limits', () => [...tight.sched.keys()].sort().flatMap((key) => [{ budget: 1 }, { budget: 3 }, { workLimit: 2 }, { workLimit: 20 }].map((o) => { const r = proposeMove(tight, { key, sprint: 3 }, { allowSlip: true, allowOwnerChange: true, ...o }); return `${key} ${JSON.stringify(o)}: ${r.ok} ${r.searchComplete} ${r.nodes} ${r.reasons.map((x) => `${x.code} ${x.detail}`).join('; ')}`; })));
   // models without first_sprint / end_sprint, a ghost producer, a 0-point ticket, people differing only by case, multi-word names
   const edge = buildModel({

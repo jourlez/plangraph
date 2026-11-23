@@ -48,12 +48,14 @@ export const BOUNDS = {
     load: [{ n: 1, people: 3, sprints: [1, 2, 3] }, { n: 2, people: 3, sprints: [1, 2, 3] }, { n: 3, people: 3, sprints: [1, 2, 3] }, { n: 4, people: 2, sprints: [1, 2] }],
     window: [{ n: 1 }, { n: 2 }, { n: 3, reduced: true }],
     mixed: [{ n: 1 }, { n: 2 }],
+    frozen: [{ keys: ['T1', 'T2'], sprints: [1, 2, 3] }, { keys: ['T1', 'sp:a'], sprints: [1, 2, 3] }, { keys: ['T1', 'T2', 'T3'], sprints: [1, 2], reduced: true }],
   },
   quick: {
     graph: [{ n: 1, people: 3, sprints: [1, 2, 3], dup: true }, { n: 2, people: 2, sprints: [1, 2], dup: true }, { n: 3, people: 2, sprints: [1, 2], dup: false, unplaced: false }],
     load: [{ n: 1, people: 3, sprints: [1, 2, 3] }, { n: 2, people: 2, sprints: [1, 2] }],
     window: [{ n: 1 }, { n: 2, reduced: true }],
     mixed: [{ n: 1 }],
+    frozen: [{ keys: ['T1', 'T2'], sprints: [1, 2] }, { keys: ['T1', 'sp:a'], sprints: [1, 2], reduced: true }],
   },
 };
 export const SP = [0, 1, 2, 3, 1.5], CAPS = [0, 1, 2, 3, 5];
@@ -122,6 +124,29 @@ export function enumerate(lvl, visit) {
         });
       });
     }
+  }
+  // frozen history (oracle.mjs): every graph x every status vector (To Do, In Progress, Done; for an sp: key the same three read as
+  // impl_status todo / jira In Progress / impl_status done) x frozen_statuses (none, In Progress) x frozen_before_sprint (none, 2) x story
+  // points x placements on Ana/Ben x opts.frozen (none, every ticket at its slot): HANDOFF and CAPACITY where one side is free, none where
+  // the producer is closed or both ends are frozen, frozen-only cells never over capacity.
+  for (const b of B.frozen) {
+    const keys = b.keys, sl = slots(['Ana', 'Ben'], b.sprints, false);
+    const sts = b.reduced ? ['To Do', 'Done'] : ['To Do', 'In Progress', 'Done'];
+    const cfgs = [];
+    for (const fs of b.reduced ? [['In Progress']] : [undefined, ['In Progress']]) for (const fb of b.reduced ? [undefined] : [undefined, 2]) cfgs.push({ caps: { default: 2 }, ...(fs ? { frozen_statuses: fs } : {}), ...(fb !== undefined ? { frozen_before_sprint: fb } : {}) });
+    const spvs = b.reduced ? [keys.map(() => 1)] : [[1, 1], [2, 1], [0, 2]];
+    for (const g of allGraphs(keys)) for (const config of cfgs) product(keys.map(() => sts), (st) => {
+      for (const sps of spvs) {
+        const tickets = keys.map((key, i) => (key.startsWith('sp:') && st[i] !== 'In Progress' ? { key, sp: sps[i], impl_status: st[i] === 'Done' ? 'done' : 'todo' } : { key, sp: sps[i], jira_status: st[i] }));
+        const edges = edgesOf(g, false), model = buildModel({ tickets, edges, config });
+        product(keys.map(() => sl), (ch) => {
+          const sched = toSched(keys, ch);
+          for (const fz of b.reduced ? [false] : [false, true]) {
+            visit({ tickets, edges, sched, config, frozen: fz ? new Map(keys.map((k) => [k, { ...sched.get(k) }])) : undefined }, model); tick('frozen');
+          }
+        });
+      }
+    });
   }
   return counts;
 }

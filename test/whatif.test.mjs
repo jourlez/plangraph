@@ -76,8 +76,9 @@ test('worked: STARTED (Done hard stop, In Progress warns unless strict)', () => 
   const w = whatif(m, { key: 'W1', sprint: 4 });
   assert.equal(w.ok, true); assert.equal(w.started, true); assert.equal(w.reasons[0].code, 'STARTED'); assert.equal(w.reasons[0].warn, true);
   assert.equal(whatif(m, { key: 'W1', sprint: 4 }, { strict: true }).ok, false);
-  const m2 = world({ frozen_statuses: ['Done'] });
-  assert.equal(whatif(m2, { key: 'W1', sprint: 4 }).started, false);
+  // review M2: `brain init` writes frozen_statuses ["Done"]; In Progress still warns (it was silenced before)
+  const m2 = world({ frozen_statuses: ['Done'] }), w2 = whatif(m2, { key: 'W1', sprint: 4 });
+  assert.deepEqual([w2.ok, w2.started, w2.reasons[0].code, w2.reasons[0].warn], [true, true, 'STARTED', true]);
 });
 
 test('worked: UNKNOWN_PERSON, UNKNOWN_TICKET, SAME_SLOT, OUT_OF_RANGE, case-insensitive names', () => {
@@ -141,7 +142,7 @@ test('proposeMove: every ok output verifies, keeps other owners, pins started ti
   for (let seed = 1; seed <= 500; seed++) {
     const g = genPlan({ n: 8 + (seed % 20), people: 2 + (seed % 3), density: 0.1 + (seed % 4) / 15, seed, maxSp: 5 });
     g.tickets.forEach((t, i) => { if (i % 7 === 3) t.jira_status = 'Done'; else if (i % 11 === 5) t.jira_status = 'In Progress'; });
-    g.config.end_sprint += 2;
+    g.config.end_sprint += 2; g.config.frozen_statuses = ['In Progress']; // pinned only because config lists it (lib/frozen.mjs)
     const m = tight(g), r0 = rng(seed * 7);
     const mv = randMove(m, r0, m.config.end_sprint);
     const o = [{}, { allowEarlier: true }, { allowSlip: true }, { allowEarlier: true, allowSlip: true }, { allowOwnerChange: true, allowSlip: true }][seed % 5];
@@ -247,7 +248,7 @@ test('proposeMove vs oracle, harder shape (n=5, 3 people, 6 sprints, big tickets
   const st = { cases: 0, feasible: 0, equal: 0, maxExcess: 0 };
   for (let seed = 1; seed < 40000 && st.cases < 600; seed++) {
     const g = genPlan({ n: 5, people: 3, density: 0.25, seed: seed + 500000, maxSp: 6 });
-    g.config.end_sprint = 6; g.tickets.forEach((t, i) => { if ((seed + i) % 8 === 0) t.jira_status = 'In Progress'; });
+    g.config.end_sprint = 6; g.config.frozen_statuses = ['In Progress']; g.tickets.forEach((t, i) => { if ((seed + i) % 8 === 0) t.jira_status = 'In Progress'; });
     const m = tight(g), mv = randMove(m, rng(seed * 5 + 2), 6);
     if (m.tickets.get(mv.key).jira_status !== 'To Do') continue;
     const w = whatif(m, mv, { noSuggest: true });
@@ -386,12 +387,14 @@ test('regression: Done and closed_statuses tickets are always pinned, even with 
     assert.equal(w.ok, false); assert.equal(w.started, true); assert.deepEqual(codes(w), ['STARTED']); assert.equal(w.reasons[0].warn, undefined);
     assert.equal(whatif(m, { key: 'T-1', sprint: 3 }).suggestion.none, true, `${st}: no suggestion may move the closed consumer`);
   }
-  // frozen_statuses keeps its meaning for open statuses: [] pins In Progress no more, absent pins it (default)
+  // frozen_statuses keeps its meaning for open statuses, the same in verify, the solver and whatif (lib/frozen.mjs): only what it lists
+  // is pinned, so [] and an absent key pin In Progress no more, ['In Progress'] pins it
   const ip = (extra) => buildModel({ tickets: [{ key: 'A', sp: 1, jira_status: 'To Do' }, { key: 'B', sp: 1, jira_status: 'In Progress' }],
     edges: [{ consumer: 'B', producer: 'A', kind: 'x' }], schedule: [{ key: 'A', owner: 'Ana', sprint: 2 }, { key: 'B', owner: 'Ana', sprint: 2 }],
     config: { first_sprint: 1, end_sprint: 6, caps: { default: 10 }, ...extra } });
   assert.equal(proposeMove(ip({ frozen_statuses: [] }), { key: 'A', sprint: 3 }).ok, true);
-  assert.equal(proposeMove(ip({}), { key: 'A', sprint: 3 }).ok, false);
+  assert.equal(proposeMove(ip({}), { key: 'A', sprint: 3 }).ok, true);
+  assert.equal(proposeMove(ip({ frozen_statuses: ['In Progress'] }), { key: 'A', sprint: 3 }).ok, false);
 });
 
 

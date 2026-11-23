@@ -74,7 +74,7 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 |---|--:|--:|
 | card (session start, printed once per session) | 533 | 134 |
 | explain | 736 | 184 |
-| explain whatif | 463 | 116 |
+| explain whatif | 513 | 129 |
 | ticket T-1200 -v | 1110 | 278 |
 
 Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, last sprint 53, 4 people; raw files: tickets.jsonl 321297 bytes ~80325 est tok, edges.jsonl 694414 bytes ~173604 est tok, schedule.jsonl 87372 bytes ~21843 est tok, evidence.jsonl 876381 bytes ~219096 est tok, findings.jsonl 22189 bytes ~5548 est tok, config.json 155 bytes ~39 est tok; plan text 4181129 bytes (not used by any question: no CLI command answers from it).

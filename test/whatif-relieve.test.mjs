@@ -24,14 +24,14 @@ const run = (/** @type {string[]} */ ...a) => spawnSync(process.execPath, [BRAIN
 const jl = (/** @type {any[]} */ rows) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const T = (/** @type {string} */ key, /** @type {number} */ sp, /** @type {Record<string, unknown>} */ o = {}) => ({ key, sp, jira_status: 'To Do', verdict: 'READY', ...o });
 // Ana S2 is 8/5: K-1 (3) can only go to S4 (S3 would be 6/5), K-2 feeds Ben S3 so it cannot slip, K-3 is In Progress, K-4 (1) fits S3.
-// Cleo S1 is 3/2 with only an In Progress ticket. Dan S1 is 2/1: D-1 must take its 0-SP consumer D-2 along (D-3 is In Progress).
+// Cleo S1 is 4/2: the In Progress C-1 (3) alone fills it, so the free C-2 (1) must leave, and it cannot: its consumer C-3 sits in Ben S2. Dan S1 is 2/1: D-1 must take its 0-SP consumer D-2 along (D-3 is In Progress).
 const TICKETS = [
   T('K-1', 3), T('K-2', 2), T('K-3', 2, { jira_status: 'In Progress' }), T('K-4', 1), T('K-5', 1), T('K-6', 3),
-  T('C-1', 3, { jira_status: 'In Progress' }), T('D-1', 1), T('D-2', 0), T('D-3', 1, { jira_status: 'In Progress' }),
+  T('C-1', 3, { jira_status: 'In Progress' }), T('C-2', 1), T('C-3', 1), T('D-1', 1), T('D-2', 0), T('D-3', 1, { jira_status: 'In Progress' }),
 ];
-const PLACE = { 'K-1': ['Ana', 2], 'K-2': ['Ana', 2], 'K-3': ['Ana', 2], 'K-4': ['Ana', 2], 'K-5': ['Ben', 3], 'K-6': ['Ana', 3], 'C-1': ['Cleo', 1], 'D-1': ['Dan', 1], 'D-2': ['Dan', 1], 'D-3': ['Dan', 1] };
+const PLACE = { 'K-1': ['Ana', 2], 'K-2': ['Ana', 2], 'K-3': ['Ana', 2], 'K-4': ['Ana', 2], 'K-5': ['Ben', 3], 'K-6': ['Ana', 3], 'C-1': ['Cleo', 1], 'C-2': ['Cleo', 1], 'C-3': ['Ben', 2], 'D-1': ['Dan', 1], 'D-2': ['Dan', 1], 'D-3': ['Dan', 1] };
 const SCHEDULE = Object.entries(PLACE).map(([key, [owner, sprint]]) => ({ version: 'current', key, owner, sprint }));
-const EDGES = [{ consumer: 'K-5', producer: 'K-2', kind: 'code' }, { consumer: 'D-2', producer: 'D-1', kind: 'code' }];
+const EDGES = [{ consumer: 'K-5', producer: 'K-2', kind: 'code' }, { consumer: 'D-2', producer: 'D-1', kind: 'code' }, { consumer: 'C-3', producer: 'C-2', kind: 'code' }];
 const CONFIG = { first_sprint: 1, end_sprint: 4, caps: { default: 10, Ana: 5, Cleo: 2, Dan: 1 }, frozen_statuses: ['Done', 'In Progress'] };
 const model = () => buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHEDULE, config: CONFIG });
 const DRY = '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then brain export)';
@@ -81,7 +81,7 @@ test('lib relieve: nothing to relieve, and no relief with its reasons (frozen ti
   const c = relieve(model(), { person: 'Cleo', sprint: 1 });
   assert.equal(c.status, 'no_relief');
   assert.equal(c.searchComplete, true);
-  assert.deepEqual(c.reasons, [{ code: 'FROZEN', keys: ['C-1'] }, { code: 'NOT_ENOUGH', keys: [], freeable: 0, needed: 1 }]);
+  assert.deepEqual(c.reasons, [{ code: 'FROZEN', keys: ['C-1'] }, { code: 'LINKS', keys: ['C-2'] }, { code: 'NOT_ENOUGH', keys: [], freeable: 0, needed: 1 }]);
 });
 
 test('lib relieve: deterministic, and the budget is reported when it is hit (never a silent partial answer)', () => {
@@ -123,9 +123,9 @@ test('nothing to relieve (exit 0) and no relief (exit 1) with the reasons and th
   r = run('whatif', '--relieve', 'Cleo', '--sprint', '1');
   assert.equal(r.status, 1);
   assert.equal(r.stdout, [
-    'NO RELIEF: Cleo S1 3/2: no relief found within the allowed moves (this cell\'s tickets, later sprints, same owner)',
-    '- frozen (started or closed) 1: C-1', '- the tickets that can move free 0 SP of the 1 needed',
-    'try: --earlier, --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too', ''].join('\n'));
+    'NO RELIEF: Cleo S1 4/2: no relief found within the allowed moves (this cell\'s tickets, later sprints, same owner)',
+    '- frozen (started or closed) 1: C-1', '- every target breaks a link 1: C-2', '- the tickets that can move free 0 SP of the 1 needed',
+    'try: --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too', ''].join('\n')); // S1 is first_sprint: no --earlier
 });
 
 test('--json: the v2 envelope with every move, its command, the rule results, and next = the commands', () => {
@@ -140,8 +140,8 @@ test('--json: the v2 envelope with every move, its command, the rule results, an
   });
   assert.deepEqual(e.next, ['brain whatif D-2 --sprint 2', 'brain whatif D-1 --sprint 2']);
   const no = JSON.parse(run('whatif', '--relieve', 'Cleo', '--sprint', '1', '--json').stdout);
-  assert.deepEqual([no.exit, no.data.status, no.data.reasons], [1, 'no_relief', [{ code: 'FROZEN', keys: ['C-1'] }, { code: 'NOT_ENOUGH', keys: [], freeable: 0, needed: 1 }]]);
-  assert.deepEqual(no.next, ['brain whatif --relieve Cleo --sprint 1 --earlier', 'brain whatif --relieve Cleo --sprint 1 --owner-change']);
+  assert.deepEqual([no.exit, no.data.status, no.data.reasons], [1, 'no_relief', [{ code: 'FROZEN', keys: ['C-1'] }, { code: 'LINKS', keys: ['C-2'] }, { code: 'NOT_ENOUGH', keys: [], freeable: 0, needed: 1 }]]);
+  assert.deepEqual(no.next, ['brain whatif --relieve Cleo --sprint 1 --owner-change']);
 });
 
 test('usage errors: KEY with --relieve, no --sprint, a write or apply flag, --to, an unknown person, no KEY at all: exit 2, fixed message', () => {

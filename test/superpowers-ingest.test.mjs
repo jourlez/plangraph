@@ -497,8 +497,16 @@ test('verify after sp-ingest without an owner: OK, the count covers every ticket
   const sched = fs.readFileSync(path.join(root, '.brain/schedule.jsonl'), 'utf8').replace(`"key":"${K('1')}","owner":"Ana"`, `"key":"${K('1')}","owner":"Ben"`);
   assert.ok(sched.includes('"owner":"Ben"')); fs.writeFileSync(path.join(root, '.brain/schedule.jsonl'), sched);
   assert.equal(run(root, 'build').status, 0);
-  const v3 = run(root, 'verify'); assert.equal(v3.status, 1);
-  assert.equal(v3.stdout, `HANDOFF ${K('3')} producer ${K('1')} S3 Ben, consumer ${K('3')} S3 Ana, consumer needs >=S4\n`);
+  // K1's impl_status is done: a closed producer satisfies its links wherever it sits (frozen history, lib/frozen.mjs)
+  const v3 = run(root, 'verify'); assert.deepEqual([v3.status, v3.stdout], [0, 'OK plan valid (6 tickets)\n']);
+  // K2 not done (Task 2 out of the ledger), placed with Ben in the same sprint: HANDOFF
+  put(root, `.superpowers/sdd/${SLUG}/progress.md`, LEDGER.split('\n').filter((l) => !l.startsWith('Task 2')).join('\n'));
+  assert.equal(run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '3').status, 0); assert.equal(run(root, 'build').status, 0);
+  const sched2 = fs.readFileSync(path.join(root, '.brain/schedule.jsonl'), 'utf8').replace(`"key":"${K('2')}","owner":"Ana"`, `"key":"${K('2')}","owner":"Ben"`);
+  assert.ok(sched2.includes(`"key":"${K('2')}","owner":"Ben"`)); fs.writeFileSync(path.join(root, '.brain/schedule.jsonl'), sched2);
+  assert.equal(run(root, 'build').status, 0);
+  const v4 = run(root, 'verify'); assert.equal(v4.status, 1);
+  assert.equal(v4.stdout, `HANDOFF ${K('3')} producer ${K('2')} S3 Ben, consumer ${K('3')} S3 Ana, consumer needs >=S4\n`);
 });
 test('ready for sp: tasks uses impl_status: producers done => READY, own status done => DONE (exit 1), todo producer => reason without Snull', () => {
   const root = repo(); assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);

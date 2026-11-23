@@ -1,7 +1,10 @@
 # brain-solve: sprint assignment with CP-SAT
 
 Assigns every ticket to one person and one sprint. Rules: each ticket placed once; person-sprint load within capacity; strict handoff
-`sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0)`; frozen tickets unchanged (they still use capacity); every ticket that is not
+`sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0)`; frozen tickets unchanged (they still use capacity). Frozen history
+(docs/CONTRACT.md, `lib/frozen.mjs`): a constraint exists only where at least one side is free, so a link whose producer is closed and a link
+between two frozen tickets constrain nothing (never INFEASIBLE, never a delayed consumer), and a cell's capacity binds only its free load
+(free load within `max(0, cap - frozen load)`: a frozen cell above cap is history, not a violation, and takes no free story point); every ticket that is not
 frozen goes to `first_sprint` or later, so no new work lands in a past sprint (a frozen ticket keeps its own slot, even before `first_sprint`).
 The independent verifier rejects a free ticket placed before `first_sprint` (frozen tickets are exempt), and the end-sprint capacity bound counts
 only the work that must sit in sprints `first_sprint` and later.
@@ -14,6 +17,9 @@ bin/brain-solve-run --out schedule.json [--end 14] [--time 400] [--workers 8] [-
                     [--lns] [--decompose] [--verbose]
 brain schedule-load schedule.json <archive-name>
 ```
+
+`brain schedule-load` refuses (exit 4, nothing written) a schedule that moves or drops a frozen ticket of the current plan (docs/CONTRACT.md,
+Frozen history); `brain verify schedule.json` names each one as `FROZEN_MOVED`.
 
 `--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl config.json` directly (no SQLite). Without it the solver reads
 `brain.sqlite` and `config.json` from the brain dir (as before). `--end 0` and `--time 0` are real values.
@@ -106,8 +112,9 @@ SIGKILL that lands inside the one-process solver's own write leaves a `.brain-so
    (4) owner changes vs `--baseline`. `weights` in config.json are no longer used. `stage_order` in config.json reorders the stages (see below). Budget: 85% of `--time` for stages (stage 1 gets 60% when later
    stages exist), the rest for the infeasibility explanation. Unused time rolls forward. The solver import, load and model build count against `--time`.
 4. Explanation (INFEASIBLE, or target missed): relaxed model, every link droppable at cost 1, capacity and frozen slots hard; reports `N links cannot
-   hold with end sprint E: A>B, ...` (A needs B; at most 8 listed; "not proved minimal" when the relaxation timed out). If no link is to blame it says
-   capacity or frozen slots do.
+   hold with end sprint E: A>B, ...` (A needs B; at most 8 listed; "not proved minimal" when the relaxation timed out; only links that constrain
+   under the frozen-history rule are candidates, and those ending at a frozen consumer are counted as ones no later end sprint fixes). If no link
+   is to blame it says the capacity left beside the frozen tickets does.
 5. A separate pure-Python verifier rechecks the result against the original (unreduced) links; failure means exit 6 and no schedule file.
 
 Stage order: `stage_order` in config.json is a list of `end_sprint shortfall load_of peak_load owner_changes`. Listed stages run first, in that
@@ -121,8 +128,11 @@ with a fixed message that does not echo the value: `stage_order must be a list o
 `stage_order lists a stage twice`. The value is part of `input_hash` only when set, so the hash of an existing plan does not change.
 
 Frozen tickets: `--freeze`, `--freeze-file` (JSON array of keys), config `frozen_statuses` (by `jira_status`), config `frozen_before_sprint`
-(current sprint below it). All use the current schedule slot. Closed tickets (`jira_status` Done, or one listed in config `closed_statuses`)
-with a current slot are always frozen, whatever `frozen_statuses` says; `brain verify` and `brain whatif` pin them the same way.
+(current sprint below it). All use the current schedule slot. Closed tickets (`jira_status` Done, or one listed in config `closed_statuses`,
+or an `sp:` task with `impl_status` done) with a current slot are always frozen, whatever `frozen_statuses` says; `brain verify` and `brain
+whatif` pin them the same way. The links that constrain are filtered by the frozen-history rule before the transitive reduction (reducing
+first could drop `c>p` as implied by `c>m>p` and then drop `c>m` because `m` is closed). An INFEASIBLE whose culprit link ends at a frozen
+consumer says that no later end sprint fixes it (the free producer cannot start before `first_sprint`), instead of blaming the end sprint.
 
 Determinism: `--seed N` (default 1). `--deterministic`: 1 worker, `max_deterministic_time` instead of wall time, no wall-clock fields in the
 output, so repeated runs on the same input are byte-identical. Without it, multi-worker runs may differ run to run (both valid).

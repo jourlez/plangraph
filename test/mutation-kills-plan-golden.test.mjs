@@ -56,7 +56,7 @@ test('whatif sweep: every ticket to every person and sprint, rendered', () => {
 });
 
 test('whatif options and proposeMove under each repair option', () => {
-  const m = plan(7, 5, (p) => { p.tickets[1].jira_status = 'In Progress'; p.config.end_sprint = 5; p.config.caps.Ben = 3; p.config.caps.Dora = 9; });
+  const m = plan(7, 5, (p) => { p.tickets[1].jira_status = 'In Progress'; Object.assign(p.config, { frozen_statuses: ['In Progress'] }); p.config.end_sprint = 5; p.config.caps.Ben = 3; p.config.caps.Dora = 9; });
   const keys = [...m.sched.keys()].sort();
   G('whatif-strict', () => renderWhatif(whatif(m, { key: 'T-2', sprint: 4 }, { strict: true })));
   G('whatif-overflow', () => [whatif(m, { key: keys[0], sprint: 9 }, { allowOverflow: true }), whatif(m, { key: keys[0], sprint: 30 }, { allowOverflow: true, overflowLimit: 3 })].map((r) => renderWhatif(r)));

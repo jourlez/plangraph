@@ -47,14 +47,30 @@ function relieveCmd(ctx, args, W, model) {
   const cmd = (/** @type {any} */ m) => nextCommand(['whatif', [m.key], ...(m.to.owner !== m.from.owner ? ['--to', [m.to.owner]] : []), '--sprint', String(m.to.sprint)]);
   const limit = verbose(args) ? 100 : 15, keys = verbose(args) ? 50 : 5;
   for (const line of W.renderRelieve(r, { cmd, limit, keys, name: (/** @type {unknown} */ x) => s(x), key: (/** @type {unknown} */ x) => s(x, 120) })) out(line);
-  const flags = ['earlier', 'owner-change'].filter((f) => !v[f]);
+  const flags = ['earlier', 'owner-change'].filter((f) => !v[f] && !(f === 'earlier' && sprint <= r.first)); // no earlier sprint than first_sprint
   const retry = flags.map((f) => nextCommand(['whatif', '--relieve', [person], '--sprint', String(sprint), ...FLAGS.filter((g) => v[g] && g !== 'strict').map((g) => `--${g}`), `--${f}`]));
-  const rs = (/** @type {any[]} */ a) => a.map((x) => ({ code: x.code, keys: x.keys.slice(0, 2000).map((/** @type {unknown} */ k) => s(k, 120)), ...(x.code === 'NOT_ENOUGH' ? { freeable: x.freeable, needed: x.needed } : {}) }));
+  const rs = (/** @type {any[]} */ a) => a.map((x) => ({ code: x.code, keys: x.keys.slice(0, 2000).map((/** @type {unknown} */ k) => s(k, 120)), ...(x.code === 'NOT_ENOUGH' ? { freeable: x.freeable, needed: x.needed } : {}), ...(x.code === 'NO_ROOM' ? { room: x.room, needed: x.needed } : {}) }));
   ctx.io.data?.({
     relieve: { person: s(person), sprint }, status: r.status, load: r.load, cap: r.cap, after: r.after, slip: r.slip, ownerChanges: r.ownerChanges, order: r.order, searchComplete: r.searchComplete, budget: r.budget, nodes: r.nodes, allowed: r.allowed,
     moves: r.moves.map((/** @type {any} */ m) => ({ key: s(m.key, 120), sp: m.sp, from: { owner: s(m.from.owner), sprint: m.from.sprint }, to: { owner: s(m.to.owner), sprint: m.to.sprint }, command: cmd(m) })), reasons: rs(r.reasons),
   }, { next: nextList(r.status === 'relief' ? r.moves.map(cmd) : r.status === 'no_relief' ? retry : []) });
   return r.status === 'no_relief' ? 1 : 0;
+}
+
+// --find: every slot KEY may move to with no violation anywhere (lib/whatif.mjs findSlots), ranked; read-only, bounded (FIND_MAX tries).
+// Exit 0 when at least one slot is valid, 1 when none (or the key is not in the plan). Names and keys are one sanitized line.
+/** @param {Ctx} ctx @param {Args} args @param {any} W @param {any} model @param {string} key */
+function findCmd(ctx, args, W, model, key) {
+  const v = args.values, s = (/** @type {unknown} */ x, n = 60) => oneLine(x ?? '', n);
+  const r = W.findSlots(model, key, { allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), strict: Boolean(v.strict) });
+  const cmd = (/** @type {any} */ x) => nextCommand(['whatif', [key], ...(x.sameOwner ? [] : ['--to', [x.owner]]), '--sprint', String(x.sprint)]);
+  for (const line of W.renderFind(r, { cmd, top: verbose(args) ? 20 : 5, name: (/** @type {unknown} */ x) => s(x), key: (/** @type {unknown} */ x) => s(x, 120) })) ctx.io.out(line);
+  ctx.io.data?.({
+    key: s(key, 120), status: r.status, from: r.from ? { owner: s(r.from.owner), sprint: r.from.sprint } : null, tried: r.tried, valid: r.valid, allowed: r.allowed, searchComplete: r.searchComplete,
+    slots: r.slots.slice(0, 200).map((/** @type {any} */ x) => ({ owner: s(x.owner), sprint: x.sprint, slip: x.slip, sameOwner: x.sameOwner, load: x.load, cap: x.cap, ...(x.warn ? { warn: true } : {}), command: cmd(x) })),
+    reasons: Object.fromEntries(Object.entries(r.reasons).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([c, n]) => [s(c, 40), n])),
+  }, { next: nextList(r.slots.slice(0, 3).map(cmd)) });
+  return r.status === 'found' ? 0 : 1;
 }
 
 /** @param {Ctx} ctx @param {Args} args */
@@ -65,6 +81,7 @@ async function whatif(ctx, args) {
     if (v.to !== undefined || v['apply-plan'] || v.write) throw usage('--relieve is a dry run: --to, --apply-plan and --write are not supported (it prints the whatif command of each move)');
     if (v.sprint === undefined) throw usage('--relieve needs --sprint N');
   } else if (key === undefined) throw usage('whatif needs a KEY, or --relieve NAME --sprint N');
+  if (v.find && (v.relieve !== undefined || v.to !== undefined || v.sprint !== undefined || v['apply-plan'] || v.write)) throw usage('--find is a dry run over every slot of KEY: --to, --sprint, --relieve, --apply-plan and --write are not supported (it prints the whatif command of each slot)');
   const W = await import('../../lib/whatif.mjs'), model = modelFromDb(ctx), out = ctx.io.out;
   const mv = { key, to: v.to, sprint: v.sprint };
   // the schema refuses both at build time; an index built by an older version may still hold them, and whatif must not crash on bad data
@@ -73,6 +90,7 @@ async function whatif(ctx, args) {
     throw dataError('the index holds a sprint that is not a whole number or a negative sp', 'fix schedule.jsonl / tickets.jsonl, then `brain build` (it names the line)');
   }
   if (v.relieve !== undefined) return relieveCmd(ctx, args, W, model);
+  if (v.find) return findCmd(ctx, args, W, model, /** @type {string} */ (key));
   const o = { strict: Boolean(v.strict), allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), allowSlip: Boolean(v.slip) };
   if (!v['apply-plan']) {
     const r = W.whatif(model, mv, o), limit = verbose(args) ? 50 : 8;
@@ -104,13 +122,18 @@ async function whatif(ctx, args) {
 
 // ---- keep the current plan under an archive name, load a new one (index only; `brain export` saves it as text) ----
 /** @param {Ctx} ctx @param {Args} args */
-function scheduleLoad(ctx, args) {
+async function scheduleLoad(ctx, args) {
   const [file, archive] = args.positionals;
   if (!archive || archive === 'current' || archive.length > 200) throw usage('archive name must be non-empty, at most 200 characters and not "current"');
   const rows = readJsonInput(file, 'schedule file');
   if (!Array.isArray(rows) || !rows.every((r) => r && typeof r === 'object' && typeof r.item === 'string' && typeof r.owner === 'string' && Number.isSafeInteger(r.sprint))) {
     throw dataError('schedule file must be a JSON array of {item, owner, sprint} (strings and a whole sprint number)');
   }
+  // frozen history (lib/frozen.mjs): a frozen ticket of the current plan keeps its slot; a schedule that moves or drops one is refused
+  // before the index is opened for writing (no override flag: unfreeze the ticket in the data first)
+  const F = await import('../../lib/frozen.mjs'), at = new Map(rows.map((r) => [r.item, r]));
+  const moved = [...F.frozenSlots(modelFromDb(ctx))].filter(([k, f]) => { const r = at.get(k); return !r || r.owner !== f.owner || r.sprint !== f.sprint; }).map(([k]) => k).sort();
+  if (moved.length) throw new BrainError('REFUSED', `refusing to load: the schedule moves ${moved.length} frozen ticket${moved.length === 1 ? '' : 's'} (${moved.slice(0, 10).map((k) => oneLine(k, 60)).join(' ')}${moved.length > 10 ? ` +${moved.length - 10} more` : ''}); a frozen ticket keeps its slot`, { hint: '`brain verify FILE` lists each one (FROZEN_MOVED)' });
   using db = openIndex(dbFile(ctx), { readOnly: false });
   if (db.get('SELECT COUNT(*) c FROM schedule WHERE version=?', archive).c) throw usage(`archive name already used: ${oneLine(archive, 80)}`);
   const people = new Set(db.all("SELECT DISTINCT v2_owner o FROM ticket WHERE v2_owner<>''").map((r) => r.o));
@@ -319,7 +342,7 @@ async function doctorWarnings(ctx) {
 const B = { type: 'boolean' };
 const WIRING = ['git-config', 'gitattributes', 'merge-shim']; // what wireMergeDriver writes (src/registry.mjs SIDE_WRITES)
 export const commands = {
-  whatif: { run: whatif, positionals: [0, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B, relieve: { type: 'string' } }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap (read-only)' },
+  whatif: { run: whatif, positionals: [0, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B, relieve: { type: 'string' }, find: B }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap; KEY --find: every valid slot, ranked (both read-only)' },
   'schedule-load': { run: scheduleLoad, positionals: [2, 2], writes: 'index', summary: 'keep the current plan under an archive name and load a new schedule into the index' },
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },

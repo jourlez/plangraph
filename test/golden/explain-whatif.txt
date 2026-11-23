@@ -1,9 +1,9 @@
 $ brain explain whatif
 exit: 0
 --- stdout
-whatif: dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap (read-only)
+whatif: dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap; KEY --find: every valid slot, ranked (both read-only)
 usage: brain whatif [ARG] [options]
-options: --apply-plan --earlier --owner-change --relieve S --slip --sprint N --strict --to S --write
+options: --apply-plan --earlier --find --owner-change --relieve S --slip --sprint N --strict --to S --write
 global: --json -v --dir DIR --if-present
 writes: index
 exit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error

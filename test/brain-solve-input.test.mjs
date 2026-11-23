@@ -123,3 +123,20 @@ test('a symlinked index, JSONL file or default config.json is refused; an oversi
   const big = py(r.d, `m.DATA_CAP = 40\nprint(json.dumps(load(jsonl_dir=${JSON.stringify(r.b)})))`);
   assert.deepEqual(big, { ok: false, status: 'MODEL_INVALID', msg: 'tickets.jsonl: file too large (limit 40 bytes)', code: 2 });
 });
+
+// A done sp: task is closed history for the solver (frozen, never moved): load_raw must hand its impl_status over in index mode too, as it does
+// in --jsonl-dir mode (the merge of the frozen-history work and the input-guard work once dropped the column from the index SELECT).
+test('index mode keeps impl_status, so a done sp: task is closed history for the solver', { skip: SKIP }, () => {
+  const r = repo();
+  fs.writeFileSync(path.join(r.b, 'tickets.jsonl'), jl([
+    { key: 'T-1', summary: 'one', sp: 1, v2_owner: 'Ana', v2_sprint: 1 },
+    { key: 'sp:plan/1', summary: 'a task', sp: 1, v2_owner: 'Ana', v2_sprint: 1, impl_status: 'done' },
+  ]));
+  fs.writeFileSync(path.join(r.b, 'edges.jsonl'), '');
+  fs.writeFileSync(path.join(r.b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:plan/1', owner: 'Ana', sprint: 1 }]));
+  const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8' }); assert.equal(bl.status, 0, bl.stderr);
+  const body = `a = types.SimpleNamespace(jsonl_dir=None, config=${JSON.stringify(r.cfg)}, db=${JSON.stringify(r.db)})
+t, e, s, c = m.load_raw(a)
+print(json.dumps({x['key']: x.get('impl_status') for x in t}))`;
+  assert.deepEqual(py(r.d, body), { 'T-1': null, 'sp:plan/1': 'done' });
+});

@@ -17,4 +17,6 @@ Propose, the owner confirms, and the owner applies. In this order:
 
 When the owner asks how to relieve an overloaded person in a sprint, run ONE command, `brain whatif --relieve "Name" --sprint N` (add `--earlier` or `--owner-change` only if the owner allows them), never a loop of `brain whatif KEY` trials. It is read-only: it prints the smallest valid set of moves, each with its exact `brain whatif` dry-run command, or `NO RELIEF` with the reasons. Report it in full sentences, then follow step 4 for each move the owner accepts.
 
+When the owner asks where a ticket can go (which person or sprint takes it without creating a blocker), run ONE command, `brain whatif KEY --find` (add `--earlier` or `--owner-change` only if the owner allows them), never a loop of `brain whatif KEY --to ... --sprint ...` over people and sprints. It is read-only: it tries every slot, checks each with whatif and `brain verify` on a copy, and prints how many are valid with the best five (fewest sprints of slip, the same owner first, the lightest cell), each with its exact dry-run command, or the reasons when none is valid. Report it in full sentences, then follow step 4 for the slot the owner picks.
+
 If `brain whatif` cannot run, say so and stop.

@@ -33,20 +33,35 @@ export function liveEdges(inst) {
   return inst.edges.filter((e) => !skip.has(e.kind));
 }
 
-// Frozen rule (CONTRACT + verify header): a ticket keeps its slot when its jira_status is Done, in config.closed_statuses or in
-// config.frozen_statuses, when it is a key of opts.frozen, or when its CURRENT sprint is below config.frozen_before_sprint.
+// Frozen history, from first principles (docs/CONTRACT.md "Frozen history"; the same rule is the header of lib/frozen.mjs, which this file
+// does not import). History cannot be late: a schedule constrains only what can still move.
+//   CLOSED: finished. An sp: task whose impl_status is 'done'; any ticket whose jira_status is 'Done' or listed in config.closed_statuses.
+//   FROZEN: keeps its slot. Closed; jira_status listed in config.frozen_statuses (nothing else: no default list); a key of opts.frozen; or
+//     a CURRENT sprint (inst.sched, never the schedule under check) below config.frozen_before_sprint.
+//   A constraint exists only where at least one side is FREE (not frozen):
+//     link c needs p: no constraint when p is closed (a finished producer is never late, wherever it sits), none when c and p are both
+//       frozen (a fixed fact of history); otherwise the strict handoff rule;
+//     cell (owner, sprint): its capacity binds only its free load, which must fit in max(0, cap - frozen load): a cell of frozen tickets
+//       only is never over capacity, and a free story point may not join a cell whose frozen load already reaches cap.
+export function isClosedTicket(inst, key) {
+  const t = inst.tickets.find((x) => x.key === key);
+  if (!t) return false;
+  if (String(key).startsWith('sp:') && t.impl_status === 'done') return true;
+  const closed = ['Done', ...(Array.isArray((inst.config || {}).closed_statuses) ? inst.config.closed_statuses : [])];
+  return typeof t.jira_status === 'string' && closed.includes(t.jira_status);
+}
 export function isFrozenForWindow(inst, key) {
   const cfg = inst.config || {};
-  const t = inst.tickets.find((x) => x.key === key);
-  const st = t ? t.jira_status || '' : '';
-  const statuses = ['Done'];
-  if (Array.isArray(cfg.closed_statuses)) statuses.push(...cfg.closed_statuses);
-  if (Array.isArray(cfg.frozen_statuses)) statuses.push(...cfg.frozen_statuses);
-  if (statuses.includes(st)) return true;
   if (inst.frozen && inst.frozen.has(key)) return true;
+  const t = inst.tickets.find((x) => x.key === key);
+  if (!t) return false;
+  if (isClosedTicket(inst, key)) return true;
+  if (Array.isArray(cfg.frozen_statuses) && typeof t.jira_status === 'string' && cfg.frozen_statuses.includes(t.jira_status)) return true;
   const cur = inst.sched.get(key);
   return finiteNum(cfg.frozen_before_sprint) && validPlacement(cur) && cur.sprint < cfg.frozen_before_sprint;
 }
+// Does the link (consumer c, producer p) constrain the plan? The rule above, in one predicate.
+export const linkConstrains = (inst, c, p) => !isClosedTicket(inst, p) && !(isFrozenForWindow(inst, c) && isFrozenForWindow(inst, p));
 
 // All elementary facts about cycles that the oracle needs: does node x reach node y (consumer -> producer direction)?
 export function reach(nodes, succ) {
@@ -80,18 +95,21 @@ export function oracleViolations(inst, sched = inst.sched) {
 
   for (const e of liveEdges(inst)) {
     const pc = slot(e.consumer), pp = slot(e.producer);
-    if (!pc || !pp) continue;
+    if (!pc || !pp || !linkConstrains(inst, e.consumer, e.producer)) continue;
     const need = pp.sprint + (pp.owner === pc.owner ? 0 : 1);
     if (pc.sprint < need) out.push({ code: 'HANDOFF', key: e.consumer, producer: e.producer });
   }
 
-  const load = new Map();
+  const load = new Map(), frozenLoad = new Map(), freeLoad = new Map();
   for (const [k, p] of sched) {
     if (!slot(k)) continue;
-    const id = JSON.stringify([p.owner, p.sprint]);
-    load.set(id, (load.get(id) || 0) + storyPoints(tk.get(k)));
+    const id = JSON.stringify([p.owner, p.sprint]), v = storyPoints(tk.get(k)), side = isFrozenForWindow(inst, k) ? frozenLoad : freeLoad;
+    load.set(id, (load.get(id) || 0) + v);
+    side.set(id, (side.get(id) || 0) + v);
   }
-  for (const [id, v] of load) { const [o, s] = JSON.parse(id); if (v > capFor(cfg, o)) out.push({ code: 'CAPACITY', key: `${o} S${s}` }); }
+  // free load F must fit in max(0, cap - frozen load Z): with Z >= cap that is F > 0 (and then the total is above cap), with Z < cap it is
+  // Z + F > cap; both read as: some free story point is there and the total is above cap (the total summed in schedule order, as before)
+  for (const [id, v] of load) { const [o, s] = JSON.parse(id); if ((freeLoad.get(id) || 0) > 0 && v > capFor(cfg, o)) out.push({ code: 'CAPACITY', key: `${o} S${s}` }); }
 
   if (inst.frozen) for (const [k, f] of inst.frozen) { const p = sched.get(k); if (!p || p.owner !== f.owner || p.sprint !== f.sprint) out.push({ code: 'FROZEN_MOVED', key: k }); }
 
@@ -142,8 +160,9 @@ export function personsOf(inst, extra = []) {
 // the snapshot names it, else its jira_status) is Done or in config.closed_statuses (wave B: a closed ticket is "DONE", never "ready to start");
 // (2) its verdict is empty or READY; (3) no finding of it is open (a finding is closed by an open-items row {key, kind, status:'done'});
 // (4) no open-items row for it is open (status other than 'done'); (5) every producer over a live link that is a known ticket is done:
-// for an sp: consumer and sp: producer, the producer's impl_status is 'done'; otherwise the producer's status (the snapshot's when the
-// snapshot names it, else the ticket's jira_status) is exactly 'Done'. A producer that is not a ticket (dangling) does not block.
+// an sp: producer (whatever the consumer is) is done when its impl_status is 'done'; any other producer when its status (the snapshot's
+// when the snapshot names it, else the ticket's jira_status) is 'Done' or in config.closed_statuses. A producer that is not a ticket
+// (dangling) does not block, and a done producer never blocks, wherever it sits.
 export function oracleReady(inst, items = [], snapshot = null) {
   const tk = new Map(inst.tickets.map((t) => [t.key, t]));
   const closed = new Set(items.filter((i) => i.status === 'done').map((i) => JSON.stringify([i.key, i.kind])));
@@ -159,7 +178,7 @@ export function oracleReady(inst, items = [], snapshot = null) {
     for (const e of liveEdges(inst)) {
       if (e.consumer !== t.key || !tk.has(e.producer)) continue;
       const p = tk.get(e.producer);
-      if (sp(t.key) && sp(p.key)) { if (p.impl_status !== 'done') ok = false; continue; }
+      if (sp(p.key)) { if (p.impl_status !== 'done') ok = false; continue; }
       const st = snapshot && has(snapshot, p.key) ? snapshot[p.key]?.status : p.jira_status;
       if (st !== 'Done' && !(inst.config?.closed_statuses || []).includes(st)) ok = false;
     }
@@ -172,7 +191,8 @@ export function oracleReady(inst, items = [], snapshot = null) {
 // Scope: the tickets whose current placement is valid and has that owner (exact) and/or that sprint (at least one filter). Within it each
 // ticket is exactly one of: ready (oracleReady), done (its own status closed, as in (1) above), not ready. A not-ready ticket is in every
 // group whose cause it has: verdict (a verdict other than READY), openItems (an open finding or an open register row), waiting (a live
-// producer that is a known ticket and is not done by the producer rule of (5)). Done tickets are in no group.
+// producer that is a known ticket and is not done by the producer rule of (5): an sp: producer by impl_status for any consumer). Done
+// tickets are in no group.
 /** @param {any} inst @param {any[]} items @param {any} snapshot @param {{ owner?: string, sprint?: number }} filter */
 export function oracleReadyScope(inst, items, snapshot, { owner, sprint }) {
   const tk = new Map(inst.tickets.map((t) => [t.key, t])), sched = inst.sched || new Map();
@@ -196,7 +216,7 @@ export function oracleReadyScope(inst, items, snapshot, { owner, sprint }) {
     const waits = liveEdges(inst).some((e) => {
       if (e.consumer !== t.key || !tk.has(e.producer)) return false;
       const q = tk.get(e.producer);
-      if (sp(t.key) && sp(q.key)) return q.impl_status !== 'done';
+      if (sp(q.key)) return q.impl_status !== 'done';
       return !closedList.includes(statusOf(q));
     });
     if (waits) out.waiting.push(t.key);

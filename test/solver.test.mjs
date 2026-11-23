@@ -388,6 +388,96 @@ test('frozen: Done and closed_statuses tickets stay frozen with frozen_statuses 
 // Review I2: the solver truncated fractional story points (int(sp)), so two 2.6 SP tickets shared a 5 SP cell that `brain verify` rejects.
 const brainVerify = (p, schedule) => verifyPlan(buildModel({ tickets: p.tickets, edges: p.edges, config: p.config,
   schedule: schedule.map((r) => ({ key: r.item, owner: r.owner, sprint: r.sprint })) })).map((v) => `${v.code} ${v.key} ${v.detail}`);
+// Review C1 (frozen history): a closed producer satisfies its links, links between two frozen tickets and cells of frozen load are fixed
+// facts, never constraints. The old model turned a broken frozen-frozen link into AddBoolOr([]) (INFEASIBLE) and a frozen cell above cap into
+// const <= cap (INFEASIBLE).
+const sat = (e) => ({ consumer: e[0], producer: e[1], kind: 'plan_need', note: '' });
+const placedAt = (r, k) => { const x = r.schedule.find((y) => y.item === k); return x && `${x.owner} S${x.sprint}`; };
+test('frozen history repro (a): two Done tickets linked inside one past sprint do not make the plan infeasible', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+  const p = { tickets: [tk('API-1', 'Ana', 3, 'Done'), tk('UI-1', 'Ben', 2, 'Done'), tk('N-1', 'Ana', 2)], edges: [sat(['UI-1', 'API-1'])],
+    schedule: [{ key: 'API-1', owner: 'Ana', sprint: 1 }, { key: 'UI-1', owner: 'Ben', sprint: 1 }, { key: 'N-1', owner: 'Ana', sprint: 3 }],
+    config: { first_sprint: 2, end_sprint: 4, caps: { default: 10 }, frozen_statuses: ['Done'], ignore_link_kinds: [] } };
+  const r = solve(p, ['--deterministic'], { time: 5 }); assert.equal(r.code, 0, r.stdout + r.stderr);
+  assert.deepEqual(brainVerify(p, r.schedule), []); assert.equal(placedAt(r, 'API-1'), 'Ana S1'); assert.equal(placedAt(r, 'UI-1'), 'Ben S1');
+  assert.equal(r.meta.end_sprint, 2); stagesConsistent(r);
+});
+test('frozen history repro (b): Done 6+6 SP in a cap-10 cell is feasible, and no free story point joins that cell', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+  const p = { tickets: [tk('D-1', 'Ana', 6, 'Done'), tk('D-2', 'Ana', 6, 'Done'), tk('F-1', 'Ana', 1), tk('Z-1', 'Ana', 0)], edges: [],
+    schedule: [{ key: 'D-1', owner: 'Ana', sprint: 1 }, { key: 'D-2', owner: 'Ana', sprint: 1 }, { key: 'F-1', owner: 'Ana', sprint: 3 }, { key: 'Z-1', owner: 'Ana', sprint: 3 }],
+    config: { first_sprint: 1, end_sprint: 4, caps: { default: 10 }, ignore_link_kinds: [] } };
+  const r = solve(p, ['--deterministic'], { time: 5 }); assert.equal(r.code, 0, r.stdout + r.stderr);
+  assert.deepEqual(brainVerify(p, r.schedule), []); assert.equal(placedAt(r, 'D-1'), 'Ana S1'); assert.equal(placedAt(r, 'D-2'), 'Ana S1');
+  assert.equal(placedAt(r, 'F-1'), 'Ana S2', 'room in Ana S1 is max(0, 10 - 12) = 0'); assert.equal(r.meta.end_sprint, 2); stagesConsistent(r);
+});
+test('frozen history repro (c): a Done producer sitting after its consumer never moves or delays the consumer', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+  const p = { tickets: [tk('API-1', 'Ana', 3, 'Done'), tk('UI-1', 'Ben', 2)], edges: [sat(['UI-1', 'API-1'])],
+    schedule: [{ key: 'API-1', owner: 'Ana', sprint: 6 }, { key: 'UI-1', owner: 'Ben', sprint: 3 }],
+    config: { first_sprint: 1, end_sprint: 8, caps: { default: 10 }, ignore_link_kinds: [] } };
+  const r = solve(p, ['--deterministic'], { time: 5 }); assert.equal(r.code, 0, r.stdout + r.stderr);
+  assert.deepEqual(brainVerify(p, r.schedule), []); assert.equal(placedAt(r, 'API-1'), 'Ana S6');
+  // no owner change and no delay (the old rule forced UI-1 to S7+); an earlier free slot is an equal optimum (no stage ranks sprint moves)
+  const ui = r.schedule.find((x) => x.item === 'UI-1'); assert.equal(ui.owner, 'Ben'); assert.ok(ui.sprint <= 3, JSON.stringify(ui));
+  assert.equal(r.meta.owner_changes, 0); assert.equal(r.meta.end_sprint, 6);
+});
+test('frozen history: an INFEASIBLE caused by a frozen consumer says no later end sprint fixes it', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+  const p = { tickets: [tk('P-1', 'Ana', 1), tk('C-1', 'Ana', 1, 'In Progress')], edges: [sat(['C-1', 'P-1'])],
+    schedule: [{ key: 'P-1', owner: 'Ana', sprint: 2 }, { key: 'C-1', owner: 'Ana', sprint: 1 }],
+    config: { first_sprint: 2, end_sprint: 4, caps: { default: 10 }, frozen_statuses: ['In Progress'], ignore_link_kinds: [] } };
+  const r = solve(p, ['--deterministic'], { time: 5 }); assert.equal(r.code, 1, r.stdout + r.stderr);
+  assert.match(r.stdout, /^INFEASIBLE .*1 links cannot hold with end sprint \d+: C-1>P-1; 1 of them need a free producer before a frozen consumer, which no later end sprint fixes \(free tickets start at sprint 2/);
+});
+
+// Brute force with random frozen sets: every (owner, sprint) of every free ticket in first_sprint..7, frozen tickets fixed; the rule written
+// here from the CONTRACT text (a constraint exists only where at least one side is free), not from lib/frozen.mjs. Lexicographic optimum
+// [end sprint, owner changes of free tickets]; the solver must reach it, keep every frozen ticket in place and pass brain verify.
+function frozenBrute(p) {
+  const cfg = p.config, first = cfg.first_sprint ?? 1, keys = p.tickets.map((t) => t.key), cur = curOf(p), P = ['Ana', 'Ben'];
+  const st = new Map(p.tickets.map((t) => [t.key, t.jira_status]));
+  const closed = (k) => st.get(k) === 'Done';
+  const frozen = (k) => closed(k) || (cfg.frozen_statuses || []).includes(st.get(k)) || (cfg.frozen_before_sprint != null && cur.get(k).sprint < cfg.frozen_before_sprint);
+  const sp = new Map(p.tickets.map((t) => [t.key, t.sp])), cap = cfg.caps.default, MAXS = 7;
+  const freeKeys = keys.filter((k) => !frozen(k)), slotsOf = [];
+  for (const o of P) for (let s = first; s <= MAXS; s++) slotsOf.push({ owner: o, sprint: s });
+  let best = null; const at = new Map(keys.filter(frozen).map((k) => [k, cur.get(k)]));
+  (function rec(i) {
+    if (i === freeKeys.length) {
+      for (const e of p.edges) {
+        if (closed(e.producer) || (frozen(e.consumer) && frozen(e.producer))) continue;
+        const c = at.get(e.consumer), q = at.get(e.producer);
+        if (c.sprint < q.sprint + (c.owner === q.owner ? 0 : 1)) return;
+      }
+      const cells = new Map();
+      for (const k of keys) { const x = at.get(k), id = `${x.owner}|${x.sprint}`, c = cells.get(id) || { load: 0, free: false }; c.load += sp.get(k); c.free ||= !frozen(k) && sp.get(k) > 0; cells.set(id, c); }
+      for (const c of cells.values()) if (c.free && c.load > cap) return;
+      const end = Math.max(...keys.map((k) => at.get(k).sprint)), ch = freeKeys.filter((k) => at.get(k).owner !== cur.get(k).owner).length;
+      if (!best || end < best[0] || (end === best[0] && ch < best[1])) best = [end, ch];
+      return;
+    }
+    for (const x of slotsOf) { at.set(freeKeys[i], x); rec(i + 1); }
+  })(0);
+  return { best, frozenKeys: keys.filter(frozen) };
+}
+test('property: random frozen sets: the solver reaches the brute-force optimum, never moves a frozen ticket, and passes brain verify', { skip: SKIP, timeout: T_HEAVY }, () => {
+  let solved = 0, infeasible = 0;
+  for (let seed = 1; seed <= 24; seed++) {
+    const r0 = rng(seed + 900), n = 3 + (seed % 2), keys = Array.from({ length: n }, (_, i) => `T-${i + 1}`);
+    const pick = (a) => a[Math.floor(r0() * a.length)];
+    const tickets = keys.map((k) => tk(k, pick(['Ana', 'Ben']), 1 + Math.floor(r0() * 3), pick(['To Do', 'To Do', 'Done', 'In Progress'])));
+    const edges = []; for (let c = 0; c < n; c++) for (let q = 0; q < n; q++) if (c !== q && q < c && r0() < 0.45) edges.push(sat([keys[c], keys[q]]));
+    const schedule = keys.map((k) => ({ key: k, owner: pick(['Ana', 'Ben']), sprint: 1 + Math.floor(r0() * 4) }));
+    for (const t of tickets) t.v2_owner = schedule.find((s) => s.key === t.key).owner;
+    const config = { first_sprint: 1 + (seed % 2), end_sprint: 7, caps: { default: 3 }, ignore_link_kinds: [], ...(seed % 3 === 0 ? { frozen_statuses: ['In Progress'] } : {}), ...(seed % 4 === 1 ? { frozen_before_sprint: 2 } : {}) };
+    const p = { tickets, edges, schedule, config }, { best, frozenKeys } = frozenBrute(p);
+    const r = solve(p, ['--deterministic'], { time: 10 });
+    if (!best) { infeasible++; assert.equal(r.code, 1, `seed ${seed}: brute force finds no schedule\n${r.stdout}${r.stderr}`); continue; }
+    assert.equal(r.code, 0, `seed ${seed}: ${r.stdout}${r.stderr}\n${JSON.stringify(p)}`); solved++;
+    assert.deepEqual(brainVerify(p, r.schedule), [], `seed ${seed}`);
+    for (const k of frozenKeys) { const c = schedule.find((s) => s.key === k); assert.equal(placedAt(r, k), `${c.owner} S${c.sprint}`, `seed ${seed}: frozen ${k} moved`); }
+    assert.deepEqual([r.meta.end_sprint, r.meta.owner_changes], best, `seed ${seed}: ${JSON.stringify(p)}`);
+  }
+  assert.ok(solved >= 12, `solved ${solved}, infeasible ${infeasible}`);
+});
+
 test('fractional story points: the solver models them exactly and its output passes brain verify (repro: 2 x 2.6 SP, cap 5)', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const p = { tickets: [tk('T-1', 'Ana', 2.6), tk('T-2', 'Ana', 2.6)], edges: [], schedule: [{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 2 }],
     config: { first_sprint: 1, end_sprint: 6, caps: { default: 5 }, ignore_link_kinds: [] } };
@@ -528,18 +618,22 @@ test('polish: --lns --deterministic gives byte-identical output twice', { skip: 
   assert.equal(runs[1], runs[0]);
 });
 
-test('infeasible: frozen slots contradict a link; the explanation names it; nothing is written', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+test('infeasible: a frozen consumer needs a free producer before first_sprint; the explanation names that link only; nothing is written', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const t = (key, owner, sp = 2) => ({ key, summary: key, epic: 'E', sp, jira_status: 'To Do', v2_owner: owner, v2_sprint: 1, verdict: 'READY' });
   const p = {
     tickets: [t('PRD-1', 'Ana'), t('CON-1', 'Ana'), t('DEC-1', 'Ben'), t('DEC-2', 'Ben')],
     edges: [{ consumer: 'CON-1', producer: 'PRD-1', kind: 'plan_need', note: '' }, { consumer: 'DEC-2', producer: 'DEC-1', kind: 'plan_need', note: '' }],
-    schedule: [{ key: 'PRD-1', owner: 'Ana', sprint: 3 }, { key: 'CON-1', owner: 'Ana', sprint: 2 }, { key: 'DEC-1', owner: 'Ben', sprint: 1 }, { key: 'DEC-2', owner: 'Ben', sprint: 2 }],
-    config: { first_sprint: 1, end_sprint: 5, caps: { default: 20 }, ignore_link_kinds: [] },
+    schedule: [{ key: 'PRD-1', owner: 'Ana', sprint: 3 }, { key: 'CON-1', owner: 'Ana', sprint: 2 }, { key: 'DEC-1', owner: 'Ben', sprint: 3 }, { key: 'DEC-2', owner: 'Ben', sprint: 4 }],
+    config: { first_sprint: 3, end_sprint: 5, caps: { default: 20 }, ignore_link_kinds: [] },
   };
-  const r = solve(p, ['--freeze', 'PRD-1,CON-1']);
+  const r = solve(p, ['--freeze', 'CON-1']);
   assert.equal(r.code, 1, r.stdout); assert.equal(r.raw, null);
   assert.match(r.stdout, /^INFEASIBLE/); assert.match(r.stdout, /CON-1>PRD-1/); assert.doesNotMatch(r.stdout, /DEC-2>DEC-1/);
   assert.equal(r.meta.status, 'INFEASIBLE'); assert.deepEqual(r.meta.explanation.links, ['CON-1>PRD-1']); assert.equal(r.meta.explanation.n_links, 1);
+  // frozen history (lib/frozen.mjs): both ends frozen is a fixed fact, not a contradiction: feasible, both kept in place
+  const both = solve(p, ['--freeze', 'PRD-1,CON-1']);
+  assert.equal(both.code, 0, both.stdout); assert.equal(placedAt(both, 'PRD-1'), 'Ana S3'); assert.equal(placedAt(both, 'CON-1'), 'Ana S2');
+  assert.equal(both.meta.verified, true); // the solver's own verifier, which knows the --freeze set (brain verify does not read --freeze)
   const ok = solve(p); // not frozen: feasible, so the explanation above is about the freeze, not a solver artefact
   assert.equal(ok.code, 0, ok.stdout); assert.deepEqual(check(p, ok.schedule), []);
 });
@@ -557,12 +651,13 @@ test('infeasible: a free ticket squeezed between two frozen ones; the relaxed mo
   assert.ok(['MID-1>Q-1', 'TOP-1>MID-1'].includes(r.meta.explanation.links[0]), r.stdout); assert.doesNotMatch(r.stdout, /FREE-1/);
 });
 
-test('infeasible: capacity-only conflict is reported as such (no link to blame)', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+test('frozen history: a frozen cell above capacity is feasible as it is (no capacity conflict to report)', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const t = (key) => ({ key, summary: key, epic: 'E', sp: 5, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY' });
   const p = { tickets: [t('A-1'), t('A-2')], edges: [], schedule: [{ key: 'A-1', owner: 'Ana', sprint: 1 }, { key: 'A-2', owner: 'Ana', sprint: 1 }],
     config: { first_sprint: 1, end_sprint: 3, caps: { default: 6 }, ignore_link_kinds: [] } };
+  // frozen history: a cell over cap by frozen tickets alone is no violation and no constraint (the old model was INFEASIBLE here)
   const r = solve(p, ['--freeze', 'A-1,A-2']);
-  assert.equal(r.code, 1, r.stdout); assert.match(r.stdout, /capacity or frozen slots/); assert.equal(r.raw, null);
+  assert.equal(r.code, 0, r.stdout); assert.equal(placedAt(r, 'A-1'), 'Ana S1'); assert.equal(placedAt(r, 'A-2'), 'Ana S1');
 });
 
 test('determinism: --deterministic gives byte-identical schedule and metadata three times', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
