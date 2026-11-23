@@ -227,7 +227,7 @@ test('lock races, simulated through fs: the lock vanishes, turns into a symlink 
   // the stale file rewritten in place by a live owner (same inode, new token), or replaced by an identical copy (new inode): never removed
   stale(); G('steal-rewritten-in-place', () => [outcome(() => S.acquireLock(lock, { staleMs: 1000, retries: 1, waitMs: 1, onStealDecision: () => fs.writeFileSync(lock, JSON.stringify({ pid: process.pid, token: 'live2' })) }) && 'acquired'), JSON.parse(fs.readFileSync(lock, 'utf8')).token]);
   fs.rmSync(lock);
-  stale(); G('steal-replaced-identical', () => [outcome(() => S.acquireLock(lock, { staleMs: 1000, retries: 1, waitMs: 1, onStealDecision: () => { const c = fs.readFileSync(lock); fs.rmSync(lock); fs.writeFileSync(lock, c); } }) && 'acquired'), fs.readdirSync(d).sort()]);
+  stale(); G('steal-replaced-identical', () => [outcome(() => S.acquireLock(lock, { staleMs: 1000, retries: 1, waitMs: 1, onStealDecision: () => { const c = fs.readFileSync(lock); fs.writeFileSync(lock + ".copy", c); fs.renameSync(lock + ".copy", lock); /* the copy exists while the original does: a new inode on every filesystem (delete-then-create reuses the inode on ext4) */ } }) && 'acquired'), fs.readdirSync(d).sort()]);
   fs.rmSync(lock);
   // a rename failing for another reason surfaces its own error
   stale();
