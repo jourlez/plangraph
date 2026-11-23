@@ -823,3 +823,122 @@ test('docs: SOLVER.md discloses the first-use download (pypi.org, --locked)', ()
   const d = fs.readFileSync(path.join(ROOT, 'docs', 'SOLVER.md'), 'utf8');
   assert.match(d, /What the first run downloads/); assert.match(d, /pypi\.org/); assert.match(d, /--locked/);
 });
+
+// ---- limitations wave: solver edge cases ----
+// (a) a 0-SP free ticket adds nothing to a cell's float sum, so it may join frozen tickets whose story points are not binary floats and that
+// sit exactly at capacity (the float-tie rule keeps only tickets WITH load strictly below capacity there). Oracle: brain verify (lib/verify.mjs)
+// reports the same violations for the result as for the frozen tickets alone (their float sum 0.1 + 0.2 > 0.3 is pre-existing).
+test('(a) a 0-SP ticket may join frozen non-binary story points at an exact capacity tie; verify sees no new violation', { skip: SKIP, timeout: T_MEDIUM }, () => {
+  const p = { tickets: [{ key: 'F-1', sp: 0.1, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'F-2', sp: 0.2, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'Z-1', sp: 0, v2_owner: 'Ana', v2_sprint: 1 }],
+    edges: [], schedule: [{ version: 'current', key: 'F-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'F-2', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'Z-1', owner: 'Ana', sprint: 1 }],
+    config: { first_sprint: 1, end_sprint: 1, caps: { default: 0.3 }, min_per_sprint: {}, ignore_link_kinds: [] } };
+  const r = solve(p, ['--freeze', 'F-1,F-2', '--deterministic'], { time: 10 });
+  assert.equal(r.code, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^OPTIMAL: ends sprint 1 /);
+  assert.deepEqual(r.schedule.find((x) => x.item === 'Z-1'), { item: 'Z-1', owner: 'Ana', sprint: 1 });
+  const alone = { ...p, tickets: p.tickets.slice(0, 2), schedule: p.schedule.slice(0, 2) };
+  assert.deepEqual(brainVerify(p, r.schedule), brainVerify(alone, r.schedule.filter((x) => x.item !== 'Z-1')));
+  assert.deepEqual(brainVerify(p, r.schedule), ['CAPACITY Ana S1 0.30000000000000004/0.3']); // the frozen float sum, not the solver's doing
+});
+
+// (c) numbers that reach CP-SAT are bounded: story points, caps and min_per_sprint at most 1e9 after scaling to whole numbers; sprint numbers
+// from config (first_sprint, end_sprint / --end, frozen_before_sprint) whole numbers from -1e6 to 1e6. Each is a MODEL_INVALID (exit 2) with a
+// fixed message, never a traceback (a float first_sprint used to crash with exit 1, the infeasible code) or a 300-digit target.
+test('(c) huge or non-integer numbers are MODEL_INVALID with a fixed message (caps, sp, min_per_sprint, sprint fields)', { skip: SKIP, timeout: T_HEAVY }, () => {
+  const NUM = 'MODEL_INVALID: story points, caps and min_per_sprint must be at most 1000000000 after scaling to whole numbers';
+  const base = () => ({ tickets: [tk('T-1', 'Ana', 1), tk('T-2', 'Ana', 2)], edges: [], schedule: [{ key: 'T-1', owner: 'Ana', sprint: 1 }],
+    config: { first_sprint: 1, end_sprint: 3, caps: { default: 5 }, ignore_link_kinds: [] } });
+  /** @type {Array<[(p: any) => void, string[], string | null]>} */
+  const cases = [
+    [(p) => { p.config.caps.default = 1e300; }, [], NUM],
+    [(p) => { p.config.caps.Ana = 1000000001; }, [], NUM],
+    [(p) => { p.config.caps.default = 100000.5; }, [], null], // scales to 1000005 (x 10): within the bound, solved
+    [(p) => { p.tickets[0].sp = 1e10; p.config.caps.default = 2e10; }, [], NUM],
+    [(p) => { p.config.min_per_sprint = { Ana: 1e300 }; }, [], NUM],
+    [(p) => { p.config.caps.default = 100001; p.tickets[0].sp = 0.0001; }, [], NUM], // 100001 x 10^4 > 1e9
+    [(p) => { p.config.first_sprint = 1e300; }, [], 'MODEL_INVALID: first_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.first_sprint = 1.5; }, [], 'MODEL_INVALID: first_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.first_sprint = 'x'; }, [], 'MODEL_INVALID: first_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.first_sprint = true; }, [], 'MODEL_INVALID: first_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.end_sprint = 1e300; }, [], 'MODEL_INVALID: end_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.end_sprint = '9'; }, [], 'MODEL_INVALID: end_sprint must be a whole number from -1000000 to 1000000'],
+    [() => {}, ['--end', '99999999999'], 'MODEL_INVALID: end_sprint must be a whole number from -1000000 to 1000000'],
+    [(p) => { p.config.frozen_before_sprint = 'x'; }, [], 'MODEL_INVALID: frozen_before_sprint must be a whole number from -1000000 to 1000000'],
+  ];
+  for (const [i, [mut, args, msg]] of cases.entries()) {
+    const p = base(); mut(p);
+    const r = solve(p, args, { time: 2 });
+    if (msg === null) { assert.equal(r.code, 0, `case ${i}: ${r.stdout}${r.stderr}`); continue; }
+    assert.equal(r.code, 2, `case ${i}: ${r.stdout}${r.stderr}`);
+    assert.equal(r.stdout.trim(), msg, `case ${i}`);
+    assert.equal(r.stderr, '', `case ${i}: no traceback`);
+  }
+  const ok = base(); ok.config.caps.default = 1e9; ok.tickets[0].sp = 1e9; // exactly at the bound
+  const r = solve(ok, [], { time: 5 }); assert.equal(r.code, 0, r.stdout + r.stderr);
+});
+
+// (e) a FEASIBLE stage whose bound is 0 (the owner-changes LP bound often is) had gap_pct 100: a number that says nothing. It is now null with
+// gap_note 'n/a (bound 0)' in the stage record, the meta gap_pct is null (gap_note names the stages) and the status line says gap=n/a (bound 0).
+test('(e) a stage with bound 0 reports the gap as n/a (bound 0), never 100%; other gaps are unchanged', { skip: HAVE_PY3 ? false : 'skipped: no python3' }, () => {
+  const r = py(`
+res = {'gap': [m.gap_pct(5, 0.0), m.gap_pct(5, 0), m.gap_pct(0, 0.0), m.gap_pct(10, 8.0), m.gap_pct(3, 4.0)]}
+st = [{'name': 'end_sprint', 'status': 'OPTIMAL', 'objective': 3, 'bound': 3.0, 'gap_pct': 0.0},
+      {'name': 'owner_changes', 'status': 'FEASIBLE', 'objective': 327, 'bound': 0.0, 'gap_pct': m.gap_pct(327, 0.0)}]
+m.note_gaps(st)
+res['stages'] = st; res['summary'] = m.gap_summary(st, False); res['lead'] = m.gap_lead(st[1])
+st2 = [{'name': 'end_sprint', 'status': 'FEASIBLE', 'objective': 32, 'bound': 27.0, 'gap_pct': m.gap_pct(32, 27.0)}]
+m.note_gaps(st2); res['summary2'] = m.gap_summary(st2, False); res['lead2'] = m.gap_lead(st2[0]); res['summary3'] = m.gap_summary([], True)
+print(json.dumps(res, sort_keys=True))`);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), {
+    gap: [null, null, 0, 20, 0],
+    stages: [{ name: 'end_sprint', status: 'OPTIMAL', objective: 3, bound: 3, gap_pct: 0 },
+      { name: 'owner_changes', status: 'FEASIBLE', objective: 327, bound: 0, gap_pct: null, gap_note: 'n/a (bound 0)' }],
+    summary: { gap_pct: null, gap_note: 'n/a (bound 0): owner_changes' },
+    lead: ' (gap=n/a (bound 0), stage owner_changes)',
+    summary2: { gap_pct: 15.625 }, lead2: ' (gap=15.625%, bound=27.0, stage end_sprint)', summary3: { gap_pct: 0 },
+  });
+});
+
+// (b) SIGKILL on the launcher. bin/brain-solve-run now execs the solver's Python itself (uv only prepares the locked environment), so the
+// launcher's pid IS the solver and a SIGKILL leaves no process behind. On the fallback path where `uv run` stays the parent
+// (BRAIN_SOLVE_LAUNCH=uv-run forces it), the solver watches its parent and exits without another write once uv is gone. Either way --out
+// keeps the last verified anytime schedule with its partial meta, and nothing writes it after the kill.
+const procsWith = (needle) => spawnSync('ps', ['-A', '-o', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter((l) => l.includes(needle));
+async function killTest(env, { exec = false } = {}) {
+  const p = plan({ n: 600, people: 4, density: 0.175, seed: 3, cap: 40 }); p.config.stage_order = ['load_of', 'end_sprint']; p.config.minimize_load_of = 'Ana';
+  const dir = writePlan(p), out = path.join(dir, 'out.json');
+  const child = spawn(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '120', '--verbose'], { cwd: tmpRoot, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
+  let err = '', killed = false;
+  const done = new Promise((res) => child.on('close', (code, signal) => res({ code, signal })));
+  child.stderr.setEncoding('utf8');
+  let launcherCmd = '';
+  child.stderr.on('data', (s) => {
+    err += s;
+    if (!killed && /^anytime \{"source":"cp-sat"/m.test(err)) {
+      launcherCmd = spawnSync('ps', ['-o', 'command=', '-p', String(child.pid)], { encoding: 'utf8' }).stdout.trim();
+      killed = true; child.kill('SIGKILL');
+    }
+  });
+  const guard = setTimeout(() => { for (const l of procsWith(out)) try { process.kill(Number(l.trim().split(/\s+/)[0]), 'SIGKILL'); } catch {} }, 200000);
+  const end = await done;
+  assert.ok(killed, `no anytime cp-sat line before exit (${end.code}/${end.signal}): ${err.slice(-400)}`);
+  assert.equal(end.signal, 'SIGKILL');
+  // exec path: the launcher's pid runs the solver script itself (one process); fallback: it is uv
+  const prog = path.basename(launcherCmd.split(' ')[0]);
+  if (exec) assert.ok(launcherCmd.includes(`${SOLVE} `) && /^python/.test(prog), launcherCmd);
+  else assert.equal(prog, 'uv', launcherCmd);
+  let left = procsWith(out);
+  for (let i = 0; i < 50 && left.length; i++) { await new Promise((res) => setTimeout(res, 100)); left = procsWith(out); } // the watchdog polls every 0.2 s
+  clearTimeout(guard);
+  for (const l of left) try { process.kill(Number(l.trim().split(/\s+/)[0]), 'SIGKILL'); } catch {}
+  assert.deepEqual(left, [], 'no solver process survives the launcher');
+  const st1 = fs.statSync(out); await new Promise((res) => setTimeout(res, 2500)); const st2 = fs.statSync(out);
+  assert.equal(st2.mtimeMs, st1.mtimeMs, 'nothing writes --out after the kill');
+  const sched = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.deepEqual(check(p, sched), []); assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
+  const meta = JSON.parse(fs.readFileSync(out + '.meta.json', 'utf8'));
+  assert.equal(meta.partial, true); assert.equal(meta.verified, true); assert.equal(meta.proved, false); // marked as a mid-run schedule
+}
+test('(b) SIGKILL on the launcher leaves no solver process and a valid, marked --out (exec path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({}, { exec: true }));
+test('(b) SIGKILL on a `uv run` launcher: the orphaned solver notices and exits without writing (watchdog path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({ BRAIN_SOLVE_LAUNCH: 'uv-run' }));

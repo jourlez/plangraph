@@ -481,15 +481,15 @@ test('a fractional sprint: build exits 2 naming schedule.jsonl and the line; wha
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 3 }]));
   assert.equal(run(d, ['build']).status, 0);
   const { DatabaseSync } = await import('node:sqlite');
-  { const db = new DatabaseSync(path.join(b, INDEX_FILE)); db.exec("UPDATE schedule SET sprint=2.5 WHERE key='T-2'"); db.close(); }
+  { const db = new DatabaseSync(path.join(b, INDEX_FILE)); db.exec("UPDATE schedule SET sprint=2.5 WHERE key='T-2'; DELETE FROM index_meta WHERE k='content_digest'"); db.close(); } // an older build: no digest
   for (const args of [['whatif', 'T-1', '--sprint', '3'], ['whatif', 'T-1', '--sprint', '3', '--apply-plan'], ['whatif', 'T-2', '--sprint', '4', '--apply-plan']]) {
     r = run(d, args);
     assert.equal(r.status, 2, `${args.join(' ')}: ${r.stdout}${r.stderr}`);
-    assert.match(r.stderr, /^error: the index holds a sprint that is not a whole number or a negative sp/, args.join(' '));
+    assert.match(r.stderr, /^STALE: the text files changed since the index was built; run `brain build`\nerror: the index holds a sprint that is not a whole number or a negative sp/, args.join(' '));
   }
   // M2: a negative sp (it made a vacated cell look roomier than it is) is the same data error
   { const db = new DatabaseSync(path.join(b, INDEX_FILE)); db.exec("UPDATE schedule SET sprint=3 WHERE key='T-2'; UPDATE ticket SET sp=-2 WHERE key='T-2'"); db.close(); }
-  r = run(d, ['whatif', 'T-1', '--sprint', '3']); assert.equal(r.status, 2, r.stdout); assert.match(r.stderr, /^error: the index holds a sprint that is not a whole number or a negative sp/);
+  r = run(d, ['whatif', 'T-1', '--sprint', '3']); assert.equal(r.status, 2, r.stdout); assert.match(r.stderr, /^STALE: the text files changed since the index was built; run `brain build`\nerror: the index holds a sprint that is not a whole number or a negative sp/);
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'a', sp: 3 }, { key: 'T-2', summary: 'b', sp: -2 }]));
   r = run(d, ['build']); assert.equal(r.status, 2); assert.equal(r.stderr.split('\n')[0], 'error: tickets.jsonl:2: "sp" must not be negative');
 });

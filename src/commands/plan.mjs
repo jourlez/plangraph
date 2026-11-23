@@ -7,10 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { readCapped } from '../../lib/jsonl.mjs';
 import { oneLine } from '../../lib/sanitize.mjs';
 import { BrainError } from '../errors.mjs';
-import { buildIndex, openIndex, stampFingerprint, TABLES, INDEX_FILE } from '../db.mjs';
+import { buildIndex, openIndex, stampFingerprint, stampContent, TABLES, INDEX_FILE } from '../db.mjs';
 import { checkRepoPath } from '../../lib/gitsafe.mjs';
 import { NODE_FLOOR, nodeSupported } from '../floor.mjs';
-import { CUR, SEED, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
+import { BIN, CUR, SEED, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 // ---- reassignment safety ----
@@ -65,6 +65,7 @@ async function whatif(ctx, args) {
     db.exec('BEGIN');
     const up = db.prepare(`UPDATE schedule SET owner=?, sprint=? WHERE ${CUR} AND key=?`);
     for (const m of r.moves) up.run(m.to.owner, m.to.sprint, m.key);
+    stampContent(db); // a legitimate index write: the content digest follows it
     db.exec('COMMIT');
   }
   out('written to the index; run `brain export` to save it as text');
@@ -90,6 +91,7 @@ function scheduleLoad(ctx, args) {
     db.prepare(`UPDATE schedule SET version=? WHERE ${CUR}`).run(archive);
     const ins = db.prepare("INSERT INTO schedule(version,key,owner,sprint) VALUES('current',?,?,?)");
     for (const r of rows) ins.run(r.item, r.owner, r.sprint);
+    stampContent(db); // a legitimate index write: the content digest follows it
     db.exec('COMMIT');
   } catch (/** @type {any} */ e) { db.exec('ROLLBACK'); throw dataError(`schedule file could not be loaded: ${oneLine(String(e.message).split('\n')[0], 160)}`); }
   ctx.io.out(`loaded as current; previous plan kept as ${oneLine(archive, 200)}; run \`brain export\` to save it as text`);
@@ -184,10 +186,11 @@ async function doctor(ctx, args) {
   const f = S.readFormat(ctx.dir);
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
   out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `brain migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
-  let dm = S.doctorMergeDriver(ctx.root, { dir }), wireErr = '';
+  const target = path.join(BIN, 'brain-merge'); // the running plugin's driver: a shim left at another install is a problem
+  let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '';
   if (dm.problems.length && args.values.fix) {
     try { await wireMergeDriver(ctx); } catch (/** @type {any} */ e) { wireErr = oneLine(String(e.message).split('\n')[0], 200); }
-    dm = S.doctorMergeDriver(ctx.root, { dir });
+    dm = S.doctorMergeDriver(ctx.root, { dir, target });
   }
   out(dm.problems.length ? `merge driver: ${dm.problems.join('; ')}` : 'merge driver: ok'); bad += dm.problems.length;
   if (wireErr) { out(`merge driver not installed: ${wireErr}`); if (!dm.problems.length) bad++; }

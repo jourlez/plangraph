@@ -78,4 +78,47 @@ index-reading commands still answer, and print `STALE: the text files changed si
 is not stale; it refuses a stale index (exit 2, hint `brain build`), because writing it would overwrite the edited text. `schedule-load`
 and `whatif --write` change only the index, so export after them goes ahead. `brain forecast` also warns when `open-items.jsonl` is newer than the index; the card uses the fingerprint only (no modification times).
 
+Index integrity: the fingerprint covers the text only, so `brain build` also stores a content digest (sha256 over every row of every
+table of `brain.sqlite`, `index_meta` included except the digest row, in a canonical order: primary key, then every column) in `index_meta`
+under `content_digest`. Every index open (every index-reading command, `whatif --write`, `schedule-load`, `export`, and the session hook's
+card) recomputes it. A mismatch, meaning a row was inserted, deleted or changed inside the sqlite file outside brain, is refused: exit 2,
+`error: the index content does not match its integrity digest (it was edited outside brain)`, `try: brain build`; the hook prints nothing
+(exit 0), so a tampered index is never served. An index without a digest (built by an older version) is treated as stale (the STALE line,
+query-only, `export` refused), and `whatif --write` / `schedule-load` refuse it (exit 2, `brain build`). Those two commands and export's
+fingerprint stamp re-stamp the digest inside their transaction. Cost: a full digest on every open, never sampled, streamed in 64 KiB batches;
+measured on the dev machine (Apple silicon, other load present) at 1,400 tickets (7.5k rows) open 6 ms, digest 5 ms; at 100,000 tickets
+(533k rows, 39 MB index) open 0.43 to 0.50 s, digest 0.40 to 0.50 s (build 1.8 to 3.3 s). Stated budget: under 1 s at 100,000 tickets; a
+test bounds the 1,400-ticket digest. Limit: the digest is unkeyed, so it detects direct edits and accidental tools, not a forger who edits
+rows and then recomputes the digest the same way; the text files in git remain the source of truth, and `brain build` rebuilds from them.
+
 `brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts: one shared function, `lib/ready.mjs`, checked against the CLI and an independent brute-force oracle; a ticket whose own status is closed (`Done` or a `closed_statuses` entry; an `sp:` task with `impl_status` done) is `DONE` for `brain ready`, exit 1, and never listed), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.
+
+## Symlink and swap races
+
+What is closed (tests: `test/toctou-race.test.mjs`, each race forced at an exact point by an injected `fsImpl` that swaps the file right
+after the check, asserting the outside file is never read or written):
+
+- Reading a brain data file (the eight index sources, `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
+  the `card --line` hash inputs) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
+  swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device
+  and inode (any other file swapped in, such as a copy or hard link of an outside file, is refused before one byte is read). Files a person
+  names on the command line (`--jira`, `--keys-file`, input JSON) still follow symlinks, as before.
+- Writing (`writeAtomicSafe`: every state file, `.gitattributes`, `format.json`, `CARD.md`, reports, the driver files): after the
+  realpath confinement check the target directory is `stat`ed once and its device and inode are compared again after the temp file is created
+  and right before the rename (a directory swapped for a symlink to elsewhere is refused); the temp file is created with
+  `O_CREAT|O_EXCL|O_NOFOLLOW` (a planted file or symlink at its name is never written through); right before the rename the destination is
+  `lstat`ed again (a symlink is refused) and the temp path must still be the descriptor written (`lstat` against `fstat`); after the rename
+  the destination must be that same file. `rename(2)` replaces a symlink at the destination itself, so a swap in the last instant before the
+  rename is replaced, not followed (tested).
+- The index: a `brain.sqlite` that is a symlink is refused on open (exit 2, `brain build`); `brain build` creates its temp file itself with
+  `O_CREAT|O_EXCL|O_NOFOLLOW` before SQLite opens it, refuses (exit 4, nothing removed) a file or symlink already at that predictable name,
+  and checks its identity again before the rename. The SQLite library bundled with Node also refuses to open a symlinked database or journal
+  (observed, not relied on).
+
+What remains (needs `openat`/`O_BENEATH`-style APIs Node does not expose): every open is by path, so an INTERMEDIATE directory component (for
+example `.brain` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not
+detected for reads, and for writes it is detected only when it is the target's own parent directory (the device and inode check). To use
+it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a
+brain command runs; with that access they can usually edit the data files directly anyway. On Windows there is no `O_NOFOLLOW`: the device
+and inode comparisons are the guard there (not tested on Windows), and creating symlinks needs a privilege. The data directory of the
+merge-driver shim is covered by its own trust model (docs/INTEGRATIONS.md); `bin/brain-merge` reads the files git hands it.

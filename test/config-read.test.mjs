@@ -1,8 +1,8 @@
 // config.json through ONE reader (lib/model.mjs readConfig): capped at 64 KiB, regular files only (a FIFO, a directory refused), a symlink
 // refused, JSON object only. Every command that reads it refuses a bad one the same way: exit 2, `error: config.json: ...` naming the
 // base file only (never a path or the content), never `internal error` (exit 5).
-// Not covered: a config swapped between the lstat and the open (TOCTOU: the open follows a symlink planted in that window; the cap and the
-// regular-file check still hold on what is opened); Windows (no FIFO).
+// A config swapped between the lstat and the open is refused too (readDataCapped: O_NOFOLLOW and the dev/ino check; forced with an injected
+// fsImpl in test/toctou-race.test.mjs). Not covered: Windows (no FIFO).
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

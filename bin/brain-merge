@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 // git merge driver for the brain JSONL files: brain-merge %O %A %B %P  (base, ours = result, theirs, repo path).
 // Writes the merged text to %A. Exit 0 = clean; 1 = conflicts (markers left in the file, keys listed on stderr); 2 = unreadable input.
-import fs from 'node:fs';
 import path from 'node:path';
 import { mergeJsonl } from '../lib/merge.mjs';
 import { schemaFor, writeAtomic } from '../lib/store.mjs';
 import { oneLine } from '../lib/sanitize.mjs';
+import { readCapped } from '../lib/jsonl.mjs';
 
 const [, , O, A, B, P] = process.argv;
 if (!O || !A || !B) { process.stderr.write('usage: brain-merge BASE OURS THEIRS [PATH]\n'); process.exit(2); }
-const rd = (f) => fs.readFileSync(f, 'utf8');
+// capped (64 MiB, the brain's data cap) and regular files only: a FIFO or device cannot block or flood the merge
+const rd = (f) => readCapped(f, 64 * 1024 * 1024);
 try {
   const name = P || A;
   const { text, conflicts } = mergeJsonl({ base: rd(O), ours: rd(A), theirs: rd(B) }, schemaFor(name), { name: path.basename(name) });

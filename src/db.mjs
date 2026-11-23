@@ -8,13 +8,19 @@
 //   (sha256 over the sorted index source files), stored in table index_meta under key source_fingerprint.
 // - openIndex({ dir }) recomputes the fingerprint: a mismatch (or an index without one, such as one built by the old bin/brain) sets
 //   handle.stale = true and turns on PRAGMA query_only.
+// - Content integrity: buildIndex also stores a sha256 digest of the index CONTENT (every row of every table, index_meta included except the
+//   digest row itself, in a canonical order: primary key, then every column) under index_meta key content_digest. openIndex recomputes it
+//   (streaming, one row at a time) and refuses a mismatch as DATA with the `brain build` hint, so a row edited directly inside brain.sqlite is
+//   never served. An index without a digest (an older build) is flagged stale (query-only) and index writes refuse it. The legitimate index
+//   writers (whatif --write, schedule-load, stampFingerprint) re-stamp the digest with stampContent before COMMIT. The digest is unkeyed: it
+//   detects direct edits, not a forger who recomputes it (docs/CONTRACT.md).
 // The fingerprint lives in its own table, not in `meta`: `meta` mirrors meta.jsonl and is exported back to text, so a fingerprint row
 // there would leak into meta.jsonl (and collide with a user key of the same name).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { SCHEMAS } from '../lib/store.mjs';
-import { parseJsonl, readCapped, IngestError } from '../lib/jsonl.mjs';
+import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.mjs';
 import { validators } from '../lib/schema.mjs';
 import { BrainError } from './errors.mjs';
 import { nodeSupported, floorMessage } from './floor.mjs';
@@ -22,6 +28,7 @@ import { nodeSupported, floorMessage } from './floor.mjs';
 export const INDEX_FILE = 'brain.sqlite';
 export const NO_BRAIN_MESSAGE = 'no brain directory: run `brain init`';
 export const FINGERPRINT_KEY = 'source_fingerprint';
+export const CONTENT_KEY = 'content_digest';
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 
@@ -51,7 +58,7 @@ const PREP = new Map([
 ]);
 
 /** @typedef {{ name: string, file: string, columns: readonly string[], upsert: boolean, known: Set<string>, text: Set<string>, scalar: readonly string[],
- *   columnList: string, placeholders: string, ddl: string, prep: [(r: any) => any, (v: any) => any] }} TableSpec */
+ *   columnList: string, placeholders: string, ddl: string, prep: [(r: any) => any, (v: any) => any], order: string }} TableSpec */
 // Columns whose record values are converted by PREP before the insert (refs.plans is an array, refs.files an object): not scalar-checked.
 const PREPPED = new Map([['ref', new Set(['plans', 'files'])]]);
 /** @type {Map<string, Readonly<TableSpec>>} */
@@ -69,6 +76,8 @@ export const TABLES = new Map(DEFS.map(([name, file, pk, ints, upsert]) => {
     placeholders: all.map(() => '?').join(','),
     ddl: [...types, 'extra TEXT', ...(pk.length ? [`PRIMARY KEY(${pk.join(',')})`] : [])].join(', '),
     prep: PREP.get(name) ?? /** @type {[(r: any) => any, (v: any) => any]} */ ([same, toObj]),
+    // canonical digest order: the primary key, then every other column (rows that tie on all of them are identical, so order is total)
+    order: [...pk, ...all.filter((c) => !pk.includes(c))].join(','),
   })];
 }));
 Object.freeze(TABLES);
@@ -149,10 +158,10 @@ function readSources(dir) {
     // A source file is a regular file inside the brain directory: a symlink (even to a file outside the repo) is refused before any read.
     let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT') throw e; }
     if (st?.isSymbolicLink()) throw new IngestError(`${f}: is a symlink, not a regular file`);
-    try { return [f, readCapped(path.join(dir, f), MAX_SOURCE_BYTES)]; }
+    try { return [f, readDataCapped(path.join(dir, f), MAX_SOURCE_BYTES)]; } // O_NOFOLLOW + dev/ino check: no swap after the lstat
     catch (/** @type {any} */ e) {
       if (e.code === 'ENOENT') return [f, null];
-      if (e.code === 'TOO_LARGE' || e.code === 'NOT_A_FILE') throw new IngestError(`${f}: ${e.message}`);
+      if (DATA_REFUSALS.has(e.code)) throw new IngestError(`${f}: ${e.message}`);
       throw e;
     }
   });
@@ -169,6 +178,34 @@ function fingerprintOf(sources) {
 }
 /** sha256 (hex) over the sorted index source files of dir: name, byte length and bytes of each; a missing file differs from an empty one. */
 export const sourceFingerprint = (/** @type {string} */ dir) => fingerprintOf(readSources(dir));
+
+// ---------- content digest ----------
+// sha256 over every table in the fixed TABLES order, then index_meta without the digest row: per table its name, then one SQLite json_array
+// per row (a TEXT '3' and an INTEGER 3 differ; JSON escapes newlines, so the row separator is unambiguous; a BLOB, which json_array refuses,
+// makes the digest fail, which openIndex treats as a mismatch). Rows are streamed and hashed in 64 KiB batches, so memory stays flat on a
+// large index; the ORDER BY makes the digest independent of physical row order (VACUUM). SQL text comes only from the frozen table specs.
+// Cost (docs/CONTRACT.md): about 5 ms at 1,400 tickets and 0.4 s at 100,000 tickets (533k rows) on the dev machine; a full digest, no sampling.
+/** @param {IndexHandle} h @returns {string} */
+export function contentDigest(h) {
+  const hash = crypto.createHash('sha256');
+  /** @param {string} name @param {string} sql @param {unknown[]} args */
+  const feed = (name, sql, args) => {
+    let buf = `${name}\0`;
+    const st = h.prepare(sql); st.setReturnArrays(true);
+    for (const row of st.iterate(...args)) { buf += `${row[0]}\n`; if (buf.length > 65536) { hash.update(buf); buf = ''; } }
+    hash.update(buf);
+  };
+  for (const t of TABLES.values()) feed(t.name, `SELECT json_array(${t.columnList}) FROM ${t.name} ORDER BY ${t.order}`, []);
+  feed('index_meta', 'SELECT json_array(k, v) FROM index_meta WHERE k <> ? ORDER BY k, v', [CONTENT_KEY]);
+  return hash.digest('hex');
+}
+/** Store the content digest of the index as it is now (inside the caller's transaction, before COMMIT). Returns it. */
+/** @param {IndexHandle} h */
+export function stampContent(h) {
+  const digest = contentDigest(h);
+  h.prepare('INSERT OR REPLACE INTO index_meta(k, v) VALUES(?, ?)').run(CONTENT_KEY, digest);
+  return digest;
+}
 
 // ---------- build ----------
 export const TEMP_MAX_AGE_MS = 10 * 60 * 1000;
@@ -211,8 +248,16 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
   // parse everything before touching the database
   const rows = [...TABLES.values()].map((t) => /** @type {const} */ ([t, parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })]));
   const tmp = `${file}.tmp-${process.pid}`;
+  // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it: a file or symlink planted at that
+  // (predictable) name is refused and left alone, never written through. Its dev/ino is checked again before the rename.
+  let mine;
+  try { const tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o644); mine = fs.fstatSync(tfd); fs.closeSync(tfd); }
+  catch (/** @type {any} */ e) {
+    if (e.code === 'EEXIST' || e.code === 'ELOOP') throw new BrainError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build');
+    throw e;
+  }
   try {
-    /** @type {Record<string, number>} */ const counts = {};
+    /** @type {Record<string, number>} */ const counts = {}; let digest = '';
     {
       using h = new IndexHandle(new DatabaseSync(tmp));
       h.exec('PRAGMA journal_mode=OFF'); h.exec(DDL); h.exec('BEGIN');
@@ -224,14 +269,17 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
         });
       }
       h.prepare('INSERT INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
+      digest = stampContent(h);
       h.exec('COMMIT');
       if (h.get('PRAGMA integrity_check').integrity_check !== 'ok') throw new BrainError('DATA', 'index failed its integrity check');
       for (const t of TABLES.values()) counts[t.name] = h.get(`SELECT COUNT(*) c FROM ${t.name}`).c;
     } // closed here, before the rename
-    fs.renameSync(tmp, file);
-    return { file, counts, fingerprint };
+    const now = fs.lstatSync(tmp);
+    if (!now.isFile() || now.dev !== mine.dev || now.ino !== mine.ino) throw new BrainError('REFUSED', 'refusing to build the index: its temp file was replaced during the build');
+    fs.renameSync(tmp, file); // rename replaces a symlink at `file` itself, never its target
+    return { file, counts, fingerprint, digest };
   } catch (e) {
-    fs.rmSync(tmp, { force: true });
+    try { const now = fs.lstatSync(tmp); if (now.isFile() && now.ino === mine.ino && now.dev === mine.dev) fs.rmSync(tmp, { force: true }); } catch { /* gone */ }
     throw e;
   }
 }
@@ -268,12 +316,15 @@ function schemaOk(h) {
 /** Open an index. With `dir`, verify its source fingerprint: stale -> handle.stale = true and PRAGMA query_only = ON. */
 /** @param {string} file @param {{ readOnly?: boolean, dir?: string }} [opts] */
 export function openIndex(file, { readOnly = true, dir } = {}) {
-  if (!fs.existsSync(file)) {
+  let lst = null; try { lst = fs.lstatSync(file); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT' && e.code !== 'ENOTDIR') throw e; }
+  if (!lst) {
     // no brain directory at all: the first step is `brain init` (a `brain build` there would fail and say so itself)
     let dirOk = false; try { dirOk = fs.statSync(dir ?? path.dirname(file)).isDirectory(); } catch { /* missing */ }
     if (!dirOk) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
     throw new BrainError('NO_INDEX', 'no index: run `brain build`');
   }
+  // a symlinked index (to a file anywhere, or dangling) is never opened; the SQLite build in Node refuses one too, this does not depend on it
+  if (lst.isSymbolicLink()) throw new BrainError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `brain build` to rebuild it' });
   const { DatabaseSync } = loadSqlite();
   let h;
   try {
@@ -287,11 +338,20 @@ export function openIndex(file, { readOnly = true, dir } = {}) {
   try { good = schemaOk(h); } catch { good = false; }
   if (!good) { h.close(); throw new BrainError('DATA', 'the index has an unexpected schema (not built by brain build)', { hint: 'run `brain build` to rebuild it' }); }
   try {
+    const has = h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='index_meta'");
+    const meta = (/** @type {string} */ k) => (has ? h.get('SELECT v FROM index_meta WHERE k=?', k)?.v : undefined);
+    const want = meta(CONTENT_KEY);
+    if (want === undefined) {
+      if (!readOnly) throw new BrainError('DATA', 'the index has no integrity digest (built by an older brain)', { hint: 'run `brain build` to rebuild it' });
+    } else {
+      let got = null;
+      try { got = contentDigest(h); } catch { got = null; } // a value SQLite cannot hand back (an out-of-range integer) is tampering too
+      if (got !== want) throw new BrainError('DATA', 'the index content does not match its integrity digest (it was edited outside brain)', { hint: 'run `brain build` to rebuild it' });
+    }
     if (dir !== undefined) {
-      const has = h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='index_meta'");
-      const stored = has ? h.get('SELECT v FROM index_meta WHERE k=?', FINGERPRINT_KEY)?.v : undefined;
+      const stored = meta(FINGERPRINT_KEY);
       h.fingerprint = sourceFingerprint(dir); h.builtFingerprint = stored ?? null;
-      h.stale = stored !== h.fingerprint;
+      h.stale = stored !== h.fingerprint || want === undefined;
       if (h.stale) h.exec('PRAGMA query_only = ON');
     }
   } catch (e) { h.close(); throw e; }
@@ -300,12 +360,14 @@ export function openIndex(file, { readOnly = true, dir } = {}) {
 
 // ---------- stamp ----------
 /** Record that the index is current with the text in dir (after `brain export` wrote that text FROM this index): store the source
- * fingerprint in index_meta (created when an older index lacks it). Nothing else in the index changes. */
+ * fingerprint in index_meta and re-stamp the content digest. Nothing else in the index changes. */
 /** @param {string} file @param {string} dir */
 export function stampFingerprint(file, dir) {
   const fingerprint = sourceFingerprint(dir);
-  using h = openIndex(file, { readOnly: false });
-  h.exec('CREATE TABLE IF NOT EXISTS index_meta(k TEXT PRIMARY KEY, v TEXT)');
+  using h = openIndex(file, { readOnly: false }); // verifies the content digest first: a tampered index is never re-stamped
+  h.exec('BEGIN');
   h.prepare('INSERT OR REPLACE INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
+  stampContent(h); // the digest covers index_meta (the fingerprint row included)
+  h.exec('COMMIT');
   return fingerprint;
 }

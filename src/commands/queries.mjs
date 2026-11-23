@@ -3,10 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readCapped, presentDataFile } from '../../lib/jsonl.mjs';
+import { readDataCapped, presentDataFile } from '../../lib/jsonl.mjs';
 import { oneLine, fenceInline } from '../../lib/sanitize.mjs';
 import { makeGit } from '../../lib/gitsafe.mjs';
-import { CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
+import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 const placeOf = (/** @type {import('../db.mjs').IndexHandle} */ d, /** @type {unknown} */ key) => d.get(`SELECT owner,sprint FROM schedule WHERE ${CUR} AND key=?`, key);
@@ -261,14 +261,14 @@ async function ready(ctx, args) {
 
 // ---- session card ----
 // Session-hook repair (`card --heal`): silent, never throws, never prompts. Only when the brain dir exists inside a git work tree,
-// and only when doctor sees a problem, so a healthy setup is not rewritten.
+// and only when doctor sees a problem (including a driver.target left at an older plugin install), so a healthy setup is not rewritten.
 /** @param {Ctx} ctx */
 async function healMergeDriver(ctx) {
   try {
     if (!fs.existsSync(ctx.dir)) return;
     if (makeGit(ctx.dir)('rev-parse', '--is-inside-work-tree').trim() !== 'true') return;
     const S = await import('../../lib/store.mjs');
-    if (S.doctorMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir) }).problems.length) await wireMergeDriver(ctx);
+    if (S.doctorMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), target: path.join(BIN, 'brain-merge') }).problems.length) await wireMergeDriver(ctx);
   } catch { /* the hook must never fail or print */ }
 }
 
@@ -281,7 +281,7 @@ async function cardLine(ctx) {
   for (const f of ['config.json', ...SRC_FILES]) {
     let b = '';
     if (f !== 'config.json' && !presentDataFile(path.join(ctx.dir, f))) { h.update(`${f}\0${b.length}\0${b}\0`); continue; } // a symlinked data file is refused
-    try { b = readCapped(path.join(ctx.dir, f), f === 'config.json' ? CONFIG_MAX : MAX_DATA); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT') throw e; }
+    try { b = readDataCapped(path.join(ctx.dir, f), f === 'config.json' ? CONFIG_MAX : MAX_DATA); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT') throw e; } // O_NOFOLLOW + dev/ino: no symlink, no swap
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && s.sprint > last) last = s.sprint;

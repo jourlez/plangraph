@@ -3,15 +3,23 @@
 # Dependencies are locked: bin/brain-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/brain-solve`.
 # Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv, else a python3 that already has ortools.
 # Env: BRAIN_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
-# Signals: on the uv path the solver is uv's child; SIGTERM/SIGINT are forwarded, SIGKILL is not (the solver then runs on as an orphan until
-# its --time budget ends; kill the process group instead). See docs/SOLVER.md, Anytime output.
+# Signals: every path execs the solver's Python, so this process IS the solver and any signal (SIGKILL included) reaches it: on the uv path,
+# uv only prepares the locked script environment (`uv sync --locked --script`, which verifies the pinned lock) and names its interpreter.
+# Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (BRAIN_SOLVE_WATCH_PARENT=1) and exits without
+# writing once uv is gone. BRAIN_SOLVE_LAUNCH=uv-run forces that fallback (tests). See docs/SOLVER.md, Anytime output.
 PIN="ortools==9.15.6755"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="${BRAIN_SOLVE_SCRIPT:-$HERE/brain-solve}"
 if command -v uv >/dev/null 2>&1; then
-  # --locked: fail instead of re-resolving when bin/brain-solve.lock is stale (refresh with: uv lock --script bin/brain-solve)
+  # --locked: fail instead of re-resolving when bin/brain-solve.lock is stale (refresh with: uv lock --script bin/brain-solve). An overriding
+  # script (tests, mutation checks) runs on the same locked environment as bin/brain-solve.
+  LOCKED="$HERE/brain-solve"
+  if [ "${BRAIN_SOLVE_LAUNCH:-}" != "uv-run" ] && uv sync --quiet --locked --script "$LOCKED" >/dev/null 2>&1 \
+     && PY="$(uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
+    exec "$PY" "$SCRIPT" "$@"
+  fi
+  BRAIN_SOLVE_WATCH_PARENT=1; export BRAIN_SOLVE_WATCH_PARENT
   if [ -z "${BRAIN_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --locked --script "$SCRIPT" "$@"; fi
-  # an overriding script (tests, mutation checks) has no lock of its own: same pinned dependency, resolved by uv
   exec uv run --quiet --no-project --python '>=3.10,<3.15' --with "$PIN" python "$SCRIPT" "$@"
 fi
 VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv"

@@ -23,7 +23,7 @@ brain schedule-load schedule.json <archive-name>
 | status | meaning | `proved` |
 |---|---|---|
 | OPTIMAL | every stage ended OPTIMAL and the model covers every schedule the stage order may prefer (see Horizon below): the lexicographic optimum is proved | true |
-| FEASIBLE | a verified schedule, not proved optimal; the first unproved stage prints `gap=` and `bound=` | false |
+| FEASIBLE | a verified schedule, not proved optimal; the first unproved stage prints `gap=` and `bound=` (`gap=n/a (bound 0)` when its bound is 0) | false |
 | INFEASIBLE | proved no schedule exists (within sprints up to `horizon`); the output names links that cannot hold | true |
 | UNKNOWN | no schedule found in the budget | false |
 | MODEL_INVALID | bad input: loop, unknown config person, ticket larger than any capacity, unknown freeze key, missing baseline | false |
@@ -46,7 +46,9 @@ stage_order`, plus `lns decompose components polish{method,rounds,improved,compo
 `objective` is the value the final schedule has (a later stage or the polish may have lowered an unproved stage's value after it ended), and its
 `gap_pct` is recomputed against the stage's `bound`. The bound holds under the earlier stages' values at the time the stage ran; if a later
 improvement (the polish) lowered an earlier stage, a value can end below its bound: the gap then shows 0, never a positive number, and the
-stage record carries `below_bound: true`.
+stage record carries `below_bound: true`. A stage whose bound is 0 (or below) while its value is above 0 has no meaningful relative gap (it would
+be 100% for any value): its `gap_pct` is null with `gap_note: "n/a (bound 0)"`, the meta `gap_pct` is then null with `gap_note: "n/a (bound 0):
+<stage names>"`, and the status line says `gap=n/a (bound 0)`.
 
 ### Anytime output
 
@@ -68,12 +70,16 @@ is put back byte for byte (or removed, if the run created it), so "nothing writt
 snapshotted at start; if it is not a regular file of at most 64 MiB, anytime writes are off for that run (`anytime` in the meta says so). A kill
 skips the restore: then `--out` holds the last verified schedule.
 
-Killing the launcher: `bin/brain-solve-run` `exec`s `uv run`, and uv starts the Python solver as its child. `SIGTERM` and `SIGINT` sent to the
-launcher's process are forwarded by uv to the solver (the anytime test relies on it), but `SIGKILL` cannot be forwarded: the solver keeps
-running as an orphan until its `--time` budget ends, and keeps writing `--out` (always a verified schedule, atomically). To stop it at once,
-kill the Python child (`pkill -f bin/brain-solve`) or the whole process group (`kill -KILL -- -PGID`). The venv and plain-python paths `exec`
-Python directly, so there the launcher's process is the solver. Not changed in the launcher: running the locked uv environment's Python
-directly would bypass `uv run --locked`, which is what verifies the pinned dependencies.
+Killing the launcher: `bin/brain-solve-run` `exec`s the solver's Python on every path, so the launcher's process is the solver and any
+signal, `SIGKILL` included, stops it: no orphan is left to overwrite `--out` later. On the uv path uv only prepares the environment
+(`uv sync --locked --script bin/brain-solve`, which still verifies the pinned lock and fails on a stale one) and names its interpreter
+(`uv python find --script`); an overriding `BRAIN_SOLVE_SCRIPT` runs on that same locked environment. If that preparation fails (an uv
+without `sync --script`), the launcher falls back to `uv run`, where uv stays the parent; the solver then runs a parent watchdog
+(`BRAIN_SOLVE_WATCH_PARENT=1`, set only there): a thread polls `getppid()` every 0.2 s and, once uv is gone, takes the write lock (so no write
+is cut short; an anytime meta + schedule pair and the final schedule + meta are each held as one unit) and exits with no further write.
+After a kill, `--out` holds the last verified anytime schedule and its meta says `partial: true`. Tested: a SIGKILL on the launcher on both
+paths (`BRAIN_SOLVE_LAUNCH=uv-run` forces the fallback) leaves no solver process within 5 s and `--out` unchanged afterwards. Not covered: a
+SIGKILL that lands inside the one-process solver's own write leaves a `.brain-solve-*.tmp` file (see above), never a torn `--out`.
 
 ## Method
 
@@ -127,7 +133,9 @@ scaled by the smallest power of ten that makes all of them whole numbers, so the
 model, output and `input_hash` are unchanged); load figures in the output (`shortfall`, `load_of`, `peak_load`, their stage objectives and bounds)
 are reported in story points. `brain verify` sums story points as binary floats, where `0.1 + 0.2` is above `0.3`; so a person-sprint cell
 that holds a story point which is not exactly a binary float (0.1, 2.6; unlike 0.5 or 0.25) is kept strictly below its capacity, never at an
-exact tie. That is the safe side: the solver may leave a tie unused that `brain verify` would have accepted, never the reverse.
+exact tie. That is the safe side: the solver may leave a tie unused that `brain verify` would have accepted, never the reverse. A 0-SP
+ticket adds nothing to the float sum, so it may still join such a cell at a tie held by frozen tickets (its placement adds no violation `brain
+verify` did not already report), and `brain whatif` likewise allows a 0-SP move into a cell that is already over capacity.
 
 ## Cost to know
 
@@ -171,13 +179,35 @@ What this shows, and what it does not:
 - The anytime callback and the configurable stage order cost nothing measurable here (default runs match the old solver within run-to-run noise).
 - `--lns` lowers owner changes by 25-49% at the same budget (194-246 vs 327-381 at 60 s, 175 vs 292 at 120 s). The reported gap of the
   owner-changes stage does not improve: its bound stays 0 (the LP relaxation of "keep everyone on their baseline owner" is near 0), so the gap
-  is 100% for any schedule with changes; the improvement is in the objective, not the proof.
+  was 100% for any schedule with changes (the 100% figures in the table were measured before that gap was reported as `n/a (bound 0)`); the
+  improvement is in the objective, not the proof.
 - With `--lns` the end-sprint stage gets half the time; at 60 s it once ended UNKNOWN (no CP-SAT solution within its 13 s, below the about
   12 s presolve plus search) and the constructive end sprint (32, the same value here) was kept. On an instance where CP-SAT improves the end
   sprint only late, `--lns` can end later than the default. The end-sprint gap is 15.6% in every run above where that stage ended FEASIBLE; in the
 60 s `--lns` run whose end-sprint stage ended UNKNOWN there is no gap to report (no CP-SAT solution, so no stage bound).
 - `--decompose` was not measurable on this instance: its link graph is one component. On a two-component 180-ticket test instance (the `polish`
-  test) one deterministic pass lowered owner changes from 76 to 75 while `--lns` reached 54; no claim beyond that.
+  test) one deterministic pass lowered owner changes from 76 to 75 while `--lns` reached 54. See the multi-component measurement below.
+
+### Measurements: `--decompose` on a multi-component instance
+
+`node test/bench-decompose.mjs TIME SEEDS` builds 8 independent components of 150 tickets (genPlan seeds 100 to 107, 5,031 links) that share
+4 people (cap 60), so the components couple only through capacity, and runs each seed monolithic and with `--decompose` (2026-11-22, dev
+machine with other load present; wall times are noisy). Stage order: end sprint, then owner changes vs current. Every run proved the end sprint
+(15, OPTIMAL) and ended the owner-changes stage FEASIBLE with bound 7: the proof status never differed.
+
+| run | seed | owner changes: monolithic | owner changes: `--decompose` (polish rounds improved) | first CP-SAT write, s (mono / dec) |
+|---|---|---|---|---|
+| `--deterministic --time 60` | 1, 2, 3 | 268, 268, 268 | 268, 268, 268 (0 of 8 each) | none / none (the constructive start was never beaten) |
+| `--deterministic --time 120` | 1 | 268 | 265 (2 of 8) | none / 54.5 |
+| `--time 60`, 8 workers | 1 | 143 | 254 (0 of 8) | 12.6 / 20.8 |
+| `--time 60`, 8 workers | 2 | 140 | 174 (3 of 8, from 184) | 15.9 / 14.8 |
+
+Decision: `--decompose` stays off by default. It is never worse on correctness (every result is verified, the end sprint and its proof are
+the same), but it is not better on time or objective: with a wall-clock budget it was clearly worse (owner changes 254 and 174 against 143 and
+140), because a polish phase takes half of the stage budget away from the monolithic owner-changes stage, which improves steadily on this
+instance; with a deterministic budget it tied at 60 s and gained 3 owner changes (1%) at 120 s. Its time to the first CP-SAT solution was
+not better either (20.8 s vs 12.6 s, 14.8 s vs 15.9 s). It may help when components are large and truly independent (no shared people); that
+case is not measured here.
 
 ## Environment (PEP 723 notes)
 
@@ -192,6 +222,11 @@ Tests: `node --test test/solver.test.mjs` (about 2 to 3 minutes; skips with a me
 
 `--workers` is clamped to 1..32 and `--time` to 0..3600 s (0 stays a real value, see above); the same clamp applies to `workers` and `time_limit_seconds` from config.json.
 The meta file records the effective `workers` and `time_limit`, plus `clamped: ["workers", "time"]` when a value was changed. `nan` and non-numeric values exit 2 (`--time must be a finite number`); `inf` and integers too large for a float (such as `10**400` in config.json) clamp to the bound and are listed in `clamped`; `-0` is recorded as `0.0`; `--workers` must be a whole number (`8.9` exits 2) and a boolean in config.json exits 2.
+Story points, caps and `min_per_sprint` must be at most 1,000,000,000 after scaling to whole numbers (at most 4 decimal places; with 4 places
+that is 100,000 story points), so CP-SAT only sees small exact integers: a larger value (such as a cap of `1e300`) exits 2 `MODEL_INVALID: story
+points, caps and min_per_sprint must be at most 1000000000 after scaling to whole numbers`. `first_sprint`, `end_sprint` (and `--end`) and
+`frozen_before_sprint` must be whole numbers from -1,000,000 to 1,000,000 (an integer: not a float, string or boolean), else exit 2
+`MODEL_INVALID: <name> must be a whole number from -1000000 to 1000000`.
 `--jsonl-dir` and the brain dir (`.brainrc` / `BRAIN_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.

@@ -138,7 +138,7 @@ test('(e) 100k ticket records build quickly', () => {
   const small = timeBuild(25000, 3), large = timeBuild(100000, 3);
   // linear => about 4x (node start-up only lowers it), quadratic => about 16x; prepared-once statements, no per-record prepare.
   assert.ok(large / small < 9, `build is not linear: 25k took ${small.toFixed(0)} ms, 100k took ${large.toFixed(0)} ms`);
-  assert.ok(large < budget(8000), `build took ${large} ms`); // measured about 1 s; the ceiling only catches a hang
+  assert.ok(large < budget(30000), `build took ${large} ms`); // about 3.5 s alone since the index digest (it was about 1 s before); the n-vs-4n ratio above is the linearity check, this ceiling only catches a hang
 });
 
 test('(f) source scan: the INSERT column lists come from constants, never from record keys', () => {
@@ -150,7 +150,7 @@ test('(f) source scan: the INSERT column lists come from constants, never from r
   const sqlTemplates = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE)\b[^`]*)`/g)];
   assert.ok(sqlTemplates.length >= 2);
   for (const m of sqlTemplates) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) {
-    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|verb)$/, 'interpolation: ' + i[1]);
+    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb)$/, 'interpolation: ' + i[1]);
   }
   // insertSql takes only a table spec and a verb: no record parameter
   assert.match(code, /const insertSql = \(t, verb = 'INSERT'\) =>/);

@@ -12,9 +12,9 @@
 //      Done and In Progress) only warns, and stops under opts.strict (STARTED);
 //   6. NEIGHBORHOOD, after applying the move: every live link with the moved ticket at either end, whose other end is a placed ticket,
 //      satisfies the strict handoff rule (PRODUCER_LATE / CONSUMER_EARLY), the moved ticket's own placement used on BOTH ends of a self-link;
-//   7. the target cell's load after the move (its current load plus the ticket's points) is at most the target owner's capacity (CAPACITY).
-//      Intended difference from the naive "no NEW violation" reading, documented in lib/whatif.mjs as a known limit kept on the safe side:
-//      a 0-point ticket cannot move into a cell that is already over capacity, although that adds no load. Encoded as specified.
+//   7. the target cell's load after the move (its current load plus the ticket's points) is at most the target owner's capacity, OR the
+//      move added no load to it (CAPACITY is a NEW violation only, as lib/verify.mjs counts them): a 0-point ticket may move into a cell
+//      that is already over capacity (lib/whatif.mjs header; test/whatif-zero-sp.test.mjs). Encoded as specified.
 //   Cross-check with the verify oracle: a YES move never adds a violation (multiset of oracle violations after minus before is empty).
 // proposeMove (repairs), for every request and every flag combination of {allowSlip, allowEarlier, allowOwnerChange}:
 //   ok => the first move is the request (slipped later only with allowSlip, never another owner), no frozen/Done ticket other than the
@@ -87,7 +87,7 @@ export function oracleMove(inst, mv, opts = {}) {
     const c = after.get(e.consumer), p = after.get(e.producer);
     if (c.sprint < p.sprint + (c.owner === p.owner ? 0 : 1)) codes.add(e.consumer === mv.key ? 'PRODUCER_LATE' : 'CONSUMER_EARLY');
   }
-  if (cellLoad(inst, inst.sched, owner, sprint) + sp(t) > capFor(inst.config, owner)) codes.add('CAPACITY');
+  { const nb = cellLoad(inst, inst.sched, owner, sprint), na = nb + sp(t); if (na > capFor(inst.config, owner) && na > nb) codes.add('CAPACITY'); }
   const blocking = [...codes].filter((c) => !(c === 'STARTED' && warnOnly));
   return { yes: blocking.length === 0, codes, owner, sprint, hard };
 }

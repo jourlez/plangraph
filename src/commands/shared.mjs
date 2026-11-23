@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readCapped, presentDataFile } from '../../lib/jsonl.mjs';
+import { readCapped, readDataCapped, presentDataFile } from '../../lib/jsonl.mjs';
 import { oneLine, fence } from '../../lib/sanitize.mjs';
 import { buildModel } from '../../lib/model.mjs';
 import { assertInside, writeAtomicSafe } from '../../lib/fsafe.mjs';
@@ -109,7 +109,7 @@ export function modelFromDb(ctx) {
 export async function readItems(ctx) {
   const OI = await import('../../lib/openitems.mjs');
   const f = path.join(ctx.dir, 'open-items.jsonl');
-  return { OI, items: presentDataFile(f) ? OI.parseItems(readCapped(f, MAX_DATA)) : [] }; // a symlink is refused, as in build
+  return { OI, items: presentDataFile(f) ? OI.parseItems(readDataCapped(f, MAX_DATA)) : [] }; // a symlink is refused, as in build (also one swapped in)
 }
 
 /** A Jira snapshot file: .jsonl (current format) or the legacy JSON map. */

@@ -505,6 +505,6 @@ test('src/db.mjs builds SQL only from constants: every interpolation is a table 
   const code = fs.readFileSync(path.join(SRC, 'db.mjs'), 'utf8');
   const sql = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE|PRAGMA)\b[^`]*)`/g)];
   assert.ok(sql.length >= 3);
-  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|verb)$/, 'interpolation: ' + i[1]);
+  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb)$/, 'interpolation: ' + i[1]);
   assert.ok(!/Object\.keys\(r(ec)?\)\s*\.(map|join)/.test(code), 'no per-record column list');
 });
