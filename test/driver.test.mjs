@@ -109,9 +109,9 @@ test('data directory trust root: refuses a group/world-writable data dir, a writ
 });
 test('defaultDataDir', () => {
   assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '/var/pd' }, '/h'), '/var/pd');
-  assert.equal(defaultDataDir({}, '/h'), path.join('/h', '.cache', 'open-brain'));
-  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '' }, '/h'), path.join('/h', '.cache', 'open-brain'));
-  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: 'relative' }, '/h'), path.join('/h', '.cache', 'open-brain'));
+  assert.equal(defaultDataDir({}, '/h'), path.join('/h', '.cache', 'project-brain'));
+  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '' }, '/h'), path.join('/h', '.cache', 'project-brain'));
+  assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: 'relative' }, '/h'), path.join('/h', '.cache', 'project-brain'));
 });
 const gitRepo = () => { const d = tmp('drv-repo-'); execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d }); return d; };
 test('installMergeDriver refuses a versioned plugin-cache path', () => {

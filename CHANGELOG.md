@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+Fixed: 0.1.3 changed two per-user state locations during the rename, which hid existing Jira bindings (`~/.config/project-brain/jira-sites.json`)
+and moved the data and cache directory. Both are back to `project-brain` (`~/.config/project-brain/`, `~/.cache/project-brain`), and
+`test/state-paths.test.mjs` pins the names so a rename cannot change them silently. Anyone on 0.1.3 should update.
+
 ## 0.1.3
 
 Renamed: the plugin, the marketplace and the repository are now `open-brain` (`/plugin install open-brain@open-brain-marketplace`; skills are

@@ -8,11 +8,11 @@ import { parseSiteRegistry } from '../lib/jira.mjs';
 
 const MAX_REGISTRY = 64 * 1024;
 
-/** Directory of the user-level config: BRAIN_CONFIG_DIR, else $XDG_CONFIG_HOME/open-brain, else ~/.config/project-brain. */
+/** Directory of the user-level config: BRAIN_CONFIG_DIR, else $XDG_CONFIG_HOME/project-brain, else ~/.config/project-brain. The directory keeps its pre-rename name on purpose: users' Jira bindings live there. */
 export function configDir(env = {}) {
   if (env.BRAIN_CONFIG_DIR) return path.resolve(String(env.BRAIN_CONFIG_DIR));
   const base = env.XDG_CONFIG_HOME ? String(env.XDG_CONFIG_HOME) : path.join(env.HOME || os.homedir(), '.config');
-  return path.join(base, 'open-brain');
+  return path.join(base, 'project-brain');
 }
 export const registryFile = (env = {}) => path.join(configDir(env), 'jira-sites.json');
 

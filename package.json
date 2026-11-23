@@ -1,6 +1,6 @@
 {
   "name": "open-brain",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Planning memory for AI coding agents: a dependency graph in git text, safe reassignment, provable schedules, token-minimal answers.",
   "type": "module",
   "private": true,
