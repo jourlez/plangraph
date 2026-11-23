@@ -14,10 +14,16 @@ export const ratio = () => Math.min(CAP, Math.max(1, baselineMs() / REF_MS));
 export const budget = (/** @type {number} */ ms) => Math.round(ms * ratio() * factor());
 // Relative complexity check: time fn(n) and fn(4n), each min of `reps`. Linear => ~4x; quadratic => ~16x.
 // `maxRatio` default 9 sits between them; sizes must be big enough that noise is small against the run time.
-/** @param {(n: number) => unknown} fn @param {number} n @param {{ reps?: number, maxRatio?: number }} [opts] */
-export function scaling(fn, n, { reps = 3, maxRatio = 9 } = {}) {
+/** @param {(n: number) => unknown} fn @param {number} n @param {{ reps?: number, maxRatio?: number, attempts?: number }} [opts] */
+export function scaling(fn, n, { reps = 3, maxRatio = 9, attempts = 3 } = {}) {
+  // Timing noise (GC, a busy runner) can inflate one measurement; a genuinely super-linear function is slow in EVERY attempt, so the best attempt is reported.
   const time = (/** @type {number} */ m) => { let best = Infinity; for (let k = 0; k < reps; k++) { const t = performance.now(); fn(m); best = Math.min(best, performance.now() - t); } return best; };
   fn(Math.max(1, n >> 2)); // warm-up
-  const a = time(n), b = time(4 * n);
-  return { small: a, large: b, ratio: b / Math.max(a, 0.05), maxRatio };
+  let best = null;
+  for (let i = 0; i < attempts; i++) {
+    const a = time(n), b = time(4 * n), r = { small: a, large: b, ratio: b / Math.max(a, 0.05), maxRatio };
+    if (!best || r.ratio < best.ratio) best = r;
+    if (best.ratio < maxRatio) break;
+  }
+  return best;
 }

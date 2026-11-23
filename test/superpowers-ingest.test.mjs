@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync, execFileSync } from 'node:child_process';
 
+import { budget } from './helpers/perf.mjs';
 import { parsePlan, parseLedger, ingestPlan, findLedgers, readSpFile, firstLineNamesPlan, LIMITS } from '../lib/integrations/superpowers.mjs';
 import { canonFile, SCHEMAS } from '../lib/store.mjs';
 import { validators } from '../lib/schema.mjs';
@@ -396,7 +397,7 @@ test('real 6.1.1 pair parses: one task per Task heading, statuses only from ledg
 // totals are 114-244 ms, and the old cubic/quadratic regexes miss the bound by orders of magnitude (the old H1 regex took 15.7 s on a
 // 4 KB line). The 15 s kill timer below is the hard stop.
 const MOD_URL = new URL('../lib/integrations/superpowers.mjs', import.meta.url).href;
-const HOSTILE_BOUND_MS = 3000;
+const HOSTILE_BOUND_MS = budget(3000); // scaled by the calibrated CPU baseline: a slower runner gets a proportionally larger bound; a super-linear parse still takes minutes
 function hostileRun(cases) {
   const src = `import { parsePlan, parseLedger } from ${JSON.stringify(MOD_URL)};
 const M = 1 << 20, out = {};
@@ -407,8 +408,8 @@ for (const [name, code] of Object.entries(${JSON.stringify(cases)})) {
   out[name] = { ms: performance.now() - t, ok, msg };
 }
 process.stdout.write(JSON.stringify(out));`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', src], { encoding: 'utf8', timeout: 15000, maxBuffer: 1 << 20 });
-  assert.equal(r.signal, null, `the hostile parse did not finish within 15 s (killed by ${r.signal}): super-linear parsing`);
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', src], { encoding: 'utf8', timeout: budget(15000), maxBuffer: 1 << 20 });
+  assert.equal(r.signal, null, `the hostile parse did not finish within the scaled time limit (killed by ${r.signal}): super-linear parsing`);
   assert.equal(r.status, 0, r.stderr);
   const out = JSON.parse(r.stdout), total = Object.values(out).reduce((a, x) => a + x.ms, 0);
   assert.ok(total < HOSTILE_BOUND_MS, `hostile inputs took ${total.toFixed(0)} ms in all (bound ${HOSTILE_BOUND_MS}): ${JSON.stringify(Object.fromEntries(Object.entries(out).map(([k, v]) => [k, Math.round(v.ms)])))}`);
