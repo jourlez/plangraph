@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+Added: Jira credentials are bound per tenant (cloud id, site or Data Center host) through a user-level registry
+`~/.config/project-brain/jira-sites.json` that holds names and references only, with per-site env and keychain conventions. Generic
+`JIRA_*` credentials are no longer sent to an unpinned site-token host. `brain doctor` prints a `jira:` line (tenant, credential binding,
+no secret) and the one connector check to make before any connector call. The `brain` skill follows those lines.
+
 ## Unreleased
 
 The commands moved from one 835-line `bin/brain` into `src/commands/` behind a registry; `bin/brain` is now a thin entry point. The
