@@ -18,6 +18,7 @@
     "bench": "node test/bench-tokens.mjs",
     "validate": "node test/validate-plugin.mjs",
     "mutate": "node scripts/mutate.mjs",
+    "assure": "node --test test/assure/*.test.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "lint": "biome lint ."
   },
