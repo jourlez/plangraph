@@ -179,6 +179,24 @@ test('redact strips token, base64 credential, Authorization headers and Atlassia
   assert.equal(redact(undefined), ''); assert.ok(!leaks(redact(new Error(`e ${TOKEN}`))));
 });
 
+test('redact covers registered secrets inside a longer base64 or base64url blob at every byte offset, in hex and fully or lower-case percent-encoded', async () => {
+  const SEC = 'zq7/Plain+Secret=Value-42xy'; // no Atlassian prefix: only the registry can catch it
+  await getCredentials({ env: { JIRA_EMAIL: EMAIL, JIRA_API_TOKEN: SEC } }); // registers the secret and its encodings
+  const pct = (b: Buffer, lower: boolean) => [...b].map((x) => `%${x.toString(16).padStart(2, '0')}`).join('')[lower ? 'toLowerCase' : 'toUpperCase']();
+  const cases: Array<[string, (out: string) => boolean]> = [];
+  for (const pre of ['', 'a', 'ab', 'abc', 'user@x:']) for (const enc of ['base64', 'base64url'] as const) {
+    const blob = Buffer.from(`${pre}${SEC}-and-more`).toString(enc); // the secret sits at every offset modulo 3
+    cases.push([`x ${blob} y`, (out) => !Buffer.from(out.slice(2, -2).split('[redacted]').join(''), enc).toString('latin1').includes(SEC.slice(3, -3))]);
+  }
+  for (const h of [Buffer.from(SEC).toString('hex'), Buffer.from(SEC).toString('hex').toUpperCase()]) cases.push([`h=${h};`, (out) => !out.includes(h.slice(4, -4))]);
+  for (const lower of [false, true]) { const p = pct(Buffer.from(SEC), lower); cases.push([`q=${p}&`, (out) => !out.includes(p.slice(6, -6))]); }
+  const lowerUri = encodeURIComponent(SEC).replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase());
+  cases.push([`u=${lowerUri}&`, (out) => !out.includes(lowerUri)]);
+  for (const [c, clean] of cases) { const r = redact(c); assert.ok(r.includes('[redacted]') && clean(r), `${c} -> ${r}`); }
+  // ordinary data stays as it is
+  for (const plain of ['plain text 123', Buffer.from('nothing secret in here at all').toString('base64'), 'deadbeefcafe0123']) assert.equal(redact(plain), plain);
+});
+
 // ---------------------------------------------------------------- client: read-only, keys, redirects, auth
 test('read-only allowlist blocks writes before the network is touched', async () => {
   const c = makeClient({ baseConfig: { mode: 'scoped', cloudId: CLOUD }, creds: { email: EMAIL, token: TOKEN }, fetchImpl: noNet });

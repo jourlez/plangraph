@@ -65,9 +65,9 @@ async function jiraClient(ctx: Ctx) {
   const J = await import('../../lib/jira.ts'), T = await import('../jira-tenant.ts'), env = ctx.env;
   const committed = ctx.config().jira as JiraSettings | undefined; // config.json's jira block: PlanConfig does not type it (concern)
   try {
-    const { jira: cfg, tenant, registry, allowGeneric } = T.resolveTenant(committed, ctx.root, env); // throws bad_config for an unknown auth.mode before any credential helper runs
-    const creds = tenant ? await J.getCredentialsFor(tenant, { env, registry: registry.reg, allowGeneric }) : await J.getCredentials({ env });
-    return { J, cfg, client: J.makeClient({ baseConfig: { auth: cfg.auth, cloudId: cfg.cloud_id, baseUrl: env.JIRA_BASE_URL || cfg.base_url }, creds, dcHosts: J.dcHostsFromEnv(env), siteHosts: J.siteHostsFromEnv(env), now: ctx.now }) };
+    const t = T.resolveTenant(committed, ctx.root, env), cfg = t.jira; // throws bad_config for an unknown auth.mode before any credential helper runs
+    const creds = await T.tenantCredentials(t, env); // an empty tenant is refused here, before any credential helper runs
+    return { J, cfg, client: J.makeClient({ baseConfig: T.clientBase(t, env), creds, dcHosts: J.dcHostsFromEnv(env), siteHosts: J.siteHostsFromEnv(env), now: ctx.now }) };
   } catch (e) { return jiraErrors(e); }
 }
 /** A file the user named as output (snapshot, text dir): written atomically, a symlink refused; not confined to the repository. Mode 0600:

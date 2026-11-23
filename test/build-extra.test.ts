@@ -157,4 +157,18 @@ test('(f) source scan: the INSERT column lists come from constants, never from r
   // insertSql takes only a table spec and a verb: no record parameter
   assert.match(code, /const insertSql = \(t(?:: [^,]+)?, verb(?:: string)? = 'INSERT'\)(?:: string)? =>/);
   assert.match(code, /h\.cached\(t\.name, insertSql\(t, t\.upsert \? 'INSERT OR REPLACE' : 'INSERT'\)\)/, 'the build prepares its INSERT through insertSql');
+  // the INSERT template itself, exactly: each interpolation in its own place (a swap such as columnList for placeholders passes the scan above)
+  assert.equal(code.split('`${verb} INTO ${t.name}(${t.columnList}) VALUES(${t.placeholders})`').length - 1, 1, 'insertSql builds exactly `VERB INTO name(columns) VALUES(placeholders)`');
+});
+
+test('(f) runtime: every table spec lists its schema columns plus extra, in order, with one placeholder per column', async () => {
+  const { TABLES } = await import('../src/db.ts');
+  assert.ok(TABLES.size >= 8);
+  for (const t of TABLES.values()) {
+    const schema = S.SCHEMAS[t.file] as { order: readonly string[] }; // every table file is a SCHEMAS key (db.ts reads the same map)
+    assert.deepEqual([...t.columns], [...schema.order], t.name);
+    const all = [...schema.order, 'extra'];
+    assert.equal(t.columnList, all.join(','), t.name);
+    assert.equal(t.placeholders, all.map(() => '?').join(','), t.name);
+  }
 });

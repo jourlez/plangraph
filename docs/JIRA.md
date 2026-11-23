@@ -10,7 +10,7 @@ Read-only, the only module that touches the network. Never put a token in a file
 | `site-token` | unscoped Cloud token | `https://<site>.atlassian.net` | fallback, Atlassian is deprecating unscoped tokens |
 | `datacenter` | Personal Access Token (Bearer) | your Jira host | Data Center / Server |
 
-Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cloud_id":"<uuid>","jql":"project = ABC"}}`. For `site-token` also `base_url`. A Data Center host is NEVER read from the repo: set `BRAIN_JIRA_DC_HOSTS=jira.corp.example` (comma list, `host:port` allowed) in your shell or user config. Optional pin for site tokens: `BRAIN_JIRA_SITES=acme.atlassian.net` so a committed config cannot aim your token at someone else's tenant.
+Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cloud_id":"<uuid>","jql":"project = ABC"}}`. For `site-token` also `base_url`. In scoped mode `base_url` stays unset (an empty string, as `brain init` writes it, counts as unset). A missing tenant (no `cloud_id` in scoped mode, no usable `base_url` otherwise) is refused before any credential helper runs, with a message that names the missing field. A Data Center host is NEVER read from the repo: set `BRAIN_JIRA_DC_HOSTS=jira.corp.example` (comma list, `host:port` allowed) in your shell or user config. Optional pin for site tokens: `BRAIN_JIRA_SITES=acme.atlassian.net` so a committed config cannot aim your token at someone else's tenant.
 
 ## Setup recipe (scoped token)
 

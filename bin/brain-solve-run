@@ -5,7 +5,8 @@
 # Env: BRAIN_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
 # Isolation: every python call of the fallback passes -I, so the current directory (a repo that may commit ortools.py, venv/ or pip.py)
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
-# environment (test/solver-launcher.test.ts). The uv branches run the locked script environment and are left as they are.
+# environment (test/solver-launcher.test.ts). The uv branches run the locked script environment; the two uv preparation calls run from this
+# bin directory, so a uv.toml in the caller's repository is not read (the `uv run` fallbacks still run in the caller's directory: KNOWN_ISSUES.md).
 # Signals: every path execs the solver's Python, so this process IS the solver and any signal (SIGKILL included) reaches it: on the uv path,
 # uv only prepares the locked script environment (`uv sync --locked --script`, which verifies the pinned lock) and names its interpreter.
 # Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (BRAIN_SOLVE_WATCH_PARENT=1) and exits without
@@ -17,8 +18,10 @@ if command -v uv >/dev/null 2>&1; then
   # --locked: fail instead of re-resolving when bin/brain-solve.lock is stale (refresh with: uv lock --script bin/brain-solve). An overriding
   # script (tests, mutation checks) runs on the same locked environment as bin/brain-solve.
   LOCKED="$HERE/brain-solve"
-  if [ "${BRAIN_SOLVE_LAUNCH:-}" != "uv-run" ] && uv sync --quiet --locked --script "$LOCKED" >/dev/null 2>&1 \
-     && PY="$(uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
+  # Both preparation calls run from this bin directory: uv reads a uv.toml (or pyproject.toml [tool.uv]) from the directory it runs in, even
+  # with --script, so the caller's repository could otherwise point uv at another index. User-level uv config and UV_* variables still apply.
+  if [ "${BRAIN_SOLVE_LAUNCH:-}" != "uv-run" ] && (cd "$HERE" && uv sync --quiet --locked --script "$LOCKED") >/dev/null 2>&1 \
+     && PY="$(cd "$HERE" && uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
     exec "$PY" "$SCRIPT" "$@"
   fi
   BRAIN_SOLVE_WATCH_PARENT=1; export BRAIN_SOLVE_WATCH_PARENT

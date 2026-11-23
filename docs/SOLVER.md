@@ -79,7 +79,9 @@ skips the restore: then `--out` holds the last verified schedule.
 Killing the launcher: `bin/brain-solve-run` `exec`s the solver's Python on every path, so the launcher's process is the solver and any
 signal, `SIGKILL` included, stops it: no orphan is left to overwrite `--out` later. On the uv path uv only prepares the environment
 (`uv sync --locked --script bin/brain-solve`, which still verifies the pinned lock and fails on a stale one) and names its interpreter
-(`uv python find --script`); an overriding `BRAIN_SOLVE_SCRIPT` runs on that same locked environment. On a macOS framework build of Python
+(`uv python find --script`); an overriding `BRAIN_SOLVE_SCRIPT` runs on that same locked environment. Both preparation calls run from the
+plugin's `bin` directory, so a `uv.toml` (or `pyproject.toml` `[tool.uv]`) in the repository you run from is not read; your user-level uv
+config and `UV_*` variables (a mirror through `UV_INDEX_URL` or `UV_DEFAULT_INDEX`) still apply. The solver itself runs in your directory. On a macOS framework build of Python
 (Homebrew, python.org) that interpreter's `bin/python3.x` itself `exec`s `Python.framework/.../Python.app/Contents/MacOS/Python`, so `ps`
 shows the process as `Python`, but it is the same process (same pid) and the same guarantee holds (tested on Homebrew 3.14). If that preparation fails (an uv
 without `sync --script`), the launcher falls back to `uv run`, where uv stays the parent; the solver then runs a parent watchdog

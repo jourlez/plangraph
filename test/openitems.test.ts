@@ -320,3 +320,11 @@ test('renderOpenItems: escape sequences and control characters in text, owner, c
   assert.match(md, /^\| S2 \| K-1 \| gap \| textx \|$/m);
   assert.match(md, /^\| K-2 \| gap \| Benx \| 2026-01-01 \| Cyx \| notex \|$/m);
 });
+
+test('parseItems refuses a non-string owner with a data error naming the line; a string, null or absent owner is accepted', () => {
+  for (const owner of ['7', '{"x":1}', '["Ana"]', 'true']) {
+    assert.throws(() => parseItems(`{"key":"T-1","kind":"decision","text":"a"}\n{"key":"T-2","kind":"decision","owner":${owner},"text":"b"}\n`), /open-items\.jsonl:2: "owner" must be a string/, owner);
+  }
+  for (const owner of ['"Ana"', 'null']) assert.equal(parseItems(`{"key":"T-1","kind":"decision","owner":${owner}}\n`).length, 1, owner);
+  assert.equal(parseItems('{"key":"T-1","kind":"decision"}\n').length, 1);
+});

@@ -76,10 +76,10 @@ function spFile(ctx: Ctx, arg: string | undefined, what: string): { real: string
   const real = readInside(ctx.root, path.resolve(ctx.cwd ?? process.cwd(), arg));
   return { real, rel: checkRepoPath(path.relative(fs.realpathSync.native(ctx.root), real).split(path.sep).join('/')) };
 }
-const spRead = (ctx: Ctx, f: string) => readJsonl(path.join(ctx.dir, f));
+const spRead = (ctx: Ctx, f: string, validate?: (r: Rec) => string | null) => readJsonl(path.join(ctx.dir, f), { validate });
 // A file the command reads and may then rewrite: a symlinked target is REFUSED (exit 4, nothing written) before it is read, instead of the
 // read's own symlink refusal (exit 2), so the contract for write targets holds.
-const spReadTarget = (ctx: Ctx, f: string) => { precheckTargets(ctx, [path.join(ctx.dir, f)]); return spRead(ctx, f); };
+const spReadTarget = (ctx: Ctx, f: string, validate?: (r: Rec) => string | null) => { precheckTargets(ctx, [path.join(ctx.dir, f)]); return spRead(ctx, f, validate); };
 // next: [[file, records, old records]]; validate every file, then write only the ones whose canonical text changed.
 async function spWrite(ctx: Ctx, next: Array<[string, Rec[], Rec[]]>): Promise<number> {
   const S = await import('../../lib/store.ts'), { validators } = await import('../../lib/schema.ts');
@@ -155,9 +155,12 @@ async function spLink(ctx: Ctx, args: Args<{ tasks?: string }>): Promise<number>
     if (!want.length) throw usage('--tasks needs a comma-separated list of task ids');
     for (const id of want) if (!ids.includes(id)) throw usage(`task ${oneLine(id, 20)} is not in the plan`);
     const heading = (ctx.config().ref_heading || DEFAULT_HEADING) as string, unmatched = want.filter((id) => !planSection(text, id, heading)).length; // config text: planSection refuses a non-string (compileHeading)
-    const refs = spReadTarget(ctx, 'refs.jsonl'), prev = refs.find((r) => r.key === key) || { key, plans: [], files: {} };
-    const have = (id: string) => ((prev.plans || []) as Array<{ plan?: unknown; task?: unknown } | null>).some((x: { plan?: unknown; task?: unknown } | null) => x && x.plan === plan.rel && String(x.task) === id); // unchecked: refs.jsonl is read without its validator, so a non-array plans throws a TypeError that spErrors reports (pre-existing)
-    const rec = { ...prev, plans: [...((prev.plans || []) as unknown[]), ...want.filter((id) => !have(id)).map((id) => ({ plan: plan.rel, task: id }))] }; // want is never empty, so have() runs .some on plans in this same expression: a non-array throws before rec is used
+    // refs.jsonl is read with its validator plus one rule of sp-link's own: every entry of "plans" is an object (a data error names the line)
+    const { validators } = await import('../../lib/schema.ts'), refsRule = validators['refs.jsonl'] as (r: Rec) => string | null;
+    const plansRule = (r: Rec) => refsRule(r) ?? (Array.isArray(r.plans) && r.plans.some((x) => x === null || typeof x !== 'object' || Array.isArray(x)) ? '"plans" must be a list of objects' : null);
+    const refs = spReadTarget(ctx, 'refs.jsonl', plansRule), prev = refs.find((r) => r.key === key) || { key, plans: [], files: {} };
+    const have = (id: string) => ((prev.plans || []) as Array<{ plan?: unknown; task?: unknown }>).some((x) => x.plan === plan.rel && String(x.task) === id); // plansRule: plans is absent, null or a list of objects
+    const rec = { ...prev, plans: [...((prev.plans || []) as unknown[]), ...want.filter((id) => !have(id)).map((id) => ({ plan: plan.rel, task: id }))] };
     await spWrite(ctx, [['refs.jsonl', [...refs.filter((r) => r.key !== key), rec], refs]]);
     ctx.io.out(`linked ${oneLine(key, 120)} to ${oneLine(plan.rel, 200)}: ${want.length} task${want.length === 1 ? '' : 's'}${unmatched ? `; ${unmatched} not matched by ref_heading (brain stale cannot fingerprint them)` : ''}`);
   } catch (e) { spErrors(e); }

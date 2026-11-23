@@ -181,8 +181,8 @@
  },
  {
   "file": "lib/jsonl.ts",
-  "line": "const fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));",
-  "mutated": "const fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 1));",
+  "line": "try { fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0) | (follow ? 0 : NOFOLLOW)); }",
+  "mutated": "try { fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 1) | (follow ? 0 : NOFOLLOW)); }",
   "why": "O_NONBLOCK is defined on every supported platform, so the || fallback is never used"
  },
  {
@@ -265,21 +265,21 @@
  },
  {
   "file": "lib/render.ts",
-  "line": "add(2, 'over cap: ' + (over.length ? top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3) : 'none'));",
-  "mutated": "add(3, 'over cap: ' + (over.length ? top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3) : 'none'));",
+  "line": "add(2, 'over cap: ' + (over.length ? fenceInline(top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3), 400) : 'none'));",
+  "mutated": "add(3, 'over cap: ' + (over.length ? fenceInline(top(over.map((r) => `${short(r.o)} S${r.sprint} +${r.x}`), 3), 400) : 'none'));",
   "why": "card line priorities only matter relative to each other: over-cap tied with findings keeps the insertion order, which is the same order"
  },
  {
   "file": "lib/render.ts",
-  "line": "if (fs.length) add(3, 'findings: ' + top(fs, 3));",
-  "mutated": "if (fs.length) add(4, 'findings: ' + top(fs, 3));",
-  "why": "card line priorities only matter relative to each other: findings tied with the ask line keeps the insertion order, which is the same order"
+  "line": "if (fs.length) add(3, 'findings: ' + fenceInline(top(fs, 3), 400));",
+  "mutated": "if (fs.length) add(4, 'findings: ' + fenceInline(top(fs, 3), 400));",
+  "why": "card line priorities only matter relative to each other: findings tied with the steer line keeps the insertion order, which is the same order"
  },
  {
   "file": "lib/render.ts",
-  "line": "add(4, CARD_ASK);",
-  "mutated": "add(5, CARD_ASK);",
-  "why": "the ask line already has the largest priority; a larger one keeps the same drop order"
+  "line": "add(4, steerLine(meta.dir));",
+  "mutated": "add(5, steerLine(meta.dir));",
+  "why": "the steer line already has the largest priority; a larger one keeps the same drop order"
  },
  {
   "file": "lib/render.ts",
@@ -943,18 +943,6 @@
  },
  {
   "file": "lib/verify.ts",
-  "line": "const min = ownNumber(mins, person, 0); if (!(min > 0)) continue;",
-  "mutated": "const min = ownNumber(mins, person, 0); if (false) continue;",
-  "why": "with a minimum of 0 the loop below can never report (no load is below 0), so skipping or running it is the same"
- },
- {
-  "file": "lib/verify.ts",
-  "line": "const min = ownNumber(mins, person, 0); if (!(min > 0)) continue;",
-  "mutated": "const min = ownNumber(mins, person, 0); if (!(min >= 0)) continue;",
-  "why": "with a minimum of 0 the loop below can never report (no load is below 0), so skipping or running it is the same"
- },
- {
-  "file": "lib/verify.ts",
   "line": "if (color.get(root)) continue;",
   "mutated": "if (false) continue;",
   "why": "re-entering a finished root only revisits finished nodes (colour 2), which are skipped, and any cycle is deduplicated by its id"
@@ -982,12 +970,6 @@
   "line": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key > b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
   "mutated": "return out.sort((a, b) => ORDER.indexOf(a.code) - ORDER.indexOf(b.code) || (a.key < b.key ? -1 : a.key >= b.key ? 1 : a.detail < b.detail ? -1 : a.detail > b.detail ? 1 : 0));",
   "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
- },
- {
-  "file": "lib/whatif.ts",
-  "line": "function frozenSet(model) { const f = (model.config || {}).frozen_statuses; return new Set([...closedSet(model), ...(Array.isArray(f) ? f : ['Done', 'In Progress'])]); }",
-  "mutated": "function frozenSet(model) { const f = (model.config || {}).frozen_statuses; return new Set([...closedSet(model), ...(Array.isArray(f) ? f : ['', 'In Progress'])]); }",
-  "why": "Done is always in the closed set that frozenSet starts from, so dropping it from the default list changes nothing"
  },
  {
   "file": "lib/whatif.ts",
@@ -1111,12 +1093,6 @@
  },
  {
   "file": "lib/report.ts",
-  "line": "if (t.verdict && t.verdict !== 'READY') why.push('verdict');",
-  "mutated": "if (t.verdict && t.verdict !== 'READY') why.push('');",
-  "why": "why is only tested for length and for the word waits; an empty reason string still makes it non-empty, so the classification is the same"
- },
- {
-  "file": "lib/report.ts",
   "line": "for (const k of q) depth.set(k, 1);",
   "mutated": "for (const k of q) depth.set(k, 0);",
   "why": "depths are only compared with each other (and hops come from the chain length), so starting every root at 0 instead of 1 changes nothing"
@@ -1171,9 +1147,15 @@
  },
  {
   "file": "lib/store.ts",
-  "line": "return false;",
-  "mutated": "return true;",
+  "line": "return false; // a live owner was put back: the caller waits and retries",
+  "mutated": "return true; // a live owner was put back: the caller waits and retries",
   "why": "after a live owner is put back, retrying at once only meets the same live lock again: the caller ends in the same wait or refusal"
+ },
+ {
+  "file": "lib/store.ts",
+  "line": "return false; // a live owner was put back: the caller waits and retries",
+  "mutated": "return null; // a live owner was put back: the caller waits and retries",
+  "why": "stealStale result is only used as a condition, where null and false behave the same"
  },
  {
   "file": "lib/store.ts",
@@ -1357,8 +1339,8 @@
  },
  {
   "file": "lib/store.ts",
-  "line": "try { fd = fs.openSync(f, 'r'); const buf = Buffer.alloc(4096); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
-  "mutated": "try { fd = fs.openSync(f, 'r'); const buf = Buffer.alloc(4097); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
+  "line": "try { fd = fs.openSync(f, fs.constants.O_RDONLY | (nofollow ? fs.constants.O_NOFOLLOW || 0 : 0)); const buf = Buffer.alloc(4096); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
+  "mutated": "try { fd = fs.openSync(f, fs.constants.O_RDONLY | (nofollow ? fs.constants.O_NOFOLLOW || 0 : 0)); const buf = Buffer.alloc(4097); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
   "why": "the buffer is one byte larger than the 4096 bytes read into it, which never shows"
  },
  {

@@ -146,11 +146,28 @@ const DEFAULT_FIELDS = ['summary', 'status', 'assignee', 'updated', 'resolutiond
 
 // ---------------------------------------------------------------- redaction
 const secrets = new Set<string>();
+// The base64 characters that depend only on the secret's bytes when it sits at byte offset k (0, 1 or 2 modulo 3) inside a longer encoded
+// string: a character covers 6 bits, so the first and last ones also carry bits of the neighbours and are left out. Kept only from 12
+// characters up, so a short core cannot match ordinary data.
+function base64Cores(b: Buffer): string[] {
+  const out: string[] = [];
+  for (let k = 0; k < 3; k++) {
+    const core = Buffer.concat([Buffer.alloc(k), b]).toString('base64').slice(Math.ceil((8 * k) / 6), Math.floor((8 * (k + b.length)) / 6));
+    if (core.length >= 12) out.push(core, core.replace(/\+/g, '-').replace(/\//g, '_'));
+  }
+  return out;
+}
 function registerSecret(...vals: unknown[]): void {
   for (const v of vals) {
     if (typeof v !== 'string' || v.length < 6) continue;
-    secrets.add(v); secrets.add(encodeURIComponent(v)); secrets.add(JSON.stringify(v).slice(1, -1));
-    secrets.add(Buffer.from(v).toString('base64')); secrets.add(Buffer.from(v).toString('base64url'));
+    const b = Buffer.from(v), hex = b.toString('hex'), uri = encodeURIComponent(v);
+    secrets.add(v); secrets.add(uri); secrets.add(JSON.stringify(v).slice(1, -1));
+    secrets.add(b.toString('base64')); secrets.add(b.toString('base64url'));
+    // the same secret in forms a proxy or a log may produce: inside a longer base64 blob at any offset, hex, lower-case or full percent-encoding
+    for (const c of base64Cores(b)) secrets.add(c);
+    secrets.add(hex); secrets.add(hex.toUpperCase());
+    secrets.add(uri.replace(/%[0-9A-F]{2}/g, (m) => m.toLowerCase()));
+    secrets.add(hex.replace(/../g, '%$&')); secrets.add(hex.toUpperCase().replace(/../g, '%$&'));
   }
 }
 export function redact(text: unknown): string {

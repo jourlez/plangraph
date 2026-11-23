@@ -2,5 +2,5 @@ $ brain jira-pull --out snap.jsonl
 exit: 3
 --- stdout
 --- stderr
-error: no Jira credentials: set JIRA_EMAIL and JIRA_API_TOKEN, or JIRA_OP_REF, or store the token in the OS keychain (see docs/JIRA.md)
+error: scoped mode needs a cloud_id (see docs/JIRA.md)
 try: brain doctor

@@ -194,6 +194,31 @@ test('simulate bounds its run count and noise: out-of-range values are usage err
   assert.equal(run(d, ['simulate', '--runs', '5', '--sigma', '0']).status, 0);
 });
 
+test('ready refuses an open-items.jsonl owner that is not a string (it printed "owner [object Object]") as a data error, exit 2', () => {
+  const d = repo(), b = path.join(d, '.brain');
+  fs.writeFileSync(path.join(b, 'open-items.jsonl'), jl([{ key: 'T-1', kind: 'decision', owner: { x: 1 }, status: 'open', text: 'a' }]));
+  const r = run(d, ['ready', 'T-1']);
+  assert.equal(r.status, 2, r.stdout); assert.doesNotMatch(r.stdout, /object Object/);
+  assert.match(r.stderr, /open-items\.jsonl:1: "owner" must be a string/);
+});
+
+test('simulate skips a schedule row whose ticket does not exist, with one warning line, instead of letting it move the plan end', () => {
+  const d = repo(), b = path.join(d, '.brain');
+  const t = (key: string) => ({ key, summary: key, epic: 'E0', sp: 30, jira_status: 'To Do' });
+  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([t('T-1'), t('T-2')])); fs.writeFileSync(path.join(b, 'edges.jsonl'), '');
+  const rows = [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 1 }];
+  // two 30-point tickets in one 40-point slot: the exact-size baseline must push one to sprint 2
+  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(rows)); assert.equal(run(d, ['build']).status, 0);
+  const without = run(d, ['simulate', '--runs', '50', '--sigma', '0']);
+  assert.equal(without.stderr, ''); assert.match(without.stdout, /^baseline with exact sizes: ends sprint 2 /);
+  // a ghost row gave an undefined size (a NaN slot load that `|| 0` hid), yet its sprint still set the planned and simulated end
+  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([...rows, { version: 'current', key: 'GHOST-1', owner: 'Ana', sprint: 5 }])); assert.equal(run(d, ['build']).status, 0);
+  const r = run(d, ['simulate', '--runs', '50', '--sigma', '0']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, without.stdout);
+  assert.equal(r.stderr, 'warning: simulate skips 1 schedule row(s) with no ticket: GHOST-1 (run `brain check`)\n');
+});
+
 // ---------- brain dir confinement and exit codes of the entry point ----------
 test('an absolute or escaping brain dir (BRAIN_DIR, --dir, .brainrc) is refused with exit 4 and writes nothing', () => {
   const d = repo(), outside = tmp();

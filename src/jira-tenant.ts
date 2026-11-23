@@ -4,8 +4,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { AUTH_MODES, JiraError, dcHostsFromEnv, isAuthMode, parseSiteRegistry } from '../lib/jira.ts';
-import type { AuthMode, ProjectEntry, SiteEntry } from '../lib/jira.ts';
+import { AUTH_MODES, JiraError, dcHostsFromEnv, getCredentialsFor, isAuthMode, parseSiteRegistry, siteHostsFromEnv, validateBase } from '../lib/jira.ts';
+import type { AuthMode, Exec, JiraCredentials, ProjectEntry, SiteEntry } from '../lib/jira.ts';
 
 /** The Jira settings of one project: the committed config.jira block with the user's `projects` entry laid over it. */
 export interface JiraSettings extends ProjectEntry {
@@ -88,4 +88,31 @@ export function resolveTenant(committed: JiraSettings | undefined, root: string,
   // them: a registry or per-host binding is required), a site the user pinned, or the tenant field the user named in their own file.
   const allowGeneric = mode === AUTH_MODES.SCOPED || (mode === AUTH_MODES.DATACENTER && dcHosts.length === 1 && dcHosts[0] === tenant) || pinned || jira.userTenant === true;
   return { jira, tenant, mode, registry, entry, pinned, allowGeneric };
+}
+
+/**
+ * The credentials for a resolved tenant, bound to it (lib/jira.ts getCredentialsFor). An empty tenant (no cloud id in scoped mode, no usable
+ * base_url otherwise) is refused HERE, before any credential helper (op, security, secret-tool) runs: the client would refuse it anyway, so
+ * running a helper first only leaks that a pull was tried. The error names what is missing and points to docs/JIRA.md.
+ * @param t the decision of resolveTenant
+ * @param opts exec and platform: test seams for the helper calls
+ */
+export async function tenantCredentials(t: TenantResolution, env: Record<string, string | undefined> = {}, opts: { exec?: Exec; platform?: string } = {}): Promise<JiraCredentials> {
+  if (!t.tenant) {
+    if (t.mode === AUTH_MODES.SCOPED) {
+      if (env.JIRA_BASE_URL || t.jira.base_url) throw new JiraError('bad_config', 'scoped mode (the default auth.mode) needs cloud_id; for a site URL alone add "auth": {"mode": "site-token"} (see docs/JIRA.md)');
+      throw new JiraError('bad_config', 'scoped mode needs a cloud_id (see docs/JIRA.md)');
+    }
+    // site-token or datacenter: validateBase names what is wrong with the URL (empty, not absolute, not allowlisted)
+    const url = env.JIRA_BASE_URL || t.jira.base_url;
+    try { validateBase(url, { mode: t.mode, dcHosts: dcHostsFromEnv(env), siteHosts: siteHostsFromEnv(env) }); } catch (e) { throw new JiraError('bad_host', `${(e as Error).message} (see docs/JIRA.md)`); } // validateBase throws only JiraError bad_host
+    throw new JiraError('bad_host', `base URL rejected: no host (see docs/JIRA.md)`);
+  }
+  return getCredentialsFor(t.tenant, { env, registry: t.registry.reg, allowGeneric: t.allowGeneric, ...opts });
+}
+
+/** What makeClient is given for a resolved tenant. JIRA_BASE_URL overrides base_url; an empty base_url (as `brain init` writes it) counts as
+ * unset, so scoped mode uses the fixed gateway instead of failing with bad_host "empty". */
+export function clientBase(t: TenantResolution, env: Record<string, string | undefined> = {}): { auth: { mode?: unknown } | undefined; cloudId: unknown; baseUrl: string | undefined } {
+  return { auth: t.jira.auth, cloudId: t.jira.cloud_id, baseUrl: env.JIRA_BASE_URL || t.jira.base_url || undefined };
 }

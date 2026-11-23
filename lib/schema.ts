@@ -19,5 +19,5 @@ export const validators: Record<string, (r: Rec) => string | null> = {
   'schedule.jsonl': (r: Rec) => first(r, [need('key'), (x: Rec) => optStr(x, 'owner'), (x: Rec) => optInt(x, 'sprint'), (x: Rec) => optStr(x, 'version')]),
   'findings.jsonl': need('key', 'kind', 'text'),
   'refs.jsonl': (r: Rec) => first(r, [need('key'), (x: Rec) => (has(x, 'plans') && !Array.isArray(x.plans) ? '"plans" must be an array' : null), (x: Rec) => (has(x, 'files') && (typeof x.files !== 'object' || Array.isArray(x.files)) ? '"files" must be an object' : null)]),
-  'open-items.jsonl': (r: Rec) => first(r, [need('key', 'kind'), (x: Rec) => (has(x, 'status') && (typeof x.status !== 'string' || !x.status) ? '"status" must be a non-empty string' : null)]),
+  'open-items.jsonl': (r: Rec) => first(r, [need('key', 'kind'), (x: Rec) => optStr(x, 'owner'), (x: Rec) => (has(x, 'status') && (typeof x.status !== 'string' || !x.status) ? '"status" must be a non-empty string' : null)]),
 };

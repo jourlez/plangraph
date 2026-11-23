@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readCapped } from '../../lib/jsonl.ts';
+import { oneLine } from '../../lib/sanitize.ts';
 import { STALE_WARNING } from '../context.ts';
 import { CUR, MAX_DATA, capOf, dbFile, verbose, dataError, modelFromDb } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
@@ -36,8 +37,11 @@ function simulate(ctx: Ctx, args: Args<{ runs?: number; sigma?: number; limit?: 
   const runs = v.runs ?? 500, sigma = v.sigma ?? 0.35; let seed = (v.seed ?? 1) >>> 0;
   const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
-  const sch = new Map((d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`) as PlaceRow[]).map((r) => [r.key, r])) as Dense<string, PlaceRow>; // read only with its own keys
   const sp = new Map((d.all('SELECT key,sp FROM ticket') as Array<{ key: string; sp: number | null }>).map((r) => [r.key, r.sp])); // the columns this SELECT names; sp may be NULL
+  // a schedule row naming a key with no ticket (UNKNOWN_TICKET in `brain check`) has no size: it is left out, with one warning line
+  const placed = d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`) as PlaceRow[], ghosts = placed.filter((r) => !sp.has(r.key)).map((r) => r.key);
+  if (ghosts.length) ctx.io.err(`warning: simulate skips ${ghosts.length} schedule row(s) with no ticket: ${ghosts.slice(0, 10).map((k) => oneLine(k, 80)).join(', ')}${ghosts.length > 10 ? ', ...' : ''} (run \`brain check\`)`);
+  const sch = new Map(placed.filter((r) => sp.has(r.key)).map((r) => [r.key, r])) as Dense<string, PlaceRow>; // read only with its own keys
   const prod = (new Map([...sch.keys()].map((k) => [k, []])) as Dense<string, string[]>); // one list per scheduled key
   for (const e of d.all('SELECT consumer,producer,kind FROM edge') as Array<{ consumer: string; producer: string; kind: string }>) if (!skip.has(e.kind) && sch.has(e.consumer) && sch.has(e.producer)) prod.get(e.consumer).push(e.producer); // the columns this SELECT names
   const cons = (new Map([...sch.keys()].map((k) => [k, []])) as Dense<string, string[]>); for (const [c, ps] of prod) for (const p of ps) cons.get(p).push(c); // one list per scheduled key
@@ -52,7 +56,7 @@ function simulate(ctx: Ctx, args: Args<{ runs?: number; sigma?: number; limit?: 
     for (const k of order) {
       const o = sch.get(k).owner; let s = sch.get(k).sprint;
       for (const p of prod.get(k)) { const q = at.get(p); s = Math.max(s, sch.get(p).owner === o ? q : q + 1); }
-      const size = noise ? (sp.get(k) as number) * Math.exp(sigma * gauss() - (sigma * sigma) / 2) : (sp.get(k) as number), cap = capOf(cfg, o); // unchecked: a schedule row without a ticket (UNKNOWN_TICKET) or a NULL sp gives undefined or null, so NaN or 0 (pre-existing)
+      const size = noise ? (sp.get(k) as number) * Math.exp(sigma * gauss() - (sigma * sigma) / 2) : (sp.get(k) as number), cap = capOf(cfg, o); // every key in sch has a ticket (filtered above); a NULL sp counts as size 0
       while ((used.get(`${o}|${s}`) || 0) > 0 && (used.get(`${o}|${s}`) || 0) + size > cap) s++;
       used.set(`${o}|${s}`, (used.get(`${o}|${s}`) || 0) + size); at.set(k, s); if (s > last) last = s;
     }

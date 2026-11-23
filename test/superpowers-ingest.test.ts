@@ -651,3 +651,16 @@ test('an unclosed comment stays a loud failure and a comment opener in a fence o
   assert.throws(() => parsePlan('# P\n### Task 1: a\n<!--\n### Task 2: b\n', PLAN_REL), /unclosed HTML comment at line 3/);
   assert.equal(parsePlan('# P\n```\n<!--\n```\n### Task 1: a\n', PLAN_REL).tasks.length, 1);
 });
+
+test('sp-link: a refs.jsonl record whose plans is not a list is a data error naming the line, never a TypeError; nothing is written', () => {
+  const root = repo({ ledger: 'none' });
+  for (const plans of ['"oops"', '{"plan":"x"}', '7', '[1, "x"]']) {
+    put(root, '.brain/refs.jsonl', `{"key":"T-0","plans":[]}\n{"key":"T-1","plans":${plans}}\n`);
+    const before = snapshot(root);
+    const r = run(root, 'sp-link', 'T-1', PLAN_REL, '--tasks', '1');
+    assert.equal(r.status, 2, plans); assert.equal(r.stdout, '');
+    assert.doesNotMatch(r.stderr, /TypeError|is not a function/, plans);
+    assert.match(r.stderr, /^error: refs\.jsonl:2: "plans" must be (an array|a list of objects)/, plans);
+    assert.deepEqual(snapshot(root), before);
+  }
+});

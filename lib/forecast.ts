@@ -50,7 +50,7 @@ export interface ForecastInput {
   history?: readonly HistoryRecord[]; actuals?: readonly ActualRow[]; model?: Model | null; config?: PlanConfig; runs?: number; seed?: number; remaining?: number;
   block?: number | null; mode?: string; targets?: number[]; doneKeys?: Iterable<string> | null; horizon?: number; start?: number;
 }
-/** The probability of being done by one sprint; lo/hi only with n < 10. */
+/** The probability of being done by one sprint; lo/hi only with n < 10 or a PRIOR-ONLY state. */
 interface ForecastProb { sprint: number; p: number; se: number; lo?: number; hi?: number }
 /** A full forecast (its state can still be REFUSED after a downgrade). */
 interface ForecastFull {
@@ -361,7 +361,7 @@ export function forecast(inp: ForecastInput = {}): ForecastResult {
   const lastDone = (a.records[a.records.length - 1] as DoneRecord).sprint, med = quantile(ends, 0.5), pl = model ? main.planned as number : med; // simulatePlan always sets planned; a.n >= 5 (refused above)
   const targets = inp.targets || (Number.isFinite(pl) ? [pl, pl + 1] : []);
   const probs = targets.map((s): ForecastProb => ({ sprint: s, p: cdf(s), se: Math.sqrt((cdf(s) * (1 - cdf(s))) / ends.length) }));
-  if (n < 10) for (const x of probs) { // leave-one-sprint-out range, widened by 10 points: data-derived "wide band"
+  if (n < 10 || state === 'PRIOR-ONLY') for (const x of probs) { // leave-one-sprint-out range, widened by 10 points: data-derived "wide band" (also for a PRIOR-ONLY downgraded from n >= 10)
     let lo = 1, hi = 0; for (let i = 0; i < n; i++) { const e = sim(a.records.filter((_, j) => j !== i)).ends, p = e.filter((v) => v <= x.sprint).length / e.length; lo = Math.min(lo, p); hi = Math.max(hi, p); }
     x.lo = Math.max(0, Math.min(lo, x.p) - 0.1); x.hi = Math.min(1, Math.max(hi, x.p) + 0.1);
   }
@@ -375,8 +375,8 @@ export function renderForecast(r: ForecastView): string {
   if (r.state === 'REFUSED') return `${head} plan ${r.planPoints ?? '?'} pts: no probability: ${(r.reasons || ['insufficient history']).join('; ')}`;
   const step = r.n < 20 ? 10 : 5, lo = step, hi = 100 - step;
   const fmt = (p: number) => (p * 100 < lo ? `<${lo}%` : p * 100 > hi ? `>${hi}%` : `~${round(p, step)}%`);
-  const rng_ = (x: { lo?: number; hi?: number }) => { const a = Math.floor(((x.lo as number) * 100) / 10) * 10, b = Math.ceil(((x.hi as number) * 100) / 10) * 10; return `${a}-${b}%`; }; // unchecked: a downgraded PRIOR-ONLY with n >= 10 has no lo/hi and renders NaN (pre-existing bug, reported)
-  const parts = r.probs.map((x) => `by S${x.sprint}: ${r.state === 'PRIOR-ONLY' ? rng_(x) : fmt(x.p)}`);
+  const rng_ = (lo: number, hi: number) => `${Math.floor((lo * 100) / 10) * 10}-${Math.ceil((hi * 100) / 10) * 10}%`;
+  const parts = r.probs.map((x) => `by S${x.sprint}: ${r.state === 'PRIOR-ONLY' && x.lo !== undefined && x.hi !== undefined ? rng_(x.lo, x.hi) : fmt(x.p)}`); // a view without a range (an outside caller) prints the point probability
   const bt = r.backtest.n ? ` (backtest ${r.backtest.k}/${r.backtest.n} inside, CI ${Math.round((r.backtest.ci[0] as number) * 100)}-${Math.round((r.backtest.ci[1] as number) * 100)}%${r.backtest.beats ? '' : ', no baseline beaten'})` : ''; // ci is a Clopper-Pearson pair [lo, hi]
   const pc = Object.entries(r.percentiles).map(([k, v]) => `${k} ${Number.isFinite(v) ? 'S' + v : '>S' + (r.lastDone + 60)}`).join(' ');
   return `${head} done ${parts.join(' | ')} | ${pc}${bt}${r.reasons.length ? ' [' + r.reasons.join('; ') + ']' : ''}`;

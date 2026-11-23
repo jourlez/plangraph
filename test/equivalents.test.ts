@@ -11,11 +11,9 @@ import { mutantsFor, isEquivalent, checkEquivalents } from '../scripts/mutate-al
 const ROOT = path.join(import.meta.dirname, '..');
 const LIST = checkEquivalents(JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/mutate/equivalent.json'), 'utf8')));
 
-// Entries whose line was already gone from its file at the pre-annotation commit 407fa26: the code they describe was changed
-// earlier, so no mutant matches them. Listed by index into the array; a new stale entry fails the count below.
-const STALE_AT_BASE = [30, 44, 45, 46, 157, 158, 164, 185, 226];
-// Entries whose line text occurs twice in its file (both at the base and now): the harness matches by text, so the entry covers both.
-const DUPLICATE_LINES = [193, 195];
+// Every entry names a line that occurs exactly once in its file: the harness matches by line text, so a line that occurs twice would let one
+// reviewed reason cover a second, unreviewed occurrence (as entry 195 once did for lib/store.ts `return false;`). Make the line unique
+// (a trailing comment is enough) before adding an entry for it.
 
 const lines = new Map<string, string[]>();
 const linesOf = (file: string) => {
@@ -24,19 +22,24 @@ const linesOf = (file: string) => {
   return l;
 };
 
-test('every equivalent entry names a line that occurs exactly once in its file, except the listed stale and duplicate ones', () => {
+test('every equivalent entry names a line that occurs exactly once in its file', () => {
   const missing: number[] = [], duplicated: number[] = [];
   LIST.forEach((e, id) => {
     const n = linesOf(e.file).filter((x) => x === e.line).length;
     if (n === 0) missing.push(id);
     else if (n > 1) duplicated.push(id);
   });
-  assert.deepEqual(missing, STALE_AT_BASE, 'an entry whose line is gone must be rewritten to the current line text');
-  assert.equal(missing.length, 9);
-  assert.deepEqual(duplicated, DUPLICATE_LINES);
+  assert.deepEqual(missing, [], 'an entry whose line is gone must be rewritten to the current line text or deleted');
+  assert.deepEqual(duplicated, [], 'an entry whose line occurs twice covers an unreviewed occurrence');
 });
 
-test('every equivalent entry matches a mutant the harness generates now, except the listed stale ones', () => {
+test('no two equivalent entries record the same mutant', () => {
+  const seen = new Map<string, number>(), dup: Array<[number, number]> = [];
+  LIST.forEach((e, id) => { const k = JSON.stringify([e.file, e.line, e.mutated]); const was = seen.get(k); if (was !== undefined) dup.push([was, id]); else seen.set(k, id); });
+  assert.deepEqual(dup, []);
+});
+
+test('every equivalent entry matches a mutant the harness generates now', () => {
   const mutants = new Map<string, ReturnType<typeof mutantsFor>>();
   const unmatched: number[] = [];
   LIST.forEach((e, id) => {
@@ -44,5 +47,5 @@ test('every equivalent entry matches a mutant the harness generates now, except 
     if (!ms) mutants.set(e.file, ms = mutantsFor(e.file, fs.readFileSync(path.join(ROOT, e.file), 'utf8')));
     if (!ms.some((m) => isEquivalent(m, [e]))) unmatched.push(id);
   });
-  assert.deepEqual(unmatched, STALE_AT_BASE, 'the mutated text must be the one mutantsFor derives from the current line');
+  assert.deepEqual(unmatched, [], 'the mutated text must be the one mutantsFor derives from the current line');
 });

@@ -6,9 +6,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { dcHostsFromEnv, getCredentials, getCredentialsFor, makeClient, siteHostsFromEnv } from '../lib/jira.ts';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { dcHostsFromEnv, makeClient, siteHostsFromEnv } from '../lib/jira.ts';
 import type { Exec, FetchLike, JiraError } from '../lib/jira.ts';
-import { resolveTenant } from '../src/jira-tenant.ts';
+import { clientBase, resolveTenant, tenantCredentials } from '../src/jira-tenant.ts';
 import type { JiraSettings, TenantResolution } from '../src/jira-tenant.ts';
 
 const ROOT = '/work/acme-repo';
@@ -23,21 +24,21 @@ function cfgEnv(obj?: unknown): Record<string, string> {
   return { BRAIN_CONFIG_DIR: dir };
 }
 
-interface Attempt { t: TenantResolution | null; source: string; outcome: string; hits: string[]; calls: string[] }
+interface Attempt { t: TenantResolution | null; source: string; outcome: string; message: string; hits: string[]; calls: string[] }
 /** The jira-pull path of src/commands/audit.ts (jiraClient + verify) with a recording exec and a counting fetch. */
 async function attempt(committed: unknown, env: Record<string, string>): Promise<Attempt> {
   const calls: string[] = [], hits: string[] = [];
   const exec: Exec = async (file, args) => { calls.push([file, ...args].join(' ')); throw new Error('no helper item'); };
   const fetchImpl: FetchLike = async (url) => { hits.push(url); return new Response(JSON.stringify({ accountId: 'acct-1', timeZone: 'UTC' }), { status: 200 }); };
-  let t: TenantResolution | null = null, source = '', outcome = 'ok';
+  let t: TenantResolution | null = null, source = '', outcome = 'ok', message = '';
   try {
     t = resolveTenant(committed as JiraSettings, ROOT, env); // untrusted committed JSON under test: resolveTenant must test every field
-    const creds = t.tenant ? await getCredentialsFor(t.tenant, { env, exec, platform: 'darwin', registry: t.registry.reg, allowGeneric: t.allowGeneric }) : await getCredentials({ env, exec, platform: 'darwin' });
+    const creds = await tenantCredentials(t, env, { exec, platform: 'darwin' });
     source = creds.source;
-    const client = makeClient({ baseConfig: { auth: t.jira.auth, cloudId: t.jira.cloud_id, baseUrl: env.JIRA_BASE_URL || t.jira.base_url }, creds, fetchImpl, dcHosts: dcHostsFromEnv(env), siteHosts: siteHostsFromEnv(env) });
+    const client = makeClient({ baseConfig: clientBase(t, env), creds, fetchImpl, dcHosts: dcHostsFromEnv(env), siteHosts: siteHostsFromEnv(env) });
     await client.verify();
-  } catch (e) { outcome = (e as JiraError).code || 'throw'; } // every throw on this path is a JiraError; a plain Error shows as 'throw'
-  return { t, source, outcome, hits, calls };
+  } catch (e) { outcome = (e as JiraError).code || 'throw'; message = (e as Error).message; } // every throw on this path is a JiraError; a plain Error shows as 'throw'
+  return { t, source, outcome, message, hits, calls };
 }
 const genericHelper = (c: string) => c.startsWith('op read op://Private/jira/generic') || / -s project-brain-jira -w$/.test(c) || c === 'secret-tool lookup service project-brain-jira';
 
@@ -129,4 +130,48 @@ test('legitimate paths keep generic credentials: user site, user cloud id, commi
   assert.equal((pinned.t as TenantResolution).pinned, true); assert.match(pinned.source, /^generic/); assert.equal(pinned.hits.length, 1); // valid mode: no throw
   const bound = await attempt({}, { ...GEN, ACME_TOK: 'acme-token-333', ...cfgEnv({ sites: { 'acme.atlassian.net': { token_env: 'ACME_TOK' } }, projects: { [ROOT]: { auth: { mode: 'site-token' }, base_url: 'https://acme.atlassian.net' } } }) });
   assert.match(bound.source, /^registry acme\.atlassian\.net/);
+});
+
+test('an empty or unusable tenant is refused before any credential helper runs (no generic helper, no request)', async () => {
+  const cases: Array<[unknown, Record<string, string>, string]> = [
+    [{}, {}, 'bad_config'], // scoped (the default) without a cloud id
+    [{ cloud_id: '' }, {}, 'bad_config'],
+    [{ auth: { mode: 'site-token' } }, {}, 'bad_host'], // site-token without base_url
+    [{ auth: { mode: 'site-token' }, base_url: 'not a url' }, {}, 'bad_host'],
+    [{ auth: { mode: 'datacenter' } }, { BRAIN_JIRA_DC_HOSTS: DC_A }, 'bad_host'],
+  ];
+  for (const [committed, extra, code] of cases) {
+    const r = await attempt(committed, { ...GEN_OP, ...extra, ...cfgEnv() });
+    assert.equal((r.t as TenantResolution).tenant, '', JSON.stringify(committed)); // valid mode: no throw
+    assert.equal(r.outcome, code, JSON.stringify(committed)); assert.match(r.message, /docs\/JIRA\.md/, JSON.stringify(committed));
+    assert.deepEqual(r.calls, [], JSON.stringify(committed)); assert.deepEqual(r.hits, [], JSON.stringify(committed));
+  }
+});
+
+test('a user projects entry with only base_url (scoped by default) gets a message naming the missing mode and docs/JIRA.md, not bad_host', async () => {
+  const env = { ...GEN_OP, ...cfgEnv({ projects: { [ROOT]: { base_url: 'https://mine.atlassian.net', jql: 'project = ACME' } } }) };
+  const r = await attempt({}, env);
+  assert.equal(r.outcome, 'bad_config');
+  assert.match(r.message, /cloud_id/); assert.match(r.message, /"auth": \{"mode": "site-token"\}/); assert.match(r.message, /docs\/JIRA\.md/);
+  assert.deepEqual(r.calls, []); assert.deepEqual(r.hits, []);
+});
+
+test('brain jira-pull with no tenant configured runs no credential helper (a recording `op` and `security` on PATH stay unused)', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-iso-cli-'))), bin = path.join(root, 'fakebin'), log = path.join(root, 'helper.log');
+  fs.mkdirSync(bin);
+  for (const h of ['op', 'security', 'secret-tool']) { fs.writeFileSync(path.join(bin, h), `#!/bin/sh\necho "${h} $*" >> '${log}'\nexit 1\n`); fs.chmodSync(path.join(bin, h), 0o755); }
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: root, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.data'), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', JIRA_EMAIL: 'me@example.invalid', JIRA_OP_REF: 'op://Private/jira/generic', JIRA_API_TOKEN: '', ...cfgEnv() };
+  try {
+    execFileSync('git', ['init', '-q'], { cwd: root, env });
+    const brain = path.join(import.meta.dirname, '../bin/brain');
+    assert.equal(spawnSync(process.execPath, [brain, 'init'], { cwd: root, env, encoding: 'utf8' }).status, 0);
+    const r = spawnSync(process.execPath, [brain, 'jira-pull', '--out', path.join(root, 'snap.jsonl')], { cwd: root, env, encoding: 'utf8' });
+    assert.equal(r.status, 3, r.stderr); assert.match(r.stderr, /cloud_id|cloudId/); assert.match(r.stderr, /docs\/JIRA\.md/);
+    assert.equal(fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '', '', 'no credential helper ran');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('an empty committed base_url (as `brain init` writes it) with a scoped cloud id uses the gateway, not bad_host "empty"', async () => {
+  const r = await attempt({ base_url: '', jql: '', cloud_id: 'acme-cloud-0003' }, { ...GEN, ...cfgEnv() });
+  assert.equal(r.outcome, 'ok', r.message); assert.deepEqual(r.hits, ['https://api.atlassian.com/ex/jira/acme-cloud-0003/rest/api/3/myself']);
 });

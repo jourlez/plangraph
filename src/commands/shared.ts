@@ -109,7 +109,7 @@ export function modelFromDb(ctx: Ctx): Model {
 export async function readItems(ctx: Ctx) {
   const OI = await import('../../lib/openitems.ts');
   const f = path.join(ctx.dir, 'open-items.jsonl');
-  return { OI, items: presentDataFile(f) ? OI.parseItems(readDataCapped(f, MAX_DATA)) as OpenItem[] : [] }; // a symlink is refused, as in build (also one swapped in); the open-items.jsonl validator makes key and kind strings, the other OpenItem fields are unchecked (pre-existing)
+  return { OI, items: presentDataFile(f) ? OI.parseItems(readDataCapped(f, MAX_DATA)) as OpenItem[] : [] }; // a symlink is refused, as in build (also one swapped in); the open-items.jsonl validator makes key and kind strings, owner a string or absent and status a non-empty string; the other OpenItem fields are unchecked (pre-existing)
 }
 
 /** A Jira snapshot file: .jsonl (current format) or the legacy JSON map. */

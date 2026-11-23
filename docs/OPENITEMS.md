@@ -4,7 +4,7 @@ Decisions and fixes owed by a named person before a ticket may start. Module: `l
 
 ## Data
 `open-items.jsonl`, one record per line, sorted by `key` then `kind` (plain `<`), canonical field order, `\n`, trailing newline:
-`key, kind, owner, due_sprint (int|null), status ("open"|"done"), text, closed_at?, closed_by?, close_note?, source? ("manual")`. Unknown extra fields are kept and sorted last.
+`key, kind, owner, due_sprint (int|null), status ("open"|"done"), text, closed_at?, closed_by?, close_note?, source? ("manual")`. Unknown extra fields are kept and sorted last. Reading checks that `key` and `kind` are strings, `owner` is a string or absent (or null), and `status` is a non-empty string when present; anything else is a data error naming the line (exit 2).
 An item is identified by `key|kind`, one item per pair (several findings of the same pair merge into one text, sorted, joined by ` | `, max 300 chars).
 
 ## Contract with `brain ready`

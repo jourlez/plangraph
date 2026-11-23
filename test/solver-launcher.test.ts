@@ -8,7 +8,9 @@
 // only: a real venv gets created, then the pip step, the venv's import probe and the final exec; (c) a cached venv already exists: its
 // import probe runs first. PIP_NO_INDEX keeps pip offline: the install fails fast and the launcher exits 3 (or runs the stub solver when
 // the host python3 has ortools). No marker file may appear.
-// NOT covered: Windows (POSIX sh launcher), a host without python3 (the probes skip and say so; the static test still runs), the uv branches.
+// (3) the uv path with a fake uv: the preparation calls run from the plugin bin directory, the solver in the caller's directory.
+// NOT covered: Windows (POSIX sh launcher), a host without python3 (the probes skip and say so; the static test still runs), a real uv, and
+// the `uv run` fallbacks (an older uv; they still run in the caller's directory, see KNOWN_ISSUES.md).
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -73,4 +75,22 @@ test('probe (c): a cached venv\'s import probe never imports a hostile ortools.p
   const { r, marks } = probe({ 'ortools.py': HOSTILE('ortools') }, { prebuiltVenv: true });
   assert.deepEqual(marks, [], `hostile files ran: ${marks.join(', ')}; stdout: ${r.stdout} stderr: ${r.stderr}`);
   assert.ok(r.status === 3 || /stub solver ran/.test(r.stdout), `exit 3 (no OR-Tools) or the stub solver: status ${r.status}, ${r.stderr}`);
+});
+
+// The uv path: uv reads a uv.toml (or pyproject.toml [tool.uv]) from the directory it runs in, even with --script, so a repository could
+// point it at another package index. The two preparation calls (`uv sync --locked --script`, `uv python find --script`) therefore run from
+// the plugin's bin directory, while the solver itself still runs in the caller's directory (its arguments may be relative paths). A fake uv
+// records the directory and arguments of each call; its `python find` names a fake interpreter that records where the solver ran.
+test('uv path: uv sync and uv python find run from the plugin bin directory, never the (hostile) working directory; the solver runs in the caller directory', { skip: process.platform === 'win32' ? 'POSIX sh launcher' : false }, () => {
+  const cwd = tmp('sl-uvcwd-'), bin = tmp('sl-uvbin-'), log = path.join(tmp('sl-uvlog-'), 'calls.log');
+  fs.writeFileSync(path.join(cwd, 'uv.toml'), 'index-url = "http://127.0.0.1:9/simple"\n');
+  const py = path.join(bin, 'fakepy');
+  fs.writeFileSync(py, `#!/bin/sh\necho "solver $(pwd -P) $*" >> ${JSON.stringify(log)}\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, 'uv'), `#!/bin/sh\necho "uv $(pwd -P) $1 $2" >> ${JSON.stringify(log)}\nif [ "$1" = python ]; then echo ${JSON.stringify(py)}; fi\nexit 0\n`, { mode: 0o755 });
+  const env = { PATH: `${bin}:/usr/bin:/bin`, HOME: tmp('sl-uvhome-') };
+  const r = spawnSync(RUN, ['--in', 'x.json'], { cwd, env, encoding: 'utf8', timeout: 60000 });
+  assert.equal(r.status, 0, r.stderr);
+  const here = fs.realpathSync(path.dirname(RUN));
+  const lines = fs.readFileSync(log, 'utf8').trim().split('\n');
+  assert.deepEqual(lines, [`uv ${here} sync --quiet`, `uv ${here} python find`, `solver ${cwd} ${path.join(here, 'brain-solve')} --in x.json`]);
 });

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.1
+
+Fixed (the open items parked by the 0.2.0 migration; these are intended behavior changes):
+- `brain forecast`: a PRIOR-ONLY forecast downgraded from 10 to 19 sprints (a mean shift or missing actuals) printed `NaN-NaN%`. It now prints the leave-one-sprint-out range like every PRIOR-ONLY result (`docs/FORECAST.md`), and a view without a range prints the point probability.
+- `brain simulate`: a schedule row whose ticket does not exist had no size; it still counted for the planned and simulated end sprint. Such rows are now left out, with one `warning: simulate skips N schedule row(s) with no ticket: ...` line on stderr (exit 0).
+- `brain sp-link`: a `refs.jsonl` record whose `plans` holds a non-object entry was accepted and written back. It is now a data error naming the line (exit 2, nothing written). A non-array `plans` was already refused by the reader.
+- `open-items.jsonl`: a non-string `owner` printed as `owner [object Object]` in `brain ready`. Reading the file now refuses it as a data error naming the line (exit 2).
+- Jira: an empty tenant (no `cloud_id` in scoped mode, no usable `base_url` otherwise) is refused before any credential helper (`op`, `security`, `secret-tool`) runs, with a message that names the missing field and points to `docs/JIRA.md`. A user `projects` entry with only `base_url` (scoped by default) now says to add `"auth": {"mode": "site-token"}` instead of a bad-host error. An empty committed `base_url` (as `brain init` writes it) counts as unset, so scoped mode reaches the gateway instead of failing with `base URL rejected: empty`.
+- Solver launcher: the uv preparation calls run from the plugin's `bin` directory, so a `uv.toml` in the repository you run from is not read; user-level uv config and `UV_*` variables still apply. The `uv run` fallbacks for an older uv are unchanged (`KNOWN_ISSUES.md`).
+- Redaction: a registered secret is also redacted inside a longer base64 or base64url blob at any byte offset, in hex, and lower-case or fully percent-encoded.
+- Tooling: the nine stale mutation equivalents are re-pinned or deleted (their mutant is gone or now killed), entry 195 covers only its reviewed line, `test/equivalents.test.ts` allows no stale, duplicate-line or repeated entry, and `test/build-extra.test.ts` pins the INSERT template and checks every table spec at runtime.
+
 ## 0.2.0
 
 Changed: the plugin is now native-ESM TypeScript (Node 24 runs the `.ts` files directly, no build step). Behavior is unchanged: a differential baseline of 373 command, hook, merge-driver, MCP and library probes is identical before and after, on synthetic and on a real brain directory. Startup time is the same (about 133 ms either way). Strictness flags: `strict`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `erasableSyntaxOnly`, and `noUncheckedIndexedAccess` for `lib`, `src` and `mcp`. Tooling: TypeScript 7.0.2 (`tsc --noEmit`), Biome 2.6.8 (lint), knip 6.48.0, lefthook 2.2.2, `node:test`. Still zero runtime dependencies. The mutation-equivalents list was rebuilt (97 entries re-pinned; a recorded line may now differ only by a type annotation). Known open items are in `KNOWN_ISSUES.md`.

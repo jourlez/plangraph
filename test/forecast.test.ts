@@ -200,6 +200,18 @@ test('gate in forecast(): refuses below 5 sprints with no probability, never pri
   const r2 = forecast({ history: hist([30, 35, 38, 33, 36, 31, 34]), remaining: 120 });
   assert.equal(r2.state, 'PRIOR-ONLY'); assert.equal(r2.percentiles.P90, undefined); assert.equal(r2.percentiles.P95, undefined); assert.match(r2.text, /by S\d+: \d+-\d+%/);
 });
+test('a PRIOR-ONLY forecast downgraded from 10 or more sprints prints a leave-one-sprint-out range, never NaN', () => {
+  const g = rng(1), base = Array.from({ length: 12 }, (_, i) => rec(i + 1, 40, 38 + 4 * normal(g)));
+  const shifted = base.map((r, i) => (i >= 9 ? { ...r, done: 20 } : r)); // a mean shift in the last 3 sprints: PROVISIONAL one level down
+  const r = forecast({ history: shifted, remaining: 120, runs: 2000 });
+  assert.equal(r.state, 'PRIOR-ONLY'); assert.equal(r.n, 12);
+  assert.doesNotMatch(r.text, /NaN/);
+  assert.match(r.text, /by S\d+: \d+-\d+%/);
+  for (const x of r.probs) { assert.ok(Number.isFinite(x.lo) && Number.isFinite(x.hi), 'lo and hi are set'); assert.ok((x.lo as number) <= x.p && x.p <= (x.hi as number)); }
+  // a view without lo/hi (an outside caller) falls back to the rounded point probability instead of NaN
+  const view = renderForecast({ state: 'PRIOR-ONLY', n: 12, lastDone: 12, probs: [{ sprint: 15, p: 0.4 }], percentiles: { P50: 15 }, backtest: { k: 0, n: 0, ci: [0, 1], beats: false }, reasons: [] });
+  assert.doesNotMatch(view, /NaN/); assert.match(view, /by S15: ~40%/);
+});
 
 // ---------- (6) split conformal follows the Beta law ----------
 test('conformal: coverage across calibration sets has mean index/(n+1) and Beta spread', () => {

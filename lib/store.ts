@@ -154,7 +154,7 @@ function stealStale(lockPath: string, staleMs: number, onStealDecision?: () => v
     if (same) { fs.rmSync(stale, { force: true }); return true; }
     try { fs.linkSync(stale, lockPath); } catch { /* the path was taken meanwhile: leave theirs; ours stays under its stale name */ }
     try { if (fs.lstatSync(lockPath).ino === st2.ino) fs.rmSync(stale, { force: true }); } catch { /* nothing at the path */ }
-    return false;
+    return false; // a live owner was put back: the caller waits and retries
   } finally { fs.closeSync(gfd); fs.rmSync(guard, { force: true }); }
 }
 /** Take the lock; the returned object releases it on dispose (`using lock = acquireLock(p)`), only if the token is still ours. */
