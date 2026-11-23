@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { readCapped, presentDataFile } from '../../lib/jsonl.mjs';
 import { oneLine, fenceInline } from '../../lib/sanitize.mjs';
 import { makeGit } from '../../lib/gitsafe.mjs';
-import { CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
+import { CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 const placeOf = (/** @type {import('../db.mjs').IndexHandle} */ d, /** @type {unknown} */ key) => d.get(`SELECT owner,sprint FROM schedule WHERE ${CUR} AND key=?`, key);
@@ -21,15 +21,17 @@ function ticket(ctx, args) {
   if (!t) { out('not in the plan'); return 0; }
   const s = placeOf(d, key);
   // Fragments with no value are omitted (an unplaced or freshly ingested sp: task has no points, Jira status, verdict or placement).
-  const parts = [w(t.key, 120)];
+  const parts = [w(t.key, 120)], data = [];
   if (t.sp != null) parts.push(`${w(t.sp, 20)} SP`);
-  if (t.jira_status) parts.push(`Jira ${w(t.jira_status)}`);
-  if (t.verdict) parts.push(`verdict ${w(t.verdict)}${t.verdict_source ? ` (${w(t.verdict_source)})` : ''}`);
-  if (t.impl_status) parts.push(`impl ${w(t.impl_status)}`);
-  if (isPlaced(s)) parts.push(`plan S${s.sprint} ${w(s.owner, 60)}`);
+  if (t.jira_status) data.push(`Jira ${w(t.jira_status)}`);
+  if (t.verdict) data.push(`verdict ${w(t.verdict)}${t.verdict_source ? ` (${w(t.verdict_source)})` : ''}`);
+  if (t.impl_status) data.push(`impl ${w(t.impl_status)}`);
+  if (isPlaced(s)) data.push(`plan S${s.sprint} ${w(s.owner, 60)}`);
   const needs = d.all(`SELECT e.producer,e.kind,s.sprint,s.owner FROM edge e LEFT JOIN schedule s ON s.key=e.producer AND s.${CUR} WHERE e.consumer=? ORDER BY s.sprint, e.producer`, key);
   const neededBy = d.get('SELECT COUNT(*) c FROM edge WHERE producer=?', key).c;
   const fs_ = d.all('SELECT kind,text FROM finding WHERE key=?', key);
+  // The data fields (statuses, verdict and its source, owner) are text from the plan: one inline <untrusted> fence around the group.
+  if (data.length) parts.push(fenceInline(data.join(' | '), 400));
   if (!v) {
     // Default: ONE line. The summary is free text: one sanitized line (fenceInline: no newline, no angle brackets, so no forged line or tag),
     // capped at 60 characters, last, inside one inline <untrusted> fence; -v shows it inside the fence with the findings and evidence.
@@ -136,6 +138,7 @@ function person(ctx, args) {
 
 /** @param {Ctx} ctx @param {Args} args */
 function blockers(ctx, args) {
+  // the verdict list as stored (a closed ticket with a non-READY verdict is listed too: `brain ready` says DONE for it)
   const d = ctx.db(), rows = d.all("SELECT key,verdict FROM ticket WHERE verdict<>'READY' AND verdict<>'' ORDER BY verdict,key"), by = new Map();
   for (const r of rows) { if (!by.has(r.verdict)) by.set(r.verdict, []); by.get(r.verdict).push(r.key); }
   ctx.io.out(`${rows.length} tickets not READY`); const lim = verbose(args) ? Infinity : 150;
@@ -215,34 +218,32 @@ async function verify(ctx, args) {
   return 1;
 }
 
-// ---- definition of ready: may this ticket be started now? ----
+// ---- definition of ready: may this ticket be started now? (the rules: lib/ready.mjs, shared with blockers and report) ----
 /** @param {Ctx} ctx @param {Args} args */
 async function ready(ctx, args) {
-  const d = ctx.db(), [key] = args.positionals, out = ctx.io.out;
-  const t = d.get('SELECT * FROM ticket WHERE key=?', key);
+  const R = await import('../../lib/ready.mjs'), [key] = args.positionals, out = ctx.io.out;
+  const model = modelFromDb(ctx);
   const data = (/** @type {Record<string, unknown>} */ o, /** @type {string[]} */ next = []) => ctx.io.data?.({ key: w(key, 120), ...o }, { next });
   // the key argument is printed as one sanitized line: it can be a key taken from the data (units --stale, a next command)
   const k = w(key, 120);
-  if (!t) { out(`${k}: not an open plan ticket (done, or not in the plan)`); data({ found: false, ready: false, reasons: [] }); return 0; }
-  // sp: keys are superpowers implementation tasks: their progress is impl_status (from the SDD ledger), not a Jira status.
-  const spKey = (/** @type {unknown} */ k) => String(k).startsWith('sp:');
-  if (spKey(key) && t.impl_status === 'done') { out(`ALREADY DONE ${k}`); data({ found: true, ready: true, done: true, reasons: [] }); return 0; }
+  if (!model.tickets.has(key)) { out(`${k}: not an open plan ticket (done, or not in the plan)`); data({ found: false, ready: false, reasons: [] }); return 0; }
   const snap = args.values.jira !== undefined ? await loadJiraSnap(args.values.jira) : null;
-  const status = (/** @type {string} */ k, /** @type {unknown} */ dflt) => (snap && Object.hasOwn(snap, k) ? snap[k].status : dflt);
+  const { items } = await readItems(ctx), r = R.readiness(model, key, { items, statuses: snap });
+  // DONE: its own status is closed, so it is not something to start (a negative answer, exit 1)
+  if (r.done) { out(`DONE ${k} (${r.done.by === 'impl' ? 'impl_status done' : `status ${w(r.done.status)}`})`); data({ found: true, ready: false, done: true, reasons: [] }); return 1; }
   // Open-item texts are free text: the reasons name only their kind, and the texts follow in one fence.
-  // why: the text lines; reasons: the same facts as structured data for --json (same order); follow: raw values for next commands.
-  const why = [], reasons = [], texts = [], waits = /** @type {string[]} */ ([]), kinds = [], { OI, items } = await readItems(ctx), closed = OI.closedSet(items), seen = new Set();
-  if (t.verdict && t.verdict !== 'READY') { why.push(`readiness verdict is ${w(t.verdict)}`); reasons.push({ code: 'VERDICT', detail: w(t.verdict) }); }
-  for (const f of d.all('SELECT kind,text FROM finding WHERE key=?', key)) if (!closed.has(`${key}|${f.kind}`)) { seen.add(f.kind); kinds.push(f.kind); why.push(`open item [${w(f.kind)}]`); reasons.push({ code: 'OPEN_ITEM', kind: w(f.kind) }); texts.push(`[${w(f.kind)}] ${oneLine(f.text, 120)}`); }
-  for (const i of OI.blockingItems(items, key)) if (!seen.has(i.kind)) { why.push(`open item [${w(i.kind)}] (owner ${w(i.owner || '?')})`); reasons.push({ code: 'OPEN_ITEM', kind: w(i.kind), owner: w(i.owner || '') }); texts.push(`[${w(i.kind)}] ${oneLine(i.text || '', 120)}`); }
-  const skip = new Set(ctx.config().ignore_link_kinds || []);
-  for (const e of d.all(`SELECT e.producer,e.kind,t.jira_status,t.impl_status,s.sprint,s.owner FROM edge e JOIN ticket t ON t.key=e.producer LEFT JOIN schedule s ON s.key=e.producer AND s.${CUR} WHERE e.consumer=? ORDER BY e.producer`, key)) {
-    if (skip.has(e.kind)) continue;
-    const plan = isPlaced(e) ? `, planned S${e.sprint} ${w(e.owner, 60)}` : '';
-    const wait = (/** @type {string | null} */ status) => { waits.push(e.producer); reasons.push({ code: 'WAITS', key: w(e.producer, 120), status, ...(isPlaced(e) ? { sprint: e.sprint, owner: w(e.owner, 60) } : {}) }); };
-    if (spKey(key) && spKey(e.producer)) { if (e.impl_status !== 'done') { why.push(`waits for ${w(e.producer, 120)} (impl_status ${w(e.impl_status || 'todo')}${plan})`); wait(w(e.impl_status || 'todo')); } continue; }
-    const st = status(e.producer, e.jira_status);
-    if (st !== 'Done') { why.push(`waits for ${w(e.producer, 120)} (${st ? w(st) : 'no status'}${plan})`); wait(st ? w(st) : null); }
+  // why: the text lines; reasons: the same facts as structured data for --json (same order); waits and kinds feed the next commands.
+  const why = [], reasons = [], texts = [], waits = /** @type {string[]} */ ([]), kinds = [];
+  for (const x of r.reasons) {
+    if (x.code === 'VERDICT') { why.push(`readiness verdict is ${w(x.verdict)}`); reasons.push({ code: 'VERDICT', detail: w(x.verdict) }); }
+    else if (x.code === 'OPEN_ITEM' && x.from === 'finding') { kinds.push(x.kind); why.push(`open item [${w(x.kind)}]`); reasons.push({ code: 'OPEN_ITEM', kind: w(x.kind) }); texts.push(`[${w(x.kind)}] ${oneLine(x.text, 120)}`); }
+    else if (x.code === 'OPEN_ITEM') { why.push(`open item [${w(x.kind)}] (owner ${w(x.owner || '?')})`); reasons.push({ code: 'OPEN_ITEM', kind: w(x.kind), owner: w(x.owner) }); texts.push(`[${w(x.kind)}] ${oneLine(x.text, 120)}`); }
+    else {
+      const plan = x.place ? `, planned S${x.place.sprint} ${w(x.place.owner, 60)}` : '', st = x.status === null ? null : w(x.status);
+      waits.push(x.key);
+      reasons.push({ code: 'WAITS', key: w(x.key, 120), status: st, ...(x.place ? { sprint: x.place.sprint, owner: w(x.place.owner, 60) } : {}) });
+      why.push(`waits for ${w(x.key, 120)} (${x.impl ? `impl_status ${st}` : st ?? 'no status'}${plan})`);
+    }
   }
   // Bounded so the 40-line output bound never cuts the fence: at most 20 reasons and 10 texts (-v: 200 and 100).
   const v = verbose(args), maxWhy = v ? 200 : 20, maxText = v ? 100 : 10;
@@ -274,13 +275,13 @@ async function healMergeDriver(ctx) {
 // One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Brain data only.
 /** @param {Ctx} ctx */
 async function cardLine(ctx) {
-  if (!fs.existsSync(ctx.dir)) throw dataError('no brain directory: run `brain init`');
-  const { loadModel } = await import('../../lib/model.mjs'), V = await import('../../lib/verify.mjs');
-  const model = loadModel(ctx.dir), h = crypto.createHash('sha256'); let last = 0;
+  needBrain(ctx);
+  const { loadModel, CONFIG_MAX } = await import('../../lib/model.mjs'), V = await import('../../lib/verify.mjs');
+  const model = loadModel(ctx.dir, { config: ctx.config() }), h = crypto.createHash('sha256'); let last = 0;
   for (const f of ['config.json', ...SRC_FILES]) {
     let b = '';
     if (f !== 'config.json' && !presentDataFile(path.join(ctx.dir, f))) { h.update(`${f}\0${b.length}\0${b}\0`); continue; } // a symlinked data file is refused
-    try { b = readCapped(path.join(ctx.dir, f), MAX_DATA); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT') throw e; }
+    try { b = readCapped(path.join(ctx.dir, f), f === 'config.json' ? CONFIG_MAX : MAX_DATA); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT') throw e; }
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && s.sprint > last) last = s.sprint;
@@ -323,5 +324,5 @@ export const commands = {
   check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity and loops of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B }, summary: 'independent plan verifier (exit 1 on a violation)' },
   ready: { run: ready, positionals: [1, 1], options: { jira: { type: 'string' } }, summary: 'may this ticket be started now? (exit 1 with reasons)' },
-  card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: B }, guard: (/** @type {Record<string, unknown>} */ v) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
+  card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: { ...B, writes: ['git-config', 'gitattributes', 'merge-shim'] } }, guard: (/** @type {Record<string, unknown>} */ v) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
 };

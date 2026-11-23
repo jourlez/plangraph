@@ -3,4 +3,4 @@ exit: 2
 --- stdout
 --- stderr
 error: no brain directory: run `brain init`
-try: brain explain learn
+try: brain init

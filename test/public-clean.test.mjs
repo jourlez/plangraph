@@ -29,6 +29,13 @@ const RULES = [
 
 // Allowlist: the obviously fake Jira token in the connector tests. The declared atlassian hosts match no rule above.
 const ALLOW = [new RegExp(j('ATATT3x', 'FAKE'))];
+// Narrow per-file-and-rule allowances for the eval suite's injection-canary graders: they must NAME the paths and key shapes a hijacked model might touch.
+/** @type {Array<[RegExp, string, RegExp]>} */
+const ALLOW_RULE = [
+  [/^evals\/(cases\/[^/]+\.json|families\.mjs)$/, 'local-home-path', /\\\.ssh/],
+  [/^test\/evals-schema\.test\.mjs$/, 'local-home-path', /\.ssh\/id_rsa/],
+  [/^test\/evals-schema\.test\.mjs$/, 'private-key-header', /safe-no-private-key/],
+];
 
 export function scanFiles(baseDir, files) {
   const hits = [];
@@ -39,7 +46,9 @@ export function scanFiles(baseDir, files) {
       if (ALLOW.some((a) => a.test(line))) return;
       for (const [name, re, accept] of RULES) {
         const m = re.exec(line);
-        if (m && (!accept || accept(m))) hits.push(`${f}:${i + 1} [${name}]`);
+        if (!m || (accept && !accept(m))) continue;
+        if (ALLOW_RULE.some(([fp, rn, lp]) => fp.test(f) && rn === name && lp.test(line))) continue;
+        hits.push(`${f}:${i + 1} [${name}]`);
       }
     });
   }

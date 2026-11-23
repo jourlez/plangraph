@@ -2,5 +2,5 @@ $ brain check
 exit: 2
 --- stdout
 --- stderr
-error: no index: run `brain build`
-try: brain build
+error: no brain directory: run `brain init`
+try: brain init

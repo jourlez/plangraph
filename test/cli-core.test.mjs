@@ -241,6 +241,21 @@ test('makeCollector keeps a bounded number of lines and counts the rest', () => 
   assert.equal(c.dropped, 3);
 });
 
+// `next` holds at most 3 commands (docs/CONTRACT.md), whatever a command hands over: the collector keeps the first 3 strings, in order,
+// and the --json envelope of a run prints exactly those (a command giving 9 follow-ups still prints 3).
+test('next: at most 3 follow-up commands are kept and printed, the first 3 in order; non-strings dropped', async () => {
+  const nine = Array.from({ length: 9 }, (_, i) => `brain ticket T-${i + 1}`);
+  const c = makeCollector();
+  c.data({ x: 1 }, { next: [7, ...nine] });
+  assert.deepEqual(c.structured?.next, nine.slice(0, 3));
+  const reg = createRegistry();
+  defineCommand(reg, 'many-next', { run: async (/** @type {any} */ ctx) => { ctx.io.out('ok'); ctx.io.data({ n: 9 }, { next: nine }); return 0; }, positionals: [0, 0], summary: 's' });
+  const o = /** @type {string[]} */ ([]);
+  const code = await main(['many-next', '--json'], { registry: reg, io: { out: (l) => o.push(l), err: () => {} }, makeContext: (/** @type {any} */ x) => ({ io: x.io, root: '/', dir: '/x', fresh: () => null }) });
+  assert.equal(code, 0);
+  assert.deepEqual(JSON.parse(o.join('\n')).next, nine.slice(0, 3));
+});
+
 // ---------- the output contract: ctx.io.out(line) takes exactly ONE line; multi-line output goes through ctx.io.outBlock(lines) ----------
 const BREAKS = ['\n', '\r', '\r\n', '\u000b', '\u000c', '\u0085', '\u2028', '\u2029'];
 test('out(line): any line break is a programmer error in strict mode (tests), and one line in production', () => {

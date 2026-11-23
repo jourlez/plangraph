@@ -163,17 +163,15 @@ test('every brain command a skill names is a registered command', () => {
   }
 });
 
-test('the six routing cases live in evals/cases (both polarities) and the docs point there instead of copying them', () => {
+test('the six routing jobs and all seven skills have trigger cases in evals/cases (both polarities) and the docs point there instead of copying them', () => {
   const dir = path.join(root, 'evals', 'cases');
   assert.ok(fs.existsSync(dir), 'evals/cases is missing');
-  const cases = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+  const cases = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))).filter((c) => c.kind === 'trigger');
   for (const j of ['onboarding', 'planning', 'replanning', 'reassigning', 'reporting', 'handoff']) {
-    for (const yes of [true, false]) {
-      const c = cases.find((x) => x.id === `trig-${j}-${yes ? 'yes' : 'no'}`);
-      assert.ok(c, `no ${yes ? 'should-trigger' : 'should-not-trigger'} case for ${j}`);
-      assert.equal(c.kind, 'trigger');
-      assert.deepEqual(c.expected, { trigger: yes, job: j });
-    }
+    for (const yes of [true, false]) assert.ok(cases.some((c) => c.expected.job === j && c.expected.trigger === yes), `no ${yes ? 'should-trigger' : 'should-not-trigger'} case for the ${j} job`);
+  }
+  for (const n of fs.readdirSync(path.join(root, 'skills')).filter((x) => fs.existsSync(path.join(root, 'skills', x, 'SKILL.md')))) {
+    for (const yes of [true, false]) assert.ok(cases.some((c) => c.expected.skill === n && c.expected.trigger === yes), `no ${yes ? 'should-trigger' : 'should-not-trigger'} case for the ${n} skill`);
   }
   const d = read('docs/INTEGRATIONS.md');
   const i = d.indexOf('## Routing cases for the eval suite');

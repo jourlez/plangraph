@@ -7,6 +7,7 @@ writes none: blockers bundle chain check doctor explain findings forecast integr
 writes files: card jira-import jira-pull jira-text units
 writes index: build schedule-load whatif
 writes text: export init learn migrate open-items refs-update report sp-ingest sp-link
+also writes: card --heal, doctor --fix, init: git config, .gitattributes, merge shim
 global: --json -v --dir DIR --if-present
 more: brain explain COMMAND | brain explain --json
 --- stderr

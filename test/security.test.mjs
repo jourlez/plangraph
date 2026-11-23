@@ -139,7 +139,7 @@ test('(b) every free-text output is fenced and one line per record: ticket, bund
   ok(run(d, ['build']), 'build');
   const line = run(d, ['ticket', 'T-1']).stdout; // the default one-line answer: one inline fence, no forged tag or line
   assert.equal(line.split('\n').length, 2, line); assert.doesNotMatch(line, /\u001b|NEXT LINE|FORGED/);
-  assert.match(line, /\| <untrusted n="[0-9a-f]{8}">[^<>]*<\/untrusted>\n$/); assert.equal((line.match(/</g) || []).length, 2);
+  assert.match(line, /\| <untrusted n="[0-9a-f]{8}">[^<>]*<\/untrusted>\n$/); assert.equal((line.match(/</g) || []).length, 4); // the data group and the summary
   const outs = { ticket: run(d, ['ticket', 'T-1', '-v']), bundle: run(d, ['bundle', 'T-1']), findings: run(d, ['findings', 'note']), 'open-items': run(d, ['open-items']), ready: run(d, ['ready', 'T-1']) };
   ok(run(d, ['units', '--keys', 'T-1', '--out', 'u']), 'units');
   outs.units = { stdout: fs.readFileSync(path.join(d, 'u/u001.md'), 'utf8') };
@@ -156,7 +156,7 @@ test('(b) every free-text output is fenced and one line per record: ticket, bund
   assert.equal(outs.ready.status, 1);
 });
 
-test('(b) card carries no free text: no summary or finding text, escapes in kinds, verdicts and owners removed, no fence', () => {
+test('(b) card carries no free text: no summary or finding text, escapes in kinds, verdicts and owners removed, only inline data fences', () => {
   const d = repo();
   editTickets(d, (rows) => { rows[0].summary = 'SECRET SUMMARY'; rows[0].verdict = 'BLOCK\u001b[2JED'; });
   put(d, '.brain/findings.jsonl', jl([{ key: 'T-1', kind: 'k\u001b]0;t\u0007ind', text: 'SECRET FINDING' }, { key: 'T-2', kind: 'x\nFORGED', text: 't' }]));
@@ -165,7 +165,7 @@ test('(b) card carries no free text: no summary or finding text, escapes in kind
     const r = run(d, args); ok(r, args.join(' '));
     assert.ok(!r.stdout.includes('SECRET'), r.stdout);
     assert.ok(!r.stdout.includes('\u001b') && !r.stdout.includes('\u0007'), JSON.stringify(r.stdout));
-    assert.ok(!r.stdout.includes('<untrusted'));
+    assert.doesNotMatch(r.stdout.replace(/<untrusted n="[0-9a-f]{8}">[^<>\n]*<\/untrusted>/g, ''), /untrusted/, 'no block fence, no tag outside our inline data fences');
     assert.ok(!/^FORGED/m.test(r.stdout), `a newline in a kind cannot forge a card line\n${r.stdout}`);
     assert.match(r.stdout, /verdicts: .*BLOCKED/);
   }
@@ -178,9 +178,9 @@ test('(b) bounds: many findings never cut a fence (ticket, findings KIND, ready)
   ok(run(d, ['build']), 'build');
   // Task 14: ticket is one line by default (its one inline fence cannot be cut); -v prints up to 100 findings inside one fence.
   const one = run(d, ['ticket', 'T-1']).stdout;
-  assert.equal(one.split('\n').length, 2); assert.match(one, /\| 60 findings/); assert.equal((one.match(/<untrusted /g) || []).length, 1); assert.doesNotMatch(one, /text \d/);
+  assert.equal(one.split('\n').length, 2); assert.match(one, /\| 60 findings/); assert.equal((one.match(/<untrusted /g) || []).length, 2); // data group + summary assert.doesNotMatch(one, /text \d/);
   const tv = run(d, ['ticket', 'T-1', '-v']).stdout;
-  assert.equal((tv.match(/<untrusted /g) || []).length, 1); assert.equal((tv.match(/<\/untrusted>/g) || []).length, 1);
+  assert.equal((tv.match(/^<untrusted src=/gm) || []).length, 1); assert.equal((tv.match(/^<\/untrusted>$/gm) || []).length, 1); // one block fence
   assert.equal((tv.match(/^finding \[k\d+\]/gm) || []).length, 60);
   for (const [args, more] of /** @type {Array<[string[], RegExp | null]>} */ ([[['findings', 'k1'], null], [['ready', 'T-1'], /^\.\.\. 50 more open-item texts$/m]])) {
     const r = run(d, args), o = r.stdout;

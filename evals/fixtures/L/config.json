@@ -1,0 +1,14 @@
+{
+ "first_sprint": 1,
+ "end_sprint": 7,
+ "caps": {
+  "default": 60
+ },
+ "min_per_sprint": {},
+ "ignore_link_kinds": [],
+ "weights": {
+  "shortfall": 10000,
+  "load": 2,
+  "owner_change": 1
+ }
+}

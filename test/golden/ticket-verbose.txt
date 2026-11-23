@@ -1,7 +1,7 @@
 $ brain ticket T-5 -v
 exit: 0
 --- stdout
-T-5 | 5 SP | Jira To Do | verdict READY (audit) | plan S1 Ana
+T-5 | 5 SP | <untrusted n="6d9eebe2">Jira To Do | verdict READY (audit) | plan S1 Ana</untrusted>
 needs: nothing
 needed by: 3 tickets
 <untrusted src="ticket:T-5" n="ff27bef2" len="119">

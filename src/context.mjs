@@ -6,6 +6,7 @@ import path from 'node:path';
 import { makeGit } from '../lib/gitsafe.mjs';
 import { readCapped, readStreamCapped } from '../lib/jsonl.mjs';
 import { resolveBrainDir } from '../lib/fsafe.mjs';
+import { readConfig } from '../lib/model.mjs';
 import { sourceNow } from '../lib/clock.mjs';
 import { BrainError } from './errors.mjs';
 import { openIndex, INDEX_FILE } from './db.mjs';
@@ -21,7 +22,7 @@ import { openIndex, INDEX_FILE } from './db.mjs';
 /** @typedef {{ cwd?: string, env?: Record<string, string|undefined>, flags?: Record<string, unknown>, io?: IO, now?: () => Date, root?: string,
  *   git?: (root: string) => (...args: string[]) => string, stdin?: Stdin }} ContextOptions */
 
-const RC_MAX = 64 * 1024, CONFIG_MAX = 1024 * 1024;
+const RC_MAX = 64 * 1024;
 
 // Small JSON object file: capped, regular files only; missing -> undefined. Messages are fixed and never echo the content.
 /** @param {string} file @param {string} label @param {number} max @returns {Record<string, any> | undefined} */
@@ -37,6 +38,14 @@ function readJsonObject(file, label, max) {
   try { v = JSON.parse(text.replace(/^﻿/, '')); } catch (e) { throw new BrainError('DATA', `${label}: not valid JSON`, { cause: e }); }
   if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new BrainError('DATA', `${label}: must be a JSON object`);
   return v;
+}
+
+// config.json through the one reader of lib/model.mjs (64 KiB, regular file, no symlink, JSON object); its IngestError becomes a DATA error
+// (exit 2) with the same fixed base-name message, so every command refuses a bad config the same way.
+/** @param {string} dir @returns {Record<string, any>} */
+function configOf(dir) {
+  try { return readConfig(path.join(dir, 'config.json')); }
+  catch (/** @type {any} */ e) { if (e?.name === 'IngestError') throw new BrainError('DATA', e.message, { cause: e }); throw e; }
 }
 
 // The repository root: the nearest ancestor of cwd holding a `.git` entry (a directory, or the file of a linked worktree or submodule),
@@ -94,7 +103,7 @@ export function makeContext({ cwd = process.cwd(), env = process.env, flags = {}
   return Object.freeze({
     root, dir, cwd, env, flags, io: /** @type {Context['io']} */ (withBlock(io)), now, stdin,
     git: (...args) => run(...args), // execFile argv, no shell; callers check refs and paths with lib/gitsafe.mjs
-    config: () => (cfg ??= readJsonObject(path.join(dir, 'config.json'), 'config.json', CONFIG_MAX) ?? {}),
+    config: () => (cfg ??= configOf(dir)),
     db: () => (handle ??= warnStale(openIndex(path.join(dir, INDEX_FILE), { readOnly: true, dir }))),
     // The `fresh` object of the --json envelope: first 8 hex of the fingerprint of the text now (fp) and of the text the index was
     // built from (built; null for an index without one). null when this run opened no index.

@@ -369,7 +369,7 @@ test('learn --from-wolf: a symlinked learnings.jsonl is refused (exit 4) with no
   assert.equal(r.status, 4); assert.equal(r.stderr, 'error: refusing to write learnings.jsonl: it is a symlink (nothing was written)\ntry: brain explain learn\n');
   assert.deepEqual(fs.readFileSync(inside), before); assert.ok(fs.lstatSync(lf).isSymbolicLink());
   const bare = tmp(); execFileSync('git', ['init', '-q'], { cwd: bare }); put(bare, '.wolf/cerebrum.md', '## Do-Not-Repeat\n- x\n');
-  const b = run(bare, 'learn', '--from-wolf', handleOf('x')); assert.equal(b.status, 2); assert.equal(b.stderr, 'error: no brain directory: run `brain init`\ntry: brain explain learn\n');
+  const b = run(bare, 'learn', '--from-wolf', handleOf('x')); assert.equal(b.status, 2); assert.equal(b.stderr, 'error: no brain directory: run `brain init`\ntry: brain init\n');
   assert.equal(fs.existsSync(path.join(bare, '.brain')), false);
 });
 test('learn --from-wolf: a hostile entry is stored sanitized (one line, no control characters, no angle brackets)', () => {

@@ -1,0 +1,65 @@
+{
+  "$schema": "brain-eval-case/2",
+  "id": "m-trigger-brain-plan-no",
+  "kind": "trigger",
+  "family": "trigger-brain-plan",
+  "tags": [
+    "trigger",
+    "synthetic",
+    "size-m",
+    "should-not-trigger",
+    "brain-plan"
+  ],
+  "fixture": {
+    "size": "M",
+    "seed": 7,
+    "brain": true,
+    "overlay": []
+  },
+  "prompt": "Plan a database migration from MySQL to Postgres in three short steps.",
+  "limits": {
+    "max_turns": 10,
+    "timeout_s": 240,
+    "max_usd": 0.4
+  },
+  "graders": [
+    {
+      "id": "rel-migration",
+      "role": "outcome",
+      "type": "regex",
+      "target": "last_message",
+      "pattern": "pg_dump|pgloader|schema|postgres",
+      "flags": "i",
+      "weight": 1,
+      "arm": "both"
+    },
+    {
+      "id": "neg-brain-not-used",
+      "role": "outcome",
+      "type": "tool_used",
+      "tool": "Bash",
+      "input_match": "(?:^|[\\s;&|(])brain\\s",
+      "min": 0,
+      "max": 0,
+      "weight": 3,
+      "arm": "both"
+    },
+    {
+      "id": "neg-skill-not-fired",
+      "role": "outcome",
+      "type": "tool_used",
+      "tool": "Skill",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:brain(?:-[a-z]+)?|whatif)\"",
+      "min": 0,
+      "max": 0,
+      "weight": 3,
+      "arm": "both"
+    }
+  ],
+  "difficulty": "medium",
+  "expected": {
+    "trigger": false,
+    "skill": "brain-plan",
+    "job": "planning"
+  }
+}

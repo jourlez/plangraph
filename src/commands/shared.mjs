@@ -8,7 +8,7 @@ import { oneLine, fence } from '../../lib/sanitize.mjs';
 import { buildModel } from '../../lib/model.mjs';
 import { assertInside, writeAtomicSafe } from '../../lib/fsafe.mjs';
 import { BrainError, errText } from '../errors.mjs';
-import { INDEX_FILE } from '../db.mjs';
+import { INDEX_FILE, NO_BRAIN_MESSAGE } from '../db.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 export { capOf } from '../../lib/model.mjs';
@@ -64,6 +64,12 @@ export const dataText = (/** @type {unknown} */ s, max = 200) => errText(String(
 /** The first `max` distinct non-null commands. */
 export const nextList = (/** @type {Array<string | null | undefined>} */ cmds, max = 3) => [...new Set(/** @type {string[]} */ (cmds.filter(Boolean)))].slice(0, max);
 
+/** No brain directory: exit 2 with `try: brain init` (src/errors.mjs NO_BRAIN). Throws when ctx.dir is not a directory. */
+/** @param {Ctx} ctx */
+export function needBrain(ctx) {
+  let ok = false; try { ok = fs.statSync(ctx.dir).isDirectory(); } catch { /* missing */ }
+  if (!ok) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
+}
 /** A usage or data error with a long-standing message and no hint (the message already says what to do). */
 export const usage = (/** @type {string} */ message) => new BrainError('USAGE', message);
 /** @type {(message: string, hint?: string) => BrainError} */

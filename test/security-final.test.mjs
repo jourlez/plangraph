@@ -270,8 +270,10 @@ test('I6: owners constructor/toString are capped like any other name in check, v
     return d;
   };
   const evil = mk('constructor', 'toString'), twin = mk('cora', 'tom');
-  const back = (/** @type {string} */ s) => s.replaceAll('cora', 'constructor').replaceAll('tom', 'toString').replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP');
-  const fp = (/** @type {string} */ s) => s.replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP');
+  // the inline fence nonce is a hash of the names shown, so it differs between the twins: normalized like the fingerprint
+  const nonce = (/** @type {string} */ s) => s.replace(/<untrusted n="[0-9a-f]{8}">/g, '<untrusted n="N">');
+  const back = (/** @type {string} */ s) => nonce(s.replaceAll('cora', 'constructor').replaceAll('tom', 'toString').replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP'));
+  const fp = (/** @type {string} */ s) => nonce(s.replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP'));
   const cmds = [['check'], ['verify'], ['verify', '--enforce-min'], ['card'], ['card', '--line'], ['sprint', '1'], ['sprint', '2'], ['simulate', '--runs', '30'], ['report', '--out', '.']];
   for (const c of cmds) {
     const a = run(evil, c), b = run(twin, c);

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { sealedTmp } from './helpers/sealed-tmp.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 // Warnings we accept, each with the reason. Anything else fails this test.
@@ -24,9 +25,11 @@ function findBinary() {
 
 const bin = findBinary();
 test('claude plugin validate reports no error and only documented warnings', { skip: bin ? false : 'no Claude Code binary (set BRAIN_CLAUDE_BIN to enable)' }, () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-validate-'));
+  // the binary's temp dir (TMPDIR) is inside our own temp dir, so whatever it leaves there (mode-000 dirs included) is removed with it
+  const t = sealedTmp('brain-validate-'), home = path.join(t.dir, 'home');
+  fs.mkdirSync(home);
   try {
-    const r = spawnSync(bin, ['plugin', 'validate', root], { encoding: 'utf8', env: { ...process.env, HOME: home, CLAUDE_CONFIG_DIR: home }, timeout: 60000 });
+    const r = spawnSync(bin, ['plugin', 'validate', root], { encoding: 'utf8', env: { ...process.env, HOME: home, CLAUDE_CONFIG_DIR: home, TMPDIR: t.tmpdir, CLAUDE_CODE_TMPDIR: t.tmpdir }, timeout: 60000 });
     const out = `${r.stdout || ''}${r.stderr || ''}`;
     assert.equal(r.status, 0, `validator exited ${r.status}:\n${out}`);
     assert.ok(/Validation passed/.test(out), out);
@@ -38,7 +41,8 @@ test('claude plugin validate reports no error and only documented warnings', { s
     const header = /Found (\d+) (?:plugin directory )?warning/g; let total = 0, m;
     while ((m = header.exec(out))) total += Number(m[1]);
     assert.ok(total <= ALLOWED_WARNINGS.length, `${total} warnings but only ${ALLOWED_WARNINGS.length} are documented:\n${out}`);
-  } finally { fs.rmSync(home, { recursive: true, force: true }); }
+  } finally { t.remove(); }
+  assert.equal(fs.existsSync(t.dir), false, 'nothing left behind');
 });
 
 test('the declared network hosts match what lib/jira.mjs can reach', () => {

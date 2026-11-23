@@ -13,7 +13,7 @@ jobs:
   test:
     name: test (${{ matrix.os }}, node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30 # the mutation run alone takes about 5 minutes
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +36,8 @@ jobs:
         run: npm run smoke
       - name: plugin layout
         run: npm run validate
+      - name: mutation run (every listed mutant must be killed; exits non-zero on a survivor or a stale mutation)
+        run: npm run mutate
       - name: coverage ratchet (raise these floors when coverage rises, never lower)
         run: >
           node --test --experimental-test-coverage

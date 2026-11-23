@@ -66,8 +66,55 @@ test('with a brain: stdout starts with the card, exit 0, stderr empty', () => {
 
 test('a brain dir with a corrupt index still exits 0 and prints nothing to stderr', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
-  fs.writeFileSync(path.join(w.repo, '.brain', 'index.sqlite'), 'not a database');
-  const r = w.run(); assert.equal(r.status, 0); assert.equal(r.stderr, '');
+  fs.writeFileSync(path.join(w.repo, '.brain', 'brain.sqlite'), 'not a database'); // the index file (src/db.mjs INDEX_FILE)
+  const r = w.run(); assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', '']);
+  assert.equal(w.brain(['card']).status, 2, 'a manual card reports the corrupt index');
+});
+
+// Every failure before or inside the command (a bad .brainrc, a refused brain dir from BRAIN_DIR or .brainrc, an unknown option) is
+// thrown and caught in src/cli.mjs main(): the hook form returns 0 with no output from that catch; the manual form reports it.
+test('the real hook command stays silent with exit 0 on a bad .brainrc, BRAIN_DIR=/etc, BRAIN_DIR=../x and a .brainrc escaping the repo', () => {
+  const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
+  const rc = path.join(w.repo, '.brainrc');
+  const cases = /** @type {Array<[string, Record<string, string>, string | null]>} */ ([
+    ['bad .brainrc', {}, '{bad json'], ['.brainrc dir array', {}, '{"dir": [1]}'], ['.brainrc escaping', {}, '{"dir": "../x"}'],
+    ['BRAIN_DIR=/etc', { BRAIN_DIR: '/etc' }, null], ['BRAIN_DIR=../x', { BRAIN_DIR: '../x' }, null], ['BRAIN_DIR with a space', { BRAIN_DIR: 'a b' }, null],
+  ]);
+  for (const [what, extra, text] of cases) {
+    if (text === null) fs.rmSync(rc, { force: true }); else fs.writeFileSync(rc, text);
+    const r = w.run({ ...w.env, ...extra });
+    assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], what);
+    const m = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'card'], { cwd: w.repo, env: { ...w.env, ...extra }, encoding: 'utf8' });
+    assert.ok(m.status === 2 || m.status === 4, `${what}: the manual card reports it (exit ${m.status})`);
+    assert.match(m.stderr, /^error: /, what);
+  }
+  fs.rmSync(rc, { force: true });
+  const u = spawnSync(hook.command, [...hook.args.map(sub), '--no-such-option'], { cwd: w.repo, env: w.env, encoding: 'utf8' });
+  assert.deepEqual([u.status, u.stdout, u.stderr], [0, '', ''], 'an unknown option in hook form');
+});
+
+test('card off never silences a manual card: CLAUDE_PLUGIN_OPTION_CARD=off or BRAIN_CARD=off with `brain card` still prints it', () => {
+  const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
+  const plain = ok(w.brain(['card'])).stdout;
+  assert.match(plain, /^brain [0-9a-f]{8} \| /);
+  for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'BRAIN_CARD']) {
+    const m = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'card'], { cwd: w.repo, env: { ...w.env, [key]: 'off' }, encoding: 'utf8' });
+    assert.deepEqual([m.status, m.stdout, m.stderr], [0, plain, ''], key);
+    assert.equal(ok(w.run({ ...w.env, [key]: 'OFF ' })).stdout, '', `${key}: case and spaces do not matter for the hook`);
+  }
+});
+
+// plugin.json userConfig.card is what Claude Code exports as CLAUDE_PLUGIN_OPTION_CARD: a string with the options the hook understands
+// ("off" silences it, anything else prints) and the default that keeps the card on.
+test('plugin.json userConfig.card: string, options auto and off, default auto (the value the hook treats as on)', () => {
+  const pj = JSON.parse(fs.readFileSync(path.join(PLUGIN, '.claude-plugin/plugin.json'), 'utf8'));
+  const c = pj.userConfig?.card;
+  assert.equal(c?.type, 'string');
+  assert.deepEqual(c.options, ['auto', 'off']);
+  assert.equal(c.default, 'auto');
+  assert.ok(c.options.includes(c.default));
+  assert.ok(typeof c.title === 'string' && c.title && typeof c.description === 'string' && /off/.test(c.description));
+  assert.deepEqual(Object.keys(pj.userConfig), ['card'], 'no other option the hook does not read');
 });
 
 test('running the hook repairs a missing merge driver once; a second run changes nothing', () => {

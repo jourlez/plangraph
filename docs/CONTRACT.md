@@ -45,8 +45,8 @@ thrown error. On success it prints the card (nothing when there is no index; a l
 this guarantee: other commands given `--if-present` still report errors (it only suppresses their STALE warning).
 
 Errors print `error: <what>` on stderr, optionally `hint: <what to do>` (prose), and always a last line `try: <exact command>`
-(the error table in `src/errors.mjs`: a hint that names a `brain ...` command becomes the try line; otherwise `brain build` for a missing
-index, `brain doctor` for environment and internal errors, else `brain explain <the command that failed>`). A mistyped command gets
+(the error table in `src/errors.mjs`: a hint that names a `brain ...` command becomes the try line; otherwise `brain init` when there is no
+brain directory, `brain build` for a missing index, `brain doctor` for environment and internal errors, else `brain explain <the command that failed>`). A mistyped command gets
 `did you mean <name>?` (edit distance at most 2); the command list itself is `brain explain`. A line never carries a newline or a forged
 `<untrusted>` tag from the data, and untrusted text never reaches the try line. Commands print through `ctx.io.out(line)`, which takes
 exactly one line: a line break of any kind (LF, CR, VT, FF, NEL, U+2028, U+2029) is a programmer error that fails the tests
@@ -54,9 +54,10 @@ exactly one line: a line break of any kind (LF, CR, VT, FF, NEL, U+2028, U+2029)
 through `ctx.io.outBlock(lines)`. `test/hostile-fuzz.test.mjs` runs every registered command over a plan whose every free-text field
 carries a line injection.
 
-`brain explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class, exit codes),
-bounded (the full list under 400 estimated tokens). `--json` on any command prints the v2 envelope
-`{"v":2,"cmd","ok","exit","data","fresh","next"}`: `data` is structured for `sprint`, `ready`, `whatif` (dry run), `verify` and
+`brain explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class plus the merge-driver wiring a command always does (`init`) or a flag adds (`doctor --fix`, `card --heal`: git config, `.gitattributes`, the merge shim), exit codes),
+bounded (the full list under 400 estimated tokens). `--json` on any command prints exactly one v2 envelope on stdout
+`{"v":2,"cmd","ok","exit","data","fresh","next"}`, also when the command printed nothing (`data` is `{ "lines": [] }`) and when it failed
+(the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.mjs` runs every registered command): `data` is structured for `sprint`, `ready`, `whatif` (dry run), `verify` and
 `explain`, and `{ "lines": [...] }` for the others (card and bundle included: their prepared text, line by line); `fresh` is `{ "fp", "built" }` (first 8 hex of the source fingerprint of the text
 now and of the text the index was built from; they differ when the index is stale) or null when the command read no index; `next` holds
 0 to 3 exact follow-up commands, built only from shell-safe values.
@@ -75,4 +76,4 @@ index-reading commands still answer, and print `STALE: the text files changed si
 is not stale; it refuses a stale index (exit 2, hint `brain build`), because writing it would overwrite the edited text. `schedule-load`
 and `whatif --write` change only the index, so export after them goes ahead. `brain forecast` also warns when `open-items.jsonl` is newer than the index; the card uses the fingerprint only (no modification times).
 
-`brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts, checked by an oracle test), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.
+`brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts: one shared function, `lib/ready.mjs`, checked against the CLI and an independent brute-force oracle; a ticket whose own status is closed (`Done` or a `closed_statuses` entry; an `sp:` task with `impl_status` done) is `DONE` for `brain ready`, exit 1, and never listed), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.

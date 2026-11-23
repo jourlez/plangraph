@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { oneLine } from '../../lib/sanitize.mjs';
-import { usage, dataError, modelFromDb, readItems, loadJiraSnap, precheckTargets, writeState, rel } from './shared.mjs';
+import { needBrain, usage, dataError, modelFromDb, readItems, loadJiraSnap, precheckTargets, writeState, rel } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,7 +24,7 @@ async function forecastTag(ctx, model) {
 async function staleCount(ctx) {
   try {
     const S = await import('../../lib/stale.mjs'), { loadModel } = await import('../../lib/model.mjs'), cfg = ctx.config(), ref = S.resolveRef(cfg);
-    const m = loadModel(ctx.dir), deps = S.gitDeps(ctx.root, ref, {});
+    const m = loadModel(ctx.dir, { config: cfg }), deps = S.gitDeps(ctx.root, ref, {});
     const res = S.computeStale(m, m.refs, deps, { ref, heading: cfg.ref_heading, rulesVersion: cfg.brain_rules_version, full: false });
     return { count: res.stale.length, ref: oneLine(ref, 60) };
   } catch { return null; }
@@ -32,6 +32,7 @@ async function staleCount(ctx) {
 
 /** @param {Ctx} ctx @param {Args} args */
 async function report(ctx, args) {
+  needBrain(ctx);
   const v = args.values, outDir = path.resolve(ctx.root, v.out ?? rel(ctx, ctx.dir));
   if ((v.jira === undefined) !== (v['as-of'] === undefined)) throw usage('--jira and --as-of go together (the snapshot date, YYYY-MM-DD)');
   if (v['as-of'] !== undefined && !DATE.test(v['as-of'])) throw usage('--as-of must be a date like 2026-11-20');
@@ -45,7 +46,7 @@ async function report(ctx, args) {
     forecast: await forecastTag(ctx, model), stale: await staleCount(ctx),
   });
   writeState(ctx, files[0], r.markdown); writeState(ctx, files[1], r.html);
-  ctx.io.out(`wrote ${rel(ctx, files[0])} and ${rel(ctx, files[1])} (${r.data.tickets} tickets, ${r.data.ready.count} can start, ${r.data.over_cap} person-sprints over cap); publishing is a separate step`);
+  ctx.io.out(`wrote ${oneLine(rel(ctx, files[0]), 200)} and ${oneLine(rel(ctx, files[1]), 200)} (${r.data.tickets} tickets, ${r.data.ready.count} can start, ${r.data.over_cap} person-sprints over cap); publishing is a separate step`);
   return 0;
 }
 

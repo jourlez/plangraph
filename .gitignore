@@ -5,7 +5,7 @@ __pycache__/
 *.tmp-*
 .superpowers/
 
-# generated eval output (evals/run.mjs --emit-native and results); cases/ and fixtures/ are committed
-evals/t[0-9][0-9]-*/
-evals/trig-*/
+# eval suites, results and real-project data are built in temp directories (evals/run.mjs, evals/gen-real.mjs), never here;
+# these patterns only guard against a manual run inside the repository. cases/ and fixtures/ are committed.
 evals/results/
+evals/pass-*/

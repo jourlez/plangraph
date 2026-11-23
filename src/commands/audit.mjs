@@ -8,7 +8,7 @@ import { readCapped } from '../../lib/jsonl.mjs';
 import { oneLine, sanitizeText, fence, guardOutput } from '../../lib/sanitize.mjs';
 import { writeAtomicSafe, assertInside } from '../../lib/fsafe.mjs';
 import { checkRef, checkRepoPath } from '../../lib/gitsafe.mjs';
-import { CUR, KEY_RE, MAX_DATA, usage, dataError, readJsonInput, loadJiraSnap, jiraErrors, refuseWrite, precheckTargets, writeState, fenceLines } from './shared.mjs';
+import { CUR, KEY_RE, MAX_DATA, needBrain, usage, dataError, readJsonInput, loadJiraSnap, jiraErrors, refuseWrite, precheckTargets, writeState, fenceLines } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 /** A git failure (bad or unknown ref, not a repository) is a DATA error with the first line of git's message, sanitized. */
@@ -25,8 +25,9 @@ function gitErrors(e) {
 // ---- fingerprints: what each verdict was based on, and what changed since ----
 /** @param {Ctx} ctx @param {Args} args */
 async function staleSetup(ctx, args) {
+  needBrain(ctx);
   const S = await import('../../lib/stale.mjs'), { loadModel } = await import('../../lib/model.mjs');
-  const model = loadModel(ctx.dir), cfg = ctx.config(), v = args.values;
+  const cfg = ctx.config(), model = loadModel(ctx.dir, { config: cfg }), v = args.values;
   let ref; try { ref = S.resolveRef(cfg, v.ref); } catch (e) { gitErrors(e); }
   const jira = v.jira !== undefined ? await loadJiraSnap(v.jira) : undefined;
   const deps = S.gitDeps(ctx.root, ref, { jira }); // a fresh instance per command: it caches git reads
@@ -52,7 +53,7 @@ async function refsUpdate(ctx, args) {
   const file = path.join(ctx.dir, 'refs.jsonl');
   precheckTargets(ctx, [file]);
   writeState(ctx, file, St.canonFile(r.rows, St.SCHEMAS['refs.jsonl']));
-  ctx.io.out(`refs.jsonl updated for ${r.updated?.length ?? keys.length ?? '?'} tickets at ${commit} (ref ${ref}); run \`brain build\``);
+  ctx.io.out(`refs.jsonl updated for ${r.updated?.length ?? keys.length ?? '?'} tickets at ${oneLine(commit, 64)} (ref ${oneLine(ref, 200)}); run \`brain build\``);
   return 0;
 }
 
@@ -119,7 +120,7 @@ async function jiraText(ctx, args) {
     const { client } = await jiraClient(ctx);
     for (const k of keys) writeOutput(path.join(out, `${k}.txt`), await J.fetchIssueText(client, k));
   } catch (e) { jiraErrors(e); }
-  ctx.io.out(`wrote ${keys.length} files to ${out}`);
+  ctx.io.out(`wrote ${keys.length} files to ${oneLine(out, 200)}`);
   return 0;
 }
 
@@ -205,7 +206,7 @@ async function units(ctx, args) {
   }
   writeOutput(path.join(out, 'units.json'), JSON.stringify(list));
   const per = v['tokens-per-unit'] ?? 130000;
-  ctx.io.out(`${keys.length} tickets -> ${list.length} units in ${out}. Cost preview: ${list.length} units x ${per.toLocaleString()} tokens (measured on a large project) = about ${(list.length * per / 1e6).toFixed(1)} million tokens. Nothing was sent anywhere.`);
+  ctx.io.out(`${keys.length} tickets -> ${list.length} units in ${oneLine(out, 200)}. Cost preview: ${list.length} units x ${per.toLocaleString()} tokens (measured on a large project) = about ${(list.length * per / 1e6).toFixed(1)} million tokens. Nothing was sent anywhere.`);
   return 0;
 }
 

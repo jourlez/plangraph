@@ -354,7 +354,7 @@ test('sp-ingest of a hostile plan: nothing is executed, stored text is clean, th
   for (const f of ['tickets.jsonl', 'findings.jsonl', 'edges.jsonl']) assert.doesNotMatch(fs.readFileSync(path.join(root, '.brain', f), 'utf8'), /\\u001b|\u001b|<\/untrusted>|\\u0007/);
   assert.equal(run(root, 'build').status, 0);
   const c = run(root, 'card'); assert.equal(c.status, 0, c.stderr);
-  assert.doesNotMatch(c.stdout, /formatter|ignore previous|AAAA|untrusted/);
+  assert.doesNotMatch(c.stdout.replace(/<untrusted n="[0-9a-f]{8}">[^<>\n]*<\/untrusted>/g, (m) => m.replace(/<\/?untrusted[^>]*>/g, '')), /formatter|ignore previous|AAAA|untrusted/);
 });
 
 test('sp-link writes refs.plans entries the stale heading matcher finds, and refuses an unknown ticket', () => {
@@ -500,10 +500,10 @@ test('verify after sp-ingest without an owner: OK, the count covers every ticket
   const v3 = run(root, 'verify'); assert.equal(v3.status, 1);
   assert.equal(v3.stdout, `HANDOFF ${K('3')} producer ${K('1')} S3 Ben, consumer ${K('3')} S3 Ana, consumer needs >=S4\n`);
 });
-test('ready for sp: tasks uses impl_status: producers done => READY, own status done => ALREADY DONE, todo producer => reason without Snull', () => {
+test('ready for sp: tasks uses impl_status: producers done => READY, own status done => DONE (exit 1), todo producer => reason without Snull', () => {
   const root = repo(); assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);
   const r3 = run(root, 'ready', K('3')); assert.equal(r3.status, 0, r3.stdout); assert.match(r3.stdout, new RegExp(`^READY TO START ${K('3').replace(/[.]/g, '\\.')}$`, 'm'));
-  const r1 = run(root, 'ready', K('1')); assert.equal(r1.status, 0); assert.match(r1.stdout, new RegExp(`^ALREADY DONE ${K('1')}$`, 'm'));
+  const r1 = run(root, 'ready', K('1')); assert.equal(r1.status, 1); assert.match(r1.stdout, new RegExp(`^DONE ${K('1')} \\(impl_status done\\)$`, 'm'));
   put(root, `.superpowers/sdd/${SLUG}/progress.md`, LEDGER.split('\n').filter((l) => !l.startsWith('Task 2')).join('\n'));
   assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);
   const n = run(root, 'ready', K('3')); assert.equal(n.status, 1);
@@ -518,7 +518,7 @@ test('ticket output for an unplaced sp: task never prints Snull, null or an empt
   assert.doesNotMatch(run(root, 'ticket', K('3')).stdout, /Snull|null|undefined|\/ |plan n\/a/, 'the default one-line answer too');
   assert.doesNotMatch(t.stdout, /Snull|null|undefined|\/ |plan n\/a/);
   assert.match(t.stdout, new RegExp(`^needs: ${K('1')} \\[sp_needs\\], ${K('2')} \\[sp_needs\\]$`, 'm'));
-  assert.match(t.stdout, /\| impl in_progress/);
+  assert.match(t.stdout, /\| <untrusted n="[0-9a-f]{8}">impl in_progress<\/untrusted>/);
 });
 
 // ---------- 4. key caps ----------

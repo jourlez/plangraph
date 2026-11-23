@@ -1,0 +1,60 @@
+{"key":"T-1","summary":"ticket 1","epic":"E0","sp":1,"jira_status":"Done","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-2","summary":"ticket 2","epic":"E1","sp":3,"jira_status":"In Progress","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-3","summary":"ticket 3","epic":"E2","sp":3,"jira_status":"Done","v2_owner":"Ben","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-4","summary":"ticket 4","epic":"E3","sp":3,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":1,"verdict":"NEEDS_INFO","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-5","summary":"ticket 5","epic":"E0","sp":5,"jira_status":"Done","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-6","summary":"ticket 6","epic":"E1","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"BLOCKED","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-7","summary":"ticket 7","epic":"E2","sp":4,"jira_status":"Done","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-8","summary":"ticket 8","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-9","summary":"ticket 9","epic":"E0","sp":1,"jira_status":"Done","v2_owner":"Ben","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-10","summary":"ticket 10","epic":"E1","sp":4,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-11","summary":"ticket 11","epic":"E2","sp":5,"jira_status":"Done","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-12","summary":"ticket 12","epic":"E3","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-13","summary":"ticket 13","epic":"E0","sp":5,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-14","summary":"ticket 14","epic":"E1","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-15","summary":"ticket 15","epic":"E2","sp":3,"jira_status":"Done","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-16","summary":"ticket 16","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-17","summary":"ticket 17","epic":"E0","sp":2,"jira_status":"Done","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-18","summary":"ticket 18","epic":"E1","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-19","summary":"ticket 19","epic":"E2","sp":2,"jira_status":"Done","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-20","summary":"ticket 20","epic":"E3","sp":1,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-21","summary":"ticket 21","epic":"E0","sp":1,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"NEEDS_INFO","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-22","summary":"ticket 22","epic":"E1","sp":2,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-23","summary":"ticket 23","epic":"E2","sp":2,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-24","summary":"ticket 24","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-25","summary":"ticket 25","epic":"E0","sp":3,"jira_status":"Done","v2_owner":"Cleo","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-26","summary":"ticket 26","epic":"E1","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-27","summary":"ticket 27","epic":"E2","sp":4,"jira_status":"Done","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-28","summary":"ticket 28","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-29","summary":"ticket 29","epic":"E0","sp":1,"jira_status":"Done","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-30","summary":"ticket 30","epic":"E1","sp":2,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-31","summary":"ticket 31","epic":"E2","sp":2,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-32","summary":"ticket 32","epic":"E3","sp":1,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-33","summary":"ticket 33","epic":"E0","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-34","summary":"ticket 34","epic":"E1","sp":5,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-35","summary":"ticket 35","epic":"E2","sp":1,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-36","summary":"ticket 36","epic":"E3","sp":2,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-37","summary":"ticket 37","epic":"E0","sp":2,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-38","summary":"ticket 38","epic":"E1","sp":5,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"NEEDS_INFO","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-39","summary":"ticket 39","epic":"E2","sp":2,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-40","summary":"ticket 40","epic":"E3","sp":5,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-41","summary":"ticket 41","epic":"E0","sp":1,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-42","summary":"ticket 42","epic":"E1","sp":5,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-43","summary":"ticket 43","epic":"E2","sp":4,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":4,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-44","summary":"ticket 44","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-45","summary":"ticket 45","epic":"E0","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":5,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-46","summary":"ticket 46","epic":"E1","sp":1,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":5,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-47","summary":"ticket 47","epic":"E2","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":4,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-48","summary":"ticket 48","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":5,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-49","summary":"ticket 49","epic":"E0","sp":5,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-50","summary":"ticket 50","epic":"E1","sp":2,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-51","summary":"ticket 51","epic":"E2","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":4,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-52","summary":"ticket 52","epic":"E3","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":4,"verdict":"BLOCKED","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-53","summary":"ticket 53","epic":"E0","sp":3,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-54","summary":"ticket 54","epic":"E1","sp":2,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-55","summary":"ticket 55","epic":"E2","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":4,"verdict":"NEEDS_INFO","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-56","summary":"ticket 56","epic":"E3","sp":3,"jira_status":"To Do","v2_owner":"Cleo","v2_sprint":4,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-57","summary":"ticket 57","epic":"E0","sp":4,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":4,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-58","summary":"ticket 58","epic":"E1","sp":4,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":6,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-59","summary":"ticket 59","epic":"E2","sp":1,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":3,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
+{"key":"T-60","summary":"ticket 60","epic":"E3","sp":2,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}

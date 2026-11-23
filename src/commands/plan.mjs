@@ -130,6 +130,7 @@ async function exportText(ctx) {
 
 /** @param {Ctx} ctx */
 function build(ctx) {
+  ctx.config(); // config.json is not an index source, but a bad one is refused here exactly as by every reader (exit 2)
   const r = buildIndex(ctx);
   ctx.io.out(`built ${rel(ctx, r.file)}: ${r.counts.ticket} tickets, ${r.counts.edge} links, ${r.counts.evidence} evidence rows, ${r.counts.finding} findings, ${r.counts.learning} learnings`);
   return 0;
@@ -181,6 +182,7 @@ async function migrate(ctx, args) {
 async function doctor(ctx, args) {
   const S = await import('../../lib/store.mjs'), out = ctx.io.out, dir = rel(ctx, ctx.dir); let bad = 0;
   const f = S.readFormat(ctx.dir);
+  ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
   out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `brain migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
   let dm = S.doctorMergeDriver(ctx.root, { dir }), wireErr = '';
   if (dm.problems.length && args.values.fix) {
@@ -244,12 +246,13 @@ async function doctorWarnings(ctx) {
 }
 
 const B = { type: 'boolean' };
+const WIRING = ['git-config', 'gitattributes', 'merge-shim']; // what wireMergeDriver writes (src/registry.mjs SIDE_WRITES)
 export const commands = {
   whatif: { run: whatif, positionals: [1, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs' },
   'schedule-load': { run: scheduleLoad, positionals: [2, 2], writes: 'index', summary: 'keep the current plan under an archive name and load a new schedule into the index' },
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },
-  init: { run: init, positionals: [0, 0], writes: 'text', guard: 'none', summary: 'create the brain directory, config, generic learnings and the merge driver' },
+  init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the brain directory, config, generic learnings and the merge driver' },
   migrate: { run: migrate, positionals: [0, 0], writes: 'text', guard: 'none', options: { write: B }, summary: 'upgrade the data format (dry run unless --write)' },
-  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: B }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
+  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
 };

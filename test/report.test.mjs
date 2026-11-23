@@ -8,7 +8,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { buildModel, loadModel } from '../lib/model.mjs';
-import { buildReport, readySet } from '../lib/report.mjs';
+import { buildReport } from '../lib/report.mjs';
+import { readySet } from '../lib/ready.mjs';
 import { parseItems } from '../lib/openitems.mjs';
 import { genPlan } from './fixtures/gen.mjs';
 
@@ -45,15 +46,15 @@ test('sprint load against cap is exact and flags only the cell over its cap', ()
 
 test('can-start-today, blockers, chain, per person on a hand-built plan', () => {
   const { data } = buildReport(world(), OPTS);
-  assert.deepEqual(data.ready.keys, ['A-1', 'A-2']);   // A-1 is Done in this model but `brain ready` does not check the ticket's own status; A-2's producer is Done
+  assert.deepEqual(data.ready.keys, ['A-2']);   // A-1 is Done (not something to start: `brain ready` says DONE); A-2's producer is Done
   assert.deepEqual(data.blocked_by_open_item.rows, [{ key: 'A-5', kinds: ['external'] }]);
   assert.deepEqual(data.critical_chain.keys, ['A-1', 'A-2', 'A-3', 'A-5']); assert.equal(data.critical_chain.hops, 3);
-  assert.deepEqual(data.people.map((p) => [p.owner, p.tickets, p.sp, p.ready]), [['Ana', 3, 12, 2], ['Ben', 2, 10, 0]]);
+  assert.deepEqual(data.people.map((p) => [p.owner, p.tickets, p.sp, p.ready]), [['Ana', 3, 12, 1], ['Ben', 2, 10, 0]]);
   // an open item closed by a person unblocks; a registered open item blocks
   const closed = buildReport(world(), { ...OPTS, items: [{ key: 'A-5', kind: 'external', status: 'done' }] }).data;
   assert.equal(closed.blocked_by_open_item.count, 0);
   const reg = buildReport(world(), { ...OPTS, items: [{ key: 'A-2', kind: 'decision', status: 'open', owner: 'Ana' }] }).data;
-  assert.deepEqual(reg.ready.keys, ['A-1']);
+  assert.deepEqual(reg.ready.keys, []);
 });
 
 test('provenance labels: computed, jira snapshot date, history n', () => {
@@ -131,16 +132,84 @@ before(() => {
 });
 after(() => { try { fs.rmSync(BASE, { recursive: true, force: true }); } catch { /* best effort */ } });
 
-test('oracle: the can-start set equals the tickets `brain ready` accepts, with and without a Jira snapshot', () => {
-  const model = loadModel(path.join(ROOT, '.brain')), items = parseItems(fs.readFileSync(path.join(ROOT, '.brain/open-items.jsonl'), 'utf8'));
+// An independent brute-force oracle, written from the rule as documented (docs/CONTRACT.md, lib/ready.mjs header) over the RAW records
+// (the edges array, not the model's adjacency maps): it shares no code with lib/ready.mjs.
+function bruteReady(raw, items, statuses) {
+  const closedSt = new Set(['Done', ...(raw.config.closed_statuses || []).filter((x) => typeof x === 'string')]);
+  const tk = new Map(raw.tickets.map((t) => [t.key, t])), skip = new Set(raw.config.ignore_link_kinds || []);
+  const now = (k) => (statuses && Object.keys(statuses).includes(k) ? statuses[k].status : tk.get(k).jira_status);
+  const isSp = (k) => k.slice(0, 3) === 'sp:';
+  const out = [];
+  for (const key of [...tk.keys()].sort()) {
+    const t = tk.get(key);
+    if (isSp(key) ? t.impl_status === 'done' : closedSt.has(now(key))) continue; // done
+    let ok = !(t.verdict && t.verdict !== 'READY');
+    const closedKinds = items.filter((i) => i.key === key && i.status === 'done').map((i) => i.kind);
+    if (raw.findings.some((f) => f.key === key && !closedKinds.includes(f.kind))) ok = false;
+    if (items.some((i) => i.key === key && i.status !== 'done')) ok = false;
+    for (const e of raw.edges) {
+      if (e.consumer !== key || skip.has(e.kind) || !tk.has(e.producer)) continue;
+      const p = tk.get(e.producer);
+      if (isSp(key) && isSp(e.producer) ? p.impl_status !== 'done' : !closedSt.has(now(e.producer))) ok = false;
+    }
+    if (ok) out.push(key);
+  }
+  return out;
+}
+const readRaw = (dir) => {
+  const rows = (f) => { const t = fs.readFileSync(path.join(dir, f), 'utf8'); return t.split('\n').filter(Boolean).map((l) => JSON.parse(l)); };
+  return { tickets: rows('tickets.jsonl'), edges: rows('edges.jsonl'), findings: rows('findings.jsonl'), config: JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')) };
+};
+
+test('oracle: the can-start set equals the tickets `brain ready` accepts and an independent brute-force rule, with and without a Jira snapshot', () => {
+  const model = loadModel(path.join(ROOT, '.brain')), items = parseItems(fs.readFileSync(path.join(ROOT, '.brain/open-items.jsonl'), 'utf8')), raw = readRaw(path.join(ROOT, '.brain'));
   for (const snap of [null, 'snap.json']) {
     const viaCli = [...model.tickets.keys()].sort().filter((k) => { const r = brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])); return r.status === 0 && r.stdout.startsWith('READY TO START'); });
+    const doneCli = [...model.tickets.keys()].sort().filter((k) => brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])).stdout.startsWith('DONE '));
     const statuses = snap ? JSON.parse(fs.readFileSync(path.join(ROOT, snap), 'utf8')) : null;
-    const got = readySet(model, items, statuses).ready;
-    assert.deepEqual(got, viaCli);
-    assert.ok(got.length > 3 && got.length < model.tickets.size - 3, `oracle must be non-trivial (${got.length}/${model.tickets.size})`);
+    const got = readySet(model, items, statuses);
+    assert.deepEqual(got.ready, viaCli, 'readySet vs brain ready');
+    assert.deepEqual(got.ready, bruteReady(raw, items, statuses), 'readySet vs the brute-force oracle');
+    assert.deepEqual(got.done, doneCli, 'done: readySet vs brain ready DONE');
+    assert.ok(got.done.length >= 3, `the plan has done tickets (${got.done.length})`);
+    assert.ok(got.ready.length > 3 && got.ready.length < model.tickets.size - 3, `oracle must be non-trivial (${got.ready.length}/${model.tickets.size})`);
     assert.deepEqual(buildReport(model, { items, statuses, jira: snap ? { date: '2026-11-20' } : null }).data.ready.keys, viaCli);
   }
+});
+
+// ---- survivors of the mutation review, each pinned by an exact case ----
+test('over cap is strictly more than the cap: SP equal to the cap is ok, one more is OVER CAP', () => {
+  const m = buildModel({ tickets: [{ key: 'A-1', sp: 9 }, { key: 'B-1', sp: 10 }], schedule: [{ key: 'A-1', owner: 'Ana', sprint: 1 }, { key: 'B-1', owner: 'Ben', sprint: 1 }], config: { caps: { default: 9 } } });
+  const { data, markdown } = buildReport(m, {});
+  assert.deepEqual(data.sprint_load.map((r) => [r.owner, r.sp, r.cap, r.over]), [['Ana', 9, 9, false], ['Ben', 10, 9, true]]);
+  assert.equal(data.over_cap, 1);
+  assert.match(markdown, /\| 1 \| Ana \| 1 \| 9 \| 9 \| ok \|/); assert.match(markdown, /\| 1 \| Ben \| 1 \| 10 \| 9 \| OVER CAP \|/);
+});
+test('critical chain: equal-length chains end at the smaller key, and an equal-depth producer tie goes to the smaller key', () => {
+  // two chains of 2 hops: X-1 -> X-2 -> X-3 and A-1 -> A-2 -> A-3; and Z-9 needs both M-1 and M-2 (both depth 1)
+  const e = (consumer, producer) => ({ consumer, producer, kind: 'k' });
+  const m = buildModel({ tickets: ['X-1', 'X-2', 'X-3', 'A-1', 'A-2', 'A-3'].map((key) => ({ key })), edges: [e('X-2', 'X-1'), e('X-3', 'X-2'), e('A-2', 'A-1'), e('A-3', 'A-2')] });
+  assert.deepEqual(buildReport(m, {}).data.critical_chain.keys, ['A-1', 'A-2', 'A-3']);
+  const t = buildModel({ tickets: ['M-2', 'M-1', 'Z-9'].map((key) => ({ key })), edges: [e('Z-9', 'M-2'), e('Z-9', 'M-1')] });
+  assert.deepEqual(buildReport(t, {}).data.critical_chain.keys, ['M-1', 'Z-9']);
+});
+test('markdown cells escape a pipe, so a value cannot add a column; the html keeps it as text', () => {
+  const m = buildModel({ tickets: [{ key: 'P-1', sp: 1 }], schedule: [{ key: 'P-1', owner: 'Ana | x | y', sprint: 1 }] });
+  const { markdown, html } = buildReport(m, {});
+  const row = markdown.split('\n').find((l) => l.startsWith('| 1 | Ana'));
+  assert.equal(row, '| 1 | Ana \\| x \\| y | 1 | 1 | 140 | ok |');
+  assert.equal(row.split(/(?<!\\)\|/).length - 2, 6, 'six columns');
+  assert.match(html, /<td>Ana \| x \| y<\/td>/);
+});
+test('stale section: the label names the ref when computed (sanitized, escaped), "not computed" otherwise', () => {
+  const m = world();
+  const md = buildReport(m, { stale: { count: 2, ref: 'HEAD~1' } }).markdown;
+  assert.match(md, /## Stale plan text\n\nSource: computed at HEAD\\~1\n\n2 tickets have inputs that changed/);
+  const evil = buildReport(m, { stale: { count: 1, ref: 'main\n## Forged <b>|x' } });
+  assert.match(evil.markdown, /Source: computed at main \\#\\# Forged \?b\?\\\|x\n/);
+  assert.equal(evil.data.stale.label, 'computed at main ## Forged ?b?|x');
+  assert.doesNotMatch(evil.markdown, /^## Forged/m);
+  assert.match(buildReport(m, {}).markdown, /## Stale plan text\n\nSource: not computed\n/);
 });
 
 test('brain report writes exactly report.md and report.html, twice with equal bytes', () => {

@@ -208,3 +208,19 @@ test('BEFORE_FIRST: Done and closed_statuses tickets are always frozen (as in bi
   assert.deepEqual(verifyPlan(m({ frozen_statuses: [] })).map((v) => v.key), ['B', 'C']);
   assert.deepEqual(verifyPlan(m({ frozen_statuses: [], closed_statuses: ['Done', 'Closed'] })).map((v) => v.key), ['C']);
 });
+
+// MINLOAD span guard: it exists to bound the MINLOAD loop, so it speaks only when some minimum is configured (a plan with a far sprint
+// and no min_per_sprint is not a config problem), and its boundary is exact: a span of 1000 is checked, 1001 is refused.
+test('MINLOAD span guard: silent without any minimum > 0; span 1000 checked, span 1001 refused', () => {
+  const m = (/** @type {number} */ sprint, /** @type {Record<string, unknown>} */ min) => buildModel({ tickets: [{ key: 'A', sp: 3 }], schedule: [{ key: 'A', owner: 'Ana', sprint }], config: { first_sprint: 1, caps: { default: 10 }, min_per_sprint: min } });
+  for (const min of [{}, { default: 0 }, { Ana: 0, Ben: -1 }, { default: Number.NaN }]) {
+    const x = m(1e9, min);
+    assert.deepEqual(verifyPlan(x, x.sched, { enforceMin: true }), [], JSON.stringify(min));
+  }
+  const far = m(1002, { default: 2 }), v = verifyPlan(far, far.sched, { enforceMin: true });
+  assert.deepEqual(v.map((x) => [x.code, x.key]), [['CONFIG', 'sprint span']], 'span 1001 is refused');
+  const edge = m(1001, { default: 2 });
+  assert.equal(verifyPlan(edge, edge.sched, { enforceMin: true }).filter((x) => x.code === 'MINLOAD').length, 1000, 'span 1000 is checked');
+  const one = m(1e9, { Ben: 1 }); // a minimum for someone else still bounds the loop over Ben's sprints
+  assert.deepEqual(verifyPlan(one, one.sched, { enforceMin: true }).map((x) => x.code), ['CONFIG']);
+});

@@ -5,7 +5,7 @@
 import { sanitizeText, neutralizeTags } from '../lib/sanitize.mjs';
 import { FormatError } from '../lib/store.mjs';
 
-export const EXIT = Object.freeze({ OK: 0, NOT_OK: 1, USAGE: 2, DATA: 2, NO_INDEX: 2, STALE: 2, ENV: 3, REFUSED: 4, UNKNOWN: 5, ABORTED: 5, VERIFY_FAILED: 6 });
+export const EXIT = Object.freeze({ OK: 0, NOT_OK: 1, USAGE: 2, DATA: 2, NO_INDEX: 2, NO_BRAIN: 2, STALE: 2, ENV: 3, REFUSED: 4, UNKNOWN: 5, ABORTED: 5, VERIFY_FAILED: 6 });
 const EXIT_BY_CODE = new Map(Object.entries(EXIT)); // Map: a code such as "constructor" can never hit a prototype member
 
 /** What each exit code of `brain` means, in the order `brain explain` prints it (6 is the solver's, bin/brain-solve; brain never returns it). */
@@ -19,6 +19,7 @@ export const ERRORS = new Map([
   ['USAGE', { exit: EXIT.USAGE, try: null }],
   ['DATA', { exit: EXIT.DATA, try: null }],
   ['NO_INDEX', { exit: EXIT.NO_INDEX, try: 'brain build' }],
+  ['NO_BRAIN', { exit: EXIT.NO_BRAIN, try: 'brain init' }],
   ['STALE', { exit: EXIT.STALE, try: 'brain build' }],
   ['ENV', { exit: EXIT.ENV, try: 'brain doctor' }],
   ['REFUSED', { exit: EXIT.REFUSED, try: null }],

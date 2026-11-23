@@ -270,7 +270,7 @@ test('parity holds on errors and the stale policy: no index -> the CLI error lin
   const c1 = spawnSync(process.execPath, [BRAIN, 'ticket', 'T-1'], { cwd: empty, env: env(), encoding: 'utf8' });
   assert.equal(byId(r1.msgs, 1).result.content[0].text, cliText(c1));
   assert.equal(byId(r1.msgs, 1).result.isError, true);
-  assert.match(cliText(c1), /no index/);
+  assert.match(cliText(c1), /no brain directory: run `brain init`\ntry: brain init/); // no brain directory: the first step is init
   const stale = path.join(BASE, 'stale'); fs.cpSync(REPO, stale, { recursive: true });
   fs.appendFileSync(path.join(stale, '.brain/findings.jsonl'), JSON.stringify({ key: 'T-7', kind: 'note', text: 'late' }) + '\n');
   const r2 = await session(lines(INIT, call(1, 'ready', { key: 'T-7' })), { cwd: stale });

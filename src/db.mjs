@@ -20,6 +20,7 @@ import { BrainError } from './errors.mjs';
 import { nodeSupported, floorMessage } from './floor.mjs';
 
 export const INDEX_FILE = 'brain.sqlite';
+export const NO_BRAIN_MESSAGE = 'no brain directory: run `brain init`';
 export const FINGERPRINT_KEY = 'source_fingerprint';
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
@@ -267,7 +268,12 @@ function schemaOk(h) {
 /** Open an index. With `dir`, verify its source fingerprint: stale -> handle.stale = true and PRAGMA query_only = ON. */
 /** @param {string} file @param {{ readOnly?: boolean, dir?: string }} [opts] */
 export function openIndex(file, { readOnly = true, dir } = {}) {
-  if (!fs.existsSync(file)) throw new BrainError('NO_INDEX', 'no index: run `brain build`');
+  if (!fs.existsSync(file)) {
+    // no brain directory at all: the first step is `brain init` (a `brain build` there would fail and say so itself)
+    let dirOk = false; try { dirOk = fs.statSync(dir ?? path.dirname(file)).isDirectory(); } catch { /* missing */ }
+    if (!dirOk) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
+    throw new BrainError('NO_INDEX', 'no index: run `brain build`');
+  }
   const { DatabaseSync } = loadSqlite();
   let h;
   try {

@@ -150,3 +150,17 @@ test('SECURITY.md explains the organization licence and the data gitleaks-action
   assert.match(t, /repo(?:sitory)? name/i);
   assert.match(t, /owner/i);
 });
+
+// The mutation run is a gate: every listed mutant must be killed (scripts/mutate.mjs exits 1 on a survivor, 2 on a stale mutation or a red
+// baseline), in the test job, as its own named step that runs the npm script (not hidden behind `|| true` or an `if`).
+test('ci.yml: the test job runs `npm run mutate` as its own step, after the unit tests, never allowed to fail', () => {
+  const t = read('workflows', 'ci.yml');
+  const job = t.slice(t.indexOf('\n  test:\n'), t.indexOf('\n  secrets:\n'));
+  const steps = [...job.matchAll(/^ {6}- name: (.+)\n {8}run: (.+)$/gm)].map((m) => [m[1], m[2].trim()]);
+  const mutate = steps.findIndex(([, run]) => run === 'npm run mutate'), unit = steps.findIndex(([, run]) => run === 'npm test');
+  assert.ok(mutate >= 0, `no step runs exactly \`npm run mutate\`: ${JSON.stringify(steps)}`);
+  assert.ok(unit >= 0 && unit < mutate, 'the mutation run comes after the unit tests');
+  assert.match(steps[mutate][0], /mutation/i);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.mutate, 'node scripts/mutate.mjs');
+  assert.doesNotMatch(job, /npm run mutate\s*(\|\||;|&)/, 'the step result is not swallowed');
+});

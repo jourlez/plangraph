@@ -10,7 +10,7 @@ import { oneLine, fence } from '../../lib/sanitize.mjs';
 import { assertInside } from '../../lib/fsafe.mjs';
 import { checkRepoPath, makeGit } from '../../lib/gitsafe.mjs';
 import { BrainError } from '../errors.mjs';
-import { verbose, usage, precheckTargets, writeState, refuseWrite } from './shared.mjs';
+import { verbose, usage, needBrain, precheckTargets, writeState, refuseWrite } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 // ---- companion tools ----
@@ -95,7 +95,7 @@ async function spIngest(ctx, args) {
     const [planArg] = args.positionals;
     if (!planArg) throw usage('usage: brain sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]');
     if ((v.owner !== undefined) !== (v.sprint !== undefined)) throw usage('--owner and --sprint go together (seeding a schedule needs both)');
-    if (!fs.existsSync(ctx.dir)) throw new BrainError('DATA', 'no brain directory: run `brain init`');
+    needBrain(ctx);
     const plan = spFile(ctx, planArg, 'plan');
     const parsed = SP.parsePlan(SP.readSpFile(plan.real, { max: SP.LIMITS.planBytes }), plan.rel);
     const lo = v.ledger; if (lo !== undefined && (!lo || lo.startsWith('--'))) throw usage('--ledger needs a file path or none');
@@ -121,9 +121,9 @@ async function spIngest(ctx, args) {
     if (p.orphanSchedule) extra.push(`${n(p.orphanSchedule, 'schedule row')} for removed tasks left in place`);
     if (p.seeded) extra.push(`scheduled ${n(p.seeded, 'task')}`);
     if (p.warnings.length) extra.push(n(p.warnings.length, 'warning') + (V ? '' : ' (-v lists them)'));
-    out(`ingested ${p.key}: ${p.tasks} tasks, ${p.edges} edges, ${p.findings} findings, ${p.statuses} statuses from ledger${p.ledger ? '' : ' (no ledger: previous statuses kept)'}${extra.length ? `; ${extra.join('; ')}` : ''}`);
+    out(`ingested ${oneLine(p.key, 120)}: ${p.tasks} tasks, ${p.edges} edges, ${p.findings} findings, ${p.statuses} statuses from ledger${p.ledger ? '' : ' (no ledger: previous statuses kept)'}${extra.length ? `; ${extra.join('; ')}` : ''}`);
     for (const w of discovery) out(`warning: ${oneLine(w, 300)}`);
-    if (p.seededWithPoints) out(`warning: seeded ${n(p.seeded, 'task')} for ${owner} in sprint ${+sprintArg}: ${n(p.seededPoints, 'story point')} (capacity is not checked here)`);
+    if (p.seededWithPoints) out(`warning: seeded ${n(p.seeded, 'task')} for ${oneLine(owner, 80)} in sprint ${+sprintArg}: ${n(p.seededPoints, 'story point')} (capacity is not checked here)`);
     // Parser warnings quote plan and ledger text: untrusted, so printed only inside a fence (research section 6.3).
     // A task hidden inside an HTML comment is silent data loss: that warning is always shown; the rest only with -v.
     const shownPlan = V ? p.planWarnings : p.planWarnings.filter((w) => /swallows a task heading/.test(w));
@@ -140,6 +140,7 @@ async function spLink(ctx, args) {
     const SP = await import('../../lib/integrations/superpowers.mjs'), { planSection, DEFAULT_HEADING } = await import('../../lib/stale.mjs');
     const [key, planArg] = args.positionals;
     if (!key || !planArg) throw usage('usage: brain sp-link TICKET PLAN [--tasks 1,3]');
+    needBrain(ctx);
     if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/.test(key) || key.includes('..')) throw usage('invalid ticket key');
     if (!spRead(ctx, 'tickets.jsonl').some((t) => t.key === key)) throw usage(`unknown ticket ${key}: not in tickets.jsonl`);
     const plan = spFile(ctx, planArg, 'plan'), text = SP.readSpFile(plan.real, { max: SP.LIMITS.planBytes });
@@ -163,7 +164,7 @@ const LEARN_USAGE = 'usage: brain learn --from-wolf <handle|"text">';
 async function learn(ctx, args) {
   const arg = args.values['from-wolf'];
   if (arg === undefined || !arg || arg.startsWith('--')) throw usage(LEARN_USAGE);
-  if (!fs.existsSync(ctx.dir)) throw new BrainError('DATA', 'no brain directory: run `brain init`');
+  needBrain(ctx);
   try {
     const W = await import('../../lib/integrations/openwolf.mjs'), r = W.readWolfFile(ctx.root, 'cerebrum.md'); if (!r.ok) throw usage(/** @type {string} */ (r.warning));
     const list = W.repoRuleList(W.parseCerebrum(r.text)); let entry;
@@ -184,7 +185,7 @@ async function learn(ctx, args) {
     let n = 0; for (const x of old) { const m = /^W-(\d{1,9})$/.exec(String(x.id)); if (m) n = Math.max(n, +m[1]); }
     const rec = { id: `W-${n + 1}`, kind: 'rule', topic: 'repo', text, why: '', source: 'openwolf:cerebrum' };
     await spWrite(ctx, [['learnings.jsonl', [...old, rec], old]]);
-    ctx.io.out(`copied repo rule ${entry.handle} to learnings.jsonl as ${rec.id} (kind rule, topic repo, source openwolf:cerebrum); run \`brain build\``);
+    ctx.io.out(`copied repo rule ${oneLine(entry.handle, 20)} to learnings.jsonl as ${oneLine(rec.id, 20)} (kind rule, topic repo, source openwolf:cerebrum); run \`brain build\``);
     ctx.io.outBlock(W.fenceWolf('wolf-cerebrum', text).split('\n'));
   } catch (e) { spErrors(e); }
   return 0;

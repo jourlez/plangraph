@@ -44,7 +44,7 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 
 | # | question | cli bytes | cli est tok | grep bytes | grep est tok | file bytes | file est tok | reduction vs grep | vs files | correct |
 |--:|---|--:|--:|--:|--:|--:|--:|--:|--:|:-:|
-| 1 | Who owns T-700 and in which sprint? | 280 | 70 | 81 | 21 | 87372 | 21843 | 0.3x | 312x | yes |
+| 1 | Who owns T-700 and in which sprint? | 316 | 79 | 81 | 21 | 87372 | 21843 | 0.3x | 276x | yes |
 | 2 | What does T-700 directly need? | 325 | 82 | 773 | 194 | 694414 | 173604 | 2.4x | 2137x | yes |
 | 3 | What directly depends on T-20? | 537 | 135 | 2371 | 593 | 694414 | 173604 | 4.4x | 1293x | yes |
 | 4 | Is T-700 ready to start? | 500 | 125 | 3260 | 815 | 1037902 | 259476 | 6.5x | 2076x | yes |
@@ -57,25 +57,25 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 | 11 | Which tickets have a 'missing_ac' finding? | 2826 | 696 | 4042 | 1011 | 22189 | 5548 | 1.4x | 7.9x | yes |
 | 12 | Which tickets are not READY? | 1464 | 366 | 53814 | 13454 | 321297 | 80325 | 37x | 219x | yes |
 | 13 | Is the plan valid (counts, violations)? | 188 | 47 | 1325651 | 331413 | 1103241 | 275811 | 7051x | 5868x | yes |
-| 14 | Session start: what is the plan (size, last sprint)? | 341 | 86 | 1325481 | 331371 | 1103085 | 275772 | 3887x | 3235x | yes |
-| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 274 | 68 | 1663 | 416 | 2001657 | 500415 | 6.1x | 7305x | yes |
+| 14 | Session start: what is the plan (size, last sprint)? | 449 | 113 | 1325481 | 331371 | 1103085 | 275772 | 2952x | 2457x | yes |
+| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 310 | 77 | 1663 | 416 | 2001657 | 500415 | 5.4x | 6457x | yes |
 | 16 | How many tickets does T-20 unblock within 2 levels? | 569 | 143 | 2371 | 593 | 694414 | 173604 | 4.2x | 1220x | yes |
 | 17 | Which is the last planned sprint? | 188 | 47 | 114265 | 28567 | 87372 | 21843 | 608x | 465x | yes |
 | 18 | Load per person in the last sprint (53)? | 102 | 26 | 320 | 80 | 408670 | 102168 | 3.1x | 4007x | yes |
 | 19 | Who owns each producer of T-1200, and when? | 206 | 52 | 675 | 169 | 781787 | 195447 | 3.3x | 3795x | yes |
 | 20 | Critical chain behind T-700: how many hops? | 300 | 75 | 773 | 194 | 694414 | 173604 | 2.6x | 2315x | yes |
-| 21 | How many tickets need T-20 (direct)? | 252 | 63 | 2689 | 673 | 1103085 | 275772 | 11x | 4377x | yes |
+| 21 | How many tickets need T-20 (direct)? | 288 | 72 | 2689 | 673 | 1103085 | 275772 | 9.3x | 3830x | yes |
 | 22 | Is T-99999 in the plan? | 87 | 22 | 0 | 0 | 321297 | 80325 | 0.0x | 3693x | yes |
 | 23 | How many points in total is Ben planned? | 687 | 172 | 115888 | 28972 | 408670 | 102168 | 169x | 595x | yes |
 | 24 | Load per person in sprint 42? | 203 | 51 | 24083 | 6021 | 408670 | 102168 | 119x | 2013x | yes |
-| | **total (24 questions)** | **11432** | **2853** | **3593001** | **898259** | **14611133** | **3652796** | **314x** | **1278x** | **24/24** |
+| | **total (24 questions)** | **11648** | **2907** | **3593001** | **898259** | **14611133** | **3652796** | **308x** | **1254x** | **24/24** |
 
 | output (no ground-truth check) | bytes | est tok |
 |---|--:|--:|
-| card (session start, printed once per session) | 341 | 86 |
-| explain | 651 | 163 |
+| card (session start, printed once per session) | 449 | 113 |
+| explain | 736 | 184 |
 | explain whatif | 379 | 95 |
-| ticket T-1200 -v | 1074 | 269 |
+| ticket T-1200 -v | 1110 | 278 |
 
 Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, last sprint 53, 4 people; raw files: tickets.jsonl 321297 bytes ~80325 est tok, edges.jsonl 694414 bytes ~173604 est tok, schedule.jsonl 87372 bytes ~21843 est tok, evidence.jsonl 876381 bytes ~219096 est tok, findings.jsonl 22189 bytes ~5548 est tok, config.json 155 bytes ~39 est tok; plan text 4181129 bytes (not used by any question: no CLI command answers from it).
 <!-- BENCH:END -->
@@ -89,6 +89,9 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
   baseline is one round of a three-level question, a lower bound) and row 22 (grep prints nothing for a key that does not exist).
 - `brain stale` needs git refs and a Jira snapshot, so "what is stale" is NOT in this table.
 - Before Task 14 (same data, chars/4): 3274 est tok over the 24 answers, card 109; after: 2828 est tok (11330 bytes), card 86.
+- Fencing the data tokens (safety over tokens: card verdicts, findings and over-cap lists, the ticket line's status/verdict/owner group, each
+  inside one inline `<untrusted>` fence): card 86 -> 113 est tok, total over the 24 answers 2853 -> 2907 (+54, +1.9%), each one-line ticket
+  answer +9.
 
 ## Limits (honest)
 

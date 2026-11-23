@@ -1,14 +1,22 @@
 // The command registry: a Map from command name to a frozen spec. Lookup is Map.get only, never an object property, so a name such
 // as `constructor` or `__proto__` is never a command. The default registry holds every group of src/commands/ (registered at the end).
 import { GROUPS } from './commands/index.mjs';
-/** @typedef {Record<string, { type: string, short?: string, multiple?: boolean, min?: number, max?: number, missing?: string }>} Options */
+/** @typedef {Record<string, { type: string, short?: string, multiple?: boolean, min?: number, max?: number, missing?: string, writes?: readonly string[] }>} Options */
 /** @typedef {{ run(ctx: import('./context.mjs').Context, args: { values: Record<string, unknown>, positionals: string[] }): Promise<number|void>,
- *   options: Options, positionals: readonly number[], summary: string, writes?: 'text'|'index'|'file'|'none',
+ *   options: Options, positionals: readonly number[], summary: string, writes?: 'text'|'index'|'file'|'none', also?: readonly string[],
  *   guard?: 'none'|'soft'|'strict'|((values: Record<string, unknown>) => 'none'|'soft'|'strict') }} Command */
 
 const NAME = /^[a-z][a-z0-9-]{0,39}$/;
 // writes: text/index = brain data; file = no brain data, but output files on request (--out, card --write); none = read-only.
 const WRITES = new Set(['text', 'index', 'file', 'none']);
+// Writes outside the brain data that a class does not say: the merge-driver wiring (git config of the repository, its .gitattributes, the
+// shim in the plugin data dir). A command that always does them lists them in `also`; a flag that does them, in its option's `writes`.
+export const SIDE_WRITES = Object.freeze(['git-config', 'gitattributes', 'merge-shim']);
+/** @param {string} where @param {unknown} list @returns {readonly string[]} */
+const sideWrites = (where, list) => {
+  if (!Array.isArray(list) || !list.length || list.some((x) => !SIDE_WRITES.includes(x)) || new Set(list).size !== list.length) throw new TypeError(`${where}: writes must be a non-empty list of ${SIDE_WRITES.join(', ')}`);
+  return Object.freeze([...list]);
+};
 // Data-format guard (lib/store.mjs checkFormat) run by src/cli.mjs before the command when the brain dir exists:
 // 'none' skips it; 'soft' prints a NEEDS_MIGRATION note and runs; 'strict' (commands that write text) refuses on any format problem.
 // A TOO_NEW directory is refused by 'soft' and 'strict' alike. A function gets the parsed option values and returns one of the three.
@@ -27,7 +35,7 @@ export const lookup = (reg, name) => (typeof name === 'string' ? reg.get(name) :
 export function defineCommand(reg, name, spec) {
   if (typeof name !== 'string' || !NAME.test(name)) throw new TypeError('command name must be lowercase letters, digits and dashes');
   if (reg.has(name)) throw new TypeError(`command ${name} is already registered`);
-  const { run, options = {}, positionals, summary, writes = 'none', guard = 'soft' } = spec ?? {};
+  const { run, options = {}, positionals, summary, writes = 'none', guard = 'soft', also } = spec ?? {};
   if (typeof run !== 'function') throw new TypeError(`${name}: run must be a function`);
   if (typeof summary !== 'string' || !summary) throw new TypeError(`${name}: summary must be a non-empty string`);
   if (!WRITES.has(writes)) throw new TypeError(`${name}: writes must be text, index, file or none`);
@@ -37,9 +45,9 @@ export function defineCommand(reg, name, spec) {
   const opts = Object.create(null);
   for (const [k, o] of Object.entries(options)) {
     if (!OPTION_TYPES.has(o?.type)) throw new TypeError(`${name}: option type of --${k} must be string, boolean, integer or number`);
-    opts[k] = Object.freeze({ ...o });
+    opts[k] = Object.freeze({ ...o, ...(o.writes !== undefined ? { writes: sideWrites(`${name} --${k}`, o.writes) } : {}) });
   }
-  const cmd = Object.freeze({ run, options: Object.freeze(opts), positionals: Object.freeze([min, max]), summary, writes, guard });
+  const cmd = Object.freeze({ run, options: Object.freeze(opts), positionals: Object.freeze([min, max]), summary, writes, guard, ...(also !== undefined ? { also: sideWrites(name, also) } : {}) });
   reg.set(name, cmd);
   return cmd;
 }

@@ -60,17 +60,17 @@ export function makeCollector({ maxStored = MAX_STORED, strict = false } = {}) {
   };
 }
 
-/** The text to print for collected output, or '' when there is none. --json: the v2 envelope, with the command's structured data when
- * it gave one (printed even when the text is empty), else { lines }. */
+/** The text to print for collected output, or '' when there is none. --json: ALWAYS the v2 envelope (docs/CONTRACT.md: on any command),
+ * with the command's structured data when it gave one, else { lines } (an empty list when the command printed nothing or failed first). */
 /** @param {ReturnType<typeof makeCollector>} col @param {{ name: string | undefined, code: number, json?: unknown, verbose?: unknown, fresh?: unknown }} opts */
 export function render(col, { name, code, json = false, verbose = false, fresh = null }) {
   // guardOutput (lib/sanitize.mjs) over all collected lines at once (a fence may span several out() calls): a fence tag that is not part
   // of one of our own fences is neutralized here, whatever the command printed.
   const text = clean(guardOutput(col.lines.join('\n'))), st = col.structured;
   if (json && st) return envelope(name, st.data, { ok: code === 0, exit: code, fresh, next: st.next });
-  if (!text) return '';
-  const all = text.split('\n');
+  const all = text ? text.split('\n') : [];
   if (json) return envelope(name, { lines: col.dropped ? [...all, `... ${col.dropped} more`] : all }, { ok: code === 0, exit: code, fresh });
+  if (!text) return '';
   const total = all.length + col.dropped, limit = verbose ? Math.min(all.length, MAX_STORED) : OUTPUT_LIMIT;
   return total <= limit ? all.join('\n') : [...all.slice(0, limit), `... ${total - limit} more`].join('\n');
 }
@@ -115,6 +115,8 @@ export async function main(argv, { registry = defaultRegistry, makeContext = def
   const hook = name === 'card' && rest.includes('--if-present');
   const col = makeCollector({ strict: strictOutput(env) });
   let values = Object.create(null), code, shown, command;
+  // --json seen on the command line: an error before or during option parsing still prints the envelope (cmd: a registered name or null)
+  const cmdName = lookup(registry, name) ? name : undefined, jsonAsked = () => (values.json === undefined ? rest.includes('--json') : Boolean(values.json));
   try {
     const cmd = lookup(registry, name);
     if (!cmd) {
@@ -138,12 +140,12 @@ export async function main(argv, { registry = defaultRegistry, makeContext = def
     if (hook) return EXIT.OK;
     code = exitCodeOf(e);
     if (e instanceof FormatError) e.message = relDir(shown, e.message); // migrate, doctor: lib format errors thrown by the command itself
-    const out = render(col, { name, code, json: values.json, verbose: values.verbose, fresh: freshOf(shown) });
+    const out = render(col, { name: cmdName, code, json: jsonAsked(), verbose: values.verbose, fresh: freshOf(shown) });
     if (out) io.out(out);
     for (const l of errorLines(e, { command, root: shown?.root })) io.err(l);
     return code;
   }
-  const out = render(col, { name, code, json: values.json, verbose: values.verbose, fresh: freshOf(shown) });
+  const out = render(col, { name: cmdName, code, json: values.json, verbose: values.verbose, fresh: freshOf(shown) });
   if (out) io.out(out);
   return code;
 }
