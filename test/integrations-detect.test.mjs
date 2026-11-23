@@ -463,7 +463,7 @@ test('hostile file names: *.original.md, a .jsonl with a conflict marker, one-li
   assert.match(markLines[0], /:1 \(GitKraken Desktop may ignore/);
   assert.ok(strayLines[0].length < 260 && markLines[0].length < 260);
   // every output line is a known shape: nothing was forged by the file names
-  for (const l of r.stdout.split('\n')) assert.match(l, /^(data format|merge driver|node |solver runtime|warning: (unresolved|stray)|$)/, JSON.stringify(l));
+  for (const l of r.stdout.split('\n')) assert.match(l, /^(data format|merge driver|node |solver runtime|jira: |warning: (unresolved|stray)|$)/, JSON.stringify(l));
 });
 
 test('doctor: stray *.original.md files are listed (root, docs, .claude; at most 5)', () => {

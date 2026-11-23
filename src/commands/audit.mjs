@@ -62,7 +62,11 @@ async function refsUpdate(ctx, args) {
 async function jiraClient(ctx) {
   const J = await import('../../lib/jira.mjs'), cfg = ctx.config().jira || {}, env = ctx.env;
   try {
-    const creds = await J.getCredentials({ env });
+    const T = await import('../jira-tenant.mjs'), tenant = T.tenantOf(cfg, env), mode = cfg.auth?.mode || 'scoped';
+    const pinned = tenant !== '' && J.siteHostsFromEnv(env).includes(tenant.split(':')[0]);
+    const creds = tenant
+      ? await J.getCredentialsFor(tenant, { env, registry: T.loadRegistry(env).reg, allowGeneric: mode !== 'site-token' || pinned })
+      : await J.getCredentials({ env });
     return { J, cfg, client: J.makeClient({ baseConfig: { auth: cfg.auth, cloudId: cfg.cloud_id, baseUrl: env.JIRA_BASE_URL || cfg.base_url }, creds, dcHosts: J.dcHostsFromEnv(env), siteHosts: J.siteHostsFromEnv(env), now: ctx.now }) };
   } catch (e) { return jiraErrors(e); }
 }

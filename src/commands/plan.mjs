@@ -11,6 +11,8 @@ import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABL
 import { checkRepoPath } from '../../lib/gitsafe.mjs';
 import { NODE_FLOOR, nodeSupported } from '../floor.mjs';
 import { claudeSnippet } from '../../lib/steer.mjs';
+import { tenantOf, loadRegistry } from '../jira-tenant.mjs';
+import { siteTag } from '../../lib/jira.mjs';
 import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
@@ -266,8 +268,31 @@ async function doctor(ctx, args) {
   out(`node ${process.version}: ${nodeOk ? 'ok' : `too old (needs >= ${NODE_FLOOR})`}`); if (!nodeOk) bad++;
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8', timeout: 10000 });
   out(`solver runtime: ${uv.status === 0 ? 'uv found (brain-solve-run will use it)' : 'uv not found (brain-solve-run falls back to a python3.10-3.14 venv)'}`);
+  doctorJira(ctx);
   await doctorWarnings(ctx);
   return bad ? 1 : 0;
+}
+// Jira status line, info only (never changes the exit code, no network, no process, no secret read or printed): says whether `brain jira-pull`
+// is set up, so nobody has to guess. The Atlassian connector (MCP) is separate: `brain` never uses it, `brain integrations` cannot see it.
+/** @param {Ctx} ctx */
+function doctorJira(ctx) {
+  const out = ctx.io.out, env = ctx.env || {};
+  /** @type {any} */ let j = {}; try { j = ctx.config().jira || {}; } catch { /* a bad config is reported by the data checks */ }
+  const set = (/** @type {string} */ k) => String(env[k] || '').trim() !== '';
+  const mode = j.auth?.mode || 'scoped';
+  if (!j.jql && !j.cloud_id && !j.base_url) { out('jira: not configured (config.json "jira" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it'); return; }
+  const tenant = tenantOf(j, env), reg = loadRegistry(env), e = tenant && Object.hasOwn(reg.reg, tenant) ? reg.reg[tenant] : null;
+  const tag = tenant ? siteTag(tenant) : '';
+  const pinned = tenant !== '' && String(env.BRAIN_JIRA_SITES || '').toLowerCase().split(',').map((x) => x.trim()).includes(tenant.split(':')[0]);
+  /** @type {string} */ let cred;
+  if (!tenant) cred = 'tenant unknown (base_url or cloud_id missing)';
+  else if (e) cred = `bound by registry (${e.token_env ? `${e.token_env} ${set(e.token_env) ? 'set' : 'MISSING'}` : e.op_ref ? 'op ref' : 'keychain'})`;
+  else if (set(`JIRA_API_TOKEN__${tag}`) || set(`JIRA_OP_REF__${tag}`)) cred = `bound by env JIRA_*__${tag}`;
+  else if (mode !== 'site-token' || pinned) cred = set('JIRA_EMAIL') && set('JIRA_API_TOKEN') ? 'generic env JIRA_EMAIL + JIRA_API_TOKEN set' : set('JIRA_OP_REF') ? 'generic env JIRA_OP_REF set' : 'no credentials in env (OS keychain not checked)';
+  else cred = `NO credential bound to ${tenant}: add it to ${reg.file} or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}`;
+  out(`jira: ${mode}, tenant ${tenant || '?'}, jql ${j.jql ? 'set' : 'missing'}, ${cred}`);
+  if (tenant) out(`jira connector: use the Atlassian connector only if getAccessibleAtlassianResources lists ${tenant === (j.cloud_id || '').toLowerCase() ? `cloud id ${tenant}` : tenant}; otherwise use \`brain jira-pull\` (read-only) and make no Jira write`);
+  for (const p of reg.problems) out(`warning: ${oneLine(p, 160)} (${reg.file})`);
 }
 // The index is derived and machine-local (init writes `*.sqlite` and its sidecar patterns to the brain dir's .gitignore): a committed one goes stale for everyone
 // else and can be tampered with in a commit. Returns its repo-relative path when git tracks it, else '' (also outside a git repository).

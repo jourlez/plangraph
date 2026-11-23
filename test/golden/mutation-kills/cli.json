@@ -534,14 +534,14 @@
   "doctor": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X"
+    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it"
    ],
    "err": []
   },
   "doctor -v": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X"
+    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it"
    ],
    "err": []
   },
@@ -2053,7 +2053,7 @@
   "doctor --fix": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X"
+    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it"
    ],
    "err": [],
    "changed": {},
