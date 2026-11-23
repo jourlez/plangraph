@@ -80,7 +80,7 @@ const EVIL = [
   'https://acme.atlassian.net.evil.com', 'https://api.atlassian.com.evil.com', 'https://a.b.atlassian.net', 'https://user:pw@acme.atlassian.net',
   'https://api.atlassian.com@evil.com', 'https://api.atlassian.com.@evil.com', 'https://acme.atlassian.net:8443', 'https://api.atlassian.com:8443',
   'https://acme.atlassian.net./', 'https://api.atlassian.com.', 'https://127.0.0.1', 'https://[::1]', 'https://localhost', 'https://2130706433',
-  'https://0x7f.1', 'https://\u0430cme.atlassian.net', 'https://\uff41pi.atlassian.com', 'https://xn--acme-abc.atlassian.net', 'https://acme.atlassian.net%2eevil.com',
+  'https://0x7f.1', 'https://\u0430cme.atlassian.net', 'https://\uff41pi.atlassian.com', 'https://xn--acme-abc.atlassian.net', 'https://xn--80ak6aa92e.atlassian.net', 'https://XN--80AK6AA92E.atlassian.net', 'https://acme.atlassian.net%2eevil.com',
   'https://acme.atlassian.net\\@evil.com', 'https://evil.com#@acme.atlassian.net', 'https://evil.com/.atlassian.net', 'https://acme.atlassian.net/rest',
   'https://api.atlassian.com/ex/jira/x', 'https://acme.atlassian.net?x=1', 'https://acme.atlassian.net#frag', 'ftp://acme.atlassian.net', '//acme.atlassian.net',
   'acme.atlassian.net', '', ' https://acme.atlassian.net', 'https://acme.atlassian.net\n', 'https://-acme.atlassian.net', 'https://acme_x.atlassian.net',
