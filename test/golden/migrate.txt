@@ -1,0 +1,5 @@
+$ brain migrate
+exit: 0
+--- stdout
+up to date
+--- stderr

@@ -1,0 +1,6 @@
+$ brain learn
+exit: 2
+--- stdout
+--- stderr
+error: usage: brain learn --from-wolf <handle|"text">
+try: brain explain learn

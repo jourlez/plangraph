@@ -1,0 +1,43 @@
+$ brain init
+exit: 0
+--- stdout
+initialised .brain: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`
+--- stderr
+--- file .brain/config.json
+{
+  "_doc": "Constraints for brain-solve and brain check. Capacity is points per person per sprint.",
+  "first_sprint": 1,
+  "end_sprint": 12,
+  "caps": {
+    "default": 40
+  },
+  "min_per_sprint": {},
+  "minimize_load_of": "",
+  "default_ref": "HEAD",
+  "brain_rules_version": 1,
+  "closed_statuses": [
+    "Done"
+  ],
+  "frozen_statuses": [
+    "Done"
+  ],
+  "ignore_link_kinds": [],
+  "time_limit_seconds": 300,
+  "workers": 8,
+  "stage_order": [
+    "end_sprint",
+    "shortfall",
+    "load_of",
+    "peak_load",
+    "owner_changes"
+  ],
+  "ref_heading": "^#{2,3} Task {id}:",
+  "jira": {
+    "base_url": "",
+    "jql": ""
+  }
+}
+--- file .brain/.gitignore
+*.sqlite
+--- file .brain/format.json
+{"format_version":1,"min_reader":1}

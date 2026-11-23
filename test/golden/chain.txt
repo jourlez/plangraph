@@ -1,0 +1,9 @@
+$ brain chain T-30
+exit: 0
+--- stdout
+longest chain behind T-30: 3 hops, 2 handoffs, 1 critical path
+  T-1 S1 Ana
+  T-7 S2 Cleo
+  T-8 S2 Cleo
+  T-30 S3 Ana
+--- stderr

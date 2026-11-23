@@ -1,0 +1,11 @@
+$ brain ready T-3
+exit: 1
+--- stdout
+NOT READY T-3
+- readiness verdict is BLOCKED
+- open item [plan_text]
+<untrusted src="ready:T-3" n="0bb1fc11" len="38">
+[plan_text] step needs a missing thing
+</untrusted>
+(statuses as of the last build: pass --jira snapshot.json for live ones)
+--- stderr

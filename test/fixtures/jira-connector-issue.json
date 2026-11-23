@@ -1,0 +1,44 @@
+{
+  "issues": {
+    "nodes": [
+      {
+        "expand": "renderedFields,names,schema,operations",
+        "id": "900001",
+        "key": "DEMO-1",
+        "webUrl": "https://demo.example.invalid/browse/DEMO-1",
+        "fields": {
+          "summary": "Build the demo widget",
+          "status": { "name": "In Progress", "id": "3", "statusCategory": { "key": "indeterminate", "name": "In Progress" } },
+          "assignee": {
+            "displayName": "Demo Person",
+            "emailAddress": "demo.person@example.invalid",
+            "avatarUrls": { "48x48": "https://avatar.example.invalid/48.png" },
+            "accountId": "acct-demo-0001"
+          },
+          "updated": "2026-11-20T10:00:00.000+0000",
+          "issuelinks": [
+            {
+              "type": { "name": "Blocks", "inward": "is blocked by", "outward": "blocks" },
+              "inwardIssue": { "key": "DEMO-2", "fields": { "summary": "FAR-SIDE-SUMMARY-ONE", "status": { "name": "To Do" }, "priority": { "name": "FAR-PRIORITY-HIGH" }, "issuetype": { "name": "Task" } } }
+            },
+            {
+              "type": { "name": "Blocks", "inward": "is blocked by", "outward": "blocks" },
+              "outwardIssue": { "key": "DEMO-3", "fields": { "summary": "FAR-SIDE-SUMMARY-TWO", "status": { "name": "To Do" }, "priority": { "name": "Low" }, "issuetype": { "name": "Story" } } }
+            }
+          ],
+          "customFields": {
+            "Sprint": {
+              "id": "customfield_90020",
+              "value": [
+                { "id": 52, "name": "Demo Sprint Beta", "state": "active", "boardId": 7, "goal": "SPRINT-GOAL-TEXT", "startDate": "2026-11-16T09:00:00.000Z", "endDate": "2026-11-30T17:00:00.000Z" },
+                { "id": 51, "name": "Demo Sprint Alpha", "state": "closed", "boardId": 7, "goal": "", "startDate": "2026-11-02T09:00:00.000Z", "endDate": "2026-11-16T09:00:00.000Z" }
+              ]
+            },
+            "Story Points": { "id": "customfield_90016", "value": 5 },
+            "Epic Link": { "id": "customfield_90014", "value": "DEMO-9" }
+          }
+        }
+      }
+    ]
+  }
+}

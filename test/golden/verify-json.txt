@@ -1,0 +1,5 @@
+$ brain verify --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"verify","ok":true,"exit":0,"data":{"ok":true,"tickets":40,"violations":[],"total":0},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+--- stderr

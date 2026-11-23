@@ -1,0 +1,37 @@
+{
+  "name": "project-brain",
+  "version": "0.1.0",
+  "description": "Planning memory for AI coding agents: a dependency graph in git text, safe reassignment, provable schedules, token-minimal answers.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.2"
+  },
+  "bin": {
+    "brain": "bin/brain",
+    "brain-merge": "bin/brain-merge"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "smoke": "bash test/smoke.sh",
+    "bench": "node test/bench-tokens.mjs",
+    "validate": "node test/validate-plugin.mjs",
+    "mutate": "node scripts/mutate.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "lint": "biome lint ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jourlez/OpenBrain.git"
+  },
+  "homepage": "https://github.com/jourlez/OpenBrain",
+  "bugs": {
+    "url": "https://github.com/jourlez/OpenBrain/issues"
+  }
+}

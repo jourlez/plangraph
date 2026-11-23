@@ -1,0 +1,7 @@
+$ brain findings external
+exit: 0
+--- stdout
+<untrusted src="findings:external" n="2252e9ce" len="27">
+T-5: needs an outside login
+</untrusted>
+--- stderr

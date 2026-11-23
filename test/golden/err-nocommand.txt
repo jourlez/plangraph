@@ -1,0 +1,6 @@
+$ brain 
+exit: 2
+--- stdout
+--- stderr
+error: no command
+try: brain explain

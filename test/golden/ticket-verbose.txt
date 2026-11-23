@@ -1,0 +1,13 @@
+$ brain ticket T-5 -v
+exit: 0
+--- stdout
+T-5 | 5 SP | Jira To Do | verdict READY (audit) | plan S1 Ana
+needs: nothing
+needed by: 3 tickets
+<untrusted src="ticket:T-5" n="ff27bef2" len="119">
+summary: ticket 5
+finding [external]: needs an outside login
+finding [plan_text]: second issue
+evidence [audit] READY:
+</untrusted>
+--- stderr

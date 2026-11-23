@@ -1,0 +1,7 @@
+$ brain jira-import nope.json --out snap.jsonl
+exit: 2
+--- stdout
+--- stderr
+error: cannot read issue file nope.json
+hint: check the path
+try: brain explain jira-import

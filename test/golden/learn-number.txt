@@ -1,0 +1,6 @@
+$ brain learn --from-wolf 3
+exit: 2
+--- stdout
+--- stderr
+error: a position number is not accepted (positions shift): use the handle from `brain rules --repo` or the exact text
+try: brain explain learn

@@ -1,0 +1,6 @@
+$ brain jira-import
+exit: 2
+--- stdout
+--- stderr
+error: usage: brain jira-import FILE... --out snapshot.jsonl
+try: brain explain jira-import

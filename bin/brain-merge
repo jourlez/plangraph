@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// git merge driver for the brain JSONL files: brain-merge %O %A %B %P  (base, ours = result, theirs, repo path).
+// Writes the merged text to %A. Exit 0 = clean; 1 = conflicts (markers left in the file, keys listed on stderr); 2 = unreadable input.
+import fs from 'node:fs';
+import path from 'node:path';
+import { mergeJsonl } from '../lib/merge.mjs';
+import { schemaFor, writeAtomic } from '../lib/store.mjs';
+import { oneLine } from '../lib/sanitize.mjs';
+
+const [, , O, A, B, P] = process.argv;
+if (!O || !A || !B) { process.stderr.write('usage: brain-merge BASE OURS THEIRS [PATH]\n'); process.exit(2); }
+const rd = (f) => fs.readFileSync(f, 'utf8');
+try {
+  const name = P || A;
+  const { text, conflicts } = mergeJsonl({ base: rd(O), ours: rd(A), theirs: rd(B) }, schemaFor(name), { name: path.basename(name) });
+  writeAtomic(A, text);
+  if (conflicts.length) {
+    // keys, the path and details come from the merged data and git: one sanitized line each (no escape sequence, no forged line)
+    process.stderr.write(`brain-merge: ${conflicts.length} conflict(s) in ${oneLine(name, 200)}; resolve the marked lines, then git add:\n` + conflicts.slice(0, 20).map((c) => `  ${oneLine(c.key, 200)}: ${oneLine(c.detail, 200)}`).join('\n') + (conflicts.length > 20 ? `\n  ... ${conflicts.length - 20} more` : '') + '\n');
+    process.exit(1);
+  }
+  // a clean text merge of the plan's placement or links can still break a rule (a handoff, a capacity): say so, by fixed name only
+  const plan = ['schedule.jsonl', 'edges.jsonl'].find((f) => path.basename(name) === f);
+  if (plan) process.stderr.write(`brain-merge: ${plan} merged cleanly, but a text merge can still break a handoff or capacity rule: run \`brain build\` then \`brain check\`\n`);
+} catch (e) {
+  process.stderr.write(`brain-merge: ${oneLine(e?.message, 300)}\n`);
+  process.exit(2);
+}

@@ -1,0 +1,5 @@
+$ brain card --line
+exit: 0
+--- stdout
+brain: 40 tickets, last sprint 5, 0 violations @b6280500
+--- stderr

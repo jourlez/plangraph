@@ -1,0 +1,9 @@
+$ brain ready T-8
+exit: 1
+--- stdout
+NOT READY T-8
+- waits for T-2 (To Do, planned S1 Cleo)
+- waits for T-6 (To Do, planned S1 Ana)
+- waits for T-7 (To Do, planned S2 Cleo)
+(statuses as of the last build: pass --jira snapshot.json for live ones)
+--- stderr

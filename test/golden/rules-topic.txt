@@ -1,0 +1,8 @@
+$ brain rules loops
+exit: 0
+--- stdout
+<untrusted src="rules:loops" n="de6e2e9d" len="355">
+L06 [rule] A loop between tickets is almost never a real two-way need: read both plan tasks and classify (wrong direction, verify-only, false claim, split, step in wrong ticket). Run a cycle and self-link check on every new link set before solving.
+   why: Of 17 + 13 loops read, 0 were real two-way; 13 of 44 new links formed loops and 9 were self-links.
+</untrusted>
+--- stderr

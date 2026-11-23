@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+// brain: planning memory for AI coding agents. The commands live in src/commands/ behind the registry (src/registry.mjs); src/cli.mjs
+// parses, runs and prints. `brain explain` lists them (generated from the registry).
+// This file stays parseable on any old Node: it checks the floor first and only then loads the CLI (which uses current syntax).
+// Too-old Node: exit 3 with the message and a try line, or 0 and silent with --if-present; `card --if-present` is also silent with exit 0 on any failure in src/cli.mjs.
+import { nodeSupported, floorMessage, floorTry } from '../src/floor.mjs';
+
+if (!nodeSupported(process.versions.node)) {
+  const quiet = process.argv.includes('--if-present');
+  if (!quiet) process.stderr.write(`${floorMessage(process.version)}\n${floorTry}\n`);
+  process.exitCode = quiet ? 0 : 3;
+} else {
+  const { main } = await import('../src/cli.mjs');
+  process.exitCode = await main(process.argv.slice(2), { env: process.env, cwd: process.cwd(), io: { out: (l) => process.stdout.write(`${l}\n`), err: (l) => process.stderr.write(`${l}\n`) } });
+}

@@ -1,0 +1,11 @@
+.brain/*.sqlite
+node_modules/
+__pycache__/
+*.sqlite
+*.tmp-*
+.superpowers/
+
+# generated eval output (evals/run.mjs --emit-native and results); cases/ and fixtures/ are committed
+evals/t[0-9][0-9]-*/
+evals/trig-*/
+evals/results/

@@ -1,0 +1,13 @@
+$ brain rules
+exit: 0
+--- stdout
+agents: 4
+input: 1
+links: 1
+loops: 1
+replan: 1
+reporting: 1
+solver: 3
+store: 1
+verification: 3
+--- stderr

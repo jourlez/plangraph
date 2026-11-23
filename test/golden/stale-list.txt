@@ -1,0 +1,26 @@
+$ brain stale --ref HEAD --list
+exit: 0
+--- stdout
+stale vs HEAD (dc21bd5): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
+T-1: plan,files
+T-13: producer_changed via T-7
+T-16: producer_changed via T-8
+T-17: producer_changed via T-8
+T-19: producer_changed via T-7
+T-21: producer_changed via T-17
+T-23: producer_changed via T-16
+T-27: producer_changed via T-1
+T-28: producer_changed via T-27
+T-29: producer_changed via T-16
+T-30: producer_changed via T-7
+T-31: producer_changed via T-1
+T-33: producer_changed via T-21
+T-34: producer_changed via T-7
+T-36: producer_changed via T-1
+T-37: producer_changed via T-1
+T-38: producer_changed via T-28
+T-39: producer_changed via T-13
+T-40: producer_changed via T-19
+T-7: producer_changed via T-1
+T-8: producer_changed via T-7
+--- stderr

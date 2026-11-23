@@ -1,0 +1,6 @@
+$ brain neighbors T-12 2
+exit: 0
+--- stdout
+T-12 needs (0):
+T-12 is needed by (4): T-30 S3/Ana, T-31 S4/Cleo, T-39 S4/Cleo, T-40 S4/Cleo
+--- stderr

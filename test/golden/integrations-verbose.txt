@@ -1,0 +1,28 @@
+$ brain integrations -v
+exit: 0
+--- stdout
+superpowers: absent
+  note: unreadable
+openwolf: rules only (hooks not registered)
+  evidence: .wolf/ is a directory
+  note: no .wolf/hooks/session-start.js
+  note: no hook registered in any settings file
+caveman: absent
+  note: unreadable
+context7: absent
+  note: unreadable
+gitkraken: absent
+  note: unreadable
+connector hints (connectors cannot be detected from a shell; match these against your own tool list):
+  atlassian: mcp__*Atlassian*__getJiraIssue (read one Jira issue)
+  atlassian: mcp__*Atlassian*__searchJiraIssuesUsingJql (search Jira issues by JQL (delta import))
+  slack: mcp__*Slack*__slack_send_message_draft (draft a message for a person to send)
+  meetings: mcp__*Meetings*__get_meeting_action_items (read meeting action items)
+  google-drive: mcp__*Google_Drive*__read_file_content (read a spec or plan document)
+  claude-docs: mcp__*Claude_Docs*__create (create an editable living document)
+  artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))
+always-on token budget, measured 2026-11-22 on one machine, not a live measurement:
+  openwolf 1067
+  brain card 185
+  total 1252
+--- stderr

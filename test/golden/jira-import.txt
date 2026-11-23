@@ -1,0 +1,8 @@
+$ brain jira-import issue.json --out snap.jsonl
+exit: 0
+--- stdout
+imported 1 issue(s) from 1 file(s) (changed 1, dropped 0); snapshot now 1 issues, partial
+--- stderr
+--- file snap.jsonl
+{"schema":1,"meta":{"source":"import","imported_at":"<TS>","received_count":1,"complete":false,"pull":"import","content_hash":"f602edf9c7e95c75a1599faa376ed1d8539456ba07aaacd81d92f35c5c0b6dd4"}}
+{"key":"DEMO-1","summary":"Build the demo widget","status":"In Progress","assignee":"Demo Person","updated":"2026-11-20T10:00:00.000+0000","resolutiondate":"","issuelinks":[{"key":"DEMO-2","type":"Blocks","dir":"in","rel":"is blocked by"},{"key":"DEMO-3","type":"Blocks","dir":"out","rel":"blocks"}],"sprint":[{"id":51,"name":"Demo Sprint Alpha","state":"closed"},{"id":52,"name":"Demo Sprint Beta","state":"active"}]}

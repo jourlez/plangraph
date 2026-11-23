@@ -1,0 +1,156 @@
+# Integrations: detecting companion tools
+
+`brain integrations` and `brain doctor` report which companion tools are present. Detection reads files only: it never starts a process (the `openwolf` binary is never run), never uses the network, and never reads outside the project root, `~/.claude`, `~/.openwolf`, and (existence check only) `~/Library/Caches/GitKrakenCLI`. JSON files are read through a 1 MiB capped regular-file reader and parsed tolerantly; anything unreadable gives state `absent` plus the note `unreadable`. A missing `installed_plugins.json` gets the same note (the file is simply not there). Detection never throws.
+
+Source: `lib/integrations/detect.mjs`, `detectTools({ root, home, env, fsImpl, names })` (`names` is a test-only seam, default the five tools; an unknown name is looked up as a plain plugin). All environment input comes from the arguments, so tests use a temp project and a fake home. JSON is always read from real paths through the capped reader; `fsImpl` covers existence and stat checks only.
+
+## What each tool is detected from
+
+| Tool | States | Evidence |
+|---|---|---|
+| superpowers | `absent`, `installed`, `enabled` | `~/.claude/plugins/installed_plugins.json` (`plugins["name@marketplace"][]`, version 2 shape); `enabledPlugins` in project `.claude/settings.local.json`, project `.claude/settings.json`, user `~/.claude/settings.json` |
+| caveman, context7, gitkraken | `absent`, `installed`, `enabled` | the same registry and settings (plugin names `caveman`, `context7`, `gitkraken-hooks`) |
+| openwolf | `absent`, `protocol-only`, `active`, `disabled` | see below |
+
+Name matching is on the part before the `@`, because the marketplace suffix varies (the project may enable `superpowers@one-marketplace` while `superpowers@another-marketplace` is installed). All matched keys are listed in the evidence. The version comes from a registry entry that counts for this project, preferring the one with `scope: "user"`, else the first with a version.
+
+Which registry entries count: `user`-scope entries always do. `project`- and `local`-scope entries carry a `projectPath` and count only when it (realpath-normalized) equals the project root (realpath-normalized); an entry for another directory, or one without `projectPath`, neither makes the plugin `installed` nor supplies its version here. A plugin with only other-project entries is `absent`.
+
+Untrusted names: plugin keys, versions, settings keys and the settings file name come from files other tools or repos control. A plugin key is accepted only if it matches `^[A-Za-z0-9][\w.@-]{0,99}$` and a version only if it matches `^[\w.+-]{1,64}$`. Anything else is skipped (a bad key is ignored whole, a bad version is dropped) and counted into the note `ignored N entries with unsafe names`; the bad value is never echoed. Every remaining file-derived string that enters evidence, notes or printed output passes through `oneLine` (`lib/sanitize.mjs`: sanitize, collapse all whitespace to one space, replace `<` and `>` with `?`, cap with a visible marker), so no file can add output lines or forge a `</untrusted>` tag. A plugin enabled in settings but not installed is reported `absent` with the note `enabled in settings but not installed`; one explicitly set to `false` stays `installed` with the note `disabled in settings`. For enabled-ness, the first settings layer (local, project, user) that mentions the plugin decides, and one `true` key in that layer is enough.
+
+Caveman adds a note when `~/.claude/.caveman-active` exists. That file is global (one per config directory, shared by concurrent sessions), so it is a hint, not per-session truth. Gitkraken, when installed, adds the privacy note below.
+
+### The four OpenWolf states
+
+Per `docs/research/integrations/openwolf.md` section 4 (checks P1 to P4):
+
+- `absent`: no `.wolf/` directory in the project root.
+- `disabled`: `.wolf/` exists and `.wolf/config.json` has `openwolf.enabled === false`. This wins over every other state.
+- `active`: `.wolf/` exists, `.wolf/hooks/session-start.js` exists, and one of the settings files contains the text `/.wolf/hooks/session-start.js`. The files searched are the project and user settings listed above plus the file named by `openwolf.claude.settings_file` in the config (only if it resolves inside the project root).
+- `protocol-only`: `.wolf/` exists but the hook script or its registration (or both) is missing. The rules text is present, but no OpenWolf code runs. The human-readable line is `rules only: its hooks are not registered`, and `brain doctor` reports it as a warning.
+
+`~/.openwolf/registry.json` and `.wolf/hooks/runtime.json` (`version`) are recorded as evidence only. Decisions made where the sources disagree:
+
+- The research report says the disabled flag lives in `config.json` (`openwolf.enabled`); `runtime.json` only carries a version. The task brief mentioned a `runtime.json` disabled flag. Detection follows the research (the more conservative reading) and does not treat `runtime.json` as a disabled marker.
+- The research also lists a `degraded` state (hooks active but the heartbeat file shows failures, check P5). It is not implemented: the interface has four states and the heartbeat is not read.
+- The registry is user-level and entries go stale, so it never decides a project's state.
+
+## Why connectors are not detectable from a shell
+
+Hosted connectors (Atlassian, Slack, Meetings, Google Drive, Claude Docs) and the Artifact tool exist only as tools in an agent's session. They leave nothing on disk. The server segment of the tool name also varies between products (for example `Atlassian_MCP` versus `Atlassian`). So `brain integrations -v` prints name-glob hints instead of a verdict. A skill embeds them and checks its own tool list, matching on the suffix:
+
+| Connector | Glob |
+|---|---|
+| atlassian | `mcp__*Atlassian*__getJiraIssue`, `mcp__*Atlassian*__searchJiraIssuesUsingJql` |
+| slack | `mcp__*Slack*__slack_send_message_draft` |
+| meetings | `mcp__*Meetings*__get_meeting_action_items` |
+| google-drive | `mcp__*Google_Drive*__read_file_content` |
+| claude-docs | `mcp__*Claude_Docs*__create` |
+| artifacts | a tool named `Artifact` (not an MCP server) |
+
+These are copied from `docs/research/integrations/other-tools.md` sections 4 and 5. The context7 glob in that report (`mcp__*context7*__query-docs`) belongs to its section 2 and is not included.
+
+## Token budget
+
+`budget` is a static table of always-on injections at session start, in tokens (bytes divided by 4, rounded up). It lists the brain card plus only the tools that actually cost tokens: a plugin counts only when its state is `enabled` (installed but not enabled costs nothing), and openwolf counts when its state is not `absent` (its cost arrives through the CLAUDE.md `@.wolf/OPENWOLF.md` import, not through hooks), and `-v` labels it `measured 2026-11-22 on one machine`. It is not a live measurement and will differ on other machines, versions and projects.
+
+| Item | Tokens | Provenance |
+|---|---|---|
+| superpowers | 871 | SessionStart hook output, 3,484 bytes |
+| openwolf | 1067 | `CLAUDE.md` import of `.wolf/OPENWOLF.md` plus the rules file, 4,267 bytes; counted for any state other than `absent`, since the import is plain text and not a hook |
+| caveman | 936 | SessionStart hook output, no statusLine |
+| context7 | 175 | MCP server instructions, approximate (about 700 bytes) |
+| gitkraken | 0 | no injection |
+| brain card | 185 | the plan-graph card on one project; always counted |
+
+Source: `other-tools.md` section 6, "Token stacking". Skill-list descriptions and other MCP server instructions are not isolated and are not in the table.
+
+## Privacy note: gitkraken
+
+When the gitkraken-hooks plugin is installed, research found that it logs every prompt and tool result to `~/Library/Caches/GitKrakenCLI/sessions`, and that its permission hook can wait up to 24 hours when the desktop app is not running. Neither is verified by brain: detection only checks that the cache directory exists and never lists or reads it. Keep ticket text and any customer data in mind when that plugin is installed. `brain doctor` prints the note when the plugin is installed.
+
+## Doctor additions
+
+Warnings only; they never change the exit code. Every file name printed goes through `oneLine`. The scans are bounded and never follow symlinks (`lstat`).
+
+- JSONL files in the brain directory with an unresolved conflict marker line (`<<<<<<<`, `=======`, `>>>>>>>`), reported as `file:line`, first 5 shown. GitKraken Desktop may ignore the merge driver. The scan reads at most 20 `.jsonl` files and 64 MiB in total, skips symlinks and non-regular files, and reports a file that does not fit the remaining budget as `skipped (too large): <name>` (files past the 20th are reported as `not scanned`).
+- Stray `*.original.md` files left by caveman-compress, searched shallowly in the repo root, `docs/` and `.claude/` only (symlinks are not counted), first 5 shown.
+- The installed superpowers version, the gitkraken privacy note when installed, and OpenWolf `protocol-only`.
+
+## Merge driver wiring
+
+`brain init` and `brain doctor --fix` install the git merge driver for `.brain/*.jsonl` through a stable shim in the data directory (`$CLAUDE_PLUGIN_DATA`, else `~/.cache/project-brain`), not through the plugin install path, which changes on every plugin update. The shim reads the current `bin/brain-merge` path from `driver.target`, so an update only needs `driver.target` rewritten. The session hook runs `brain card --if-present --heal`, which does this repair silently (no output, exit 0, never throws) when the brain directory is inside a git work tree and `doctor` would report a driver problem; a healthy setup is not rewritten, and a failed repair is swallowed there but reported by `brain doctor` as `merge driver not installed: <reason>`. Trust model: whoever can write the data directory runs code as you at the next merge, so the directory and its `bin/` are created 0700 and are refused (never chmodded) when they are a symlink, are not owned by you, or are group or world writable. Only the last two path components are checked, and a swap between check and write is not prevented. Not verified here: a real Claude Code plugin-cache update (tests copy the plugin to another directory); an old install directory that still exists keeps being used until its `driver.target` is missing.
+
+## Ingesting superpowers plans
+
+`brain sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]` turns a superpowers implementation plan (and its SDD ledger, when one exists) into brain records. `brain sp-link TICKET PLAN [--tasks 1,3]` points an existing ticket at plan tasks through `refs.plans`, so `brain stale` fingerprints those task sections (the default `ref_heading` `^#{2,3} Task {id}:` matches superpowers' `### Task N:` headings; a task the configured heading cannot find is counted in the output). `sp-link` refuses a ticket that is not in tickets.jsonl and a task id that is not in the plan. It writes no edges.
+
+Source: `lib/integrations/superpowers.mjs` (`parsePlan`, `parseLedger`, `mergeLedgers`, `ingestPlan`, `findLedgers`, `readSpFile`); design in `docs/research/integrations/superpowers.md` sections 2, 5 and 7. Record shapes and ownership are in `docs/FORMAT.md` section 6.
+
+What the ingest does:
+- Plan: H1 (minus "Implementation Plan") becomes the epic ticket `sp:<slug>`, where the slug is the plan file name without `.md` (at most 48 characters). Each `Task <id>` heading (levels 2 to 4, id must contain a digit and is at most 24 characters; a `[A1]` label after the id is accepted and dropped, with or without a colon before or after it) becomes `sp:<slug>/<id>` with the title as summary and `sp` from an optional `Points: N` line (else the stored value, else null). `Files:` items (list or inline form, `:12-40` ranges stripped) become `refs.files`; each task gets a `refs.plans` entry; `**Spec:**` becomes a file ref on the epic. Edges `sp_needs` come only from explicit `Task M` references in Consumes and from exact backticked names that exactly one earlier task Produces. Task order alone is never an edge; a reference to a later or unknown task, or a name produced by two earlier tasks, is a warning, not an edge.
+- Text inside HTML comments (`<!-- ... -->`, also across lines) is ignored, so a `### Task 9:` inside a comment is not a task. A `<!--` or `-->` inside an inline code span (a backtick run closed by a run of equal length on the same line) or a fenced block opens or closes nothing. An unclosed comment is a loud failure, like an unclosed fence (a literal `<!--` in prose, outside code, opens a comment too). Divergence from superpowers: brain ignores HTML comments, but a superpowers agent may still read their text, so a task heading inside a comment is not ingested; when a comment swallows a line that looks like a task heading (`### Task`), the ingest records a warning naming the line where the comment starts. Lone carriage returns and U+2028/U+2029 inside a line count as spaces.
+- Ledger identity: located automatically unless `--ledger` is given. `findLedgers` looks in the repo root and in every worktree from `git worktree list --porcelain` (the CLI runs git through `lib/gitsafe.mjs`; the module never runs anything): the 7.x layout `.superpowers/sdd/<plan-basename>*/progress.md` beside a `plan-path` marker naming this plan, then the 6.1.1 flat `.superpowers/sdd/progress.md`. A flat ledger with an identity first line (`# SDD ledger — plan: <path>`, or a `#` line with the word `ledger`, later `plan` and a `.md` path) is used only when that identity names this plan, and skipped silently otherwise. A flat ledger WITHOUT an identity line is used only when its first non-blank line names the plan (its repo-relative path or its file name appears in it as a whole token: preceded by start, whitespace, a quote, a backtick or `(`, and never by `/` for a bare file name; not followed by a letter, digit, `.`, `-` or `_`, so `docs/a-plan.md` and `plan.md.bak` do not name `docs/plan.md`); otherwise auto-discovery ignores it and prints `warning: found <path> without a plan identity: pass --ledger FILE to use it`, so a stale ledger from another plan never marks this plan's tasks done. `--ledger FILE` always applies the file you chose, but still fails loudly (exit 2, nothing written) when it names a different plan or has a line for a task id the plan does not have. Per-plan ledgers win over the flat one; several per-plan ledgers (several worktrees) are merged with `done` sticky. Status per task: a `complete` line is sticky `done`; otherwise the last task line wins (`blocked` for `Task N: blocked`, else `in_progress`); a task with no line is `todo`. Rulings, parked findings and deferred minors (including indented `Minor ...` continuation lines) become findings. Lines it cannot classify are counted and reported (`N unclassified ledger lines (first: line L)`), never dropped silently.
+- No ledger (absent, deleted after a 7.x final review, or `--ledger none`): no new status information. Stored `impl_status` values and ledger findings stay as they were.
+- Output: one line, `ingested sp:<slug>: N tasks, E edges, F findings, S statuses from ledger`, plus counts of unclassified lines, removed tasks, warnings. F is the number of this plan's findings as stored (after duplicates collapse), so a re-ingest with an unchanged ledger reports the same F. Parser warnings quote plan or ledger text, so `-v` prints them only inside `<untrusted src="sp-plan">` / `<untrusted src="sp-ledger">` fences (`lib/sanitize.mjs` `fence`). Discovery warnings (`found ... without a plan identity`) are printed without `-v`. `--json` wraps it in the usual envelope.
+- Scheduling: `--owner NAME` and `--sprint N` go together (one without the other is a usage error, exit 2). With both, rows are added only for tasks that have no current schedule row; existing rows are never changed. When seeded tasks carry `Points:`, a line `warning: seeded K tasks for NAME in sprint N: P story points (capacity is not checked here)` makes the load visible; capacity is checked by `brain verify`, not here.
+- `sp:` keys in other commands: unplaced `sp:` tickets do not fail `brain verify`, and `brain ready` judges an `sp:` task by `impl_status` (`ALREADY DONE`, or `waits for <producer> (impl_status todo)`). See FORMAT.md section 6, "Key namespace rule".
+
+Loud failures (exit 2, one `error: ...` line): an unclosed code fence (CommonMark rules: ``` or ~~~, closer of the same character and at least the same length) or HTML comment, duplicate task ids, a plan with no Task headings, a task id over 24 characters or a plan file name over 48, a ledger whose identity line names another plan (`foreign ledger`), a ledger line naming a task that is not in the plan, task renumbering relative to the stored ingest (an old task title now sits under another id), a plan or ledger path outside the repository or not a regular file, an oversized input (plan 8 MiB, ledger 2 MiB, 500 tasks, 2,000 ledger lines), `--owner` without `--sprint` or the reverse, a brain file that would be written but is a symlink or not a regular file.
+
+What "nothing written" covers, precisely: every failure found while reading and parsing, while computing the records, or while validating them writes nothing, because all five files are computed and validated first. Then every file that would change is pre-checked (inside the repository, and not a symlink or other non-regular file) before the first write, so a refusable target also fails with nothing written. Only a failure DURING the write phase (for example the disk fills up, or a file is swapped for a symlink between the pre-check and its write) can leave some files rewritten and others not. Each file is replaced atomically, never half-written, and the ingest is idempotent, so running the same command again converges to the full result. A file whose canonical text did not change is not rewritten, so a second identical run writes nothing.
+
+Parsing is linear in the input size: H1, Task headings and titles, ledger task lines, identity lines and parked lines are scanned with plain string logic, not backtracking regexes, and a test runs hostile 2 MiB lines (runs of spaces, tabs, `#`, `1.`) through every such parse within a 3 s bound (measured: a few hundred ms). `brain stale` plan normalization (`normalizePlanText`) trims trailing whitespace in linear time as well.
+
+Safety: superpowers' files are read through `readCapped` (regular files only, capped) and are never written; a test runs discovery and parsing through an `fs` that throws on every write method, and the CLI test checks bytes and mtimes of every superpowers file. All plan and ledger text is untrusted: it is stored through `oneLine` with caps (summary 200, finding 500, note 120 characters), so escape sequences, bidi and zero-width characters, newlines and `<`/`>` (a forged `</untrusted>`) cannot survive. Plan text never reaches the session card (it shows only counts and kinds). `Run:` and `tests:` commands in plans and ledgers are never executed; a source-scan test asserts the module does not import `child_process`. Paths from `Files:` lines go through `checkRepoPath`; an absolute, escaping or glob path is skipped with a warning.
+
+Not done, or not verified:
+- The 7.x formats were checked only against the synthetic fixtures copied from the research (section 7), which were written from the 7.0.2 sources; no real 7.x plan or ledger has been ingested. The 6.1.1 flat layout was checked structurally against the one real plan/ledger pair in this repository.
+- Not implemented from the research design: `--dry-run`, `--accept-renumber`, `--order-edges`, `--epic`, cross-plan or Jira-key `sp_external_dep` findings, `sp_no_interfaces` findings, the `done?` checkbox hint, `impl_range` and `alias` on tickets (unknown ticket fields break `brain build`, see FORMAT.md section 6), recording `sp_format` in meta.jsonl, `sp_implements` edges from `sp-link`, and the card line for plan progress.
+- A commit range ending at `HEAD` is stored nowhere and only reported as a warning; it is never resolved.
+
+## OpenWolf: read-through and explicit promotion
+
+Source: `lib/integrations/openwolf.mjs` (`readWolfFile`, `parseCerebrum`, `parseStatus`, `scanKeys`, `readAnatomyIndex`, `anatomyLookup`, `repoRuleList`, `renderRepoRules`); `anatomyLookup` is library-only (no CLI command uses it); design in `docs/research/integrations/openwolf.md` sections 2, 5 and 7. Tests: `test/openwolf-readthrough.test.mjs` on the synthetic fixtures in `test/fixtures/openwolf/` (copied from research section 7).
+
+License: OpenWolf is AGPL-3.0-only. No OpenWolf code, parser or regex is copied here; the parsers are written independently from the documented file formats.
+
+What is read, and only when a command asks for it: `.wolf/cerebrum.md` and `.wolf/STATUS.md` (1 MiB cap each) and, for library callers only, `.wolf/anatomy-index.json` (20 MiB cap). The `.wolf` directory must be a real directory under the repository root (a symlinked `.wolf`, a symlinked file, a directory or FIFO where a file is expected is refused) and files are read through `readCapped` (regular files only, fd-based, capped). An oversized file gives the fixed warning `.wolf/<file> is larger than <N> MiB: not parsed` and is not parsed. Messages are fixed strings and never quote file content.
+
+What is never touched: brain never writes anything under `.wolf` (no `memory.md`, anatomy, hooks, `config.json`, `cron-manifest.json`, STATUS, cerebrum or bug log) and never reads `memory.md`, the bug log or the config through this module. There is no bug-risk hint (most real bug-log entries are auto-detected noise). The module starts no process and performs no write: a test runs it through an instrumented `fs` and asserts zero write calls, another scans its source for `child_process` and write APIs, and the CLI tests compare bytes and mtimes of every `.wolf` and brain file. The one write in this feature is `learn --from-wolf`, into brain's own `learnings.jsonl`.
+
+All `.wolf` text is untrusted (agents, hooks and teammates write it). It is sanitized with `oneLine` (control and escape sequences removed, newlines collapsed, `<` and `>` replaced by `?`, capped with a visible marker) and printed only inside `<untrusted src="wolf-...">` fences with a provenance label such as `[wolf:do-not-repeat]`. The fence nonce is derived from the fenced body (sha256, 8 hex), so the output is deterministic and an entry cannot predict its own fence.
+
+Parsing is tolerant and linear: string scans, no backtracking regexes, never throws on drift (BOM, CRLF, lone CR, NUL, empty file, unclosed frontmatter or comments, prototype-key headings). A test runs 2 MiB hostile lines (spaces, tabs, `#`, `1.`, backticks, `<!--`, CR) through both parsers within a generous bound in a child process with a kill timer.
+
+- cerebrum: every `## ` heading is a section (the four template sections, drifted case/emoji/hyphen spellings such as `## 🚫 do not repeat`, dated `## 2031-04-02 learnings (...)` sections, invented ones). Entries are `- `/`* `/`+ ` bullets or `[YYYY-MM-DD]` lines, with an optional leading `[YYYY-MM-DD]` or `YYYY-MM-DD ` date; lines indented 2+ continue an entry; HTML comments (also inline and multi-line), fenced code and template placeholders are dropped. The `openwolf:native-memory-index` block gets kind `bridge` and is never shown as a rule.
+- STATUS: `## ` sections, a `---` line ends one. Kinds come from the heading with leading emoji and punctuation dropped, so both the template (`## ✅ Done`, `## 🚀 Next phase`, `### Open decisions`) and drifted files (no frontmatter, no emoji, no `🚀` heading, `## Done (date): ...`, `## Next: ...`) work; headings starting "open decision", "open question" or "open for" feed `openDecisions`, "blocker"/"external blocker" are blockers. `bullets` lists every list item with the ticket keys it names (`[A-Z][A-Z0-9]*-\d+` on token boundaries, so `SHOP-12a` names nothing, and `sp:<slug>[/<id>]`).
+- anatomy index: only `{ "version": 1, "files": { "<relpath>": {...} } }` is used; another version or invalid JSON means no index.
+
+Commands:
+
+| Command | What it does |
+|---|---|
+| `brain rules --repo [--max N]` | Read-through: Do-Not-Repeat entries, then Key Learnings, each newest-looking first (dated by date, undated after, later in the file first), each shown with a stable handle (`w` plus 6 hex of sha256 over the one-line rule text, independent of position, so new cerebrum entries never change it), at most 12 (`--max` 1 to 30; `-v` all, up to 200, longer entries), each capped at 200 characters, in a `wolf-do-not-repeat` and a `wolf-key-learnings` fence. Preferences, the decision log, dated sections and the bridge block are not shown. Nothing is copied. Missing cerebrum: `no repo rules: .wolf/cerebrum.md not found`; refused or oversized: `warning: ...`; both exit 0. A bad `--max` exits 2. |
+| `brain learn --from-wolf <handle\|"text">` | Explicit promotion of exactly ONE entry: by the handle `rules --repo` shows, or by its exact text (with or without its date). A bare number is refused (positions shift). Appends `{id: "W-<n>", kind: "rule", topic: "repo", text, why: "", source: "openwolf:cerebrum"}` to `learnings.jsonl` (n = highest existing `W-` number + 1; the text is `oneLine`d, at most 500 characters, without the date) through the canonical writer (validated, symlink and root checks before the write, atomic replace), and prints what it copied, fenced. Refuses (exit 2, nothing written) a number, a handle or text that does not exist, an ambiguous text or a handle shared by two rules (fixed message, nothing from the file listed), an unreadable cerebrum and a missing brain directory. A rule already in `learnings.jsonl` is idempotent: exit 0, `already present, nothing written`, nothing written. Only for planning-method lessons a person chose; repo lessons stay in cerebrum. |
+| `brain card --line` | One deterministic line from brain data only: `brain: <tickets> tickets, last sprint <n>, <violations> violations @<fp>`, where violations is the count from the independent verifier and `fp` is 8 hex of sha256 over `config.json` and the brain JSONL files. About 15 tokens. It never reads `.wolf`. The agent (not brain) places it under `## Context` in STATUS, never under OpenWolf's injected `## 🚀` section (double injection). |
+| `brain open-items --suggest-from-status` | Prints, inside a `wolf-status` fence, `brain open-items --register KEY KIND --owner OWNER --due N --text '...'` lines for STATUS bullets outside Done sections that name a ticket in `tickets.jsonl` (KIND `decision` under open-decision headings, `blocker` under blockers, else `followup`); the text is `oneLine`d, cut to 80 characters and single-quoted for the shell. Keys not in the plan are counted, not suggested; a ticket and kind that already has an OPEN item in `open-items.jsonl` is skipped. It reads `open-items.jsonl` read-only (for that skip) and registers nothing (a test compares bytes and mtimes); combining it with `--write`, `--register`, `--close` or `--reopen` exits 2. |
+
+By detection state (see "The four OpenWolf states" above). These commands only read files when asked, so hooks do not matter:
+
+- `absent`: `rules --repo` and `--suggest-from-status` print their fixed "not found" line, `learn --from-wolf` exits 2 (`.wolf/cerebrum.md not found`), `card --line` is unchanged.
+- `protocol-only`, `active`, `disabled`: identical behavior; all commands read the files as described. `disabled` turns OpenWolf's own injection off, not the files, and an explicit brain command is a request to read them.
+
+Not done, or not verified: the parsers were checked against the synthetic fixtures and, structurally only (no content kept or printed), against one real drifted cerebrum and STATUS (an optional test that is skipped when those files are absent; set `OPENWOLF_REAL_DIR` to point it elsewhere). The research's topic filter for `rules --repo`, `--all` for dated sections, a `brain doctor` check of a stale STATUS card line, and the `refs-update` integration of the anatomy lookup are not implemented. TOCTOU: a `.wolf` file swapped for a symlink between the `lstat` check and the read could be read once; it is still read only through the capped regular-file reader and never written.
+
+## Router skills and the "works with" contract
+
+Skills: `brain` (router), `brain-onboard`, `brain-plan`, `brain-audit`, `brain-init`. The contract is enforced as file checks in `test/skills-routing.test.mjs`: the router names `brain integrations` first and has one table row per job (onboarding, planning, replanning, reassigning, reporting, handoff) with an owning tool and a fallback; skills that touch connectors embed the glob block from `connectorHints` with the instruction "if a tool matching this pattern exists"; they require full sentences for human-facing text even when caveman mode is on (caveman exempts only code, commits, PRs and security); every skill carries `UNTRUSTED_NOTICE`; no skill uses `--run-checks` or `config.checks`; superpowers skills are only recommended; every `brain` command a skill names exists in the `bin/brain` header.
+
+`allowed-tools` pre-approves only read-only `Bash(brain ...)` patterns (`brain card --line`, not `brain card --write`; `brain doctor`, not `--fix`) and the read-only Atlassian globs. Anything that writes (`build`, `sp-ingest`, `jira-import`, `learn`, `whatif --write`) still asks the person. Not verified: whether Claude Code matches the `mcp__*Atlassian*__...` wildcard form inside `allowed-tools`; if it does not, the entry is inert and the connector call simply prompts.
+
+The total always-on budget the router states (about 3,200 tokens) is the sum of the table above (871 + 1067 + 936 + 175 + 0 + 185 = 3,234), measured on one machine.
+
+## Routing cases for the eval suite
+
+The six routing cases (onboarding, planning, replanning, reassigning, reporting, handoff) live in `evals/cases/` as `trig-<job>-yes.json` (the router should trigger) and `trig-<job>-no.json` (it should not), plus two near-misses. They are generated by `evals/gen.mjs` and graded on outcome, not on the skill firing: a should-trigger case passes when the agent runs `brain`, a should-not case passes when neither `brain` nor the router skill is used. `node evals/run.mjs --dry-run` prints the exact commands; nothing has been run against a live model (see `evals/README.md`).

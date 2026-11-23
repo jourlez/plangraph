@@ -1,0 +1,8 @@
+$ brain simulate --runs 50 --seed 3
+exit: 0
+--- stdout
+baseline with exact sizes: ends sprint 5 (planned 5) [reproduces the plan]
+50 runs, lognormal noise sigma 0.35 on ticket size (an assumption, not a measurement; mean-preserving):
+end sprint P50 5 | P80 5 | P90 5 | P95 5 | worst 5
+probability of finishing by sprint 5: 100% | by 6: 100% | by the limit 9: 100%
+--- stderr

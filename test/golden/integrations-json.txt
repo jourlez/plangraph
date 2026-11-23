@@ -1,0 +1,5 @@
+$ brain integrations --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"integrations","ok":true,"exit":0,"data":{"lines":["superpowers: absent","openwolf: rules only (hooks not registered)","caveman: absent","context7: absent","gitkraken: absent"]},"fresh":null,"next":[]}
+--- stderr

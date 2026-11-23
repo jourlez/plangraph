@@ -1,0 +1,6 @@
+$ brain sp-ingest
+exit: 2
+--- stdout
+--- stderr
+error: usage: brain sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]
+try: brain explain sp-ingest

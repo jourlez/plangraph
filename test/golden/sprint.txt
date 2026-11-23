@@ -1,0 +1,6 @@
+$ brain sprint 3
+exit: 0
+--- stdout
+Ana: 14 SP / cap 1000 (5 tickets)
+Ben: 10 SP / cap 1000 (3 tickets)
+--- stderr

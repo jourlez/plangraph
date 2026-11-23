@@ -1,0 +1,6 @@
+$ brain ready T-1
+exit: 0
+--- stdout
+READY TO START T-1
+(statuses as of the last build: pass --jira snapshot.json for live ones)
+--- stderr

@@ -1,0 +1,8 @@
+$ brain findings
+exit: 0
+--- stdout
+export_clash: 1
+external: 1
+note: 1
+plan_text: 2
+--- stderr

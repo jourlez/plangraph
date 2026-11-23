@@ -1,0 +1,16 @@
+$ brain jira-text DEMO-1 --out jt --from-json issue.json
+exit: 0
+--- stdout
+wrote 1 files
+--- stderr
+--- file jt/DEMO-1.txt
+# DEMO-1
+Status:  | updated 
+
+## Summary
+(empty)
+
+## Description
+(empty)
+
+## Comments (0)

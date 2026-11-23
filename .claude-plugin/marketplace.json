@@ -1,0 +1,12 @@
+{
+  "name": "project-brain-marketplace",
+  "owner": { "name": "project-brain" },
+  "description": "Marketplace for project-brain, a Claude Code plugin that keeps a small planning knowledge graph (tickets, dependency links, sprints, readiness verdicts and learnings) as text in git and answers questions about it with a local command.",
+  "plugins": [
+    {
+      "name": "project-brain",
+      "source": "./",
+      "description": "Planning knowledge graph for Claude Code: query tickets, links, sprints and learnings with one cheap command."
+    }
+  ]
+}

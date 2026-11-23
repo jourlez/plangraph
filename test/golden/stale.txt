@@ -1,0 +1,5 @@
+$ brain stale --ref HEAD
+exit: 0
+--- stdout
+stale vs HEAD (dc21bd5): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
+--- stderr

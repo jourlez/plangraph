@@ -1,0 +1,11 @@
+$ brain open-items --mine --me Ana
+exit: 0
+--- stdout
+open items: 4 (4 yours, due S1: 3)
+<untrusted src="open-items" n="60ebfa3d" len="152">
+- T-12 note S1 Ana: keep an eye
+- T-5 external S1 Ana: needs an outside login
+- T-5 plan_text S1 Ana: second issue
+- T-12 followup S3 Ana: confirm scope
+</untrusted>
+--- stderr

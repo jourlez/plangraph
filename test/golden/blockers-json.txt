@@ -1,0 +1,5 @@
+$ brain blockers --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"blockers","ok":true,"exit":0,"data":{"lines":["1 tickets not READY","BLOCKED (1): T-3"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+--- stderr

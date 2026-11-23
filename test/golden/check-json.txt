@@ -1,0 +1,5 @@
+$ brain check --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"check","ok":true,"exit":0,"data":{"lines":["tickets 40 | links 76 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 5"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+--- stderr

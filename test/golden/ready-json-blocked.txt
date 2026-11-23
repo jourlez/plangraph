@@ -1,0 +1,5 @@
+$ brain ready T-3 --json
+exit: 1
+--- stdout
+{"v":2,"cmd":"ready","ok":false,"exit":1,"data":{"key":"T-3","found":true,"ready":false,"reasons":[{"code":"VERDICT","detail":"BLOCKED"},{"code":"OPEN_ITEM","kind":"plan_text"}],"more":0,"statuses":"last build"},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["brain findings plan_text"]}
+--- stderr

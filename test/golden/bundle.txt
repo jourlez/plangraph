@@ -1,0 +1,21 @@
+$ brain bundle T-3 T-5
+exit: 0
+--- stdout
+
+
+=============== TICKET T-3 | 3 SP | plan S1 Ben | earlier verdict BLOCKED
+Needs (producer, plan position, kind): none
+<untrusted src="ticket:T-3" n="ff2857e2" len="65">
+Summary: ticket 3
+Finding [plan_text]: step needs a missing thing
+</untrusted>
+
+
+=============== TICKET T-5 | 5 SP | plan S1 Ana | earlier verdict READY
+Needs (producer, plan position, kind): none
+<untrusted src="ticket:T-5" n="6b4cbfab" len="94">
+Summary: ticket 5
+Finding [external]: needs an outside login
+Finding [plan_text]: second issue
+</untrusted>
+--- stderr

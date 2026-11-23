@@ -1,0 +1,5 @@
+$ brain sp-ingest docs/superpowers/plans/2026-11-20-widget-export.md --ledger none --owner Ana --sprint 2 --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"sp-ingest","ok":true,"exit":0,"data":{"lines":["ingested sp:2026-11-20-widget-export: 3 tasks, 2 edges, 4 findings, 0 statuses from ledger (no ledger: previous statuses kept); scheduled 3 tasks"]},"fresh":null,"next":[]}
+--- stderr

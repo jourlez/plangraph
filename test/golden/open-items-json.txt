@@ -1,0 +1,5 @@
+$ brain open-items --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"open-items","ok":true,"exit":0,"data":{"lines":["open items: 6 (due S1: 5)","<untrusted src=\"open-items\" n=\"6e75d179\" len=\"217\">","- T-12 note S1 Ana: keep an eye","- T-3 plan_text S1 Ben: step needs a missing thing","- T-5 external S1 Ana: needs an outside login","- T-5 plan_text S1 Ana: second issue","- T-9 export_clash S1 Ben: two exports share a name","</untrusted>","... 1 more"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+--- stderr

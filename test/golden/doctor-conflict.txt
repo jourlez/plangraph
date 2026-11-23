@@ -1,0 +1,10 @@
+$ brain doctor
+exit: 0
+--- stdout
+data format v1; tool supports v1
+merge driver: ok
+node v<NODE>: ok
+solver runtime: uv not found (brain-solve-run falls back to a python3.10-3.14 venv)
+warning: unresolved conflict marker findings.jsonl:6 (GitKraken Desktop may ignore the merge driver; resolve it, then run `brain build`)
+warning: openwolf: rules only: its hooks are not registered
+--- stderr

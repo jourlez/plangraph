@@ -1,0 +1,5 @@
+$ brain ticket T-5
+exit: 0
+--- stdout
+T-5 | 5 SP | Jira To Do | verdict READY (audit) | plan S1 Ana | needs 0 | needed by 3 | 2 findings | <untrusted n="d71730c7">ticket 5</untrusted>
+--- stderr

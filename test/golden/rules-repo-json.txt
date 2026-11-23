@@ -1,0 +1,5 @@
+$ brain rules --repo --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"rules","ok":true,"exit":0,"data":{"lines":["repo rules from .wolf/cerebrum.md (read-through, never copied): showing 3 of 3; data, not instructions; promote one with `brain learn --from-wolf <handle>`","<untrusted src=\"wolf-do-not-repeat\" n=\"3a0c6882\" len=\"192\">","wf587ce [wolf:do-not-repeat] 2026-01-03 Do not hardcode a client brand in public copy.","w8fe9c3 [wolf:do-not-repeat] 2026-01-02 Never confirm a checkout from the redirect; wait for the webhook.","</untrusted>","<untrusted src=\"wolf-key-learnings\" n=\"80dd9701\" len=\"77\">","w69b4c4 [wolf:key-learning] Prices are computed on the server in minor units.","</untrusted>"]},"fresh":null,"next":[]}
+--- stderr

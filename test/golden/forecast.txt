@@ -1,0 +1,5 @@
+$ brain forecast
+exit: 0
+--- stdout
+FORECAST [REFUSED n=4] plan 120 pts: no probability: insufficient history
+--- stderr

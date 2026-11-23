@@ -1,0 +1,230 @@
+# brain-solve: sprint assignment with CP-SAT
+
+Assigns every ticket to one person and one sprint. Rules: each ticket placed once; person-sprint load within capacity; strict handoff
+`sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0)`; frozen tickets unchanged (they still use capacity); every ticket that is not
+frozen goes to `first_sprint` or later, so no new work lands in a past sprint (a frozen ticket keeps its own slot, even before `first_sprint`).
+The independent verifier rejects a free ticket placed before `first_sprint` (frozen tickets are exempt), and the end-sprint capacity bound counts
+only the work that must sit in sprints `first_sprint` and later.
+
+## Run
+
+```
+bin/brain-solve-run --out schedule.json [--end 14] [--time 400] [--workers 8] [--seed 1] [--deterministic]
+                    [--baseline current|v2|<archive>] [--freeze K1,K2] [--freeze-file f.json] [--jsonl-dir DIR] [--no-reduce] [--balance]
+                    [--lns] [--decompose] [--verbose]
+brain schedule-load schedule.json <archive-name>
+```
+
+`--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl config.json` directly (no SQLite). Without it the solver reads
+`brain.sqlite` and `config.json` from the brain dir (as before). `--end 0` and `--time 0` are real values.
+
+## Status (never inflated)
+
+| status | meaning | `proved` |
+|---|---|---|
+| OPTIMAL | every stage ended OPTIMAL and the model covers every schedule the stage order may prefer (see Horizon below): the lexicographic optimum is proved | true |
+| FEASIBLE | a verified schedule, not proved optimal; the first unproved stage prints `gap=` and `bound=` | false |
+| INFEASIBLE | proved no schedule exists (within sprints up to `horizon`); the output names links that cannot hold | true |
+| UNKNOWN | no schedule found in the budget | false |
+| MODEL_INVALID | bad input: loop, unknown config person, ticket larger than any capacity, unknown freeze key, missing baseline | false |
+
+A schedule found only by the constructive heuristic (solver stage 1 timed out) is FEASIBLE with `source: constructive`. `end_sprint_proved`
+says whether the end sprint alone is proved minimal; it is true only when `end_sprint` is the first stage (an end sprint minimised after
+another stage is minimal under that stage's optimum, not globally). A run with `--lns` or `--decompose` never turns FEASIBLE into OPTIMAL.
+
+Exit codes: 0 proved or feasible within the target end sprint; 1 infeasible; 2 usage or invalid model; 3 OR-Tools not installed;
+4 target end sprint missed (schedule written, explanation printed); 5 unknown; 6 the independent verifier rejected the result (nothing written).
+
+## Output
+
+`--out` is the array `[{item, owner, sprint}]` that `brain schedule-load` reads, written atomically (temp file + `os.replace`).
+Metadata is in `<out>.meta.json` (`--meta none` to skip), or inside `{"schedule":[...],"meta":{...}}` with `--format object` (then
+`brain schedule-load` must be taught the object form; it reads arrays today). Meta fields: `status proved stages[{name,status,objective,bound,gap_pct,
+wall_s|det_time,conflicts,budget}] objective bound gap_pct end_sprint end_sprint_bound end_sprint_proved target_end target_met owner_changes
+shortfall conflicts seed workers deterministic ortools_version input_hash wall_s links_total links_modeled horizon explanation verified source
+stage_order`, plus `lns decompose components polish{method,rounds,improved,components,before,after}` when those options are used. Each stage
+`objective` is the value the final schedule has (a later stage or the polish may have lowered an unproved stage's value after it ended), and its
+`gap_pct` is recomputed against the stage's `bound`. The bound holds under the earlier stages' values at the time the stage ran; if a later
+improvement (the polish) lowered an earlier stage, a value can end below its bound: the gap then shows 0, never a positive number, and the
+stage record carries `below_bound: true`.
+
+### Anytime output
+
+While the solver runs, `--out` always holds the best verified schedule found so far, so a kill (`SIGTERM`, `SIGKILL`, a crash) at any moment
+leaves a valid file: the constructive schedule is written before the model is built, then every solution the CP-SAT callback reports that is
+lexicographically better in stage order and passes the independent verifier, at most once per second (the end of every stage is always
+written). Each write is atomic (temp file, fsync, rename, directory fsync), so a reader sees either the previous file or the new one. Before each
+schedule write the meta file is written with `partial: true`, `status: FEASIBLE`, `proved: false`, `verified: true`; the final meta replaces it
+when the run ends. Because the partial meta goes first, a kill in the instant between the two renames leaves a partial meta beside the schedule
+written before it (the previous anytime schedule, or the `--out` from before the run on the first write), whose metrics then describe the
+schedule that was about to be written; it never leaves a new schedule beside an earlier run's final meta. With `--meta none` (and the default
+array format) nothing could mark a mid-run `--out` as partial, so anytime writes are off: `--out` is written once, at the end. With
+`--format object` the meta travels inside the file, so anytime writes stay on. `--verbose` prints one `anytime {...}` line per write
+to stderr (`stage` ends in `:done` for the end-of-stage write). A kill between `mkstemp` and the rename can leave a `.brain-solve-*.tmp` file
+in the output directory.
+
+When the run ends without a schedule (INFEASIBLE, UNKNOWN, VERIFY_FAILED, MODEL_INVALID from the solver), the `--out` that existed before the run
+is put back byte for byte (or removed, if the run created it), so "nothing written" still holds for the schedule file. The previous `--out` is
+snapshotted at start; if it is not a regular file of at most 64 MiB, anytime writes are off for that run (`anytime` in the meta says so). A kill
+skips the restore: then `--out` holds the last verified schedule.
+
+Killing the launcher: `bin/brain-solve-run` `exec`s `uv run`, and uv starts the Python solver as its child. `SIGTERM` and `SIGINT` sent to the
+launcher's process are forwarded by uv to the solver (the anytime test relies on it), but `SIGKILL` cannot be forwarded: the solver keeps
+running as an orphan until its `--time` budget ends, and keeps writing `--out` (always a verified schedule, atomically). To stop it at once,
+kill the Python child (`pkill -f bin/brain-solve`) or the whole process group (`kill -KILL -- -PGID`). The venv and plain-python paths `exec`
+Python directly, so there the launcher's process is the solver. Not changed in the launcher: running the locked uv environment's Python
+directly would bypass `uv run --locked`, which is what verifies the pinned dependencies.
+
+## Method
+
+1. Two constructive passes (owners kept; owners free, longest chain first) give a verified start and an upper bound `horizon` on the end sprint.
+   The current plan, when it places every ticket and passes the verifier (`current_valid` in the meta), is a third candidate: the search
+   starts from the lexicographically best candidate in stage order, and the result is never lexicographically worse than any of them
+   (with `owner_changes` ranked above `end_sprint`, owner changes never exceed the current plan's).
+
+   Horizon: with `end_sprint` as the first stage the optimum end sprint is at most the earliest valid construction, so that is the horizon.
+   When a stage is ranked above `end_sprint`, the schedules it prefers may end later, so the horizon also contains every valid candidate
+   (both constructions, the current plan) and the target end sprint (capped at 2 x tickets sprints past the latest candidate, to bound model
+   size). The model still holds only schedules ending by the horizon, so such a run is OPTIMAL only when every stage before `end_sprint`
+   reaches a lower bound that no schedule can beat whatever sprint it ends in (`owner_changes`: tickets larger than their baseline owner's
+   capacity; `load_of`: tickets nobody else can hold; `peak_load`: the largest ticket or frozen cell; `shortfall`: 0). Otherwise the run is
+   FEASIBLE with `proof_scope: "horizon"` in the meta and the line says `optimal only among schedules ending by sprint H` (`proof_scope` is
+   `"global"` otherwise).
+2. One CP-SAT model: exactly-one (person, sprint) boolean per free ticket; per link one `diff` boolean with
+   `spr[c] >= spr[p] + diff` and `diff = 0 => owner[c] == owner[p]`; capacity per person-sprint. Links are transitively reduced
+   (sound for the strict rule: `[a!=c] <= [a!=b] + [b!=c]`; tested against `--no-reduce`).
+3. Lexicographic stages, each hinted from the previous result and constrained to the previous optimum: (1) end sprint, (2) shortfall below
+   `min_per_sprint` over sprints up to the end, (3) total SP of `minimize_load_of` (or peak person-sprint load with `--balance`/`balance_load`),
+   (4) owner changes vs `--baseline`. `weights` in config.json are no longer used. `stage_order` in config.json reorders the stages (see below). Budget: 85% of `--time` for stages (stage 1 gets 60% when later
+   stages exist), the rest for the infeasibility explanation. Unused time rolls forward. The solver import, load and model build count against `--time`.
+4. Explanation (INFEASIBLE, or target missed): relaxed model, every link droppable at cost 1, capacity and frozen slots hard; reports `N links cannot
+   hold with end sprint E: A>B, ...` (A needs B; at most 8 listed; "not proved minimal" when the relaxation timed out). If no link is to blame it says
+   capacity or frozen slots do.
+5. A separate pure-Python verifier rechecks the result against the original (unreduced) links; failure means exit 6 and no schedule file.
+
+Stage order: `stage_order` in config.json is a list of `end_sprint shortfall load_of peak_load owner_changes`. Listed stages run first, in that
+order; stages left out follow in the default order; stages that do not apply (no `min_per_sprint`, no `minimize_load_of`, no balance, no
+baseline owners) are dropped; `load_of` wins over `peak_load` as before. Unset, or the value `brain init` writes
+(`["end_sprint","shortfall","load_of","peak_load","owner_changes"]`), gives the order above. For a replan where keeping people on their tickets
+matters more than spreading load, use `["end_sprint","shortfall","owner_changes","load_of"]`: with every stage proved, owner changes are then
+never more than with the default order (tested against brute force on tiny plans and on 26-ticket replans whose current plan is feasible).
+Shortfall placed before `end_sprint` counts only sprints up to the (still free) end sprint, so it means the same in any position. Errors exit 2
+with a fixed message that does not echo the value: `stage_order must be a list of stage names`, `stage_order names an unknown stage (known: ...)`,
+`stage_order lists a stage twice`. The value is part of `input_hash` only when set, so the hash of an existing plan does not change.
+
+Frozen tickets: `--freeze`, `--freeze-file` (JSON array of keys), config `frozen_statuses` (by `jira_status`), config `frozen_before_sprint`
+(current sprint below it). All use the current schedule slot. Closed tickets (`jira_status` Done, or one listed in config `closed_statuses`)
+with a current slot are always frozen, whatever `frozen_statuses` says; `brain verify` and `brain whatif` pin them the same way.
+
+Determinism: `--seed N` (default 1). `--deterministic`: 1 worker, `max_deterministic_time` instead of wall time, no wall-clock fields in the
+output, so repeated runs on the same input are byte-identical. Without it, multi-worker runs may differ run to run (both valid).
+
+Capacity default when neither `caps[person]` nor `caps.default` exists: 140 (same as `lib/model.mjs`).
+
+Fractional story points: `sp`, `caps` and `min_per_sprint` may be any non-negative numbers with at most 4 decimal places (more, or a
+non-number, exits 2 `story points, caps and min_per_sprint must be numbers with at most 4 decimal places`). They are read as exact decimals and
+scaled by the smallest power of ten that makes all of them whole numbers, so the integer model is exact (an all-integer plan is not scaled, and its
+model, output and `input_hash` are unchanged); load figures in the output (`shortfall`, `load_of`, `peak_load`, their stage objectives and bounds)
+are reported in story points. `brain verify` sums story points as binary floats, where `0.1 + 0.2` is above `0.3`; so a person-sprint cell
+that holds a story point which is not exactly a binary float (0.1, 2.6; unlike 0.5 or 0.25) is kept strictly below its capacity, never at an
+exact tie. That is the safe side: the solver may leave a tie unused that `brain verify` would have accepted, never the reverse.
+
+## Cost to know
+
+Every stage rebuilds the presolve of the whole model; on a 1400-ticket / 9.6k-link plan that is about 12 s with 8 workers per stage, so budgets under
+about 30 s cannot reach stage 2. Model size is `tickets x people x horizon` booleans.
+
+## Polish: `--lns` and `--decompose`
+
+Both run after the stages and only when the stages did not prove everything (they are skipped on an OPTIMAL run). With either option the
+stages get half of the 85% stage budget and the polish gets the rest. Each round re-solves a subset of tickets with every other ticket fixed
+to the incumbent and the end sprint capped at the incumbent's: the stages of `stage_order` except `end_sprint` run lexicographically on that
+small model, hinted from the incumbent. A round's result is kept only when the independent verifier accepts it and it is lexicographically
+better in stage order. Neither option is on by default, and neither ever claims a proof.
+
+- `--lns`: rounds of a seeded random 20% of the free tickets (`random.Random(--seed)`), 5 s (or 5 deterministic seconds) per round, until the
+  budget is spent (at most 1000 rounds). In `--deterministic` mode each round is charged at least 0.1 deterministic seconds because building
+  the sub-model is not counted, so a deterministic run with `--lns` can take longer in wall time than `--time`. Same seed, same bytes.
+- `--decompose`: one pass over the connected components of the link graph among free tickets (largest first; consecutive components are
+  grouped until a group has at least 50 tickets). With a single component it does nothing (`polish.skipped: "one component"`).
+
+`polish` in the meta records `method rounds improved components before after` (stage values before and after the polish).
+
+### Measurements (1400-ticket generated instance)
+
+`genPlan({ n: 1400, people: 4, seed: 3, cap: 40, density: 0.175 })`: 9654 links (4797 after reduction), stages `end_sprint` and
+`owner_changes` (no `min_per_sprint`, no `minimize_load_of`). Wall-clock budget, 8 workers, 12-core machine, one run per row unless noted, 2026-11-22.
+"before" is the solver at the parent commit; "after" is this version. Multi-worker runs vary run to run (two 60 s runs of the old solver gave
+327 and 381 owner changes), so differences of a few dozen changes between single runs are noise.
+
+| run | `--time` | end sprint (gap) | owner changes (gap) | polish |
+|---|---|---|---|---|
+| before | 60 | 32 (15.6%, bound 27) | 327, 381 (100%, bound 0) | - |
+| after, default | 60 | 32 (15.6%) | 357, 359 (100%) | - |
+| after, `--lns` | 60 | 32 (15.6%; one run: stage UNKNOWN, constructive end kept) | 246, 194 (stage UNKNOWN in both runs: no gap) | 9 / 20 rounds, from 385 / 367 |
+| after, `--decompose` | 60 | 32 (15.6%) | 356 (100%) | skipped: one component |
+| before | 120 | 32 (15.6%) | 292 (100%) | - |
+| after, default | 120 | 32 (15.6%) | 294 (100%) | - |
+| after, `--lns` | 120 | 32 (15.6%) | 175 (100%) | 29 rounds, from 377 |
+
+What this shows, and what it does not:
+- The anytime callback and the configurable stage order cost nothing measurable here (default runs match the old solver within run-to-run noise).
+- `--lns` lowers owner changes by 25-49% at the same budget (194-246 vs 327-381 at 60 s, 175 vs 292 at 120 s). The reported gap of the
+  owner-changes stage does not improve: its bound stays 0 (the LP relaxation of "keep everyone on their baseline owner" is near 0), so the gap
+  is 100% for any schedule with changes; the improvement is in the objective, not the proof.
+- With `--lns` the end-sprint stage gets half the time; at 60 s it once ended UNKNOWN (no CP-SAT solution within its 13 s, below the about
+  12 s presolve plus search) and the constructive end sprint (32, the same value here) was kept. On an instance where CP-SAT improves the end
+  sprint only late, `--lns` can end later than the default. The end-sprint gap is 15.6% in every run above where that stage ended FEASIBLE; in the
+60 s `--lns` run whose end-sprint stage ended UNKNOWN there is no gap to report (no CP-SAT solution, so no stage bound).
+- `--decompose` was not measurable on this instance: its link graph is one component. On a two-component 180-ticket test instance (the `polish`
+  test) one deterministic pass lowered owner changes from 76 to 75 while `--lns` reached 54; no claim beyond that.
+
+## Environment (PEP 723 notes)
+
+`bin/brain-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/brain-solve ...` also works.
+OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/brain-solve-run` tries, in order: `uv run --locked --script bin/brain-solve` (dependencies pinned with hashes in `bin/brain-solve.lock`; a stale lock fails instead of re-resolving);
+a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
+else prints three lines and exits 3. `BRAIN_SOLVE_SCRIPT` overrides the script (used by the mutation test).
+
+Tests: `node --test test/solver.test.mjs` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
+
+## Input limits and path confinement
+
+`--workers` is clamped to 1..32 and `--time` to 0..3600 s (0 stays a real value, see above); the same clamp applies to `workers` and `time_limit_seconds` from config.json.
+The meta file records the effective `workers` and `time_limit`, plus `clamped: ["workers", "time"]` when a value was changed. `nan` and non-numeric values exit 2 (`--time must be a finite number`); `inf` and integers too large for a float (such as `10**400` in config.json) clamp to the bound and are listed in `clamped`; `-0` is recorded as `0.0`; `--workers` must be a whole number (`8.9` exits 2) and a boolean in config.json exits 2.
+`--jsonl-dir` and the brain dir (`.brainrc` / `BRAIN_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
+current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
+(`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
+
+### Limits of the confinement
+
+- `--db` and `--config` are intentionally not confined: they are read-only. They can be used to probe whether a file exists or parses, and an invalid numeric value in a config file is echoed in the error (at most 40 characters, control characters replaced by `?`), so a config pointed at an arbitrary file can leak a short prefix of one value, never more.
+- The check on `--out` and the write are separate steps. `check_out` runs first and `atomic_write` re-checks the symlink and the confinement right before the write, which narrows the window but does not close it: the filesystem APIs used (`mkstemp`, `os.replace`) are path based, so a parent directory swapped for a symlink in the instant between that last check and the rename cannot be excluded without directory file descriptors (`openat` with `O_NOFOLLOW`). Not worth the complexity for a tool the repository owner runs on their own checkout; do not rely on it against a hostile process sharing the directory.
+- The repository root comes from `git rev-parse --show-toplevel`, so it honours `GIT_DIR`, `GIT_WORK_TREE` and a hostile repository's `core.worktree`. The confinement guards against bad arguments, not against a hostile checkout or environment.
+- The anytime restore (put back or remove `--out` when a run ends without a schedule) re-checks `--out` (no symlink, parent inside the root) and
+  removes only a regular file, but the check and the `unlink` are separate path-based steps, with the same window as above.
+- Setting `BRAIN_SOLVE_SCRIPT` runs the unlocked path and disables locking (test-only override).
+- uv's own error text mentions `uv.lock` rather than `brain-solve.lock`; it is the same lock (`uv lock --script` writes `bin/brain-solve.lock`).
+
+## Where the lock files live
+
+Claude Code exposes every file in `bin/` as a command on PATH, so the hash-pinned pip requirements live in `solver/solver-requirements.txt` (moved out of `bin/`; verified
+that `uv export --script bin/brain-solve --format requirements-txt --no-header` reproduces it byte for byte and that the fallback's `pip install --require-hashes` builds a working venv from the new path).
+`bin/brain-solve.lock` has to stay next to the script because `uv lock --script` writes `<script>.lock` and `uv run --locked --script` reads it from there. It is a non-executable data file,
+so it is listed by the validator as a `bin` entry but cannot be run as a command. `uv lock --check --script bin/brain-solve` passes.
+
+## What the first run downloads
+
+The locked uv path (`uv run --locked --script bin/brain-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
+fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/brain-solve.lock` and
+`solver/solver-requirements.txt`. They come from PyPI (`pypi.org` for the index, `files.pythonhosted.org` for the files) and are cached afterwards (uv cache, or the venv under
+`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv`). If no Python 3.10-3.14 is installed, uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
+`github.com` (release download URL), which redirected to `release-assets.githubusercontent.com` when checked on 2026-11-22 (that CDN host is GitHub's choice and may change). The pip fallback uses only the default PyPI index and never downloads a Python.
+These four hosts, plus the two Jira hosts, are what `network.hosts` in `.claude-plugin/plugin.json` declares. Nothing else leaves the machine: no ticket data, no telemetry. This is the only network access the solver ever makes.
+A cold first run took about 27 s on a fast connection (one measurement in an isolated cache; it is network-bound, so a slow connection takes longer); later runs reuse the cache.
+To pre-fetch in CI (or before going offline): `uv run --locked --script bin/brain-solve --help`.
+
+## Refreshing the locked dependencies
+
+After changing the pin in `bin/brain-solve`: `uv lock --script bin/brain-solve && uv export --script bin/brain-solve --format requirements-txt --no-header > solver/solver-requirements.txt`
+(uv 0.8.8: hashes are emitted by default; the flag is `--hashes`/`--no-hashes`, not `--hash`). Commit both files.

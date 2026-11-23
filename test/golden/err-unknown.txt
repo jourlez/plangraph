@@ -1,0 +1,6 @@
+$ brain frobnicate
+exit: 2
+--- stdout
+--- stderr
+error: unknown command frobnicate
+try: brain explain

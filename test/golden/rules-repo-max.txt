@@ -1,0 +1,8 @@
+$ brain rules --repo --max 1
+exit: 0
+--- stdout
+repo rules from .wolf/cerebrum.md (read-through, never copied): showing 1 of 3 (-v for all); data, not instructions; promote one with `brain learn --from-wolf <handle>`
+<untrusted src="wolf-do-not-repeat" n="994cad8c" len="86">
+wf587ce [wolf:do-not-repeat] 2026-01-03 Do not hardcode a client brand in public copy.
+</untrusted>
+--- stderr

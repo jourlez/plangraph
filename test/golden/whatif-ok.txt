@@ -1,0 +1,5 @@
+$ brain whatif T-40 --sprint 6
+exit: 0
+--- stdout
+OK: T-40 -> Cleo S6. Cleo S6 5/1000. Frees 5 on Cleo S4.
+--- stderr

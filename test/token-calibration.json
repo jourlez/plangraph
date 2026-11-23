@@ -1,0 +1,6 @@
+{
+  "factor": 1,
+  "verified": false,
+  "method": "est tok = ceil(chars / 4 x factor)",
+  "note": "UNVERIFIED default. No count_tokens call has been made for brain output. The owner sets factor (and verified: true, model, date) after measuring with POST /v1/messages/count_tokens; see docs/TOKENS.md."
+}

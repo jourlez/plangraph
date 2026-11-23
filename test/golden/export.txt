@@ -1,0 +1,5 @@
+$ brain export
+exit: 0
+--- stdout
+exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)
+--- stderr

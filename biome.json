@@ -1,0 +1,51 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+	"formatter": { "enabled": false },
+	"assist": { "enabled": false },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"style": { "useTemplate": "off" },
+			"complexity": {
+				"useOptionalChain": "off",
+				"noCommaOperator": "off",
+				"noUselessEscapeInRegex": "off"
+			},
+			"correctness": { "noUnusedFunctionParameters": "off" },
+			"suspicious": {
+				"noAssignInExpressions": "off",
+				"noControlCharactersInRegex": "off"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["lib/sanitize.mjs"],
+			"linter": {
+				"rules": { "suspicious": { "noMisleadingCharacterClass": "off" } }
+			}
+		},
+		{
+			"includes": ["test/jira.test.mjs"],
+			"linter": { "rules": { "correctness": { "noPrecisionLoss": "off" } } }
+		},
+		{
+			"includes": ["test/**/*.mjs", "evals/**/*.mjs"],
+			"linter": {
+				"rules": { "suspicious": { "noTemplateCurlyInString": "off" } }
+			}
+		}
+	],
+	"files": {
+		"includes": [
+			"lib/**/*.mjs",
+			"src/**/*.mjs",
+			"bin/*.mjs",
+			"mcp/*.mjs",
+			"scripts/**/*.mjs",
+			"test/**/*.mjs",
+			"evals/**/*.mjs"
+		]
+	}
+}

@@ -1,0 +1,27 @@
+$ brain units --keys T-3,T-5,T-9 --size 2 --out units-out
+exit: 0
+--- stdout
+3 tickets -> 2 units in units-out. Cost preview: 2 units x 130,000 tokens (measured on a large project) = about 0.3 million tokens. Nothing was sent anywhere.
+--- stderr
+--- file units-out/u001.md
+# Unit u001: tickets to audit
+
+
+=============== TICKET T-3 | 3 SP | plan S1 Ben | earlier verdict BLOCKED
+Needs (producer, plan position, kind): none
+<untrusted src="ticket:T-3" n="ff2857e2" len="65">
+Summary: ticket 3
+Finding [plan_text]: step needs a missing thing
+</untrusted>
+
+
+=============== TICKET T-5 | 5 SP | plan S1 Ana | earlier verdict READY
+Needs (producer, plan position, kind): none
+<untrusted src="ticket:T-5" n="6b4cbfab" len="94">
+Summary: ticket 5
+Finding [external]: needs an outside login
+Finding [plan_text]: second issue
+</untrusted>
+--- file units-out/u001.in.json
+["T-3","T-5"]--- file units-out/units.json
+[{"id":"u001","keys":["T-3","T-5"]},{"id":"u002","keys":["T-9"]}]

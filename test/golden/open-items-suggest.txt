@@ -1,0 +1,11 @@
+$ brain open-items --suggest-from-status
+exit: 0
+--- stdout
+suggested open items from .wolf/STATUS.md (printed only, nothing registered; a person confirms each and fills in owner and due):
+<untrusted src="wolf-status" n="45090767" len="315">
+brain open-items --register T-12 decision --owner OWNER --due N --text 'Should T-12 move to sprint 4? (T-12)'
+brain open-items --register T-3 blocker --owner OWNER --due N --text 'T-3 waits on T-1 (T-3 and ZZ-9)'
+brain open-items --register T-1 blocker --owner OWNER --due N --text 'T-3 waits on T-1 (T-3 and ZZ-9)'
+</untrusted>
+skipped 1 key not in the plan
+--- stderr

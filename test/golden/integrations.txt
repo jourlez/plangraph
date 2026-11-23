@@ -1,0 +1,9 @@
+$ brain integrations
+exit: 0
+--- stdout
+superpowers: absent
+openwolf: rules only (hooks not registered)
+caveman: absent
+context7: absent
+gitkraken: absent
+--- stderr

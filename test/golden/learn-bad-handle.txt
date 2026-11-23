@@ -1,0 +1,6 @@
+$ brain learn --from-wolf w000000
+exit: 2
+--- stdout
+--- stderr
+error: no repo rule has that handle (run `brain rules --repo`)
+try: brain explain learn

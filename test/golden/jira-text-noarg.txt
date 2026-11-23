@@ -1,0 +1,6 @@
+$ brain jira-text
+exit: 2
+--- stdout
+--- stderr
+error: usage: brain jira-text KEY... --out DIR [--from-json FILE]
+try: brain explain jira-text

@@ -1,0 +1,6 @@
+$ brain sp-ingest docs/nope.md
+exit: 2
+--- stdout
+--- stderr
+error: nope.md: no such file
+try: brain explain sp-ingest

@@ -1,0 +1,6 @@
+$ brain check
+exit: 2
+--- stdout
+--- stderr
+error: no index: run `brain build`
+try: brain build

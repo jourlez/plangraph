@@ -1,0 +1,32 @@
+#!/bin/sh
+# Launcher for brain-solve: finds or builds a Python (3.10-3.14) that has OR-Tools, then runs the solver with the given flags.
+# Dependencies are locked: bin/brain-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/brain-solve`.
+# Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv, else a python3 that already has ortools.
+# Env: BRAIN_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
+# Signals: on the uv path the solver is uv's child; SIGTERM/SIGINT are forwarded, SIGKILL is not (the solver then runs on as an orphan until
+# its --time budget ends; kill the process group instead). See docs/SOLVER.md, Anytime output.
+PIN="ortools==9.15.6755"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT="${BRAIN_SOLVE_SCRIPT:-$HERE/brain-solve}"
+if command -v uv >/dev/null 2>&1; then
+  # --locked: fail instead of re-resolving when bin/brain-solve.lock is stale (refresh with: uv lock --script bin/brain-solve)
+  if [ -z "${BRAIN_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --locked --script "$SCRIPT" "$@"; fi
+  # an overriding script (tests, mutation checks) has no lock of its own: same pinned dependency, resolved by uv
+  exec uv run --quiet --no-project --python '>=3.10,<3.15' --with "$PIN" python "$SCRIPT" "$@"
+fi
+VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv"
+if [ ! -x "$VENV/bin/python" ] || ! "$VENV/bin/python" -c 'import ortools' >/dev/null 2>&1; then
+  for v in 3.14 3.13 3.12 3.11 3.10; do
+    if command -v "python$v" >/dev/null 2>&1; then
+      rm -rf "$VENV"; mkdir -p "$(dirname "$VENV")"
+      if "python$v" -m venv "$VENV" >/dev/null 2>&1 && "$VENV/bin/python" -m pip install --quiet --require-hashes -r "$HERE/../solver/solver-requirements.txt" >/dev/null 2>&1; then break; fi
+      rm -rf "$VENV"
+    fi
+  done
+fi
+if [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -c 'import ortools' >/dev/null 2>&1; then exec "$VENV/bin/python" "$SCRIPT" "$@"; fi
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import ortools' >/dev/null 2>&1; then exec python3 "$SCRIPT" "$@"; fi
+echo "brain-solve: OR-Tools is unavailable (no uv, and no python3.10-3.14 able to build a venv with $PIN)." >&2
+echo "Install uv (https://docs.astral.sh/uv/) or Python 3.10-3.14, then re-run; or: python3.14 -m venv DIR && DIR/bin/pip install $PIN" >&2
+echo "OR-Tools has no wheel for Python 3.15 yet; 3.10-3.14 work." >&2
+exit 3

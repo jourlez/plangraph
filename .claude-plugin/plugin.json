@@ -1,0 +1,22 @@
+{
+  "name": "project-brain",
+  "version": "0.1.0",
+  "description": "A small knowledge graph for planning with Claude Code: tickets, dependency links, readiness verdicts with evidence fingerprints, schedules, and learnings. Text in git, a cheap query CLI, no model calls.",
+  "author": { "name": "jourlez" },
+  "keywords": ["planning", "jira", "knowledge-graph", "memory", "scheduling"],
+  "license": "MIT",
+  "repository": "https://github.com/jourlez/OpenBrain",
+  "homepage": "https://github.com/jourlez/OpenBrain",
+  "icon": "./.claude-plugin/icon.png",
+  "engines": { "claude-code": ">=2.1.329" },
+  "network": { "hosts": ["api.atlassian.com", "*.atlassian.net", "pypi.org", "files.pythonhosted.org", "github.com", "release-assets.githubusercontent.com"] },
+  "userConfig": {
+    "card": {
+      "type": "string",
+      "title": "Session-start card",
+      "description": "Inject the short plan card at session start. Set to off to disable; the brain command and skills still work.",
+      "options": ["auto", "off"],
+      "default": "auto"
+    }
+  }
+}

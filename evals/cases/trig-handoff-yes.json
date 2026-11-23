@@ -1,0 +1,44 @@
+{
+  "$schema": "brain-eval-case/1",
+  "id": "trig-handoff-yes",
+  "kind": "trigger",
+  "tags": [
+    "trigger",
+    "should-trigger",
+    "handoff"
+  ],
+  "fixture": {
+    "size": "M",
+    "seed": 7
+  },
+  "prompt": "Wrap up the session and hand off the plan state.",
+  "limits": {
+    "max_turns": 8,
+    "timeout_s": 180,
+    "max_usd": 0.3
+  },
+  "expected": {
+    "trigger": true,
+    "job": "handoff"
+  },
+  "graders": [
+    {
+      "id": "used-brain",
+      "type": "tool_used",
+      "tool": "Bash",
+      "input_match": "\\bbrain\\s",
+      "min": 1,
+      "weight": 3,
+      "arm": "with-only"
+    },
+    {
+      "id": "skill-fired",
+      "type": "tool_used",
+      "tool": "Skill",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?brain(?:-[a-z]+)?\"",
+      "min": 1,
+      "weight": 1,
+      "arm": "with-only"
+    }
+  ]
+}

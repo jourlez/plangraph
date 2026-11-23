@@ -1,0 +1,6 @@
+$ brain report --jira x.json
+exit: 2
+--- stdout
+--- stderr
+error: --jira and --as-of go together (the snapshot date, YYYY-MM-DD)
+try: brain explain report

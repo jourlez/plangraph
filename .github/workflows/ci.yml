@@ -1,0 +1,70 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+        node: ['24']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: unit tests
+        run: npm test
+      - name: smoke
+        run: npm run smoke
+      - name: plugin layout
+        run: npm run validate
+      - name: coverage ratchet (raise these floors when coverage rises, never lower)
+        run: >
+          node --test --experimental-test-coverage
+          --test-coverage-include='lib/**' --test-coverage-include='src/**'
+          --test-coverage-lines=98 --test-coverage-branches=90 --test-coverage-functions=96
+          test/*.test.mjs
+      - name: install dev-only tools (typescript, @types/node, biome; exact versions from package-lock.json)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: typecheck (tsc ratchet over tsconfig.json and tsconfig.strict.json)
+        run: npm run typecheck
+      - name: biome lint (lint rules only, formatter disabled)
+        run: npm run lint
+      - name: claude plugin validate
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate . --strict
+          else
+            echo "::notice::claude CLI not installed on this runner, plugin validate skipped"
+          fi
+  secrets:
+    name: gitleaks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # gitleaks-action lists a pull request's commits through the API, so it needs pull-requests: read besides contents: read.
+    # Repositories owned by an organization also need a GITLEAKS_LICENSE secret (see SECURITY.md); this repo passes none.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

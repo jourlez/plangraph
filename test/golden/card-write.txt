@@ -1,0 +1,29 @@
+$ brain card --write
+exit: 0
+--- stdout
+wrote .brain/CARD.md (45 est tokens)
+--- stderr
+--- file .wolf/STATUS.md
+---
+description: handoff
+---
+# STATUS
+
+## Done
+
+- T-1 shipped.
+
+## Next quest
+
+### Open decisions
+- Should T-12 move to sprint 4? (T-12)
+
+### Blockers
+- T-3 waits on T-1 (T-3 and ZZ-9)
+
+## Context
+
+- Branch main.
+<!-- brain:card:begin -->
+old line
+<!-- brain:card:end -->

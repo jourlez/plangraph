@@ -1,0 +1,6 @@
+$ brain open-items --suggest-from-status --write
+exit: 2
+--- stdout
+--- stderr
+error: --suggest-from-status only prints; it cannot be combined with --write, --register, --close or --reopen
+try: brain explain open-items
