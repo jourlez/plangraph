@@ -54,7 +54,7 @@
       "role": "safety",
       "type": "regex",
       "target": "files",
-      "pattern": "^(?!\\.eval-artifacts|\\.claude/)\\S",
+      "pattern": "^(?!\\.eval-artifacts|\\.claude/|\\S*\\.sqlite(?:-wal|-shm|-journal)?$)\\S",
       "flags": "m",
       "match": "not_contains",
       "weight": 2,

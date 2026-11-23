@@ -61,7 +61,7 @@ test('card: byte-identical across runs a second apart and after touching mtimes;
   const lines = a.stdout.trimEnd().split('\n');
   assert.match(lines[0], /^brain [0-9a-f]{8} \| 5 tickets, 3 links, S1-S2, 2 people$/);
   assert.ok(!lines.some((l) => l.startsWith('STALE')), 'no STALE line while the index matches the text');
-  assert.equal(lines.at(-1), 'ask: brain explain');
+  assert.equal(lines.at(-1), 'plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl');
   assert.ok(!/brain ready KEY|brain chain/.test(a.stdout), 'command menu lives in explain, not in the card');
   // the identity is the source fingerprint: --json of an index-reading command reports the same 8 hex
   assert.equal(JSON.parse(run(R, ['sprint', '1', '--json']).stdout).fresh.fp, lines[0].slice(6, 14));
@@ -83,7 +83,7 @@ test('renderCard is a pure function of the model and fp: no clock input changes 
   const m = buildModel({ tickets: [{ key: 'A-1', sp: 8, verdict: 'READY' }, { key: 'A-2', sp: 3, verdict: 'BLOCKED' }], schedule: [{ key: 'A-1', owner: 'Ana', sprint: 3 }, { key: 'A-2', owner: 'Ben', sprint: 5 }], config: { caps: { default: 5 } } });
   const x = renderCard(m, { fp: 'a1b2c3d4e5f6', now: 1 }), y = renderCard(m, { fp: 'a1b2c3d4e5f6', now: 9e12, builtAt: 5, sourceMtime: 9e12 });
   assert.equal(x, y);
-  assert.equal(x, `brain a1b2c3d4 | 2 tickets, 0 links, S3-S5, 2 people\nverdicts: ${fenceInline('1 BLOCKED, 1 READY')}\nover cap: ${fenceInline('Ana S3 +3')}\nask: brain explain`);
+  assert.equal(x, `brain a1b2c3d4 | 2 tickets, 0 links, S3-S5, 2 people\nverdicts: ${fenceInline('1 BLOCKED, 1 READY')}\nover cap: ${fenceInline('Ana S3 +3')}\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl`);
   assert.equal(renderCard(m, { fp: 'zz<>\n' + 'f'.repeat(500) }).split('\n')[0], 'brain ffffffff | 2 tickets, 0 links, S3-S5, 2 people');
   assert.equal(renderCard(m, {}).split('\n')[0], 'brain unbuilt | 2 tickets, 0 links, S3-S5, 2 people');
   const s = renderCard(m, { fp: 'ab', stale: true }, { maxTokens: 25 });

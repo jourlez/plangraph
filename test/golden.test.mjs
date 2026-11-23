@@ -67,9 +67,12 @@ before(() => {
 after(() => { try { fs.rmSync(BASE, { recursive: true, force: true }); } catch { /* best effort */ } });
 
 // Normalize everything host- or run-specific so the goldens are byte-stable.
+// A host path is replaced only as a whole path (not inside a longer name): a checkout at a short path such as /w (a container) must not turn
+// src/store/widgets.mjs into src/store<PLUGIN>idgets.mjs.
+const escRe = (/** @type {string} */ s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function normalize(text, root) {
   let t = text;
-  for (const [from, to] of [[root, '<REPO>'], [DATA, '<DATA>'], [HOME, '<HOME>'], [BASE, '<BASE>'], [path.join(HERE, '..'), '<PLUGIN>']]) t = t.split(from).join(to);
+  for (const [from, to] of [[root, '<REPO>'], [DATA, '<DATA>'], [HOME, '<HOME>'], [BASE, '<BASE>'], [path.join(HERE, '..'), '<PLUGIN>']]) t = t.replace(new RegExp(`(?<![\\w.-])${escRe(from)}(?![\\w.-])`, 'g'), () => to);
   // an uncaught error prints a source excerpt and a stack with line numbers: keep only the error line and its code
   t = t.split('\n').filter((l) => !/^\s+at /.test(l) && !/^Node\.js v/.test(l)).join('\n');
   t = t.replace(/--- stderr\nfile:\/\/[^\n]*\n[^\n]*\n[^\n]*\n\n/, '--- stderr\n');

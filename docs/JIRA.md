@@ -44,6 +44,45 @@ Sprint lookup order in `normalizeIssue(raw, { sprintField })`: (1) the `customFi
 
 Dropped on purpose (never stored): assignee `emailAddress`, `avatarUrls` and `accountId` (only `displayName` is kept), link far-side `summary`/`status`/`priority`/`issuetype`, sprint `goal`, `boardId`, dates, Story Points and Epic Link. `status`, link `type` and `rel` are sanitized one-line strings capped at 80 characters.
 
+### Slim connector call: recommended shape, UNVERIFIED
+
+Measured baseline (one real call, one ticket with 22 links, minimal fields): the Atlassian connector returned about 15,000 characters,
+roughly 3,750 est tok at chars/4, for that ONE ticket. Most of it is link far-side data (`summary`, `status`, `priority`, `issuetype` of
+every linked issue) that `jira-import` drops anyway. The connector's own instructions say to slim a response with `responseFields` (dot
+paths) or a `view` preset (`compact`, `evidence`, `full`), and that custom fields are omitted unless you pass `view: evidence`/`full` or
+`fields` with the site's `customfield_*` ids, appearing under `fields.customFields`. The call below was NOT made: its exact path syntax
+and its response size are unverified. Try it, and if the connector rejects a path, try the same list without the `fields.` prefix.
+
+```
+getJiraIssue({
+  cloudId: "<cloud id>",
+  issueIdOrKey: "ABC-123",
+  fields: ["summary", "status", "assignee", "updated", "issuelinks", "<Story Points customfield id>", "<Sprint customfield id>"],
+  responseFields: [
+    "key",
+    "fields.summary",
+    "fields.status.name",
+    "fields.assignee.displayName",
+    "fields.updated",
+    "fields.issuelinks.type",
+    "fields.issuelinks.outwardIssue.key",
+    "fields.issuelinks.inwardIssue.key",
+    "fields.customFields.Story Points",
+    "fields.customFields.Sprint"
+  ]
+})
+```
+
+`fields.updated` is not strictly needed but recommended: without it the "an older copy never overwrites a newer one" rule has nothing to
+compare. For bulk, `searchJiraIssuesUsingJql` with the same `fields`; whether its `responseFields` paths need an `issues.nodes.` prefix is
+unverified. Expected size: the synthetic slim fixture in `test/jira-slim.test.mjs` (one issue, 22 links, two sprints) is about 3,200
+characters as JSON, against the ~15,000 baseline; a real slim response is unmeasured.
+
+`brain jira-import` accepts that slim shape (tested on the synthetic fixture built from the verified payload shape above): link `type`
+trimmed to `name` only gives an empty `rel`; a field the response leaves out (`summary`, `status`, `assignee`, `updated`,
+`resolutiondate`, the Sprint entry, `issuelinks`) keeps the value already in the snapshot, while a field that is present, even `null` or
+an empty list, replaces it. With no previous snapshot nothing is invented (empty strings, no sprint).
+
 Bulk rule: for more than about 20 tickets use `brain jira-pull` (token, no model tokens spent). Otherwise a subagent pages `searchJiraIssuesUsingJql` into files and runs `brain jira-import` on them, returning one line (the import summary), so ticket content never enters the main context.
 
 ## Known limits

@@ -65,8 +65,9 @@ now and of the text the index was built from; they differ when the index is stal
 0 to 3 exact follow-up commands, built only from shell-safe values.
 
 Session card (`brain card`, the SessionStart hook): a pure function of the data, byte-identical across runs (no clock, no age, no
-modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, `ask: brain explain`,
-and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
+modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, the steer
+line `plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read <brain dir>/*.jsonl` (lib/steer.mjs; the
+directory as the repo configures it, default `.brain`), and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
 
 Brain directory: `--dir`, else a non-empty `BRAIN_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be
 a relative path inside the repository: an absolute or escaping directory is refused with exit 4 (`brain directory is outside the repository`), and so is a name with whitespace, a control character or any of `* ? [ ] \ ! # "` (`brain directory name has a character that is not allowed`; the merge driver is only wired for names made of `A-Z a-z 0-9 . _ / -`), except under
@@ -100,9 +101,19 @@ after the check, asserting the outside file is never read or written):
 
 - Reading a brain data file (the eight index sources, `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
   the `card --line` hash inputs) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
-  swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device
-  and inode (any other file swapped in, such as a copy or hard link of an outside file, is refused before one byte is read). Files a person
-  names on the command line (`--jira`, `--keys-file`, input JSON) still follow symlinks, as before.
+  swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device,
+  inode and change time (ctime), else it is refused before one byte is read. What each part catches:
+  - device and inode, a guarantee: any replacement that existed while the original did. That covers a hard link to an outside file (its
+    inode is the outside file's, which is live) and a copy written beside the original and renamed over it.
+  - change time, a heuristic: a file created only after the original was DELETED. Its inode number can be the original's: ext4 and overlayfs
+    (the Linux CI runner, Docker) hand a freed number to the very next file created, so device and inode match (measured: 2000 of 2000
+    delete-then-create swaps on ext4/overlayfs; 0 on APFS and tmpfs, which do not reuse a number at once). Its ctime is new, and no
+    unprivileged process can set a ctime, so the swap is still refused, unless the new file is created within the filesystem's timestamp
+    granularity of the original's last change (a kernel tick, at most 10 ms, on Linux kernels with coarse timestamps; nanoseconds on APFS).
+    Measured on ext4/overlayfs and APFS: the ctime differed in every one of those swaps. Brain never changes a data file in place (every
+    write is a rename), so a ctime change in that window always means a swap. What such a file can contain is only what its creator could
+    write, so the case left open is equivalent to that person editing the file, which needs the same directory access.
+  Files a person names on the command line (`--jira`, `--keys-file`, input JSON) still follow symlinks, as before.
 - Writing (`writeAtomicSafe`: every state file, `.gitattributes`, `format.json`, `CARD.md`, reports, the driver files): after the
   realpath confinement check the target directory is `stat`ed once and its device and inode are compared again after the temp file is created
   and right before the rename (a directory swapped for a symlink to elsewhere is refused); the temp file is created with
@@ -112,12 +123,16 @@ after the check, asserting the outside file is never read or written):
   rename is replaced, not followed (tested).
 - The index: a `brain.sqlite` that is a symlink is refused on open (exit 2, `brain build`); `brain build` creates its temp file itself with
   `O_CREAT|O_EXCL|O_NOFOLLOW` before SQLite opens it, refuses (exit 4, nothing removed) a file or symlink already at that predictable name,
-  and checks its identity again before the rename. The SQLite library bundled with Node also refuses to open a symlinked database or journal
+  and checks its identity again before the rename. It keeps that descriptor open until the rename is done, so the temp file's inode cannot be
+  freed and its number cannot be handed to a file created at that path meanwhile: the identity check is a guarantee even against a
+  delete-then-create (tested; before this, on ext4 a file planted that way after SQLite closed the temp file became the index). The write
+  path above holds its temp file's descriptor the same way. The SQLite library bundled with Node also refuses to open a symlinked database or journal
   (observed, not relied on).
 
 What remains (needs `openat`/`O_BENEATH`-style APIs Node does not expose): every open is by path, so an INTERMEDIATE directory component (for
 example `.brain` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not
-detected for reads, and for writes it is detected only when it is the target's own parent directory (the device and inode check). To use
+detected for reads, and for writes it is detected only when it is the target's own parent directory (the device and inode check; no
+descriptor of that directory is held, so a directory deleted and recreated on the same filesystem can get its inode number back). To use
 it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a
 brain command runs; with that access they can usually edit the data files directly anyway. On Windows there is no `O_NOFOLLOW`: the device
 and inode comparisons are the guard there (not tested on Windows), and creating symlinks needs a privilege. The data directory of the

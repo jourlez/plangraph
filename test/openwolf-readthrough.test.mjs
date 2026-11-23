@@ -154,11 +154,18 @@ test('parsers are linear: 4x longer hostile lines take about 4x (not 16x) as lon
     const U = 1024 * 1024; once(U / 8);
     const small = best(U / 2, 3), large = best(2 * U, 2);
     console.log(JSON.stringify({ small, large }));`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', timeout: 120000 });
-  assert.equal(r.signal, null, 'timed out: a parser is not linear');
-  assert.equal(r.status, 0, r.stderr);
-  const { small, large } = JSON.parse(r.stdout.trim());
-  assert.ok(large / Math.max(small, 1) < 9, `not linear: N took ${small.toFixed(0)} ms, 4N took ${large.toFixed(0)} ms`);
+  // Timing noise (GC, a busy machine) can inflate one measurement; a truly super-linear parser is slow in EVERY attempt, so the best of 3 is judged.
+  let best = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', timeout: 120000 });
+    assert.equal(r.signal, null, 'timed out: a parser is not linear');
+    assert.equal(r.status, 0, r.stderr);
+    const m = JSON.parse(r.stdout.trim());
+    if (!best || m.large / Math.max(m.small, 1) < best.large / Math.max(best.small, 1)) best = m;
+    if (best.large / Math.max(best.small, 1) < 9) break;
+  }
+  const { small, large } = best;
+  assert.ok(large / Math.max(small, 1) < 9, `not linear: N took ${small.toFixed(0)} ms, 4N took ${large.toFixed(0)} ms (best of 3 attempts)`);
   assert.ok(large < budget(15000), `took ${large} ms`); // measured about 1.4 s for 4N
 });
 

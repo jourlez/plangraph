@@ -1,7 +1,13 @@
 #!/usr/bin/env node
-// Summary of an eval run: arm A (WITH the plugin) versus arm B (bare Claude, no plugin), from the native aggregate-result.json files.
+// Summary of an eval run: arm A (WITH the plugin) versus arm B (bare Claude, no plugin), from the direct runner's results
+// (evals/run-p.mjs: results/run-p.json) or else the native aggregate-result.json files.
 //   node evals/report.mjs --suite <dir> [--json <file>]
-// <dir> is a suite built by evals/run.mjs (cases.json, pass-*/, results/<pass>/.../aggregate-result.json). Per family: pass rate, mean
+// <dir> is a suite built by evals/run-p.mjs (cases.json, results/run-p.json, one block per prompt style: natural is the headline) or by
+// evals/run.mjs (cases.json, pass-*/, results/<pass>/.../aggregate-result.json). Plugin use: an arm-A run counts as using the plugin only
+// when a brain call ran (not denied, not "command not found"; a skill that fired without a working brain does not count, it is shown
+// apart); the table shows that share per family, and the
+// score of A is split into runs that used it and runs that did not, so a plugin arm that never touched the plugin is never read as
+// plugin evidence. A brain call that ran in arm B is reported as a leak. Per family: pass rate, mean
 // score, delta, mean turns, mean cost, mean tokens (from the run traces when they were kept: --keep-temp), plus injection resistance,
 // no-write integrity, post-checked moves (the model's proposed move applied to a copy of the plan and re-verified by lib/verify.mjs),
 // trigger recall and false-fire rate (single-arm pass), and ablation variants. Prints ids, families and numbers only: never prompts,
@@ -11,6 +17,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCapped } from '../lib/jsonl.mjs';
 import { parseAnswer } from './schema.mjs';
+import { parseTrace, pluginUsed } from './trace.mjs';
 import { modelFromFiles, withOverlay, newViolations } from './families.mjs';
 import { verifyPlan } from '../lib/verify.mjs';
 import { applyMoves } from '../lib/whatif.mjs';
@@ -50,6 +57,13 @@ export function readTrace(p) {
   return { tokens, message: typeof res.result === 'string' ? res.result : null };
 }
 
+// Whether a kept native trace shows the plugin used (null when the trace is absent or unreadable).
+export function traceUse(p) {
+  let text; try { if (!p || !fs.lstatSync(p).isFile()) return null; text = readCapped(p, MAX); } catch { return null; }
+  const t = parseTrace(text);
+  return t.result || t.calls.length ? { used: pluginUsed(t.plugin), skill: t.plugin.skills.length > 0, brainInB: t.plugin.brainRan > 0 } : null;
+}
+
 // Apply the moves the model proposed (parsed from its ANSWER line) to a copy of the plan and re-verify: no new violation, the request met.
 export function postcheck(c, message, fixtureFiles) {
   const pc = c.truth && c.truth.postcheck;
@@ -76,49 +90,81 @@ export function postcheck(c, message, fixtureFiles) {
   return true;
 }
 
-export function summarize(suite) {
-  const cases = JSON.parse(readCapped(path.join(suite, 'cases.json'), MAX));
-  const byId = new Map(cases.map((c) => [c.id, c]));
-  const fixtureCache = new Map();
-  const fixtureOf = (c) => {
-    if (fixtureCache.has(c.fixture.size)) return fixtureCache.get(c.fixture.size);
-    const d = path.join(suite, 'pass-headline', 'evals', 'fixtures', c.fixture.size), f = {};
-    try { for (const n of fs.readdirSync(d)) if (/\.jsonl$|^config\.json$/.test(n)) f[n] = readCapped(path.join(d, n), MAX); } catch { /* no fixture */ }
-    fixtureCache.set(c.fixture.size, f); return f;
-  };
-  const runs = []; // {pass, id, family, kind, tags, arm, score, passed, turns, cost, tokens, graders:{name: passed}, post}
+const STYLE_ORDER = ['natural', 'layout-told'];
+function collectRuns(suite, byId, fixtureOf) {
+  const pFile = path.join(suite, 'results', 'run-p.json');
+  if (fs.existsSync(pFile)) {
+    let j; try { j = JSON.parse(readCapped(pFile, MAX)); } catch { j = { records: [] }; }
+    return (j.records || []).filter((r) => byId.has(r.id)).map((r) => {
+      const c = byId.get(r.id);
+      return { pass: 'headline', style: r.style || 'natural', id: c.id, family: c.family, kind: c.kind, tags: c.tags, arm: r.arm, score: r.score, passed: !!r.passed, turns: r.turns, cost: r.cost, tokens: r.tokens ?? null, error: !!r.error,
+        graders: Object.fromEntries((r.graders || []).map((x) => [x.name, x.passed])), post: typeof r.message === 'string' ? postcheck(c, r.message, fixtureOf(c)) : null,
+        used: r.arm === 'with' && r.plugin ? !!r.pluginUsed : null, skill: r.arm === 'with' && r.plugin ? r.plugin.skills.length > 0 : null, cardOnly: r.arm === 'with' && r.plugin ? !!r.plugin.card && r.plugin.toolCalls === 0 : null, brainInB: r.arm === 'without' && !!(r.plugin && r.plugin.brainRan > 0) };
+    });
+  }
+  const runs = [];
   for (const agg of findAggregates(path.join(suite, 'results'))) {
     let j; try { j = JSON.parse(readCapped(agg, MAX)); } catch { continue; }
     const pass = path.relative(path.join(suite, 'results'), agg).split(path.sep)[0];
     for (const cr of j.cases || []) {
       const c = byId.get(cr.name); if (!c) continue;
       for (const arm of ['with', 'without']) for (const r of (cr.arms && cr.arms[arm]) || []) {
-        const tr = readTrace(r.tracePath);
+        const tr = readTrace(r.tracePath), u = traceUse(r.tracePath);
         const g = Object.fromEntries((r.graders || []).map((x) => [x.name, x.passed]));
-        runs.push({ pass, id: c.id, family: c.family, kind: c.kind, tags: c.tags, arm, score: r.score, passed: !!r.passed, turns: r.turns, cost: r.costUsd, tokens: tr.tokens, error: !!r.error, graders: g,
-          post: tr.message === null ? null : postcheck(c, tr.message, fixtureOf(c)) });
+        runs.push({ pass, style: 'layout-told', id: c.id, family: c.family, kind: c.kind, tags: c.tags, arm, score: r.score, passed: !!r.passed, turns: r.turns, cost: r.costUsd, tokens: tr.tokens, error: !!r.error, graders: g,
+          post: tr.message === null ? null : postcheck(c, tr.message, fixtureOf(c)), used: arm === 'with' && u ? u.used : null, skill: arm === 'with' && u ? u.skill : null, brainInB: arm === 'without' && !!(u && u.brainInB) });
       }
     }
   }
+  return runs;
+}
+
+export function summarize(suite) {
+  const cases = JSON.parse(readCapped(path.join(suite, 'cases.json'), MAX));
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  const fixtureCache = new Map();
+  const fixtureOf = (c) => {
+    if (fixtureCache.has(c.fixture.size)) return fixtureCache.get(c.fixture.size);
+    const f = {};
+    for (const d of [path.join(suite, 'fixtures', c.fixture.size), path.join(suite, 'pass-headline', 'evals', 'fixtures', c.fixture.size)]) {
+      try { for (const n of fs.readdirSync(d)) if (/\.jsonl$|^config\.json$/.test(n)) f[n] = readCapped(path.join(d, n), MAX); break; } catch { /* no fixture here */ }
+    }
+    fixtureCache.set(c.fixture.size, f); return f;
+  };
+  const runs = collectRuns(suite, byId, fixtureOf); // {pass, style, id, family, kind, tags, arm, score, passed, turns, cost, tokens, graders:{name: passed}, post, used, brainInB}
   const roleOf = (id, name) => (byId.get(id).graders.find((g) => g.id === name) || {}).role;
   const safeOk = (r) => Object.entries(r.graders).filter(([n]) => roleOf(r.id, n) === 'safety').every(([, p]) => p);
-  const head = runs.filter((r) => r.pass === 'headline');
-  const stat = (rs) => ({ n: rs.length, pass: mean(rs.map((r) => (r.passed ? 1 : 0))), score: mean(rs.map((r) => r.score)), turns: mean(rs.map((r) => r.turns)), cost: mean(rs.map((r) => r.cost)), tokens: mean(rs.filter((r) => r.tokens !== null).map((r) => r.tokens)), errors: rs.filter((r) => r.error).length });
-  const groups = new Map(); for (const r of head) { const k = r.family.replace(/-(?:yes|no)$/, ''); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
-  const rows = [...groups].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([fam, rs]) => ({ family: fam, A: stat(rs.filter((r) => r.arm === 'with')), B: stat(rs.filter((r) => r.arm === 'without')) }));
-  const ids = [...new Set(head.map((r) => r.id))];
-  const pairs = ids.map((id) => mean(head.filter((r) => r.id === id && r.arm === 'with').map((r) => r.score)) - mean(head.filter((r) => r.id === id && r.arm === 'without').map((r) => r.score))).filter(Number.isFinite);
+  const stat = (rs) => {
+    const u = rs.filter((r) => r.used !== null && r.used !== undefined);
+    return { n: rs.length, pass: mean(rs.map((r) => (r.passed ? 1 : 0))), score: mean(rs.map((r) => r.score)), turns: mean(rs.map((r) => r.turns)), cost: mean(rs.map((r) => r.cost)), tokens: mean(rs.filter((r) => r.tokens !== null).map((r) => r.tokens)), errors: rs.filter((r) => r.error).length,
+      used: u.length ? u.filter((r) => r.used).length / u.length : Number.NaN };
+  };
   const rate = (rs, f) => { const n = rs.length, k = rs.filter(f).length; return { k, n, rate: n ? k / n : Number.NaN, ci: wilson(k, n) }; };
-  const inj = head.filter((r) => r.tags.includes('injection')), nw = head.filter((r) => r.tags.includes('no-write'));
-  const post = head.filter((r) => r.post !== null);
+  const block = (head) => {
+    const groups = new Map(); for (const r of head) { const k = r.family.replace(/-(?:yes|no)$/, ''); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+    const rows = [...groups].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([fam, rs]) => ({ family: fam, A: stat(rs.filter((r) => r.arm === 'with')), B: stat(rs.filter((r) => r.arm === 'without')) }));
+    const ids = [...new Set(head.map((r) => r.id))];
+    const pairs = ids.map((id) => mean(head.filter((r) => r.id === id && r.arm === 'with').map((r) => r.score)) - mean(head.filter((r) => r.id === id && r.arm === 'without').map((r) => r.score))).filter(Number.isFinite);
+    const inj = head.filter((r) => r.tags.includes('injection')), nw = head.filter((r) => r.tags.includes('no-write'));
+    const post = head.filter((r) => r.post !== null);
+    const A = head.filter((r) => r.arm === 'with'), known = A.filter((r) => r.used !== null && r.used !== undefined);
+    return {
+      rows,
+      overall: { A: stat(A), B: stat(head.filter((r) => r.arm === 'without')), delta: mean(pairs), deltaCI: bootstrapDelta(pairs) },
+      injection: { A: rate(inj.filter((r) => r.arm === 'with'), safeOk), B: rate(inj.filter((r) => r.arm === 'without'), safeOk) },
+      noWrite: { A: rate(nw.filter((r) => r.arm === 'with'), safeOk), B: rate(nw.filter((r) => r.arm === 'without'), safeOk) },
+      postcheck: { A: rate(post.filter((r) => r.arm === 'with'), (r) => r.post === true), B: rate(post.filter((r) => r.arm === 'without'), (r) => r.post === true) },
+      pluginUse: { used: rate(known, (r) => r.used), skill: rate(known, (r) => r.skill), cardOnly: known.filter((r) => r.cardOnly).length, unknown: A.length - known.length, scoreUsed: mean(known.filter((r) => r.used).map((r) => r.score)), scoreNotUsed: mean(known.filter((r) => !r.used).map((r) => r.score)), brainInB: head.filter((r) => r.arm === 'without' && r.brainInB).length },
+    };
+  };
+  const headAll = runs.filter((r) => r.pass === 'headline');
+  const styles = STYLE_ORDER.filter((st) => headAll.some((r) => r.style === st));
+  const blocks = styles.map((st) => ({ style: st, ...block(headAll.filter((r) => r.style === st)) }));
+  const main = blocks[0] || { style: null, ...block([]) };
   const trig = runs.filter((r) => r.pass === 'triggers');
   const variants = [...new Set(runs.map((r) => r.pass))].filter((p) => !['headline', 'triggers'].includes(p)).map((p) => ({ variant: p, ...stat(runs.filter((r) => r.pass === p)) }));
   return {
-    cases: cases.length, runs: runs.length, rows,
-    overall: { A: stat(head.filter((r) => r.arm === 'with')), B: stat(head.filter((r) => r.arm === 'without')), delta: mean(pairs), deltaCI: bootstrapDelta(pairs) },
-    injection: { A: rate(inj.filter((r) => r.arm === 'with'), safeOk), B: rate(inj.filter((r) => r.arm === 'without'), safeOk) },
-    noWrite: { A: rate(nw.filter((r) => r.arm === 'with'), safeOk), B: rate(nw.filter((r) => r.arm === 'without'), safeOk) },
-    postcheck: { A: rate(post.filter((r) => r.arm === 'with'), (r) => r.post === true), B: rate(post.filter((r) => r.arm === 'without'), (r) => r.post === true) },
+    cases: cases.length, runs: runs.length, ...main, styles: blocks,
     triggers: { recall: rate(trig.filter((r) => r.tags.includes('should-trigger')), (r) => r.graders['diag-skill-fired'] === true), falseFire: rate(trig.filter((r) => r.tags.includes('should-not-trigger')), (r) => r.graders['neg-skill-not-fired'] === false) },
     variants,
   };
@@ -127,16 +173,23 @@ export function summarize(suite) {
 export function render(s) {
   const L = [];
   const pad = (x, n) => String(x).padEnd(n), lp = (x, n) => String(x).padStart(n);
-  L.push(`cases ${s.cases}, runs ${s.runs}. A = WITH the plugin, B = bare (no plugin). delta = mean per-case score A - B.`);
-  L.push(`${pad('family', 22)}${lp('n', 4)} ${lp('A pass', 7)}${lp('B pass', 7)}${lp('A score', 8)}${lp('B score', 8)}${lp('A turns', 8)}${lp('B turns', 8)}${lp('A $', 7)}${lp('B $', 7)}${lp('A tok', 8)}${lp('B tok', 8)}`);
-  const row = (name, A, B) => L.push(`${pad(name, 22)}${lp(A.n, 4)} ${lp(pct(A.pass), 7)}${lp(pct(B.pass), 7)}${lp(fmt(A.score), 8)}${lp(fmt(B.score), 8)}${lp(fmt(A.turns, 1), 8)}${lp(fmt(B.turns, 1), 8)}${lp(fmt(A.cost, 3), 7)}${lp(fmt(B.cost, 3), 7)}${lp(Number.isFinite(A.tokens) ? Math.round(A.tokens / 1000) + 'k' : '-', 8)}${lp(Number.isFinite(B.tokens) ? Math.round(B.tokens / 1000) + 'k' : '-', 8)}`);
-  for (const r of s.rows) row(r.family, r.A, r.B);
-  row('ALL', s.overall.A, s.overall.B);
-  L.push(`delta score ${fmt(s.overall.delta)} (95% cluster bootstrap over cases ${fmt(s.overall.deltaCI[0])}..${fmt(s.overall.deltaCI[1])}); run errors A ${s.overall.A.errors}, B ${s.overall.B.errors}`);
   const r2 = (x) => `${x.k}/${x.n} ${pct(x.rate)} [${pct(x.ci[0])}-${pct(x.ci[1])}]`;
-  L.push(`injection resistance (every safety grader passed): A ${r2(s.injection.A)}  B ${r2(s.injection.B)}`);
-  L.push(`no-write integrity: A ${r2(s.noWrite.A)}  B ${r2(s.noWrite.B)}`);
-  L.push(`post-checked moves (applied to a copy, re-verified): A ${r2(s.postcheck.A)}  B ${r2(s.postcheck.B)}${s.postcheck.A.n + s.postcheck.B.n === 0 ? ' (needs --keep-temp traces)' : ''}`);
+  L.push(`cases ${s.cases}, runs ${s.runs}. A = WITH the plugin, B = bare (no plugin). delta = mean per-case score A - B. A used = share of A runs where a brain call ran.`);
+  const blocks = s.styles && s.styles.length ? s.styles : [s];
+  for (const b of blocks) {
+    if (b.style && blocks.length > 1) L.push('', `== prompt style: ${b.style}${b === blocks[0] ? ' (headline)' : ''} ==`);
+    else if (b.style) L.push(`prompt style: ${b.style}`);
+    L.push(`${pad('family', 22)}${lp('n', 4)} ${lp('A pass', 7)}${lp('B pass', 7)}${lp('A score', 8)}${lp('B score', 8)}${lp('A turns', 8)}${lp('B turns', 8)}${lp('A $', 7)}${lp('B $', 7)}${lp('A tok', 8)}${lp('B tok', 8)}${lp('A used', 7)}`);
+    const row = (name, A, B) => L.push(`${pad(name, 22)}${lp(A.n, 4)} ${lp(pct(A.pass), 7)}${lp(pct(B.pass), 7)}${lp(fmt(A.score), 8)}${lp(fmt(B.score), 8)}${lp(fmt(A.turns, 1), 8)}${lp(fmt(B.turns, 1), 8)}${lp(fmt(A.cost, 3), 7)}${lp(fmt(B.cost, 3), 7)}${lp(Number.isFinite(A.tokens) ? Math.round(A.tokens / 1000) + 'k' : '-', 8)}${lp(Number.isFinite(B.tokens) ? Math.round(B.tokens / 1000) + 'k' : '-', 8)}${lp(pct(A.used), 7)}`);
+    for (const r of b.rows) row(r.family, r.A, r.B);
+    row('ALL', b.overall.A, b.overall.B);
+    L.push(`delta score ${fmt(b.overall.delta)} (95% cluster bootstrap over cases ${fmt(b.overall.deltaCI[0])}..${fmt(b.overall.deltaCI[1])}); run errors A ${b.overall.A.errors}, B ${b.overall.B.errors}`);
+    const pu = b.pluginUse;
+    L.push(`plugin used in arm A (a brain call ran): ${pu.used.n ? r2(pu.used) : '- (no traces)'}; a plugin skill fired: ${pu.skill.n ? r2(pu.skill) : '-'}${pu.unknown ? `, ${pu.unknown} runs without a trace` : ''}; answered from the session card alone (no tool call): ${pu.cardOnly}; A score when used ${fmt(pu.scoreUsed)}, when NOT used ${fmt(pu.scoreNotUsed)}${pu.used.n && pu.used.k < pu.used.n ? ' (runs that did not use the plugin are not plugin evidence)' : ''}; brain ran in arm B: ${pu.brainInB} runs${pu.brainInB ? ' (LEAK: check those traces)' : ''}`);
+    L.push(`injection resistance (every safety grader passed): A ${r2(b.injection.A)}  B ${r2(b.injection.B)}`);
+    L.push(`no-write integrity: A ${r2(b.noWrite.A)}  B ${r2(b.noWrite.B)}`);
+    L.push(`post-checked moves (applied to a copy, re-verified): A ${r2(b.postcheck.A)}  B ${r2(b.postcheck.B)}${b.postcheck.A.n + b.postcheck.B.n === 0 ? ' (needs kept traces)' : ''}`);
+  }
   L.push(`triggers (single-arm pass): skill recall ${r2(s.triggers.recall)}, false fires ${r2(s.triggers.falseFire)}`);
   for (const v of s.variants) L.push(`variant ${v.variant}: pass ${pct(v.pass)}, score ${fmt(v.score)}, turns ${fmt(v.turns, 1)}, cost ${fmt(v.cost, 3)} (compare with A above)`);
   return L.join('\n') + '\n';

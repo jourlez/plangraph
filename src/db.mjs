@@ -249,9 +249,12 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
   const rows = [...TABLES.values()].map((t) => /** @type {const} */ ([t, parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })]));
   const tmp = `${file}.tmp-${process.pid}`;
   // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it: a file or symlink planted at that
-  // (predictable) name is refused and left alone, never written through. Its dev/ino is checked again before the rename.
-  let mine;
-  try { const tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o644); mine = fs.fstatSync(tfd); fs.closeSync(tfd); }
+  // (predictable) name is refused and left alone, never written through. Its dev/ino is checked again before the rename. The descriptor stays
+  // open until the rename is done: while it is open the inode cannot be freed, so no file created at that path meanwhile (even after a delete;
+  // ext4 reuses a freed inode number at once) can have its number, and the dev/ino check is a guarantee. It is closed only after SQLite closed
+  // its own (closing any descriptor of a file drops the process's POSIX locks on it, which SQLite holds while it is open).
+  let mine, tfd;
+  try { tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o644); mine = fs.fstatSync(tfd); }
   catch (/** @type {any} */ e) {
     if (e.code === 'EEXIST' || e.code === 'ELOOP') throw new BrainError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build');
     throw e;
@@ -281,7 +284,7 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
   } catch (e) {
     try { const now = fs.lstatSync(tmp); if (now.isFile() && now.ino === mine.ino && now.dev === mine.dev) fs.rmSync(tmp, { force: true }); } catch { /* gone */ }
     throw e;
-  }
+  } finally { fs.closeSync(tfd); }
 }
 
 // ---------- schema check ----------

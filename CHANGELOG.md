@@ -13,7 +13,9 @@ Added:
   `ready`, `whatif` (dry run only) and `ticket`, whose text is byte for byte the CLI's. The plugin does not start it (no `mcpServers`,
   no `.mcp.json`; the default install still shows `MCP servers (0)`); docs/MCP.md shows how to opt in and when it is worth it (only if
   your evals show it is no worse than the CLI). `node test/bench-mcp.mjs` measures its token cost. Connecting and listing tools was
-  verified with Claude Code 2.1.329; a model-made tool call in a live session was not.
+  verified with Claude Code 2.1.329. Later, in a live 2.1.329 session: Claude Code deferred the tool definitions and loaded them through
+  `ToolSearch` (the model's first step selected the three tools), then made 3 correct calls in 5 turns for $0.046 (reported); the size of
+  the deferred entry and other clients are not verified (docs/MCP.md).
 
 Packaging:
 
@@ -27,6 +29,22 @@ Packaging:
 
 Changed:
 
+- `brain jira-import` accepts a slimmed connector response: a field the response leaves out keeps the snapshot value (it was blanked),
+  a present field replaces it. docs/JIRA.md documents the recommended `responseFields` call (UNVERIFIED) against the measured
+  baseline of about 15,000 characters for one ticket with 22 links.
+- `brain rules --repo` takes `--topic WORD` (case-insensitive substring filter, bounded) and `--all` (adds dated cerebrum sections, counts
+  line first, still capped and fenced); `brain doctor` adds `info: OpenWolf STATUS.md mentions an older brain line: run /handoff` when
+  OpenWolf is active or rules-only and the STATUS brain line differs from `brain card --line` (never a failure, never a write).
+- `brain integrations` and `brain doctor` decide a plugin's enabled-ness per exact `name@marketplace` key: a key enabled in settings that
+  is not the installed key is reported as `enabled but not installed` instead of making the installed one `enabled` (the installed key
+  then stays `installed` unless a layer enables that exact key). Per key, the most specific settings layer decides.
+- superpowers ledger layouts, verified against the release sources: 6.2.0/6.3.0 marker-less per-plan workspaces are found (when their
+  identity line names the plan), `Final: Ruling:` lines become rulings, `brain integrations` prints the layout of the installed version
+  (`not verified` outside 6.1.1 to 7.0.2), and `sp-ingest` without a ledger says whether previous `impl_status` values were kept.
+- The session card's last line is a steer instead of a pointer: `plan questions: use brain (ticket, ready, whatif, blockers, sprint,
+  person); do not read .brain/*.jsonl` (the brain directory as configured). Card on the benchmark plan: 449 -> 533 bytes, 113 -> 134 est
+  tok. `brain init` now also PRINTS a 3-line snippet with the same steer for the repo's own CLAUDE.md (until a CLAUDE.md carries it;
+  brain never writes CLAUDE.md), and `brain doctor` adds one `info:` line when a CLAUDE.md exists without it (never a failure).
 - `SOURCE_DATE_EPOCH` is honored as the clock for every printed or stored date (`closed_at`, `imported_at`, `fetched_at`); unset or
   invalid values fall back to the wall clock. The golden tests pin it, so they no longer fail after 00:00 UTC.
 

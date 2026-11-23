@@ -18,19 +18,25 @@ import { verbose, usage, needBrain, precheckTargets, writeState, refuseWrite } f
 async function integrations(ctx, args) {
   const { detectTools } = await import('../../lib/integrations/detect.mjs'), out = ctx.io.out, v = verbose(args);
   const r = detectTools({ root: ctx.root, home: ctx.env.HOME || os.homedir(), env: ctx.env });
+  const { ledgerLayoutOf } = await import('../../lib/integrations/superpowers.mjs');
+  // Evidence strings are `installed: KEY`, `enabled: KEY in LABEL`, `enabled, not installed: KEY in LABEL` (lib/integrations/detect.mjs).
+  const scope = (/** @type {string} */ label) => (label.startsWith('project settings.local') ? 'local' : label.split(' ')[0]);
+  const keysOf = (/** @type {any} */ t, /** @type {RegExp} */ re) => t.evidence.map((/** @type {string} */ e) => re.exec(e)).filter(Boolean);
   for (const t of r.tools) {
     let line = `${oneLine(t.name, 40)}: `;
-    if (t.state === 'absent') line += 'absent';
+    const inst = keysOf(t, /^installed: (\S+)$/).map((/** @type {any} */ m) => `installed ${oneLine(m[1])}`);
+    const en = keysOf(t, /^enabled: (\S+) in (.+)$/).map((/** @type {any} */ m) => `${oneLine(scope(m[2]), 20)} enables ${oneLine(m[1])}`);
+    const notInst = keysOf(t, /^enabled, not installed: (\S+) in (.+)$/).map((/** @type {any} */ m) => `${oneLine(m[1])} (${oneLine(scope(m[2]), 20)})`);
+    const miss = notInst.length ? [`enabled but not installed: ${notInst.join(', ')}`] : [];
+    if (t.state === 'absent') line += 'absent' + (miss.length ? ` (${miss.join('; ')})` : '');
     else if (t.name === 'openwolf' && t.state === 'protocol-only') line += 'rules only (hooks not registered)';
     else {
       line += oneLine(t.state, 20) + (t.version ? ` ${oneLine(t.version, 64)}` : '');
-      if (t.state === 'enabled') {
-        const inst = t.evidence.filter((/** @type {string} */ e) => e.startsWith('installed: ')).map((/** @type {string} */ e) => `installed ${oneLine(e.slice(11))}`);
-        const en = t.evidence.map((/** @type {string} */ e) => /^enabled: (\S+) in (project|user)/.exec(e)).filter(Boolean).map((/** @type {any} */ m) => `${m[2]} enables ${oneLine(m[1])}`);
-        line += ` (${[...inst, ...en].join('; ')})`;
-      }
+      // enabled: which key is installed and which layer enables it; any enabled key that is not the installed one is said separately
+      if (t.state === 'enabled' || miss.length) line += ` (${[...inst, ...(t.state === 'enabled' ? en : []), ...miss].join('; ')})`;
     }
     out(line);
+    if (t.name === 'superpowers' && t.state !== 'absent') out(`  ledger: ${ledgerLayoutOf(t.version).line}`);
     if (v) { for (const e of t.evidence) out(`  evidence: ${oneLine(e, 200)}`); for (const n of t.notes) out(`  note: ${oneLine(n, 200)}`); }
   }
   if (v) {
@@ -121,7 +127,7 @@ async function spIngest(ctx, args) {
     if (p.orphanSchedule) extra.push(`${n(p.orphanSchedule, 'schedule row')} for removed tasks left in place`);
     if (p.seeded) extra.push(`scheduled ${n(p.seeded, 'task')}`);
     if (p.warnings.length) extra.push(n(p.warnings.length, 'warning') + (V ? '' : ' (-v lists them)'));
-    out(`ingested ${oneLine(p.key, 120)}: ${p.tasks} tasks, ${p.edges} edges, ${p.findings} findings, ${p.statuses} statuses from ledger${p.ledger ? '' : ' (no ledger: previous statuses kept)'}${extra.length ? `; ${extra.join('; ')}` : ''}`);
+    out(`ingested ${oneLine(p.key, 120)}: ${p.tasks} tasks, ${p.edges} edges, ${p.findings} findings, ${p.statuses} statuses from ledger${p.ledger ? '' : ` (${lo === 'none' ? '--ledger none' : 'no ledger found'}: ${p.kept ? `kept the previous impl_status of ${n(p.kept, 'task')}` : 'no impl_status set'}; plan checkboxes are never read as progress)`}${extra.length ? `; ${extra.join('; ')}` : ''}`);
     for (const w of discovery) out(`warning: ${oneLine(w, 300)}`);
     if (p.seededWithPoints) out(`warning: seeded ${n(p.seeded, 'task')} for ${oneLine(owner, 80)} in sprint ${+sprintArg}: ${n(p.seededPoints, 'story point')} (capacity is not checked here)`);
     // Parser warnings quote plan and ledger text: untrusted, so printed only inside a fence (research section 6.3).
@@ -167,7 +173,7 @@ async function learn(ctx, args) {
   needBrain(ctx);
   try {
     const W = await import('../../lib/integrations/openwolf.mjs'), r = W.readWolfFile(ctx.root, 'cerebrum.md'); if (!r.ok) throw usage(/** @type {string} */ (r.warning));
-    const list = W.repoRuleList(W.parseCerebrum(r.text)); let entry;
+    const list = W.repoRuleList(W.parseCerebrum(r.text), { all: true }); let entry; // every handle `rules --repo [--all]` can show
     if (/^\d+$/.test(arg.trim())) throw usage('a position number is not accepted (positions shift): use the handle from `brain rules --repo` or the exact text');
     if (/^w[0-9a-f]{6}$/.test(arg)) {
       const hits = list.filter((e) => e.handle === arg);

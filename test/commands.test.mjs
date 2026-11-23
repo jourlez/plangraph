@@ -402,7 +402,7 @@ test('init on an existing brain keeps every .gitignore line, reports already ini
   const d = repo(), b = path.join(d, '.brain'), gi = path.join(b, '.gitignore');
   fs.writeFileSync(gi, '*.sqlite\nCARD.md\n'); const before = snap(b);
   const r1 = run(d, ['init']); assert.equal(r1.status, 0, r1.stderr);
-  assert.equal(r1.stdout, 'already initialised: .brain (no changes)\n');
+  assert.equal(r1.stdout.split('\n')[0], 'already initialised: .brain (no changes)'); // then the CLAUDE.md snippet (test/steer.test.mjs)
   assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\nCARD.md\n'); assert.deepEqual(snap(b), before);
   const m = fs.statSync(gi).mtimeMs; assert.equal(run(d, ['init']).stdout, r1.stdout); assert.equal(fs.statSync(gi).mtimeMs, m); // nothing missing: no write
 });
@@ -410,9 +410,9 @@ test('init on an existing brain only appends the missing *.sqlite line, preservi
   const d = repo(), b = path.join(d, '.brain'), gi = path.join(b, '.gitignore');
   fs.writeFileSync(gi, '# mine\nCARD.md\n\nout/'); const before = snap(b);
   const r = run(d, ['init']); assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, 'already initialised: .brain (added *.sqlite to .gitignore)\n');
+  assert.equal(r.stdout.split('\n')[0], 'already initialised: .brain (added *.sqlite to .gitignore)');
   assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\nCARD.md\n\nout/\n*.sqlite\n'); assert.deepEqual(snap(b), before);
-  assert.equal(run(d, ['init']).stdout, 'already initialised: .brain (no changes)\n');
+  assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .brain (no changes)');
 });
 test('a fresh init still says initialised and tells what to do next', () => {
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d });

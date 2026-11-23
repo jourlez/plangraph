@@ -156,6 +156,7 @@ function findings(ctx, args) {
 }
 
 // ---- rules: brain learnings (index) or, with --repo, OpenWolf's .wolf/cerebrum.md read through and fenced ----
+const TOPIC_USAGE = '--topic needs a word of 1 to 60 characters on one line';
 /** @param {Ctx} ctx @param {Args} args */
 async function rulesRepo(ctx, args) {
   const W = await import('../../lib/integrations/openwolf.mjs'), v = verbose(args); let max = v ? 200 : 12;
@@ -164,14 +165,18 @@ async function rulesRepo(ctx, args) {
     if (!/^\d{1,3}$/.test(m) || +m < 1 || +m > (v ? 200 : 30)) throw usage('--max needs a whole number from 1 to 30 (up to 200 with -v)');
     max = +m;
   }
+  const topic = args.values.topic;
+  // oneLine caps with a marker and collapses line breaks, so a longer or multi-line topic differs from itself after it
+  if (topic !== undefined && (typeof topic !== 'string' || !topic || oneLine(topic, W.TOPIC_MAX) !== topic)) throw usage(TOPIC_USAGE);
   const r = W.readWolfFile(ctx.root, 'cerebrum.md');
   if (!r.ok) { ctx.io.out(r.missing ? 'no repo rules: .wolf/cerebrum.md not found' : `warning: ${r.warning}`); return 0; }
-  ctx.io.outBlock(W.renderRepoRules(W.parseCerebrum(r.text), { max, entryMax: v ? 1000 : 200 }));
+  ctx.io.outBlock(W.renderRepoRules(W.parseCerebrum(r.text), { max, entryMax: v ? 1000 : 200, topic, all: Boolean(args.values.all) }));
   return 0;
 }
 /** @param {Ctx} ctx @param {Args} args */
 function rules(ctx, args) {
   if (args.values.repo) return rulesRepo(ctx, args);
+  if (args.values.topic !== undefined || args.values.all) throw usage('--topic and --all need --repo (a brain topic is the positional argument)');
   const d = ctx.db(), [topic] = args.positionals;
   if (!topic) { for (const r of d.all('SELECT topic, COUNT(*) c FROM learning GROUP BY topic ORDER BY topic')) ctx.io.out(`${w(r.topic, 80)}: ${r.c}`); return 0; }
   // learning text is free text from the repo: one fence, one sanitized line per field, bounded
@@ -273,8 +278,8 @@ async function healMergeDriver(ctx) {
 }
 
 // One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Brain data only.
-/** @param {Ctx} ctx */
-async function cardLine(ctx) {
+/** The card line text (also compared by `brain doctor` with the line in OpenWolf's STATUS.md). @param {Ctx} ctx @returns {Promise<string>} */
+export async function cardLineText(ctx) {
   needBrain(ctx);
   const { loadModel, CONFIG_MAX } = await import('../../lib/model.mjs'), V = await import('../../lib/verify.mjs');
   const model = loadModel(ctx.dir, { config: ctx.config() }), h = crypto.createHash('sha256'); let last = 0;
@@ -285,9 +290,10 @@ async function cardLine(ctx) {
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && s.sprint > last) last = s.sprint;
-  ctx.io.out(`brain: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`);
-  return 0;
+  return `brain: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`;
 }
+/** @param {Ctx} ctx */
+async function cardLine(ctx) { ctx.io.out(await cardLineText(ctx)); return 0; }
 
 /** @param {Ctx} ctx @param {Args} args */
 async function card(ctx, args) {
@@ -301,7 +307,7 @@ async function card(ctx, args) {
   const R = await import('../../lib/render.mjs'), model = modelFromDb(ctx);
   // Cache-stable: identity is the source fingerprint of the text, STALE comes only from the fingerprint check of ctx.db() (content, not
   // modification times or a clock), so the same data prints the same bytes; in hook mode (--if-present) the card text itself says STALE.
-  const h = ctx.db(), meta = { fp: h.fingerprint, stale: Boolean(h.stale) };
+  const h = ctx.db(), meta = { fp: h.fingerprint, stale: Boolean(h.stale), dir: rel(ctx, ctx.dir) };
   const text = `${R.renderCard(model, meta)}\n`;
   if (args.values.write) {
     const dst = path.join(ctx.dir, 'CARD.md');
@@ -320,7 +326,7 @@ export const commands = {
   person: { run: person, positionals: [1, 1], summary: "one person's load per sprint" },
   blockers: { run: blockers, positionals: [0, 0], summary: 'tickets whose verdict is not READY' },
   findings: { run: findings, positionals: [0, 1], summary: 'finding counts by kind, or the findings of one kind' },
-  rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' } }, summary: 'learned rules by topic; --repo reads OpenWolf rules' },
+  rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' }, topic: { type: 'string', missing: TOPIC_USAGE }, all: B }, summary: 'learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)' },
   check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity and loops of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B }, summary: 'independent plan verifier (exit 1 on a violation)' },
   ready: { run: ready, positionals: [1, 1], options: { jira: { type: 'string' } }, summary: 'may this ticket be started now? (exit 1 with reasons)' },

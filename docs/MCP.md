@@ -116,9 +116,16 @@ Claude Code 2.1.329 (the native CLI), in an isolated config (`CLAUDE_CONFIG_DIR`
   stdio server, `⏸ Pending approval` (approval is interactive and was not given there).
 - `claude --help` lists `--mcp-config` and `--strict-mcp-config` as described above.
 
-Not verified live: a tool call made by a model in a real session (the isolated config had no login: `claude -p` answered
-`Not logged in`), how Claude Code shows the tool
-text to the model, whether it defers loading these tool definitions (tool search), and any other MCP client.
+Then, in a logged-in Claude Code 2.1.329 session with the server opted in (an owner-run session, not part of the automated tests):
+
+- Claude Code DEFERS the MCP tool definitions and loads them on demand: the model's first step was a `ToolSearch` select of the three
+  `brain` tools, and only then did it call them. The definitions are not in the context up front.
+- A model made the tool calls: a 5-turn session made 3 correct calls and cost $0.046 in total (as reported by Claude Code).
+
+Still not verified: how many tokens the deferred entry (the tool names listed for `ToolSearch`) costs before the first use; how Claude
+Code shows the tool text to the model, byte for byte; whether deferral happens in every configuration (other Claude Code versions,
+settings that turn tool search off, sessions with few tools); a comparison of that session against the same questions through the CLI;
+and any other MCP client.
 
 ## Token cost (measured, with limits)
 
@@ -152,8 +159,9 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 Reading it:
 
 - Up front: about 490 est tok of tool definitions per session on a client that loads them eagerly, against 0 for the CLI (whose cost is
-  the card and the skill description, paid either way). This is inside the 360-540 estimate of ai-engineering.md 6.2. A client with
-  deferred tool loading pays roughly the names only until a tool is used; not measured here.
+  the card and the skill description, paid either way). This is inside the 360-540 estimate of ai-engineering.md 6.2. Claude Code 2.1.329
+  was seen to defer them (above): it pays a short entry until the model selects the tools with `ToolSearch`, then the definitions of
+  the selected tools. The size of that entry is not measured here; the table is the eager-client cost.
 - Per call: the answer text is the same bytes as the CLI. The JSON-RPC reply adds about 90-100 bytes of envelope and escaping; how much
   of that a client shows to the model is client-specific and not measured. On the CLI side, the Bash tool call and its framing are not
   measured either. So the per-call difference is small and its sign is not established here.

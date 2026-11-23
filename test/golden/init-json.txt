@@ -1,5 +1,5 @@
 $ brain init --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"init","ok":true,"exit":0,"data":{"lines":["initialised .brain: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`"]},"fresh":null,"next":[]}
+{"v":2,"cmd":"init","ok":true,"exit":0,"data":{"lines":["initialised .brain: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`","suggested lines for this repo's CLAUDE.md (printed only, nothing written):","## Plan questions","Use `brain` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl or the index.","Run `brain explain` for the full command list."]},"fresh":null,"next":[]}
 --- stderr

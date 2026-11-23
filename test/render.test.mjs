@@ -93,7 +93,7 @@ test('renderCard: small plan content', () => {
   assert.ok(/last sprint \d+/i.test(out) || /S\d+/.test(out));
   assert.ok(/missing_ac 2/.test(out));
   assert.ok(!/stale|\?|built|ago/.test(out), 'no stale count placeholder, no age');
-  assert.equal(out.split('\n').at(-1), 'ask: brain explain', 'the command menu lives in brain explain');
+  assert.equal(out.split('\n').at(-1), 'plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl', 'the command menu lives in brain explain; the card steers to brain');
   assert.ok(!/ $/m.test(out) && !/\u001b/.test(out));
   assert.equal(renderCard(m, meta), out, 'deterministic');
 });
@@ -136,7 +136,7 @@ test('renderCard: custom budget drops lowest priority first, keeps freshness and
   p.tickets.forEach((t, i) => { t.verdict = i % 3 ? 'READY' : 'NEEDS_A'; });
   const m = buildModel({ ...p, findings: [{ key: 'T-1', kind: 'low_prio_kind', text: '' }] });
   const full = renderCard(m, meta, { maxTokens: 250 });
-  assert.ok(/low_prio_kind/.test(full) && /ask: brain explain/.test(full));
+  assert.ok(/low_prio_kind/.test(full) && full.includes('plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl'));
   const lines = (s) => s.split('\n');
   let prev = full;
   for (const max of [120, 80, 55, 40, 30, 22]) {

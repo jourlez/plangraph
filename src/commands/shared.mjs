@@ -9,6 +9,7 @@ import { buildModel } from '../../lib/model.mjs';
 import { assertInside, writeAtomicSafe } from '../../lib/fsafe.mjs';
 import { BrainError, errText } from '../errors.mjs';
 import { INDEX_FILE, NO_BRAIN_MESSAGE } from '../db.mjs';
+import { hasSteer } from '../../lib/steer.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 export { capOf } from '../../lib/model.mjs';
@@ -69,6 +70,18 @@ export const nextList = (/** @type {Array<string | null | undefined>} */ cmds, m
 export function needBrain(ctx) {
   let ok = false; try { ok = fs.statSync(ctx.dir).isDirectory(); } catch { /* missing */ }
   if (!ok) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
+}
+// The repo's own CLAUDE.md files (root and .claude/): read only (brain never writes them), through readCapped (regular file, 1 MiB), and
+// only when the real path stays inside the repository (a symlink leaving it, a directory, an oversized or unreadable file are skipped).
+// Nothing from the text is printed: the result is two booleans. A file swapped between the realpath check and the open could be read once.
+/** @param {Ctx} ctx @returns {{ exists: boolean, steered: boolean }} */
+export function claudeSteer(ctx) {
+  let exists = false, steered = false;
+  for (const f of [path.join(ctx.root, 'CLAUDE.md'), path.join(ctx.root, '.claude', 'CLAUDE.md')]) {
+    let text; try { assertInside(ctx.root, f); text = readCapped(f, 1024 * 1024); } catch { continue; }
+    exists = true; if (hasSteer(text, rel(ctx, ctx.dir))) steered = true;
+  }
+  return { exists, steered };
 }
 /** A usage or data error with a long-standing message and no hint (the message already says what to do). */
 export const usage = (/** @type {string} */ message) => new BrainError('USAGE', message);

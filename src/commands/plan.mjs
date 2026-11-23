@@ -10,7 +10,8 @@ import { BrainError } from '../errors.mjs';
 import { buildIndex, openIndex, stampFingerprint, stampContent, TABLES, INDEX_FILE } from '../db.mjs';
 import { checkRepoPath } from '../../lib/gitsafe.mjs';
 import { NODE_FLOOR, nodeSupported } from '../floor.mjs';
-import { BIN, CUR, SEED, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
+import { claudeSnippet } from '../../lib/steer.mjs';
+import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
 // ---- reassignment safety ----
@@ -166,8 +167,10 @@ async function init(ctx) {
   for (const [t] of EXPORT) { const f = path.join(dir, /** @type {import('../db.mjs').TableSpec} */ (TABLES.get(t)).file); if (missing(f)) { writeState(ctx, f, ''); changes.push(`created ${/** @type {import('../db.mjs').TableSpec} */ (TABLES.get(t)).file}`); } }
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
   try { await wireMergeDriver(ctx); } catch (/** @type {any} */ e) { ctx.io.err(`merge driver not installed: ${oneLine(String(e.message).split('\n')[0], 200)}; run \`brain doctor --fix\` inside a git repo`); }
-  if (existing) { ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`); return 0; }
-  ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`brain build\``);
+  if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);
+  else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`brain build\``);
+  // Print-only: brain never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
+  if (!claudeSteer(ctx).steered) ctx.io.outBlock(["suggested lines for this repo's CLAUDE.md (printed only, nothing written):", ...claudeSnippet(rel(ctx, dir))]);
   return 0;
 }
 
@@ -246,6 +249,17 @@ async function doctorWarnings(ctx) {
   const sp = tools.superpowers; if (sp.state !== 'absent') out(`superpowers: ${oneLine(sp.state, 20)}${sp.version ? ` ${oneLine(sp.version, 64)}` : ''}`);
   const gk = tools.gitkraken; if (gk.state !== 'absent') out(`gitkraken: ${oneLine(gk.state, 20)}${gk.version ? ` ${oneLine(gk.version, 64)}` : ''}: ${oneLine(gk.notes.find((/** @type {string} */ n) => n.startsWith('logs every prompt')) ?? '', 200)}`);
   if (tools.openwolf.state === 'protocol-only') out('warning: openwolf: rules only: its hooks are not registered');
+  // Info only (never a failure, never a write): a CLAUDE.md exists but does not steer plan questions to brain.
+  // Info only: OpenWolf's STATUS.md carries a brain line that is not the one `brain card --line` prints now (the handoff is older than the
+  // data). Only when OpenWolf is active or protocol-only (disabled injects nothing); STATUS.md is read through readWolfFile (capped, no
+  // symlink) and nothing from it is printed. Any failure (no brain data, an unreadable file) skips the check silently.
+  if (tools.openwolf.state === 'active' || tools.openwolf.state === 'protocol-only') {
+    try {
+      const W = await import('../../lib/integrations/openwolf.mjs'), st = W.readWolfFile(ROOT, 'STATUS.md'), seen = st.ok ? W.statusBrainLine(st.text) : null;
+      if (seen !== null) { const { cardLineText } = await import('./queries.mjs'); if (seen !== await cardLineText(ctx)) out('info: OpenWolf STATUS.md mentions an older brain line: run /handoff'); }
+    } catch { /* no brain data or an unreadable file: nothing to compare */ }
+  }
+  const cs = claudeSteer(ctx); if (cs.exists && !cs.steered) out('info: CLAUDE.md does not steer plan questions to brain: `brain init` prints a 3-line snippet to add (nothing is written)');
 }
 
 const B = { type: 'boolean' };

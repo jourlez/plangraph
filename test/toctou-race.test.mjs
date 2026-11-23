@@ -40,11 +40,53 @@ test('read: a data file swapped for a symlink to an outside file right after the
   assert.deepEqual(reads, []);
 });
 
-test('read: a data file swapped for another regular file (a copy of an outside file) after the lstat is refused by the dev/ino check', { skip }, () => {
+// The replacement is created while the original still exists (written beside it, then renamed over it, or a hard link to the live outside
+// file), so its inode number necessarily differs from the original's on every filesystem: the dev/ino check is a guarantee here.
+const SWAPS = /** @type {Array<[string, (w: any, target: string, src: string) => void]>} */ ([
+  ['a copy of an outside file renamed over it', (_w, target, src) => { fs.copyFileSync(src, `${target}.new`); fs.renameSync(`${target}.new`, target); }],
+  ['a hard link to the outside file', (_w, target, src) => { fs.rmSync(target); fs.linkSync(src, target); }],
+]);
+for (const [what, swap] of SWAPS) {
+  test(`read: a data file swapped for another regular file (${what}) after the lstat is refused by the dev/ino check`, { skip }, () => {
+    const w = world();
+    const { impl, reads } = hooked('lstatSync', w.data, () => swap(w, w.data, w.secret));
+    assert.throws(() => readDataCapped(w.data, 1 << 20, { fsImpl: impl }), (/** @type {any} */ e) => e.code === 'SWAPPED' && e.message === 'file was replaced while it was opened');
+    assert.deepEqual(reads, []);
+  });
+}
+
+// Delete-then-create: the original is removed first, so its inode number is free, and ext4 (and overlayfs on it, the Linux CI runner and
+// Docker) hands the same number to the very next file created in that directory: dev/ino alone cannot see this swap there (APFS and tmpfs
+// do not reuse a number at once, so the dev/ino check catches it on macOS). The reader also compares the change time (ctime, which no
+// unprivileged process can set): a recreated file has a new ctime unless it was created within the timestamp granularity of the original's
+// last change (a jiffy, at most 10 ms, on kernels with coarse timestamps). Here the original is 50 ms old when it is swapped, so the ctime
+// comparison is the guard wherever dev/ino is not; the inode outcome is reported as a diagnostic, never assumed.
+test('read: delete-then-create (the inode number may be reused) is refused as SWAPPED by the ctime comparison; the outcome is reported', { skip }, (t) => {
   const w = world();
-  const { impl, reads } = hooked('lstatSync', w.data, () => { fs.rmSync(w.data); fs.copyFileSync(w.secret, w.data); });
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); // the original's ctime is now older than any timestamp granularity
+  let pre = null, post = null;
+  const { impl, reads } = hooked('lstatSync', w.data, () => { pre = fs.lstatSync(w.data); fs.rmSync(w.data); fs.copyFileSync(w.secret, w.data); post = fs.lstatSync(w.data); });
   assert.throws(() => readDataCapped(w.data, 1 << 20, { fsImpl: impl }), (/** @type {any} */ e) => e.code === 'SWAPPED' && e.message === 'file was replaced while it was opened');
   assert.deepEqual(reads, []);
+  const a = /** @type {any} */ (pre), b = /** @type {any} */ (post);
+  t.diagnostic(`inode number reused: ${a.dev === b.dev && a.ino === b.ino} (${process.platform}); ctime differs: ${a.ctimeMs !== b.ctimeMs}`);
+});
+
+// The same swap made deterministic on every filesystem: the lstat reports the very dev/ino the fstat will (as an inode reuse does).
+test('read: an lstat and fstat with the same dev/ino but a different ctime are refused (SWAPPED); identical identity reads (the documented limit)', { skip }, () => {
+  const w = world();
+  for (const [shift, refused] of /** @type {Array<[number, boolean]>} */ ([[-5, true], [0, false]])) {
+    const reads = [];
+    const impl = {
+      ...fs,
+      lstatSync: (/** @type {any} */ p) => { const s = fs.lstatSync(p); return Object.assign(Object.create(Object.getPrototypeOf(s)), s, { ctimeMs: s.ctimeMs + shift }); },
+      readSync: (/** @type {any[]} */ ...a) => { reads.push(a[0]); return fs.readSync(.../** @type {[any, any, any, any, any]} */ (a)); },
+    };
+    if (refused) {
+      assert.throws(() => readDataCapped(w.data, 1 << 20, { fsImpl: impl }), (/** @type {any} */ e) => e.code === 'SWAPPED');
+      assert.deepEqual(reads, []);
+    } else assert.equal(readDataCapped(w.data, 1 << 20, { fsImpl: impl }), '{"key":"T-1"}\n'); // same dev, ino and ctime: indistinguishable
+  }
 });
 
 test('read: a symlinked data file is refused before any open (lstat), and O_NOFOLLOW refuses it when the lstat is bypassed', { skip }, () => {
@@ -62,7 +104,9 @@ test('read: config.json (the one config reader) swapped right after the lstat is
   fs.writeFileSync(secret, '{"SECRET":"s3cr3t"}');
   for (const [swap, code, message] of /** @type {Array<[() => void, string, string]>} */ ([
     [() => { fs.rmSync(cfg); fs.symlinkSync(secret, cfg); }, 'SYMLINK', 'config.json: is a symlink'],
-    [() => { fs.rmSync(cfg); fs.copyFileSync(secret, cfg); }, 'SWAPPED', 'config.json: file was replaced while it was opened'],
+    // created beside the original, then renamed over it: a different inode on every filesystem (see SWAPS above)
+    [() => { fs.copyFileSync(secret, `${cfg}.new`); fs.renameSync(`${cfg}.new`, cfg); }, 'SWAPPED', 'config.json: file was replaced while it was opened'],
+    [() => { fs.rmSync(cfg); fs.linkSync(secret, cfg); }, 'SWAPPED', 'config.json: file was replaced while it was opened'],
   ])) {
     fs.rmSync(cfg, { force: true }); fs.writeFileSync(cfg, '{"first_sprint":1}');
     const { impl, reads } = hooked('lstatSync', cfg, swap);
@@ -128,4 +172,28 @@ test('index: a brain.sqlite symlink is refused on open, and a planted symlink at
   fs.rmSync(tmp);
   buildIndex({ dir }); // and a clean build still works
   assert.equal(w.secretBytes(), before);
+});
+
+test('index: the build temp file deleted and recreated after SQLite closed it is refused before the rename (the build holds its fd, so the inode number cannot be reused)', { skip }, async () => {
+  const { buildIndex, INDEX_FILE } = await import('../src/db.mjs');
+  const w = world(); const dir = path.join(w.root, '.brain'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
+  const mfs = /** @type {any} */ (fs), real = { lstatSync: fs.lstatSync, openSync: fs.openSync, closeSync: fs.closeSync }; // src/db.mjs calls node:fs directly
+  let swapped = false, tfd = -1, heldAtCheck = false, closed = false;
+  // which descriptor the build opens on its temp path, and whether it is still open at the identity check (whatever the filesystem does
+  // with inode numbers: APFS and tmpfs never reuse one at once, so only this makes the guarantee testable everywhere)
+  mfs.openSync = (/** @type {any[]} */ ...a) => { const fd = real.openSync(.../** @type {[any, any, any]} */ (a)); if (a[0] === tmp) tfd = fd; return fd; };
+  mfs.closeSync = (/** @type {number} */ fd) => { if (fd === tfd) closed = true; return real.closeSync(fd); };
+  // the first lstat of the temp path is the identity check right before the rename: swap it there (delete, then create a planted file)
+  mfs.lstatSync = (/** @type {any[]} */ ...a) => {
+    if (a[0] === tmp && !swapped) { swapped = true; heldAtCheck = tfd >= 0 && !closed; fs.rmSync(tmp); fs.writeFileSync(tmp, 'PLANTED'); }
+    return real.lstatSync(.../** @type {[any]} */ (a));
+  };
+  try {
+    assert.throws(() => buildIndex({ dir }), (/** @type {any} */ e) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp file was replaced during the build');
+  } finally { Object.assign(mfs, real); }
+  assert.ok(swapped, 'the swap ran');
+  assert.ok(heldAtCheck, 'the temp file descriptor is still open at the identity check');
+  assert.ok(closed, 'and closed afterwards (no descriptor leak)');
+  assert.equal(fs.existsSync(file), false, 'the planted file never becomes the index');
+  assert.equal(fs.readFileSync(tmp, 'utf8'), 'PLANTED', 'not ours: left in place'); fs.rmSync(tmp);
 });

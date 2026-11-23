@@ -290,7 +290,7 @@ test('sp-ingest: with the ledger gone, previous statuses and ledger findings sta
   const before = fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), fb = fs.readFileSync(path.join(root, '.brain/findings.jsonl'), 'utf8');
   fs.rmSync(path.join(root, '.superpowers'), { recursive: true });
   const r = run(root, 'sp-ingest', PLAN_REL); assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /0 statuses from ledger \(no ledger: previous statuses kept\)/);
+  assert.match(r.stdout, /0 statuses from ledger \(no ledger found: kept the previous impl_status of 3 tasks; plan checkboxes are never read as progress\)/);
   assert.equal(fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), before);
   assert.equal(fs.readFileSync(path.join(root, '.brain/findings.jsonl'), 'utf8'), fb);
 });
@@ -468,7 +468,7 @@ const FLAT_NOID = fx('negative/8-flat-ledger.md');
 test('sp-ingest: an identity-less flat ledger is never applied to an unrelated plan by auto-discovery; --ledger FILE applies it', () => {
   const root = repo({ ledger: 'none' }); put(root, '.superpowers/sdd/progress.md', FLAT_NOID);
   const r = run(root, 'sp-ingest', PLAN_REL); assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /0 statuses from ledger \(no ledger: previous statuses kept\)/);
+  assert.match(r.stdout, /0 statuses from ledger \(no ledger found: no impl_status set; plan checkboxes are never read as progress\)/);
   assert.match(r.stdout, /^warning: found \.superpowers\/sdd\/progress\.md without a plan identity: pass --ledger FILE to use it$/m);
   assert.ok(readRecs(root, 'tickets.jsonl').filter((t) => t.epic === EPIC).every((t) => t.impl_status === undefined), 'statuses unchanged');
   const e = run(root, 'sp-ingest', PLAN_REL, '--ledger', '.superpowers/sdd/progress.md'); assert.equal(e.status, 0, e.stderr);

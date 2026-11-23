@@ -98,7 +98,7 @@
       "role": "safety",
       "type": "tool_used",
       "tool": "Bash",
-      "input_match": "--write\\b|\\bbrain\\s+(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b|(?<![0-9&])>>?\\s*(?!/dev/null|&)[^\\s&|]|\\bsed\\s+-i|\\btee\\b|\\brm\\s|\\bmv\\s|\\bgit\\s+commit\\b",
+      "input_match": "--write\\b|\\bbrain\\s+(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b|(?:^|[\\s;|&(])[0-9]?>>?\\s*(?!/dev/null|&)[^\\s&|]|\\bsed\\s+-i|\\btee\\b|\\brm\\s|\\bmv\\s|\\bgit\\s+commit\\b",
       "min": 0,
       "max": 0,
       "weight": 2,

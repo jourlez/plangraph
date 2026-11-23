@@ -910,7 +910,9 @@ async function killTest(env, { exec = false } = {}) {
   const dir = writePlan(p), out = path.join(dir, 'out.json');
   const child = spawn(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '120', '--verbose'], { cwd: tmpRoot, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } });
   let err = '', killed = false;
-  const done = new Promise((res) => child.on('close', (code, signal) => res({ code, signal })));
+  // 'exit', not 'close': an orphan that survives the launcher (the failure this test exists to catch) keeps the pipes open, and 'close' would
+  // wait for it; 'exit' fires when the launcher's process is gone, so a failing run fails at once and the finally below reaps the orphan
+  const done = new Promise((res) => child.on('exit', (code, signal) => res({ code, signal })));
   child.stderr.setEncoding('utf8');
   let launcherCmd = '';
   child.stderr.on('data', (s) => {
@@ -920,25 +922,29 @@ async function killTest(env, { exec = false } = {}) {
       killed = true; child.kill('SIGKILL');
     }
   });
-  const guard = setTimeout(() => { for (const l of procsWith(out)) try { process.kill(Number(l.trim().split(/\s+/)[0]), 'SIGKILL'); } catch {} }, 200000);
-  const end = await done;
-  assert.ok(killed, `no anytime cp-sat line before exit (${end.code}/${end.signal}): ${err.slice(-400)}`);
-  assert.equal(end.signal, 'SIGKILL');
-  // exec path: the launcher's pid runs the solver script itself (one process); fallback: it is uv
-  const prog = path.basename(launcherCmd.split(' ')[0]);
-  if (exec) assert.ok(launcherCmd.includes(`${SOLVE} `) && /^python/.test(prog), launcherCmd);
-  else assert.equal(prog, 'uv', launcherCmd);
-  let left = procsWith(out);
-  for (let i = 0; i < 50 && left.length; i++) { await new Promise((res) => setTimeout(res, 100)); left = procsWith(out); } // the watchdog polls every 0.2 s
-  clearTimeout(guard);
-  for (const l of left) try { process.kill(Number(l.trim().split(/\s+/)[0]), 'SIGKILL'); } catch {}
-  assert.deepEqual(left, [], 'no solver process survives the launcher');
-  const st1 = fs.statSync(out); await new Promise((res) => setTimeout(res, 2500)); const st2 = fs.statSync(out);
-  assert.equal(st2.mtimeMs, st1.mtimeMs, 'nothing writes --out after the kill');
-  const sched = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.deepEqual(check(p, sched), []); assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
-  const meta = JSON.parse(fs.readFileSync(out + '.meta.json', 'utf8'));
-  assert.equal(meta.partial, true); assert.equal(meta.verified, true); assert.equal(meta.proved, false); // marked as a mid-run schedule
+  const reap = () => { for (const l of procsWith(out)) try { process.kill(Number(l.trim().split(/\s+/)[0]), 'SIGKILL'); } catch {} };
+  const guard = setTimeout(reap, 200000);
+  try { // every exit (a failed assertion included) clears the guard and kills whatever still runs on this --out: no process outlives the test
+    const end = await done;
+    assert.ok(killed, `no anytime cp-sat line before exit (${end.code}/${end.signal}): ${err.slice(-400)}`);
+    assert.equal(end.signal, 'SIGKILL');
+    // exec path: the launcher's pid runs the solver script itself (one process): its command is `<interpreter> <bin/brain-solve> ...`. The
+    // interpreter's image name is not always lower-case `python`: a macOS framework build (Homebrew, python.org) has bin/python3.x exec (same
+    // pid) Python.framework/.../Resources/Python.app/Contents/MacOS/Python. Fallback: the pid is uv.
+    if (exec) {
+      const at = launcherCmd.indexOf(` ${SOLVE} `);
+      assert.ok(at > 0 && /^python[0-9.]*$/i.test(path.basename(launcherCmd.slice(0, at))), `the launcher pid is not the solver's interpreter: ${launcherCmd}`);
+    } else assert.equal(path.basename(launcherCmd.split(' ')[0]), 'uv', launcherCmd);
+    let left = procsWith(out);
+    for (let i = 0; i < 50 && left.length; i++) { await new Promise((res) => setTimeout(res, 100)); left = procsWith(out); } // the watchdog polls every 0.2 s
+    assert.deepEqual(left, [], 'no solver process survives the launcher');
+    const st1 = fs.statSync(out); await new Promise((res) => setTimeout(res, 2500)); const st2 = fs.statSync(out);
+    assert.equal(st2.mtimeMs, st1.mtimeMs, 'nothing writes --out after the kill');
+    const sched = JSON.parse(fs.readFileSync(out, 'utf8'));
+    assert.deepEqual(check(p, sched), []); assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
+    const meta = JSON.parse(fs.readFileSync(out + '.meta.json', 'utf8'));
+    assert.equal(meta.partial, true); assert.equal(meta.verified, true); assert.equal(meta.proved, false); // marked as a mid-run schedule
+  } finally { clearTimeout(guard); reap(); }
 }
 test('(b) SIGKILL on the launcher leaves no solver process and a valid, marked --out (exec path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({}, { exec: true }));
 test('(b) SIGKILL on a `uv run` launcher: the orphaned solver notices and exits without writing (watchdog path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({ BRAIN_SOLVE_LAUNCH: 'uv-run' }));

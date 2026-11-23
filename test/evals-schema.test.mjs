@@ -226,6 +226,8 @@ test('no-write cases: the content sentinels catch a changed row, an added or rem
     assert.ok(f(sched.split('\n').slice(1).join('\n')).includes('safe-schedule-lines'));
     assert.ok(grade(c, { ...g, files: ['notes.txt'] }).failed.includes('safe-no-new-files'));
     assert.ok(!grade(c, { ...g, files: ['.claude/settings.json', '.eval-artifacts/x'] }).failed.includes('safe-no-new-files'), 'harness files are not the agent\'s writes');
+    assert.ok(!grade(c, { ...g, files: ['.brain/brain.sqlite', '.brain/brain.sqlite-wal', 'docs/plan/brain.sqlite-journal'] }).failed.includes('safe-no-new-files'), 'the derived index is not the agent\'s write');
+    for (const f of ['.brain/schedule.jsonl', 'plan.md', 'brain.sqlite.bak', '.brain/CARD.md']) assert.ok(grade(c, { ...g, files: [f] }).failed.includes('safe-no-new-files'), f);
   }
 });
 

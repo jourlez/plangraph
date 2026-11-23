@@ -21,14 +21,32 @@ test('tool order is fixed and every tool has the documented shape', () => {
   for (const t of r.tools) { assert.equal(t.state, 'absent'); assert.ok(Array.isArray(t.evidence) && Array.isArray(t.notes)); }
 });
 
-test('a: superpowers installed under one marketplace and enabled under another is enabled (match before the @)', () => {
+test('a: enabled-but-not-installed and installed-but-not-enabled are different states: the ENABLED key must be the INSTALLED key', () => {
   const { root, home } = world();
   registry(home, { 'superpowers@market-a': [entry('9.9.9')] });
   write(path.join(root, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-b': true } });
-  const t = tool(detectTools({ root, home, env: {} }), 'superpowers');
-  assert.equal(t.state, 'enabled'); assert.equal(t.version, '9.9.9');
-  assert.ok(t.evidence.some((e) => e.includes('superpowers@market-a')));
-  assert.ok(t.evidence.some((e) => e.includes('superpowers@market-b')));
+  let t = tool(detectTools({ root, home, env: {} }), 'superpowers');
+  assert.equal(t.state, 'installed', 'market-b is enabled but is not the installed key: nothing enables market-a'); assert.equal(t.version, '9.9.9');
+  assert.deepEqual(t.evidence, ['installed: superpowers@market-a', 'enabled, not installed: superpowers@market-b in project settings.json']);
+  assert.deepEqual(t.notes, ['enabled in settings but not installed: superpowers@market-b (project settings.json)']);
+  // the user layer enables the installed key (a project enabling another marketplace's key does not hide it): enabled, note kept
+  write(path.join(home, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-a': true } });
+  t = tool(detectTools({ root, home, env: {} }), 'superpowers');
+  assert.equal(t.state, 'enabled');
+  assert.deepEqual(t.evidence, ['installed: superpowers@market-a', 'enabled: superpowers@market-a in user settings.json', 'enabled, not installed: superpowers@market-b in project settings.json']);
+  assert.deepEqual(t.notes, ['enabled in settings but not installed: superpowers@market-b (project settings.json)']);
+  // per key, the most specific layer wins: project false beats user true; local true beats project false
+  write(path.join(root, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-a': false } });
+  t = tool(detectTools({ root, home, env: {} }), 'superpowers');
+  assert.equal(t.state, 'installed'); assert.deepEqual(t.notes, ['disabled in settings']);
+  write(path.join(root, '.claude/settings.local.json'), { enabledPlugins: { 'superpowers@market-a': true } });
+  assert.equal(tool(detectTools({ root, home, env: {} }), 'superpowers').state, 'enabled');
+  // nothing installed, one key enabled: absent with the note and the key as evidence
+  const w = world();
+  write(path.join(w.root, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-b': true } }); registry(w.home, {});
+  t = tool(detectTools({ root: w.root, home: w.home, env: {} }), 'superpowers');
+  assert.equal(t.state, 'absent'); assert.deepEqual(t.notes, ['enabled in settings but not installed']);
+  assert.deepEqual(t.evidence, ['enabled, not installed: superpowers@market-b in project settings.json']);
 });
 
 test('superpowers installed but not enabled is installed; explicit false adds a note', () => {
@@ -314,11 +332,13 @@ test('brain integrations: terse default, one line per tool in fixed order', () =
   const { root, home } = repo();
   registry(home, { 'superpowers@market-a': [entry('6.1.1')], 'caveman@caveman': [entry('0d95a81d35a9')] });
   write(path.join(root, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-b': true } });
+  write(path.join(home, '.claude/settings.json'), { enabledPlugins: { 'superpowers@market-a': true } });
   fs.mkdirSync(path.join(root, '.wolf'));
   const r = run(root, home, 'integrations');
   assert.equal(r.status, 0, r.stderr);
-  assert.deepEqual(r.stdout.trim().split('\n'), [
-    'superpowers: enabled 6.1.1 (installed superpowers@market-a; project enables superpowers@market-b)',
+  assert.deepEqual(r.stdout.trimEnd().split('\n'), [
+    'superpowers: enabled 6.1.1 (installed superpowers@market-a; user enables superpowers@market-a; enabled but not installed: superpowers@market-b (project))',
+    '  ledger: superpowers 6.1.1 keeps it at .superpowers/sdd/progress.md (verified; brain reads the 6.1.1 to 7.0.2 layouts)',
     'openwolf: rules only (hooks not registered)',
     'caveman: installed 0d95a81d35a9',
     'context7: absent',
@@ -412,8 +432,9 @@ test('hostile registry: `brain integrations -v` and `brain doctor` print only th
   assert.doesNotMatch(v.stdout, MARK);
   assert.doesNotMatch(v.stdout, /untrusted|IGNORE|SYSTEM|pwn/);
   const lines = v.stdout.split('\n');
-  assert.deepEqual(lines.slice(0, 5), [
+  assert.deepEqual(lines.slice(0, 6), [
     'superpowers: installed',
+    '  ledger: superpowers version unknown, layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)',
     '  evidence: installed: superpowers@ok',
     '  note: ignored 2 entries with unsafe names',
     'openwolf: absent', 'caveman: absent',

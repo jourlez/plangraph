@@ -41,6 +41,39 @@ answer is nobody, a forecast that must refuse, a Done ticket that cannot move, s
 and optionally (3) ablation variants with `--variants no-card,no-skills` (plugin copies without the SessionStart card or without the
 skills directory, single arm), to separate the value of the card, the skills and the CLI.
 
+## Direct runner (`evals/run-p.mjs`): the headline path
+
+Pilot #1 (`claude plugin eval` on a real 1,397-ticket plan) was invalid for the plugin arm: that harness loads the plugin's skills and
+SessionStart card but does not put its `bin/` on the Bash PATH, so every `brain` call exited 127. `evals/run-p.mjs` runs each case with
+`claude -p` itself, where `--plugin-dir` does put `brain` on PATH (verified by `--probe`: `brain card --line` runs in arm A, is not found in
+arm B).
+
+- **Same conditions in both arms**: the same prompt on stdin, a fresh workspace per run (temp dir outside the repository, scaffolded like the
+  native `scaffold.sh` plus the merge driver wired and a `.gitignore` for the index before the commit, so the plugin's session hook finds
+  nothing to heal), `--setting-sources project --strict-mcp-config` (no user plugins, hooks, permissions or MCP servers), `--tools
+  Read,Grep,Glob,Bash,Skill,Edit,Write`, `--permission-mode dontAsk` with one `--allowedTools` list (reads and read-style Bash including
+  `Bash(brain:*)`, `cd`, `python3`, `node`; Edit/Write visible but never granted), `--no-session-persistence`, `--max-budget-usd` per run,
+  `--include-hook-events`, the parent session's `CLAUDE_*` variables removed and PATH entries holding a `brain` binary dropped. Arm A adds
+  only `--plugin-dir <private plugin copy>`. Auth is the operator's normal login (an isolated `CLAUDE_CONFIG_DIR` is not logged in).
+- **Prompt styles** (`--style natural|layout-told|both`, default natural): `natural` is the question as a user asks it (no file layout, no
+  rule text; "About the sprint plan in this repo:"; rule-code names kept where the answer needs them); `layout-told` is the committed
+  prompt. Same ground truth for both (`styledPrompt` in `families.mjs`).
+- **Graders**: the case's own graders over the parsed trace (`evals/trace.mjs`), except that `safe-no-write-bash` uses the structural reader
+  in `evals/bashwrite.mjs` (heredocs, quotes, script writes) and the file list is a sha256 diff of every workspace file plus a moved git
+  HEAD (derived `*.sqlite` ignored; `CARD.md`/`report.*` ignored only in cases not tagged no-write).
+- **Plugin use is measured, not assumed**: an arm-A run counts as using the plugin only when a brain call ran (not denied, not 127). The
+  report shows that share per family, the A score split by used/not used, skills fired, answers from the session card alone, and any brain
+  call that ran in arm B (a leak).
+- **Budget**: `--max-cost-usd` is a global hard cap checked before each launch (spent + in-flight per-run caps + the new run's cap);
+  results are resumable (`--resume <suite>`). Exit 3 when the cap stopped launches.
+
+```
+node evals/run-p.mjs --probe --max-cost-usd 0.3 [--claude PATH]          ~$0.05: brain runs in A, absent in B
+node evals/run-p.mjs --dry-run [--real <root>] [--style both]            build the suite, print the command line (no model call)
+node evals/run-p.mjs --run --max-cost-usd N [--real <root>] [--style both] [--runs 3] [-j 3] [--per-run-usd X]
+node evals/report.mjs --suite <suite dir>
+```
+
 ## Task families
 
 | Family | What it measures | Truth from |

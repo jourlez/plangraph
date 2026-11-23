@@ -54,7 +54,9 @@ const MUTATIONS = [
   ['lib/store.mjs', "text.split('\\n').some((l) => l.trim() ===", "text.split('\\n').some((l, i, a) => a.slice(0, i).join('\\n').length >= 0 && l.trim() ===", ['test/driver-wiring.test.mjs']],
   // limitations wave: index content digest, swap races, 0-SP capacity, stale driver target
   ['src/db.mjs', 'if (got !== want) throw new BrainError', 'if (got !== want && false) throw new BrainError', ['test/index-integrity.test.mjs']],
-  ['lib/jsonl.mjs', 'if (pre && (st.dev !== pre.dev || st.ino !== pre.ino)) throw', 'if (false) throw', ['test/toctou-race.test.mjs']],
+  ['lib/jsonl.mjs', 'if (pre && (st.dev !== pre.dev || st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'if (false) throw', ['test/toctou-race.test.mjs']],
+  ['lib/jsonl.mjs', 'st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'st.ino !== pre.ino)) throw', ['test/toctou-race.test.mjs']],
+  ['src/db.mjs', 'mine = fs.fstatSync(tfd); }', 'mine = fs.fstatSync(tfd); fs.closeSync(tfd); }', ['test/toctou-race.test.mjs']],
   ['lib/fsafe.mjs', "    if (!same(f.lstatSync(tmp), mine)) throw swapped('the temp file');", '', ['test/toctou-race.test.mjs']],
   ['lib/whatif.mjs', 'if (na > cap && na > nb) {', 'if (na > cap) {', ['test/whatif-zero-sp.test.mjs']],
   ['lib/store.mjs', 'else if (expected && !sameFile(t, expected))', 'else if (false && expected && !sameFile(t, expected))', ['test/driver-stale.test.mjs']],

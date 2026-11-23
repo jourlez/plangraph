@@ -96,7 +96,9 @@ for (const kind of /** @type {const} */ (['symlink', 'fifo', 'big'])) {
     assert.equal(init.status, 0, `init: ${init.signal} ${init.stderr}`);
     assert.match(init.stderr, /merge driver not installed: refusing to read \.gitattributes: (it is a symlink|not a regular file|larger than 262144 bytes)/);
     const after_ = fs.lstatSync(ga);
+    // ino alone could miss a delete-then-create on ext4 (a freed inode number is reused at once); the ctime of a recreated entry is new
     assert.equal(after_.ino, before.ino, 'the .gitattributes entry was not replaced'); assert.equal(after_.mtimeMs, before.mtimeMs);
+    assert.equal(after_.ctimeMs, before.ctimeMs, 'the .gitattributes entry was not replaced or changed');
   });
 }
 
