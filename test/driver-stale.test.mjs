@@ -24,6 +24,7 @@ function world() {
   const brain = (plugin, args) => spawnSync(process.execPath, [path.join(plugin, 'bin/brain'), ...args], { cwd: repo, env, encoding: 'utf8' });
   return { dataDir, repo, brain, target: () => fs.readFileSync(path.join(dataDir, 'driver.target'), 'utf8') };
 }
+const NUDGE = 'brain: plan data found in .brain but no index: run brain build\n'; // the first-use line: brain data, no index yet
 const ok = (r) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 const want = (plugin) => path.join(plugin, 'bin/brain-merge') + '\n';
 
@@ -45,7 +46,7 @@ test('version bump with the old install still present: card --if-present --heal 
   const w = world(), v1 = copyPlugin(), v2 = copyPlugin();
   ok(w.brain(v1, ['init']));
   const r = ok(w.brain(v2, ['card', '--if-present', '--heal']));
-  assert.equal(r.stdout + r.stderr, '');
+  assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, '');
   assert.equal(w.target(), want(v2));
 });
 
@@ -54,7 +55,7 @@ test('the old install removed: heal repoints driver.target at the running plugin
   ok(w.brain(v1, ['init']));
   fs.rmSync(v1, { recursive: true });
   const r = ok(w.brain(v2, ['card', '--if-present', '--heal']));
-  assert.equal(r.stdout + r.stderr, '');
+  assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, '');
   assert.equal(w.target(), want(v2));
 });
 

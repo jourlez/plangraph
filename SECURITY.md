@@ -6,7 +6,7 @@ Use GitHub private vulnerability reporting: open the repository's Security tab, 
 
 ## Status
 
-- The plugin has never been installed in a live Claude Code session by its author. The install flow, hook output injection and marketplace schema were built to the documented layout and checked with `test/validate-plugin.mjs`, not in a real session.
+- Verified in a live session (non-interactive, Claude Code 2.1.329): the plugin installs from the public GitHub repository with the `claude plugin` CLI in an isolated config, and sessions started with `claude -p --plugin-dir` show the session-start card, the skills and `brain` on the Bash PATH. Not exercised: the interactive `/plugin` menu, Claude Code releases after 2.1.329, and Windows. See the README, section Known limits.
 - No security review by a third party has been done. The checks below were written by the author and are covered by the tests in `test/`.
 
 ## What is hardened (each has tests)

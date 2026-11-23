@@ -83,7 +83,7 @@ test('ingestPlan: the verbatim fixtures give exactly the expected records (canon
   const r = ingest();
   const T = (id, summary, impl) => ({ key: K(id), summary, epic: EPIC, sp: null, jira_status: '', verdict: '', verdict_source: 'sp-ingest', impl_status: impl });
   const want = {
-    tickets: [{ key: EPIC, summary: 'Widget Export', epic: '', sp: null, jira_status: '', verdict: '', verdict_source: 'sp-ingest' }, T('1', 'CSV formatter', 'done'), T('2', 'Streaming widget query', 'done'), T('3', 'Export HTTP handler', 'in_progress')],
+    tickets: [{ key: EPIC, summary: 'Widget Export', epic: '', sp: 0, jira_status: '', verdict: '', verdict_source: 'sp-ingest' }, T('1', 'CSV formatter', 'done'), T('2', 'Streaming widget query', 'done'), T('3', 'Export HTTP handler', 'in_progress')],
     edges: [{ consumer: K('3'), producer: K('1'), kind: 'sp_needs', note: 'HEADER, formatRow' }, { consumer: K('3'), producer: K('2'), kind: 'sp_needs', note: 'streamWidgets' }],
     findings: [
       { key: EPIC, kind: 'sp_constraint', text: 'Columns are exactly `id,name,color,created_at`, in that order.' },

@@ -56,7 +56,7 @@ brain ticket KEY            verdict, owner, sprint, needs, evidence
 brain neighbors KEY 2       what it needs and what needs it
 brain chain KEY             longest chain behind it: hops, handoffs, critical paths
 brain sprint N | person "Name" | blockers | findings [kind] | rules [topic]
-brain check                 strict handoff rule, caps, loops (exit 1 on a violation, for CI)
+brain check                 strict handoff rule, caps, loops, unplaced tickets (exit 1 on a violation, for CI)
 brain verify [schedule.json]   independent plan verifier
 brain open-items [--mine --me NAME]   decisions and fixes owed
 brain stale [--ref R] [--list] [--jira snapshot]   verdicts whose inputs changed

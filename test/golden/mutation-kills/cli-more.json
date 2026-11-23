@@ -278,7 +278,7 @@
   },
   "sp files": {
    "tickets.jsonl": [
-    "{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}",
+    "{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":0,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}",
     "{\"key\":\"sp:2026-01-01-widget/1\",\"summary\":\"Base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\",\"impl_status\":\"done\"}",
     "{\"key\":\"sp:2026-01-01-widget/2\",\"summary\":\"Use base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\",\"impl_status\":\"in_progress\"}"
    ],

@@ -263,7 +263,11 @@ test('card --if-present [--heal] is silent with exit 0 on every failure: bad .br
   quiet(['card', '--if-present'], {}, 'corrupt index');
   r = run(d, ['card']); assert.equal(r.status, 2); assert.match(r.stderr, /^error: the index is not a readable SQLite database/);
   fs.rmSync(path.join(b, INDEX_FILE));
-  quiet(['card', '--if-present'], {}, 'no index');
+  // no index: brain data is there, so the hook prints ONE first-use line (test/first-use.test.mjs covers it and every silent shape)
+  for (const extra of [[], ['--heal']]) {
+    r = run(d, ['card', '--if-present', ...extra]);
+    assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'brain: plan data found in .brain but no index: run brain build\n', ''], `no index ${extra.join(' ')}`);
+  }
 });
 
 test('main(): card --if-present swallows any thrown error (command or context) and prints nothing; other commands still report', async () => {

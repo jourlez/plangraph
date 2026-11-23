@@ -67,7 +67,7 @@ test('the marketplace entry has no version of its own', () => {
 });
 
 test('manifests and docs name no URL except the one repository and its derived URLs', () => {
-  const ok = /^https:\/\/github\.com\/jourlez\/OpenBrain(\.git|\/issues|\/security\/advisories\/new|\/pulls?|\/blob\/[\w./-]+)?$/;
+  const ok = /^https:\/\/github\.com\/jourlez\/OpenBrain(\.git|\/issues|\/security\/advisories\/new|\/pulls?|\/blob\/[\w./-]+|\/actions\/workflows\/ci\.yml(\/badge\.svg)?)?$/;
   for (const f of ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'package.json', 'README.md', 'SECURITY.md', 'CHANGELOG.md', 'CONTRIBUTING.md']) {
     for (const m of read(f).matchAll(/(?:git\+)?https?:\/\/[^\s"'`)>\]]+/gi)) {
       const u = m[0].replace(/^git\+/, '').replace(/[.,;]+$/, '');
@@ -122,9 +122,13 @@ test('quickstart skill commands exist as skills', () => {
   assert.match(t, /\/project-brain:brain-init/);
 });
 
-test('README states the real status', () => {
+test('README states the real status: what was verified, what was not, and the untested newer releases', () => {
   const t = read('README.md');
-  assert.match(t, /not (yet )?installed in a live Claude Code session/i);
+  // the install was exercised with the claude plugin CLI; the interactive /plugin menu, newer releases and Windows were not
+  assert.match(t, /Interactive `\/plugin` menu \| not exercised/);
+  assert.match(t, /releases after 2\.1\.329 have not been tested/i);
+  assert.match(t, /Windows is not supported/);
+  assert.doesNotMatch(t, /production[- ]ready|battle[- ]tested|enterprise[- ]grade|blazing|seamless/i, 'no marketing claims');
 });
 
 test('CHANGELOG has a 0.1.0 entry matching the version and names every removed feature', () => {

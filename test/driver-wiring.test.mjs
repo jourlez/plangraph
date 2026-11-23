@@ -37,6 +37,7 @@ function mergeScenario(repo) {
   return fs.readFileSync(path.join(repo, '.brain/tickets.jsonl'), 'utf8');
 }
 const WANT = S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31'), tk('T-32')], T);
+const NUDGE = 'brain: plan data found in .brain but no index: run brain build\n'; // the first-use line: brain data, no index yet
 const ok = (r) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 const snapshot = (dir) => Object.fromEntries(/** @type {string[]} */ (fs.readdirSync(dir, { recursive: true })).filter((f) => !String(f).startsWith('.git' + path.sep) && f !== '.git' && fs.statSync(path.join(dir, f)).isFile()).map((f) => { const st = fs.statSync(path.join(dir, f)); return [f, `${st.mtimeMs}:${fs.readFileSync(path.join(dir, f), 'latin1')}`]; }));
 
@@ -73,7 +74,7 @@ test('(d) card --if-present --heal repairs a deleted shim and missing git config
   const w = world(); ok(w.brain(PLUGIN, ['init']));
   fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.brain-jsonl.driver');
   const r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal']));
-  assert.equal(r.stdout, ''); assert.equal(r.stderr, ''); // no index yet, so no card either
+  assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, ''); // no index yet, so no card, only the first-use line
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`); assert.equal(fs.statSync(w.shim).mode & 0o777, 0o755);
   assert.equal(mergeScenario(w.repo), WANT);
 });
@@ -86,7 +87,7 @@ test('(d2) with an index, --heal output equals the plain card output byte for by
 test('(d3) a healthy setup is left byte-identical, mtimes included (no rewrite)', () => {
   const w = world(); ok(w.brain(PLUGIN, ['init']));
   const a = snapshot(w.dataDir), b = snapshot(w.repo), cfg = fs.readFileSync(path.join(w.repo, '.git/config'));
-  const r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(r.stdout + r.stderr, '');
+  const r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, '');
   assert.deepEqual(snapshot(w.dataDir), a); assert.deepEqual(snapshot(w.repo), b); assert.deepEqual(fs.readFileSync(path.join(w.repo, '.git/config')), cfg);
 });
 test('(e) --heal with no brain directory, or outside a git work tree, prints nothing, exits 0 and writes nothing', () => {
@@ -105,7 +106,7 @@ test('(f) hooks.json passes --heal, keeps matcher and timeout; the declared comm
   const w = world(); ok(w.brain(PLUGIN, ['init'])); fs.rmSync(w.shim);
   const args = hook.args.map((a) => a.replace('${CLAUDE_PLUGIN_ROOT}', PLUGIN));
   const t0 = Date.now(); const r = spawnSync(hook.command, args, { cwd: w.repo, env: w.env, encoding: 'utf8' }); const ms = Date.now() - t0;
-  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout + r.stderr, ''); assert.ok(ms < budget(1000), `took ${ms} ms`);
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, ''); assert.ok(ms < budget(1000), `took ${ms} ms`);
   assert.ok(fs.existsSync(w.shim));
 });
 test('(g) doctor without --fix reports a missing shim as a problem and changes nothing', () => {
@@ -126,7 +127,7 @@ test('(h) a non-private data dir: init and doctor print one short line without a
   assert.match(d.stdout, /^merge driver not installed: data directory is not private/m); assert.doesNotMatch(d.stdout + d.stderr, /\n\s+at /);
   assert.match(d.stdout, /^node v/m); // the rest of doctor still ran
   const bytes = fs.readdirSync(w.dataDir);
-  const h = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(h.stdout + h.stderr, ''); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
+  const h = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(h.stdout, NUDGE); assert.equal(h.stderr, ''); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
 });
 test('(h2) a symlinked data dir is refused the same way', () => {
   const w = world(), real = tmp('dw-real-'), link = path.join(tmp('dw-link-'), 'data'); fs.symlinkSync(real, link);

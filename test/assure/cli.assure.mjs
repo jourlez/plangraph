@@ -4,8 +4,9 @@
 // first instance of each (full: up to 3 per combination). Only instances that `brain build` accepts are used (whole sprints, numeric sp,
 // no duplicate link key, no opts.frozen, which has no CLI flag).
 // Per instance: `verify --json -v` lists exactly lib verifyPlan's violations (code, key, detail), its exit is 1 iff any; and `check`
-// agrees with it: strict-rule violations == HANDOFF count, person-sprints over cap == CAPACITY count, loop-free == no CYCLE, exit 1 iff
-// any of the three, whenever every scheduled key is a ticket with a valid placement and every ticket is scheduled (check reads the
+// agrees with it: strict-rule violations == HANDOFF count, person-sprints over cap == CAPACITY count, loop-free == no CYCLE, the
+// `unplaced N` fragment (absent when 0) == UNPLACED count (always), exit 1 iff any of the four. The first three
+// hold whenever every scheduled key is a ticket with a valid placement and every ticket is scheduled (check reads the
 // schedule only; verify also reads unscheduled tickets, so outside that case only "check finds a loop => verify reports CYCLE" and
 // "check's counts <= verify's" are required).
 // NOT covered: check/verify output beyond the counts and the violation list; instances outside the strata; --json envelopes of check.
@@ -59,12 +60,13 @@ export async function assureCli(lvl) {
       if (show(env.data.violations) !== show(lib) || env.data.total !== lib.length || v.code !== (lib.length ? 1 : 0)) fail('verify CLI differs from the library', { rows, cli: env.data, lib });
       const m = /strict-rule violations (\d+) \| person-sprints over cap (\d+) \| loop-free (true|false)/.exec(c.out);
       if (!m) fail('check output not recognized', { out: c.out });
-      const [hv, ov, lf] = [+m[1], +m[2], m[3] === 'true'];
+      const [hv, ov, lf] = [+m[1], +m[2], m[3] === 'true'], up = +(/ \| unplaced (\d+) \(brain verify lists them\)$/.exec(c.out)?.[1] ?? 0);
       const n = (code) => lib.filter((x) => x.code === code).length;
+      if (up !== n('UNPLACED')) fail('check unplaced differs from verify UNPLACED', { rows, check: c.out, lib });
       const exact = [...inst.sched].every(([k, p]) => inst.tickets.some((t) => t.key === k) && validPlacement(p)) && inst.tickets.every((t) => validPlacement(inst.sched.get(t.key)));
       if (exact) {
-        if (hv !== n('HANDOFF') || ov !== n('CAPACITY') || lf !== !n('CYCLE') || c.code !== (hv || ov || !lf ? 1 : 0)) fail('check disagrees with verify', { rows, check: c.out, code: c.code, lib });
-      } else if ((!lf && !n('CYCLE')) || c.code !== (hv || ov || !lf ? 1 : 0)) fail('check reports a loop verify does not see', { rows, check: c.out, lib });
+        if (hv !== n('HANDOFF') || ov !== n('CAPACITY') || lf !== !n('CYCLE') || c.code !== (hv || ov || up || !lf ? 1 : 0)) fail('check disagrees with verify', { rows, check: c.out, code: c.code, lib });
+      } else if ((!lf && !n('CYCLE')) || c.code !== (hv || ov || up || !lf ? 1 : 0)) fail('check reports a loop verify does not see', { rows, check: c.out, lib });
       if (counts.spawned < (lvl === 'full' ? 6 : 1)) { // the real entry point gives the same bytes
         for (const argv of [['check'], ['verify', '--json', '-v', ...flags]]) {
           const p = spawnSync(process.execPath, [BIN, ...argv], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: root, SOURCE_DATE_EPOCH: '1' } });

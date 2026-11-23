@@ -81,9 +81,22 @@ Clock: every date the commands print or store (`closed_at` of `open-items --clos
 that clock fixed, so a run is reproducible: the same value gives the same bytes and card fingerprint. Lock, temp-file and timeout code
 keeps the real clock. The golden tests force their own value whatever the parent environment says.
 
+`brain check` and the CI gate: `check` exits 1 on any strict-rule violation, person-sprint over cap, loop, or **unplaced ticket** (a ticket with no valid
+schedule row; an `sp:` task is exempt until someone places it). Its one line adds ` | unplaced N (brain verify lists them)` only when N > 0, and
+`--json` data is `{ tickets, links, violations, overCap, loopFree, lastSprint, unplaced }` (`tickets` counts the placed ones, as the line does). N is
+`brain verify`'s own UNPLACED count (check calls `verifyPlan`, the function behind the card's violation count), so `verify` exiting 1 on UNPLACED
+and `check` saying all is well can no longer both happen.
+
 Session hook: `brain card --if-present` (with or without `--heal`) prints nothing and exits 0 whenever anything fails: a too-old Node, a bad
 `.brainrc`, a refused brain directory (`BRAIN_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
-thrown error. On success it prints the card (nothing when there is no index; a last `STALE:` line when the index is stale). Only `card` has
+thrown error. On success it prints the card (a last `STALE:` line when the index is stale). With no index but brain data present (the brain
+directory resolves inside the repository and holds `tickets.jsonl` or `config.json`) it prints ONE fixed first-use line instead, still exit 0:
+`brain: plan data found in <dir> but no index: run brain build`, or, when `format.json` is older than the tool's (a missing file is format 0),
+`brain: plan data found in <dir> but no index: run brain migrate --write (format v<N>) then brain build` (`<dir>` is the brain directory relative
+to the repository, one sanitized line; nothing from the data files is in it). The line is decided from `lstat` and sizes only, with no git process;
+the hook never writes, migrates or builds. It stays silent (exit 0) for no brain, a brain directory with no data file, a newer format, and every
+refusal above plus a symlink, FIFO, directory, unreadable or over-cap data file, `config.json` or `format.json`, a bad `format.json`, and anything
+at the index path. A manual `brain card` is unchanged (`error: no index`, exit 2). Only `card` has
 this guarantee: other commands given `--if-present` still report errors (it only suppresses their STALE warning).
 
 Errors print `error: <what>` on stderr, optionally `hint: <what to do>` (prose), and always a last line `try: <exact command>`

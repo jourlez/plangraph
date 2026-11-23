@@ -88,7 +88,7 @@ for (const kind of /** @type {const} */ (['symlink', 'fifo', 'big'])) {
     git(d, 'config', '--unset', 'merge.brain-jsonl.driver'); // doctor sees a problem, so heal tries to repair
     const ga = badAttrs(d, kind), before = fs.lstatSync(ga);
     const h = run(d, ['card', '--if-present', '--heal'], {}, { timeout: 15000 });
-    assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, ''); assert.equal(h.stderr, '');
+    assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, 'brain: plan data found in .brain but no index: run brain build\n'); // the first-use line, no card without an index assert.equal(h.stderr, '');
     const doc = run(d, ['doctor'], {}, { timeout: 15000 });
     assert.equal(doc.status, 1, `doctor: ${doc.signal} ${doc.stderr}`);
     assert.match(doc.stdout, /merge driver: \.gitattributes refused: (it is a symlink|not a regular file|larger than 262144 bytes)/);

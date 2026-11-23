@@ -1,7 +1,7 @@
 # Agent evals
 
 Does an agent do planning work better WITH this plugin (arm A) than bare Claude Code without it (arm B), on a real plan, without
-doing anything unsafe? Nothing here has been run against a live model, and nothing can spend money unless you pass both `--run`
+doing anything unsafe? The suite has been run against a live model by its owner on a real plan (results and limits are in the main README, section Measured results). Nothing here can spend money unless you pass both `--run`
 and `--max-cost-usd`.
 
 ## Design

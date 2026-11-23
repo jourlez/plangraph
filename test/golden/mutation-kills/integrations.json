@@ -672,7 +672,7 @@
     "key": "sp:2026-11-20-widget-export",
     "summary": "Widget Export",
     "epic": "",
-    "sp": null,
+    "sp": 0,
     "verdict_source": "sp-ingest"
    },
    {
@@ -842,15 +842,15 @@
   }
  },
  "sp-ingest-sweep": [
-  "drop0 3491736bca46eb34",
-  "drop2 f32555785f731ada",
-  "drop4 3491736bca46eb34",
-  "drop6 33fe2599be39c547",
-  "drop8 3491736bca46eb34",
-  "crlf 3491736bca46eb34",
-  "double 3491736bca46eb34",
-  "half 946271fae138edf1",
-  "empty e5bad28efb126043"
+  "drop0 f1756ec03eeec166",
+  "drop2 0d2c9f61063bcdb5",
+  "drop4 f1756ec03eeec166",
+  "drop6 7421ab8014b76cb1",
+  "drop8 f1756ec03eeec166",
+  "crlf f1756ec03eeec166",
+  "double f1756ec03eeec166",
+  "half 60adac64455169c4",
+  "empty 89b218d83d1eb0c8"
  ],
  "sp-ledger": {
   "plan": "docs/superpowers/plans/2026-11-20-widget-export.md",
@@ -1047,7 +1047,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -1212,7 +1212,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -1602,7 +1602,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -1767,7 +1767,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -2021,7 +2021,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -2205,7 +2205,7 @@
      "key": "sp:2026-11-20-widget-export",
      "summary": "Widget Export",
      "epic": "",
-     "sp": null,
+     "sp": 0,
      "verdict_source": "sp-ingest"
     },
     {
@@ -2685,7 +2685,7 @@
     "key": "sp:2026-11-20-widget-export",
     "summary": "Widget Export",
     "epic": "",
-    "sp": null,
+    "sp": 0,
     "verdict_source": "sp-ingest"
    },
    {

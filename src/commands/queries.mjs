@@ -7,6 +7,7 @@ import { readDataCapped, presentDataFile } from '../../lib/jsonl.mjs';
 import { oneLine, fenceInline } from '../../lib/sanitize.mjs';
 import { makeGit } from '../../lib/gitsafe.mjs';
 import { BrainError } from '../errors.mjs';
+import { INDEX_FILE } from '../db.mjs';
 import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.mjs';
 /** @typedef {import('../context.mjs').Context} Ctx @typedef {import('../context.mjs').Args} Args */
 
@@ -205,8 +206,13 @@ async function check(ctx) {
   const q = [...ind].filter(([, v]) => v === 0).map((x) => x[0]); let seen = 0;
   while (q.length) { const u = /** @type {string} */ (q.pop()); seen++; for (const v of adj.get(u)) { ind.set(v, ind.get(v) - 1); if (!ind.get(v)) q.push(v); } }
   const last = [...sched.values()].reduce((m, s) => Math.max(m, s.sprint), -Infinity); // Math.max semantics, without spreading a huge array
-  ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${seen === sched.size} | last sprint ${sched.size ? last : 0}`);
-  return viol || over || seen !== sched.size ? 1 : 0; // CI fails on any violation
+  // Tickets with no schedule row are invisible to the schedule-based counts above: verify (and the card) report them as UNPLACED, so
+  // the count comes from verify's own predicate (an sp: task is exempt there), never a second copy of the rule.
+  const unplaced = (await import('../../lib/verify.mjs')).verifyPlan(model).filter((x) => x.code === 'UNPLACED').length;
+  const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree ? 1 : 0;
+  ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (brain verify lists them)` : ''}`);
+  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced }, { next: unplaced ? ['brain verify'] : [] });
+  return code; // CI fails on any violation, and on any unplaced ticket (verify exits 1 on UNPLACED too)
 }
 
 /** @param {Ctx} ctx @param {Args} args */
@@ -342,6 +348,33 @@ export async function cardLineText(ctx) {
 /** @param {Ctx} ctx */
 async function cardLine(ctx) { ctx.io.out(await cardLineText(ctx)); return 0; }
 
+// First-use nudge (hook only, no index): brain data is there but the card cannot be built, so ONE fixed line says what to run. Pure
+// lstat/size checks (nothing is opened or read except format.json through readFormat's capped reader), no git, no write, no build, no
+// text from the data files (only the brain dir, which resolveBrainDir already confined and which is one sanitized line). Anything
+// unsafe or odd (symlink, FIFO, directory, huge or unreadable file, bad or newer format.json, anything at the index path) returns null.
+/** @param {Ctx} ctx @returns {Promise<string | null>} */
+async function firstUseLine(ctx) {
+  const { FormatError, FORMAT_FILE, checkFormat, readFormat } = await import('../../lib/store.mjs'), { CONFIG_MAX } = await import('../../lib/model.mjs');
+  const lst = (/** @type {string} */ f) => { try { return fs.lstatSync(f); } catch (/** @type {any} */ e) { if (e.code === 'ENOENT') return null; throw e; } };
+  const dir = lst(ctx.dir);
+  if (!dir || !dir.isDirectory()) return null;
+  if (lst(path.join(ctx.dir, INDEX_FILE))) return null; // something is at the index path: not "no index" (dangling symlink, FIFO, ...)
+  let data = false;
+  for (const [f, cap] of /** @type {Array<[string, number]>} */ ([['config.json', CONFIG_MAX], [FORMAT_FILE, CONFIG_MAX], ...SRC_FILES.map((x) => [x, MAX_DATA])])) {
+    const p = path.join(ctx.dir, f), st = lst(p);
+    if (!st) continue;
+    if (!st.isFile() || st.size > cap) return null;
+    try { fs.accessSync(p, fs.constants.R_OK); } catch { return null; }
+    if (f === 'config.json' || f === 'tickets.jsonl') data = true;
+  }
+  if (!data) return null;
+  const where = oneLine(rel(ctx, ctx.dir), 80), head = `brain: plan data found in ${where} but no index: run`;
+  try { checkFormat(ctx.dir); return `${head} brain build`; } catch (e) {
+    if (!(e instanceof FormatError) || e.code !== 'NEEDS_MIGRATION') return null;
+    return `${head} brain migrate --write (format v${readFormat(ctx.dir).format_version}) then brain build`;
+  }
+}
+
 /** @param {Ctx} ctx @param {Args} args */
 async function card(ctx, args) {
   if (args.values.heal) await healMergeDriver(ctx);
@@ -350,7 +383,7 @@ async function card(ctx, args) {
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.BRAIN_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
   if (args.values.line) return cardLine(ctx);
   const file = dbFile(ctx);
-  if (args.values['if-present'] && !fs.existsSync(file)) return 0;
+  if (args.values['if-present'] && !fs.existsSync(file)) { const l = await firstUseLine(ctx); if (l) ctx.io.out(l); return 0; }
   const R = await import('../../lib/render.mjs'), model = modelFromDb(ctx);
   // Cache-stable: identity is the source fingerprint of the text, STALE comes only from the fingerprint check of ctx.db() (content, not
   // modification times or a clock), so the same data prints the same bytes; in hook mode (--if-present) the card text itself says STALE.
@@ -374,7 +407,7 @@ export const commands = {
   blockers: { run: blockers, positionals: [0, 0], summary: 'tickets whose verdict is not READY' },
   findings: { run: findings, positionals: [0, 1], summary: 'finding counts by kind, or the findings of one kind' },
   rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' }, topic: { type: 'string', missing: TOPIC_USAGE }, all: B }, summary: 'learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)' },
-  check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity and loops of the current plan (exit 1 on a violation)' },
+  check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B }, summary: 'independent plan verifier (exit 1 on a violation)' },
   ready: { run: ready, positionals: [0, 1], options: { jira: { type: 'string' }, person: { type: 'string' }, sprint: { type: 'integer' } }, summary: 'may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start' },
   card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: { ...B, writes: ['git-config', 'gitattributes', 'merge-shim'] } }, guard: (/** @type {Record<string, unknown>} */ v) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
