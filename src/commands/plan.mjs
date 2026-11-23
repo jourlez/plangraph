@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { readCapped } from '../../lib/jsonl.mjs';
 import { oneLine } from '../../lib/sanitize.mjs';
 import { BrainError } from '../errors.mjs';
-import { buildIndex, openIndex, stampFingerprint, stampContent, TABLES, INDEX_FILE } from '../db.mjs';
+import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABLES, INDEX_FILE, SIDECARS } from '../db.mjs';
 import { checkRepoPath } from '../../lib/gitsafe.mjs';
 import { NODE_FLOOR, nodeSupported } from '../floor.mjs';
 import { claudeSnippet } from '../../lib/steer.mjs';
@@ -176,6 +176,11 @@ const CONFIG = {
   stage_order: ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes'],
   ref_heading: '^#{2,3} Task {id}:', jira: { base_url: '', jql: '' },
 };
+// The brain dir's .gitignore lines: the derived index and the sidecar files SQLite may leave beside it (a committed journal is replayed into
+// the index by SQLite; src/db.mjs SIDECARS). A line counts as present when a line of the file equals it after trimming.
+const INDEX_PATTERN = '*.sqlite';
+const IGNORE_LINES = Object.freeze([INDEX_PATTERN, ...SIDECARS.map((s) => INDEX_PATTERN + s)]);
+const missingIgnoreLines = (/** @type {string} */ text) => { const have = new Set(text.split(/\r?\n/).map((l) => l.trim())); return IGNORE_LINES.filter((l) => !have.has(l)); };
 /** @param {Ctx} ctx */
 async function init(ctx) {
   const S = await import('../../lib/store.mjs'), dir = ctx.dir, cfg = path.join(dir, 'config.json'), fmt = path.join(dir, S.FORMAT_FILE);
@@ -187,11 +192,16 @@ async function init(ctx) {
   if (missing(cfg)) writeState(ctx, cfg, `${JSON.stringify(CONFIG, null, 2)}\n`);
   const dst = path.join(dir, 'learnings.jsonl');
   if (missing(dst) && fs.existsSync(SEED)) writeState(ctx, dst, readCapped(SEED, 1024 * 1024));
-  // Only ADD the line init needs: every user line in an existing .gitignore stays, in order, byte for byte; nothing is written when it is there.
+  // Only ADD the lines init needs (the index and its SQLite sidecars): every user line in an existing .gitignore stays, in order, byte for
+  // byte; the missing lines are appended in IGNORE_LINES order with the file's own line ending; nothing is written when all are there.
   const old = missing(gi) ? null : readCapped(gi, 1024 * 1024);
-  if (old === null) { writeState(ctx, gi, '*.sqlite\n'); changes.push('created .gitignore with *.sqlite'); }
-  else if (!old.split(/\r?\n/).some((l) => l.trim() === '*.sqlite')) {
-    writeState(ctx, gi, `${old}${old === '' || old.endsWith('\n') ? '' : old.includes('\r\n') ? '\r\n' : '\n'}*.sqlite${old.includes('\r\n') ? '\r\n' : '\n'}`); changes.push('added *.sqlite to .gitignore');
+  if (old === null) { writeState(ctx, gi, `${IGNORE_LINES.join('\n')}\n`); changes.push(`created .gitignore with ${IGNORE_LINES.join(', ')}`); }
+  else {
+    const add = missingIgnoreLines(old);
+    if (add.length) {
+      const eol = old.includes('\r\n') ? '\r\n' : '\n';
+      writeState(ctx, gi, `${old}${old === '' || old.endsWith('\n') ? '' : eol}${add.map((l) => l + eol).join('')}`); changes.push(`added ${add.join(', ')} to .gitignore`);
+    }
   }
   for (const [t] of EXPORT) { const f = path.join(dir, /** @type {import('../db.mjs').TableSpec} */ (TABLES.get(t)).file); if (missing(f)) { writeState(ctx, f, ''); changes.push(`created ${/** @type {import('../db.mjs').TableSpec} */ (TABLES.get(t)).file}`); } }
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
@@ -228,6 +238,7 @@ async function doctor(ctx, args) {
   if (wireErr) { out(`merge driver not installed: ${wireErr}`); if (!dm.problems.length) bad++; }
   const idx = trackedIndex(ctx);
   if (idx) { out(`tracked index: ${idx} is committed; untrack it with \`git rm --cached ${idx}\``); bad++; }
+  doctorSidecars(ctx);
   const nodeOk = nodeSupported(process.versions.node);
   out(`node ${process.version}: ${nodeOk ? 'ok' : `too old (needs >= ${NODE_FLOOR})`}`); if (!nodeOk) bad++;
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8', timeout: 10000 });
@@ -235,13 +246,27 @@ async function doctor(ctx, args) {
   await doctorWarnings(ctx);
   return bad ? 1 : 0;
 }
-// The index is derived and machine-local (init writes `*.sqlite` to the brain dir's .gitignore): a committed one goes stale for everyone
+// The index is derived and machine-local (init writes `*.sqlite` and its sidecar patterns to the brain dir's .gitignore): a committed one goes stale for everyone
 // else and can be tampered with in a commit. Returns its repo-relative path when git tracks it, else '' (also outside a git repository).
 // Literal pathspec, argv only: the brain dir name never acts as a glob or an option.
-/** @param {Ctx} ctx */
-function trackedIndex(ctx) {
-  const relIdx = path.relative(ctx.root, path.join(ctx.dir, INDEX_FILE)).split(path.sep).join('/');
+/** @param {Ctx} ctx @param {string} [name] */
+function trackedIndex(ctx, name = INDEX_FILE) {
+  const relIdx = path.relative(ctx.root, path.join(ctx.dir, name)).split(path.sep).join('/');
   try { return ctx.git('--literal-pathspecs', 'ls-files', '-z', '--', checkRepoPath(relIdx)) ? oneLine(relIdx, 200) : ''; } catch { return ''; }
+}
+// Warnings only (the exit code is unchanged): a SQLite sidecar beside the index (every index command refuses it; `brain build` removes a
+// regular one), a committed sidecar (a journal in git is replayed by SQLite into whoever's index sits beside it, if brain did not refuse it),
+// and a brain-dir .gitignore that lacks the sidecar lines (`brain init` appends them). Names come from constants, never from the directory.
+/** @param {Ctx} ctx */
+function doctorSidecars(ctx) {
+  const out = ctx.io.out, base = path.join(ctx.dir, INDEX_FILE), shown = (/** @type {string} */ p) => oneLine(path.relative(ctx.root, p).split(path.sep).join('/'), 200);
+  try { for (const [p] of sidecarsOf(base)) out(`warning: ${shown(p)}: a SQLite journal file beside the index; every index command refuses it until \`brain build\` removes it`); } catch { /* unreadable: skip */ }
+  for (const s of SIDECARS) { const t = trackedIndex(ctx, INDEX_FILE + s); if (t) out(`warning: tracked journal: ${t} is committed; untrack it with \`git rm --cached ${t}\``); }
+  const gi = path.join(ctx.dir, '.gitignore');
+  let text = null; try { text = readCapped(gi, 1024 * 1024, { follow: false }); } catch { /* missing or refused */ }
+  if (text !== null && missingIgnoreLines(text).some((l) => l !== INDEX_PATTERN)) {
+    out(`warning: ${shown(gi)} does not ignore the SQLite journal files (${IGNORE_LINES.slice(1).join(', ')}): run \`brain init\` to add the missing lines`);
+  }
 }
 /** @type {(out: (line: string) => void, found: string[], max: number, line: (x: string) => string) => void} */
 const listMore = (out, found, max, line) => { for (const x of found.slice(0, max)) out(line(x)); if (found.length > max) out(`  ... and ${found.length - max} more`); };

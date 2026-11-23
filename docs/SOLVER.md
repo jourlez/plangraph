@@ -233,6 +233,19 @@ points, caps and min_per_sprint must be at most 1000000000 after scaling to whol
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
 
+Input guards (`load_raw`; tests: `test/brain-solve-input.test.mjs`, Python unit checks, stdlib only). The index (`brain.sqlite` or `--db`)
+gets the same guards as the CLI's `openIndex` (`src/db.mjs`): it must be a regular file (lstat, then the solver's own
+`O_RDONLY|O_NONBLOCK|O_NOFOLLOW` open and fstat with the same device and inode: a symlink or a FIFO is refused, never followed or blocked
+on), no SQLite sidecar (`-journal`, `-wal`, `-shm`) may sit beside it (a hot journal would be replayed), it is opened read-only
+(`file:...?mode=ro` plus `PRAGMA query_only`), its `sqlite_master` must pass the same schema allowlist as `schemaOk` (a planted view, for
+example over an infinite `WITH RECURSIVE`, is refused before any query; the Python lists are compared with `src/db.mjs` by a test), and its
+content digest must match (the same canonical rows as `contentDigest`; the JSON row text comes from SQLite itself; an index without a digest
+is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`brain build\``. JSONL files and the brain dir's `config.json` are read like
+`readDataCapped`: lstat (a symlink is refused), `O_NOFOLLOW|O_NONBLOCK` open, fstat must be a regular file with the lstat's device, inode and
+ctime, at most 64 MiB; errors name the base name only. A `--config` named on the command line may be a symlink (it is still regular-file
+only and capped). Residual: SQLite opens the index again by path after the check, as in `openIndex`; `.brainrc` is still read with a plain
+`open()`.
+
 ### Limits of the confinement
 
 - `--db` and `--config` are intentionally not confined: they are read-only. They can be used to probe whether a file exists or parses, and an invalid numeric value in a config file is echoed in the error (at most 40 characters, control characters replaced by `?`), so a config pointed at an arbitrary file can leak a short prefix of one value, never more.

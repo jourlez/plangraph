@@ -19,7 +19,7 @@ Exit codes: 0 ok (proved, or feasible within the target end sprint), 1 infeasibl
 Output: --out is the JSON array [{item, owner, sprint}] that `brain schedule-load` reads; metadata goes to <out>.meta.json
 (or into {"schedule":..., "meta":...} with --format object).
 """
-import argparse, copy, hashlib, heapq, json, math, os, random, sqlite3, stat, subprocess, sys, tempfile, threading, time
+import argparse, copy, errno, hashlib, heapq, io, json, math, os, random, re, sqlite3, stat, subprocess, sys, tempfile, threading, time, urllib.parse
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 
@@ -105,14 +105,141 @@ def clamp_limits(a, cfg, clamped):
     return int(w2), t2
 
 
+DATA_CAP = 64 << 20     # a JSONL or config file larger than this is refused (as lib/jsonl.mjs readDataCapped caps the brain data files)
+
+
+def read_capped(path, follow=False, cap=None):
+    """A data file's text, or None when it is missing. As lib/jsonl.mjs readCapped: lstat (follow=False refuses a symlink), open with
+    O_NONBLOCK (a FIFO never blocks) and O_NOFOLLOW, fstat must be a regular file (with follow=False: the lstat's device, inode and ctime),
+    read at most `cap` (default DATA_CAP) bytes. Errors name the file by its base name only."""
+    cap = DATA_CAP if cap is None else cap
+    base = os.path.basename(path)
+    try: pre = os.stat(path) if follow else os.lstat(path)
+    except FileNotFoundError: return None
+    if stat.S_ISLNK(pre.st_mode): raise invalid(f'{base}: is a symlink, not a regular file')
+    flags = os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | (0 if follow else getattr(os, 'O_NOFOLLOW', 0))
+    try: fd = os.open(path, flags)
+    except OSError as e:
+        if e.errno == errno.ELOOP: raise invalid(f'{base}: is a symlink, not a regular file')
+        raise
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode): raise invalid(f'{base}: not a regular file')
+        if not follow and (st.st_dev, st.st_ino, st.st_ctime_ns) != (pre.st_dev, pre.st_ino, pre.st_ctime_ns):
+            raise invalid(f'{base}: file was replaced while it was opened')
+        chunks, total = [], 0
+        while True:
+            b = os.read(fd, 65536)
+            if not b: break
+            total += len(b)
+            if total > cap: raise invalid(f'{base}: file too large (limit {cap} bytes)')
+            chunks.append(b)
+    finally: os.close(fd)
+    return b''.join(chunks).decode('utf8')
+
+
 def read_jsonl(path):
-    if not os.path.exists(path): return []
+    text = read_capped(path)
+    if text is None: return []
     out = []
-    for n, line in enumerate(open(path, encoding='utf8'), 1):
+    for n, line in enumerate(io.StringIO(text, newline=None), 1):   # the same line splitting as open() in text mode
         if line.strip():
             try: out.append(json.loads(line))
-            except ValueError as e: raise invalid(f'{path}:{n}: {e}')
+            except ValueError as e: raise invalid(f'{os.path.basename(path)}:{n}: {e}')
     return out
+
+
+# ---- the index: the same guards as src/db.mjs openIndex (kept in sync by test/brain-solve-input.test.mjs) ----
+# [table, columns, primary key] in src/db.mjs TABLES order (the columns are lib/store.mjs SCHEMAS[file].order; `extra` is appended).
+INDEX_TABLES = {
+    'ticket': (('key', 'summary', 'epic', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'verdict', 'verdict_source', 'first_verdict', 'impl_status'), ('key',)),
+    'schedule': (('version', 'key', 'owner', 'sprint'), ('version', 'key')),
+    'edge': (('consumer', 'producer', 'kind', 'note'), ('consumer', 'producer')),
+    'evidence': (('key', 'source', 'verdict', 'resolution', 'needs'), ()),
+    'finding': (('key', 'kind', 'text'), ()),
+    'meta': (('k', 'v'), ('k',)),
+    'learning': (('id', 'kind', 'topic', 'text', 'why', 'source'), ('id',)),
+    'ref': (('key', 'plans', 'files', 'fp_files', 'jira_updated', 'audited_at'), ('key',)),
+}
+EXPECTED_COLUMNS = {**{t: ','.join(cols + ('extra',)) for t, (cols, _) in INDEX_TABLES.items()}, 'index_meta': 'k,v'}
+EXPECTED_INDEXES = {'edge_p': 'edge', 'ev_k': 'evidence'}
+SIDECARS = ('-journal', '-wal', '-shm')
+CONTENT_KEY = 'content_digest'
+
+
+def index_order(t):
+    """Canonical digest order of a table, as src/db.mjs: the primary key, then every other column (extra included)."""
+    cols, pk = INDEX_TABLES[t]
+    return ','.join(pk + tuple(c for c in cols + ('extra',) if c not in pk))
+
+
+def schema_ok(db):
+    """src/db.mjs schemaOk: only the tables, columns and indexes `brain build` writes; no view, trigger, virtual table or hidden column."""
+    tables = set()
+    for typ, name, tbl, sql in db.execute('SELECT type, name, tbl_name, sql FROM sqlite_master'):
+        if typ == 'table':
+            if name not in EXPECTED_COLUMNS or name != tbl or not isinstance(sql, str) or VIRTUAL_RE.match(sql): return False
+            tables.add(name)
+        elif typ == 'index':
+            auto = isinstance(name, str) and name.startswith(f'sqlite_autoindex_{tbl}_') and sql is None
+            if not (tbl in EXPECTED_COLUMNS if auto else EXPECTED_INDEXES.get(name) == tbl): return False
+        else: return False   # view, trigger, anything else
+    if any(t not in tables for t in INDEX_TABLES): return False
+    for t in tables:
+        info = list(db.execute('SELECT name, hidden FROM pragma_table_xinfo(?)', (t,)))
+        if any(h != 0 for _, h in info) or ','.join(n for n, _ in info) != EXPECTED_COLUMNS[t]: return False
+    return True
+
+
+VIRTUAL_RE = re.compile(r'\s*CREATE\s+VIRTUAL\b', re.I)
+
+
+def content_digest(db):
+    """src/db.mjs contentDigest: sha256 over each table's name and its rows as SQLite json_array text in canonical order, then index_meta
+    without the digest row. The JSON text comes from SQLite itself, so it is the same bytes the CLI hashed."""
+    h = hashlib.sha256()
+    def feed(name, sql, args):
+        h.update(name.encode() + b'\0')
+        for (row,) in db.execute(sql, args): h.update(row.encode('utf8') + b'\n')
+    for t, (cols, _) in INDEX_TABLES.items():
+        feed(t, f"SELECT json_array({','.join(cols + ('extra',))}) FROM {t} ORDER BY {index_order(t)}", ())
+    feed('index_meta', 'SELECT json_array(k, v) FROM index_meta WHERE k <> ? ORDER BY k, v', (CONTENT_KEY,))
+    return h.hexdigest()
+
+
+def open_index(dbp):
+    """Open the index READ-ONLY with src/db.mjs openIndex's guards: a regular file (never a symlink or FIFO; checked by our own non-blocking,
+    non-following open), no SQLite sidecar beside it (a hot journal would be replayed by a read-write open), the schema allowlist, and the
+    content digest. Residual, as in openIndex: SQLite opens the path again after the check."""
+    def refuse(what): return invalid(f'{what}: run `brain build`')
+    try: pre = os.lstat(dbp)
+    except FileNotFoundError: raise invalid('index not found (run `brain build`)')
+    if stat.S_ISLNK(pre.st_mode): raise refuse('the index is a symlink, not a regular file')
+    if not stat.S_ISREG(pre.st_mode): raise refuse('the index is not a regular file')
+    try: fd = os.open(dbp, os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0))
+    except OSError as e: raise refuse('the index is a symlink, not a regular file' if e.errno == errno.ELOOP else 'the index is not a readable SQLite database')
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino): raise refuse('the index is not a regular file')
+    finally: os.close(fd)
+    for s in SIDECARS:
+        if os.path.lexists(dbp + s): raise refuse(f'the index has a SQLite journal file beside it ({os.path.basename(dbp) + s}); it is never replayed')
+    try:
+        db = sqlite3.connect(f'file:{urllib.parse.quote(os.path.abspath(dbp))}?mode=ro', uri=True)
+        db.execute('PRAGMA query_only = ON'); db.execute('SELECT COUNT(*) FROM sqlite_master').fetchone()
+    except sqlite3.Error: raise refuse('the index is not a readable SQLite database')
+    try:
+        try: good = schema_ok(db)
+        except sqlite3.Error: good = False
+        if not good: raise refuse('the index has an unexpected schema (not built by brain build)')
+        row = db.execute('SELECT v FROM index_meta WHERE k = ?', (CONTENT_KEY,)).fetchone() if 'index_meta' in {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")} else None
+        if row is None: raise refuse('the index has no integrity digest (built by an older brain)')
+        try: got = content_digest(db)
+        except (sqlite3.Error, AttributeError): got = None
+        if got != row[0]: raise refuse('the index content does not match its integrity digest (it was edited outside brain)')
+    except BaseException:
+        db.close(); raise
+    return db
 
 
 def load_raw(a):
@@ -128,15 +255,18 @@ def load_raw(a):
     else:
         bd = None if (a.db and a.config) else brain_dir()
         dbp = a.db or os.path.join(bd, 'brain.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
-        if not os.path.exists(dbp): raise invalid(f'index not found: {dbp} (run `brain build`)')
-        db = sqlite3.connect(dbp)
-        tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint'), r)) for r in
-                   db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint FROM ticket ORDER BY key')]
-        edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
-        sched = {}
-        for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
-    if not os.path.exists(cfgp): raise invalid(f'config not found: {cfgp}')
-    return tickets, edges, sched, json.load(open(cfgp))
+        db = open_index(dbp)
+        try:
+            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint'), r)) for r in
+                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint FROM ticket ORDER BY key')]
+            edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
+            sched = {}
+            for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
+        finally: db.close()
+    # a --config named on the command line may be a symlink (as other files a person names); the brain dir's own config.json may not
+    text = read_capped(cfgp, follow=bool(a.config))
+    if text is None: raise invalid(f'config not found: {cfgp}')
+    return tickets, edges, sched, json.loads(text)
 
 
 class Problem: pass

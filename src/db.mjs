@@ -231,6 +231,32 @@ export function removeStaleTemps(where, prefix, now = Date.now()) {
   }
 }
 
+// ---------- SQLite sidecars ----------
+// SQLite keeps a rollback journal (`<db>-journal`) or WAL files (`<db>-wal`, `<db>-shm`) beside a database. A HOT journal found at open is
+// replayed into the database on the first read-write open (and makes every read-only open fail), whatever database it came from: a planted
+// or committed `brain.sqlite-journal` could turn a freshly built index into an attacker's copy with a valid digest. Brain never uses WAL and
+// its own writes (journal_mode DELETE) remove their journal on commit, so a sidecar beside the index is never legitimate when an index
+// command starts: openIndex refuses it (DATA, `brain build`) before SQLite sees the file, and buildIndex removes regular ones (they belong to
+// a prior or foreign index and must never be replayed) and refuses a symlink or non-file (REFUSED: removing it is left to a person).
+export const SIDECARS = Object.freeze(['-journal', '-wal', '-shm']);
+/** Existing sidecars of `base` as [path, lstat]. @param {string} base @returns {Array<[string, fs.Stats]>} */
+export function sidecarsOf(base) {
+  /** @type {Array<[string, fs.Stats]>} */ const found = [];
+  for (const s of SIDECARS) {
+    let st = null; try { st = fs.lstatSync(base + s); } catch (/** @type {any} */ e) { if (e.code !== 'ENOENT' && e.code !== 'ENOTDIR') throw e; }
+    if (st) found.push([base + s, st]);
+  }
+  return found;
+}
+/** Refuse (REFUSED) a sidecar of `base` that is not a regular file; with remove, delete the regular ones (unlink: a symlink swapped in after
+ * the lstat is removed itself, never followed). @param {string} base @param {boolean} remove */
+function clearSidecars(base, remove) {
+  for (const [p, st] of sidecarsOf(base)) {
+    if (!st.isFile()) throw new BrainError('REFUSED', `refusing to build the index: ${path.basename(p)} is ${st.isSymbolicLink() ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`brain build\``);
+    if (remove) fs.rmSync(p, { force: true });
+  }
+}
+
 // The INSERT of one table: built only from the frozen table spec and the verb, never from a record (no record parameter).
 /** @type {(t: Readonly<TableSpec>, verb?: string) => string} */
 const insertSql = (t, verb = 'INSERT') => `${verb} INTO ${t.name}(${t.columnList}) VALUES(${t.placeholders})`;
@@ -243,13 +269,15 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
   if (!st?.isDirectory()) throw new BrainError('DATA', 'no brain directory', { hint: 'run `brain init` first' });
   const { DatabaseSync } = loadSqlite();
   removeStaleTemps(path.dirname(file), `${path.basename(file)}.tmp-`, now);
+  clearSidecars(file, false); // fail fast on a symlinked or non-file sidecar; regular ones are removed only right before the rename
   const sources = readSources(ctx.dir), text = new Map(sources);
   const fingerprint = fingerprintOf(sources);
   // parse everything before touching the database
   const rows = [...TABLES.values()].map((t) => /** @type {const} */ ([t, parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })]));
   const tmp = `${file}.tmp-${process.pid}`;
-  // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it: a file or symlink planted at that
-  // (predictable) name is refused and left alone, never written through. Its dev/ino is checked again before the rename. The descriptor stays
+  // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it. removeStaleTemps above already
+  // unlinked a REGULAR file at this name (our own pid: a leftover of a crashed build); a symlink or other non-file there, or any file that
+  // appears at the name after that, is refused and left alone, never written through. Its dev/ino is checked again before the rename. The descriptor stays
   // open until the rename is done: while it is open the inode cannot be freed, so no file created at that path meanwhile (even after a delete;
   // ext4 reuses a freed inode number at once) can have its number, and the dev/ino check is a guarantee. It is closed only after SQLite closed
   // its own (closing any descriptor of a file drops the process's POSIX locks on it, which SQLite holds while it is open).
@@ -261,8 +289,11 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
   }
   try {
     /** @type {Record<string, number>} */ const counts = {}; let digest = '';
+    clearSidecars(tmp, true); // a leftover journal at the temp name would be replayed into the build
     {
       using h = new IndexHandle(new DatabaseSync(tmp));
+      // journal_mode OFF, set before the first write: SQLite creates no journal (and no WAL) for the temp file at all, so none can be renamed
+      // or replayed onto the final name; the build is all-or-nothing anyway (a failed build deletes the temp file).
       h.exec('PRAGMA journal_mode=OFF'); h.exec(DDL); h.exec('BEGIN');
       for (const [t, recs] of rows) {
         const ins = h.cached(t.name, insertSql(t, t.upsert ? 'INSERT OR REPLACE' : 'INSERT')); // once per table
@@ -279,6 +310,8 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
     } // closed here, before the rename
     const now = fs.lstatSync(tmp);
     if (!now.isFile() || now.dev !== mine.dev || now.ino !== mine.ino) throw new BrainError('REFUSED', 'refusing to build the index: its temp file was replaced during the build');
+    clearSidecars(tmp, true);
+    clearSidecars(file, true); // a journal of the old (or a planted) index must never be replayed into the new one
     fs.renameSync(tmp, file); // rename replaces a symlink at `file` itself, never its target
     return { file, counts, fingerprint, digest };
   } catch (e) {
@@ -292,8 +325,8 @@ export function buildIndex(ctx, { file = path.join(ctx.dir, INDEX_FILE), now = D
 // the text. Before any query its sqlite_master must be exactly what buildIndex (or the old bin/brain build, which lacks index_meta) writes:
 // every table of TABLES as a plain table with exactly its columns plus `extra` (no hidden or generated column), optionally index_meta(k, v),
 // the indexes edge_p and ev_k, and the automatic primary-key indexes; no view, trigger, virtual table or any other object.
-const EXPECTED_COLUMNS = new Map([...[...TABLES.values()].map((t) => /** @type {[string, string]} */ ([t.name, [...t.columns, 'extra'].join(',')])), ['index_meta', 'k,v']]);
-const EXPECTED_INDEXES = new Map([['edge_p', 'edge'], ['ev_k', 'evidence']]);
+export const EXPECTED_COLUMNS = new Map([...[...TABLES.values()].map((t) => /** @type {[string, string]} */ ([t.name, [...t.columns, 'extra'].join(',')])), ['index_meta', 'k,v']]);
+export const EXPECTED_INDEXES = new Map([['edge_p', 'edge'], ['ev_k', 'evidence']]);
 /** @param {IndexHandle} h @returns {boolean} */
 function schemaOk(h) {
   const objects = h.all('SELECT type, name, tbl_name, sql FROM sqlite_master');
@@ -328,6 +361,23 @@ export function openIndex(file, { readOnly = true, dir } = {}) {
   }
   // a symlinked index (to a file anywhere, or dangling) is never opened; the SQLite build in Node refuses one too, this does not depend on it
   if (lst.isSymbolicLink()) throw new BrainError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `brain build` to rebuild it' });
+  // SQLite opens without O_NONBLOCK: a FIFO at the index path would block the open forever (every index command, the session hook). Only a
+  // regular file is handed to SQLite: lstat, then open it ourselves O_RDONLY|O_NONBLOCK|O_NOFOLLOW (never blocks, never follows), fstat must be
+  // a regular file with the lstat's device and inode, close. Residual (docs/CONTRACT.md): the path is swapped between this check and SQLite's
+  // own open by path.
+  const notFile = () => new BrainError('DATA', 'the index is not a regular file', { hint: 'run `brain build` to rebuild it' });
+  if (!lst.isFile()) throw notFile();
+  {
+    let fd;
+    try { fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0) | (fs.constants.O_NOFOLLOW || 0)); }
+    catch (/** @type {any} */ e) { if (e.code === 'ELOOP' || e.code === 'EMLINK') throw new BrainError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `brain build` to rebuild it' });
+      throw new BrainError('DATA', 'the index is not a readable SQLite database', { hint: 'run `brain build` to rebuild it', cause: e }); }
+    try { const st = fs.fstatSync(fd); if (!st.isFile() || st.dev !== lst.dev || st.ino !== lst.ino) throw notFile(); }
+    finally { fs.closeSync(fd); }
+  }
+  // a sidecar is never handed to SQLite: a hot journal would be replayed (read-write) or fail the open (read-only); see SIDECARS
+  const side = sidecarsOf(file);
+  if (side.length) throw new BrainError('DATA', `the index has a SQLite journal file beside it (${path.basename(side[0][0])}); it is never replayed`, { hint: 'run `brain build` to rebuild it' });
   const { DatabaseSync } = loadSqlite();
   let h;
   try {

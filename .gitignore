@@ -1,7 +1,13 @@
 .brain/*.sqlite
+.brain/*.sqlite-journal
+.brain/*.sqlite-wal
+.brain/*.sqlite-shm
 node_modules/
 __pycache__/
 *.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 *.tmp-*
 .superpowers/
 

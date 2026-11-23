@@ -43,5 +43,8 @@ Run `brain explain` for the full command list.
 }
 --- file .brain/.gitignore
 *.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 --- file .brain/format.json
 {"format_version":1,"min_reader":1}

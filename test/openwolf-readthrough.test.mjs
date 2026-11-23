@@ -462,3 +462,25 @@ test('open-items --suggest-from-status skips a ticket and kind that already has 
   items([{ key: 'SHOP-31', kind: 'decision', status: 'open' }, { key: 'SHOP-31', kind: 'blocker', status: 'open' }, { key: 'SHOP-31', kind: 'followup', status: 'open' }]);
   assert.equal(run(root, 'open-items', '--suggest-from-status').stdout, 'no suggestions: no open STATUS bullet names a ticket in the plan\n');
 });
+
+// readWolfFile reads like a brain data file (readDataCapped): after its lstat, the open uses O_NOFOLLOW and the opened file must have the
+// lstat's device, inode and ctime, so a file swapped in between the lstat and the open is never read. The swap is forced inside openSync.
+test('readWolfFile: a symlink or another file swapped in after the lstat (inside openSync) is refused, the outside text is never returned', { skip: process.platform === 'win32' ? 'symlinks' : false }, () => {
+  for (const kind of ['symlink', 'rename']) {
+    const root = tmp(), outside = tmp(), file = path.join(root, '.wolf', 'cerebrum.md');
+    fs.mkdirSync(path.join(root, '.wolf')); fs.writeFileSync(file, '## Do-Not-Repeat\n- inside\n');
+    const secret = path.join(outside, 'secret.md'); fs.writeFileSync(secret, '## Do-Not-Repeat\n- OUTSIDE SECRET\n');
+    let swapped = 0;
+    const fsImpl = { ...fs, openSync(/** @type {any} */ p, /** @type {any} */ flags, /** @type {any} */ mode) {
+      if (p === file && !swapped++) {
+        if (kind === 'symlink') { fs.rmSync(file); fs.symlinkSync(secret, file); }
+        else { const t = `${file}.new`; fs.copyFileSync(secret, t); fs.renameSync(t, file); }
+      }
+      return fs.openSync(p, flags, mode);
+    } };
+    const r = readWolfFile(root, 'cerebrum.md', { fsImpl: /** @type {any} */ (fsImpl) });
+    assert.equal(swapped, 1, 'the swap ran');
+    assert.ok(!JSON.stringify(r).includes('OUTSIDE SECRET'), `${kind}: the outside text was returned`);
+    assert.deepEqual(r, { ok: false, missing: false, warning: kind === 'symlink' ? '.wolf/cerebrum.md is a symlink: refused' : '.wolf/cerebrum.md changed while it was read: refused' }, kind);
+  }
+});

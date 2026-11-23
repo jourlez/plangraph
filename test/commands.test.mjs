@@ -400,18 +400,18 @@ test('brain sprint with an empty schedule says the plan has no scheduled tickets
 const snap = (dir) => Object.fromEntries(fs.readdirSync(dir).filter((f) => f !== '.gitignore').map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
 test('init on an existing brain keeps every .gitignore line, reports already initialised, and a second run changes nothing', () => {
   const d = repo(), b = path.join(d, '.brain'), gi = path.join(b, '.gitignore');
-  fs.writeFileSync(gi, '*.sqlite\nCARD.md\n'); const before = snap(b);
+  fs.writeFileSync(gi, '*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\nCARD.md\n'); const before = snap(b);
   const r1 = run(d, ['init']); assert.equal(r1.status, 0, r1.stderr);
   assert.equal(r1.stdout.split('\n')[0], 'already initialised: .brain (no changes)'); // then the CLAUDE.md snippet (test/steer.test.mjs)
-  assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\nCARD.md\n'); assert.deepEqual(snap(b), before);
+  assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\nCARD.md\n'); assert.deepEqual(snap(b), before);
   const m = fs.statSync(gi).mtimeMs; assert.equal(run(d, ['init']).stdout, r1.stdout); assert.equal(fs.statSync(gi).mtimeMs, m); // nothing missing: no write
 });
-test('init on an existing brain only appends the missing *.sqlite line, preserving user lines, order and a missing final newline', () => {
+test('init on an existing brain only appends the missing *.sqlite and sidecar lines, preserving user lines, order and a missing final newline', () => {
   const d = repo(), b = path.join(d, '.brain'), gi = path.join(b, '.gitignore');
   fs.writeFileSync(gi, '# mine\nCARD.md\n\nout/'); const before = snap(b);
   const r = run(d, ['init']); assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.split('\n')[0], 'already initialised: .brain (added *.sqlite to .gitignore)');
-  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\nCARD.md\n\nout/\n*.sqlite\n'); assert.deepEqual(snap(b), before);
+  assert.equal(r.stdout.split('\n')[0], 'already initialised: .brain (added *.sqlite, *.sqlite-journal, *.sqlite-wal, *.sqlite-shm to .gitignore)');
+  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\nCARD.md\n\nout/\n*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\n'); assert.deepEqual(snap(b), before);
   assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .brain (no changes)');
 });
 test('a fresh init still says initialised and tells what to do next', () => {

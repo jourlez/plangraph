@@ -146,6 +146,23 @@ measured on the dev machine (Apple silicon, other load present) at 1,400 tickets
 test bounds the 1,400-ticket digest. Limit: the digest is unkeyed, so it detects direct edits and accidental tools, not a forger who edits
 rows and then recomputes the digest the same way; the text files in git remain the source of truth, and `brain build` rebuilds from them.
 
+SQLite sidecars: SQLite replays a hot rollback journal (`brain.sqlite-journal`) into the database on the first read-write open, whatever
+database it came from, and a read-only open of a database with a hot journal fails. A planted or committed journal holding every page of a
+forged index (digest recomputed as above) would otherwise become the index on the next `schedule-load` or `whatif --write`, and block every
+read until removed by hand. Brain never uses WAL, builds with `journal_mode=OFF` (no journal at all for the temp file), and its own writes
+(journal mode DELETE) remove their journal on commit, so no sidecar is ever legitimately beside the index when a command starts (tested:
+build, reads, `whatif --write`, `schedule-load` and `export` leave none). So: every index open (reads, writes, the hook's card) refuses a
+`brain.sqlite-journal`, `-wal` or `-shm` beside the index before SQLite sees the file: exit 2, `error: the index has a SQLite journal file
+beside it (brain.sqlite-journal); it is never replayed`, `try: brain build` (the hook prints nothing, exit 0). `brain build` removes a
+regular sidecar of the index and of its own temp name right before the rename (it belongs to a prior or foreign index and is never
+replayed), and refuses a symlinked or non-file sidecar (exit 4, `refusing to build the index: brain.sqlite-wal is a symlink; remove it by
+hand, then run ...`), following and removing nothing. `brain init` writes `*.sqlite`, `*.sqlite-journal`, `*.sqlite-wal` and
+`*.sqlite-shm` to the brain directory's `.gitignore` (appending only the missing lines to an existing one), and `brain doctor` warns about a
+sidecar beside the index, a git-tracked sidecar, and a `.gitignore` without the sidecar lines (warnings, exit code unchanged). Consequences:
+a crash in the middle of `schedule-load` or `whatif --write` leaves a real hot journal; it is refused like a planted one, and `brain build`
+rebuilds from the text, so index-only changes not yet exported are lost (export after every index write, as above). A reader that starts
+while another process is inside an index write sees that writer's journal and is refused (exit 2) for that moment.
+
 `brain report [--out DIR] [--jira SNAPSHOT --as-of YYYY-MM-DD]` writes `report.md` and `report.html` (default: the brain directory; `--out` must be an existing directory inside the repository) atomically, after checking both targets (a symlink or non-file target: exit 4, nothing written). Same inputs give the same bytes: no clock, sorted order, no randomness. Sections: sprint load against cap, can start today (the same set `brain ready` accepts: one shared function, `lib/ready.mjs`, checked against the CLI and an independent brute-force oracle; a ticket whose own status is closed (`Done` or a `closed_statuses` entry; an `sp:` task with `impl_status` done) is `DONE` for `brain ready`, exit 1, and never listed), blocked by an open item, per person, critical chain, stale count, forecast state tag. Each section carries a source label: `computed`, `from jira snapshot dated X` (X is the `--as-of` you gave; the file's own age is not read), `from history n=N`, or `not computed`. All free text is sanitized and escaped; the HTML has no script, handler or external resource. The stale count and forecast state are computed when possible and shown as `not computed` when git or history is unavailable. Publishing and sharing are not done by the command (see the brain-report skill). Race left: a target swapped for a symlink between the pre-check and the rename is replaced by the rename, not followed.
 
 ## Symlink and swap races
@@ -154,7 +171,8 @@ What is closed (tests: `test/toctou-race.test.mjs`, each race forced at an exact
 after the check, asserting the outside file is never read or written):
 
 - Reading a brain data file (the eight index sources, `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
-  the `card --line` hash inputs) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
+  the `card --line` hash inputs, and the OpenWolf files read by `rules --repo` and `doctor`: `.wolf/cerebrum.md`, `.wolf/STATUS.md`,
+  `.wolf/anatomy-index.json`) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
   swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device,
   inode and change time (ctime), else it is refused before one byte is read. What each part catches:
   - device and inode, a guarantee: any replacement that existed while the original did. That covers a hard link to an outside file (its
@@ -175,10 +193,19 @@ after the check, asserting the outside file is never read or written):
   `lstat`ed again (a symlink is refused) and the temp path must still be the descriptor written (`lstat` against `fstat`); after the rename
   the destination must be that same file. `rename(2)` replaces a symlink at the destination itself, so a swap in the last instant before the
   rename is replaced, not followed (tested).
-- The index: a `brain.sqlite` that is a symlink is refused on open (exit 2, `brain build`); `brain build` creates its temp file itself with
-  `O_CREAT|O_EXCL|O_NOFOLLOW` before SQLite opens it, refuses (exit 4, nothing removed) a file or symlink already at that predictable name,
-  and checks its identity again before the rename. It keeps that descriptor open until the rename is done, so the temp file's inode cannot be
-  freed and its number cannot be handed to a file created at that path meanwhile: the identity check is a guarantee even against a
+- The index: a `brain.sqlite` that is a symlink is refused on open (exit 2, `brain build`); so is one that is not a regular file (a FIFO,
+  a directory, a device: exit 2, `error: the index is not a regular file`, `try: brain build`; the session hook prints nothing, exit 0),
+  because SQLite opens without `O_NONBLOCK` and a FIFO with no writer would block every index command and the hook until its 10 s kill.
+  Before SQLite sees the path, brain `lstat`s it, opens it itself with `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` (never blocks, never follows), requires
+  the `fstat` of that descriptor to be a regular file with the `lstat`'s device and inode, and closes it (tested with `mkfifo`; skipped where
+  there is none). Residual: SQLite then opens the index again BY PATH, so a FIFO or another file swapped in between that check and SQLite's
+  own open is not detected (Node's SQLite binding cannot take a descriptor); a local attacker able to do that can replace the index directly.
+  The sidecar files beside it are only `lstat`ed, never opened (see "SQLite sidecars" above); `brain build` creates its temp file itself with
+  `O_CREAT|O_EXCL|O_NOFOLLOW` before SQLite opens it. A regular file already at that predictable name with this process's pid (or a dead
+  pid, or older than 10 minutes) is a leftover of a crashed build and is removed first (only that name is unlinked: a hard link to an
+  outside file loses the link, the file is untouched); a symlink or any other non-file there, and a file that appears at the name after
+  that clean-up, are refused (exit 4, nothing removed). It checks its identity again before the rename. It keeps that descriptor open
+  until the rename is done, so the temp file's inode cannot be freed and its number cannot be handed to a file created at that path meanwhile: the identity check is a guarantee even against a
   delete-then-create (tested; before this, on ext4 a file planted that way after SQLite closed the temp file became the index). The write
   path above holds its temp file's descriptor the same way. The SQLite library bundled with Node also refuses to open a symlinked database or journal
   (observed, not relied on).

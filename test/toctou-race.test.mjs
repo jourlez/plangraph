@@ -197,3 +197,29 @@ test('index: the build temp file deleted and recreated after SQLite closed it is
   assert.equal(fs.existsSync(file), false, 'the planted file never becomes the index');
   assert.equal(fs.readFileSync(tmp, 'utf8'), 'PLANTED', 'not ours: left in place'); fs.rmSync(tmp);
 });
+
+// docs/CONTRACT.md states exactly this: a REGULAR file at the build's own temp name (`brain.sqlite.tmp-<this pid>`) is a leftover of a
+// crashed build (a build runs synchronously, so no live build of this process owns it) and removeStaleTemps unlinks that name (a hard link
+// to an outside file loses only the link); a symlink or other non-file there is refused (exit 4) and left alone; a file that appears at the
+// name after that clean-up, right before the build's O_CREAT|O_EXCL|O_NOFOLLOW open, is refused and left alone too.
+test('index: the temp-name rules are what docs/CONTRACT.md says (own-pid regular file removed as a leftover, symlink or late file refused and kept)', { skip }, async () => {
+  const { buildIndex, INDEX_FILE } = await import('../src/db.mjs');
+  const w = world(); const dir = path.join(w.root, '.brain'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
+  const before = w.secretBytes();
+  fs.linkSync(w.secret, tmp); // a regular file (hard link to an outside file) at our own temp name: a leftover, unlinked, the outside file kept
+  buildIndex({ dir });
+  assert.equal(fs.existsSync(tmp), false); assert.equal(w.secretBytes(), before); assert.equal(fs.statSync(w.secret).nlink, 1);
+  fs.symlinkSync(w.secret, tmp);
+  assert.throws(() => buildIndex({ dir }), (/** @type {any} */ e) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
+  assert.equal(fs.lstatSync(tmp).isSymbolicLink(), true); fs.rmSync(tmp);
+  const mfs = /** @type {any} */ (fs), real = fs.openSync; let planted = false;
+  mfs.openSync = (/** @type {any[]} */ ...a) => { if (a[0] === tmp && !planted) { planted = true; fs.writeFileSync(tmp, 'LATE'); } return real(.../** @type {[any, any, any]} */ (a)); };
+  try {
+    assert.throws(() => buildIndex({ dir }), (/** @type {any} */ e) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
+  } finally { mfs.openSync = real; }
+  assert.ok(planted); assert.equal(fs.readFileSync(tmp, 'utf8'), 'LATE', 'not ours: left in place'); fs.rmSync(tmp);
+  assert.equal(w.secretBytes(), before);
+  const doc = fs.readFileSync(path.join(import.meta.dirname, '../docs/CONTRACT.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.ok(!doc.includes('refuses (exit 4, nothing removed) a file or symlink already at that predictable name'), 'CONTRACT.md must not claim a regular file at the temp name is refused');
+  assert.ok(doc.includes('A regular file already at that predictable name with this process\'s pid (or a dead pid, or older than 10 minutes) is a leftover of a crashed build and is removed first'), 'CONTRACT.md states the leftover rule');
+});
