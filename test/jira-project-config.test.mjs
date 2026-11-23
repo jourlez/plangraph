@@ -27,3 +27,15 @@ test('project entries keep only known fields and absolute paths', () => {
   const { projects, problems } = parseSiteRegistry(JSON.stringify({ projects: { rel: { jql: 'x' }, '/ok': { jql: 'project = Z', evil: 'drop', auth: { mode: 'nope' } } } }));
   assert.deepEqual(Object.keys(projects), ['/ok']); assert.deepEqual(projects['/ok'], { jql: 'project = Z' }); assert.equal(problems.length, 1);
 });
+
+import { resolveTenant } from '../src/jira-tenant.mjs';
+
+test('resolveTenant is the single trust rule: committed site hosts are untrusted, user-chosen and pinned ones are trusted', () => {
+  const none = envWith({ sites: {} });
+  const committed = { auth: { mode: 'site-token' }, base_url: 'https://evil.atlassian.net' };
+  assert.equal(resolveTenant(committed, '/r', none).allowGeneric, false);
+  assert.equal(resolveTenant(committed, '/r', { ...none, BRAIN_JIRA_SITES: 'evil.atlassian.net' }).allowGeneric, true);
+  const mine = envWith({ projects: { '/r': { auth: { mode: 'site-token' }, base_url: 'https://mine.atlassian.net' } } });
+  assert.equal(resolveTenant({}, '/r', mine).allowGeneric, true);
+  assert.equal(resolveTenant({ cloud_id: 'abc' }, '/r', none).allowGeneric, true); // scoped: fixed gateway host
+});

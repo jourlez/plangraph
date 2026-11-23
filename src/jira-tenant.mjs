@@ -44,3 +44,23 @@ export function effectiveJira(committed = {}, root = '', env = {}) {
   // userTenant: the site or cloud id came from the user's own file, not from a committed (untrusted) config, so generic credentials may go there
   return { ...committed, ...u, ...(u.auth || committed.auth ? { auth: u.auth || committed.auth } : {}), userTenant: Boolean(u.base_url || u.cloud_id) };
 }
+
+export const AUTH_MODES = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });
+
+/**
+ * The ONE place that decides which tenant a project talks to and whether the generic credentials may be used for it. `jira-pull` (which
+ * acts on the decision) and `brain doctor` (which only describes it) both call this, so they cannot disagree.
+ * @param {any} committed the committed config.jira block (untrusted, may be empty)
+ * @param {string} root the repository root
+ * @param {Record<string, string | undefined>} env
+ */
+export function resolveTenant(committed, root, env = {}) {
+  const jira = effectiveJira(committed || {}, root, env), tenant = tenantOf(jira, env), mode = jira.auth?.mode || AUTH_MODES.SCOPED;
+  const registry = loadRegistry(env), entry = tenant && Object.hasOwn(registry.reg, tenant) ? registry.reg[tenant] : null;
+  const pins = String(env.BRAIN_JIRA_SITES || '').toLowerCase().split(',').map((x) => x.trim()).filter(Boolean);
+  const pinned = tenant !== '' && pins.includes(tenant.split(':')[0]);
+  // Generic credentials only go where the host is NOT chosen by a committed config: a fixed gateway or a user-allowlisted Data Center host,
+  // a site the user pinned, or a site the user named in their own file.
+  const allowGeneric = mode !== AUTH_MODES.SITE_TOKEN || pinned || jira.userTenant === true;
+  return { jira, tenant, mode, registry, entry, pinned, allowGeneric };
+}

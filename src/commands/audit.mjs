@@ -60,13 +60,10 @@ async function refsUpdate(ctx, args) {
 // ---- Jira (read-only) ----
 /** @param {Ctx} ctx */
 async function jiraClient(ctx) {
-  const J = await import('../../lib/jira.mjs'), env = ctx.env, cfg = (await import('../jira-tenant.mjs')).effectiveJira(ctx.config().jira || {}, ctx.root, env);
+  const J = await import('../../lib/jira.mjs'), T = await import('../jira-tenant.mjs'), env = ctx.env;
+  const { jira: cfg, tenant, registry, allowGeneric } = T.resolveTenant(ctx.config().jira, ctx.root, env);
   try {
-    const T = await import('../jira-tenant.mjs'), tenant = T.tenantOf(cfg, env), mode = cfg.auth?.mode || 'scoped';
-    const pinned = tenant !== '' && J.siteHostsFromEnv(env).includes(tenant.split(':')[0]);
-    const creds = tenant
-      ? await J.getCredentialsFor(tenant, { env, registry: T.loadRegistry(env).reg, allowGeneric: mode !== 'site-token' || pinned || cfg.userTenant === true })
-      : await J.getCredentials({ env });
+    const creds = tenant ? await J.getCredentialsFor(tenant, { env, registry: registry.reg, allowGeneric }) : await J.getCredentials({ env });
     return { J, cfg, client: J.makeClient({ baseConfig: { auth: cfg.auth, cloudId: cfg.cloud_id, baseUrl: env.JIRA_BASE_URL || cfg.base_url }, creds, dcHosts: J.dcHostsFromEnv(env), siteHosts: J.siteHostsFromEnv(env), now: ctx.now }) };
   } catch (e) { return jiraErrors(e); }
 }
@@ -100,7 +97,7 @@ async function jiraImport(ctx, args) {
   try {
     let snap = fs.existsSync(out) ? J.parseSnapshotJsonl(readSnapshotText(out)) : null, imported = 0, dropped = 0; const changed = new Set();
     for (const f of files) {
-      const r = J.importIssues(snap, readJsonInput(f, 'issue file'), { sprintField: (await import('../jira-tenant.mjs')).effectiveJira(ctx.config().jira || {}, ctx.root, ctx.env).sprint_field, now: ctx.now });
+      const r = J.importIssues(snap, readJsonInput(f, 'issue file'), { sprintField: (await import('../jira-tenant.mjs')).resolveTenant(ctx.config().jira, ctx.root, ctx.env).jira.sprint_field, now: ctx.now });
       snap = r.snapshot; imported += r.imported; dropped += r.dropped; for (const k of r.changedKeys) changed.add(k);
     }
     writeOutput(out, J.snapshotToJsonl(snap));
