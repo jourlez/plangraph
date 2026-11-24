@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.4
+
+Security hotfix.
+- Security: the solver's `uv run` fallback no longer executes a `.venv` or `.python-version` interpreter committed in the working directory. The fallback (an older uv without `sync --script`, or `BRAIN_SOLVE_LAUNCH=uv-run`) runs in your directory, where uv picked its interpreter from a committed `.venv` (every uv version, also with `--no-config`) or `.python-version` (uv 0.4.30), so a repository could run its own executable as you. Both `uv run` fallbacks of `bin/brain-solve-run` now pass an absolute `--python` found by `uv python find` run from the plugin's `bin` directory (`UV_PYTHON`, when set, is the request). The normal uv path is unchanged.
+- Migration: when uv finds no Python 3.10-3.14, the fallback now exits 3 with the one line `brain-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14`. Before 0.2.4, `uv run` could download a Python on its own in that case; run that command once. The launcher never installs a Python itself.
+- Tests: `test/solver.test.ts` runs the fallback with the real uv in a working directory holding a hostile `.venv/bin/python` and a `.python-version` naming `./evil/python3` and asserts neither runs (a uv 0.4.30 leg runs when `BRAIN_TEST_UV_0430` names that binary); `test/solver-launcher.test.ts` pins the `--python` argument and the exit 3 with a fake uv.
+- `KNOWN_ISSUES.md`: the interpreter case is closed; the `uv.toml` residue of the fallback stays open for 0.3.0.
+
 ## 0.2.3
 
 Test fixes only; no behavior change of the plugin.

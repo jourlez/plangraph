@@ -9,8 +9,11 @@
 // import probe runs first. PIP_NO_INDEX keeps pip offline: the install fails fast and the launcher exits 3 (or runs the stub solver when
 // the host python3 has ortools). No marker file may appear.
 // (3) the uv path with a fake uv: the preparation calls run from the plugin bin directory, the solver in the caller's directory.
-// NOT covered: Windows (POSIX sh launcher), a host without python3 (the probes skip and say so; the static test still runs), a real uv, and
-// the `uv run` fallbacks (an older uv; they still run in the caller's directory, see KNOWN_ISSUES.md).
+// (4) the `uv run` fallbacks with a fake uv: both pass an absolute --python found by `uv python find` run from bin/, and with none found
+// the launcher exits 3 and runs no `uv run`.
+// NOT covered: Windows (POSIX sh launcher), a host without python3 (the probes skip and say so; the static test still runs), a real uv
+// (test/solver.test.ts runs the fallbacks with the real uv in a hostile directory), and the `uv.toml` the fallbacks still read from the
+// caller's directory (KNOWN_ISSUES.md).
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -105,4 +108,49 @@ test('uv path: uv sync and uv python find run from the plugin bin directory, nev
   const here = fs.realpathSync(path.dirname(RUN));
   const lines = fs.readFileSync(log, 'utf8').trim().split('\n');
   assert.deepEqual(lines, [`uv ${here} sync --quiet`, `uv ${here} python find`, `solver ${cwd} ${path.join(here, 'brain-solve')} --in x.json`]);
+});
+
+// The `uv run` fallbacks (an older uv without `sync --script`, or BRAIN_SOLVE_LAUNCH=uv-run) run in the caller's directory, where uv picks
+// its interpreter from a committed .venv (every uv version) or .python-version (uv 0.4.30), even with --no-config. Both fallbacks therefore
+// pass an absolute --python found by `uv python find` run from the plugin bin directory (0.2.4). The fake uv fails `sync`, records cwd and
+// argv of every call, and answers `python find` with FIND (an absolute fake interpreter by default). The real-uv hostile cases live in
+// test/solver.test.ts.
+function fallback({ find, env: extra = {}, script }: { find?: string; env?: Record<string, string>; script?: string } = {}) {
+  const cwd = tmp('sl-fbcwd-'), bin = tmp('sl-fbbin-'), log = path.join(tmp('sl-fblog-'), 'calls.log');
+  const py = path.join(bin, 'fakepy');
+  fs.writeFileSync(py, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const answer = find ?? py;
+  fs.writeFileSync(path.join(bin, 'uv'), [
+    '#!/bin/sh',
+    `echo "uv $(pwd -P) $*" >> ${JSON.stringify(log)}`,
+    'if [ "$1" = sync ]; then exit 1; fi',
+    `if [ "$1" = python ]; then if [ -n ${JSON.stringify(answer)} ]; then echo ${JSON.stringify(answer)}; exit 0; fi; echo "error: no interpreter found" >&2; exit 2; fi`,
+    'exit 0', ''].join('\n'), { mode: 0o755 });
+  const env: Record<string, string> = { PATH: `${bin}:/usr/bin:/bin`, HOME: tmp('sl-fbhome-'), ...extra };
+  if (script) env.BRAIN_SOLVE_SCRIPT = script;
+  const r = spawnSync(RUN, ['--in', 'x.json'], { cwd, env, encoding: 'utf8', timeout: 60000 });
+  return { r, cwd, py, here: fs.realpathSync(path.dirname(RUN)), lines: fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [] };
+}
+const POSIX_ONLY = process.platform === 'win32' ? 'POSIX sh launcher' : false;
+
+test('the fallback passes an absolute --python found by uv python find run from bin/', { skip: POSIX_ONLY }, () => {
+  // sync fails (an older uv): the locked-script fallback
+  const a = fallback();
+  assert.equal(a.r.status, 0, a.r.stderr);
+  assert.deepEqual(a.lines.slice(1), [`uv ${a.here} python find >=3.10,<3.15`, `uv ${a.cwd} run --quiet --python ${a.py} --locked --script ${path.join(a.here, 'brain-solve')} --in x.json`]);
+  // BRAIN_SOLVE_LAUNCH=uv-run skips sync; BRAIN_SOLVE_SCRIPT takes the --with branch; UV_PYTHON is the request given to uv python find
+  const stub = path.join(tmp('sl-fbstub-'), 'solver.py'); fs.writeFileSync(stub, 'print(1)\n');
+  const b = fallback({ script: stub, env: { BRAIN_SOLVE_LAUNCH: 'uv-run', UV_PYTHON: '3.12' } });
+  assert.equal(b.r.status, 0, b.r.stderr);
+  assert.deepEqual(b.lines, [`uv ${b.here} python find 3.12`, `uv ${b.cwd} run --quiet --no-project --python ${b.py} --with ortools==9.15.6755 python ${stub} --in x.json`]);
+});
+
+test('with no interpreter found the fallback exits 3 naming uv python install 3.14 and runs no uv run', { skip: POSIX_ONLY }, () => {
+  for (const find of ['', './evil/python3', '/nonexistent/python3']) {
+    const c = fallback({ find });
+    assert.equal(c.r.status, 3, `find ${JSON.stringify(find)}: ${c.r.stderr}`);
+    assert.equal(c.r.stderr, 'brain-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14\n');
+    assert.ok(!c.lines.some((l) => / run /.test(l)), `no uv run: ${c.lines.join(' | ')}`);
+    assert.ok(!c.lines.some((l) => /python install/.test(l)), 'the launcher never installs a Python itself');
+  }
 });

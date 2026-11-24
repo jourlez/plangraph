@@ -84,7 +84,9 @@ plugin's `bin` directory, so a `uv.toml` (or `pyproject.toml` `[tool.uv]`) in th
 config and `UV_*` variables (a mirror through `UV_INDEX_URL` or `UV_DEFAULT_INDEX`) still apply. The solver itself runs in your directory. On a macOS framework build of Python
 (Homebrew, python.org) that interpreter's `bin/python3.x` itself `exec`s `Python.framework/.../Python.app/Contents/MacOS/Python`, so `ps`
 shows the process as `Python`, but it is the same process (same pid) and the same guarantee holds (tested on Homebrew 3.14). If that preparation fails (an uv
-without `sync --script`), the launcher falls back to `uv run`, where uv stays the parent; the solver then runs a parent watchdog
+without `sync --script`), the launcher falls back to `uv run`, where uv stays the parent (the fallback's interpreter comes from `bin`, never from your
+directory: an absolute `--python` found by `uv python find` run from the plugin's `bin` directory, with `UV_PYTHON` as the request when set, so a
+`.venv` or `.python-version` committed in the repository is never used; when none is found it exits 3 naming `uv python install 3.14`); the solver then runs a parent watchdog
 (`BRAIN_SOLVE_WATCH_PARENT=1`, set only there): a thread polls `getppid()` every 0.2 s and, once uv is gone, takes the write lock (so no write
 is cut short; an anytime meta + schedule pair and the final schedule + meta are each held as one unit) and exits with no further write.
 After a kill, `--out` holds the last verified anytime schedule and its meta says `partial: true`. Tested: a SIGKILL on the launcher on both
@@ -280,7 +282,7 @@ so it is listed by the validator as a `bin` entry but cannot be run as a command
 The locked uv path (`uv run --locked --script bin/brain-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
 fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/brain-solve.lock` and
 `solver/solver-requirements.txt`. They come from PyPI (`pypi.org` for the index, `files.pythonhosted.org` for the files) and are cached afterwards (uv cache, or the venv under
-`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv`). If no Python 3.10-3.14 is installed, uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
+`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv`). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
 `github.com` (release download URL), which redirected to `release-assets.githubusercontent.com` when checked on 2026-11-22 (that CDN host is GitHub's choice and may change). The pip fallback uses only the default PyPI index and never downloads a Python.
 These four hosts, plus the two Jira hosts, are what `network.hosts` in `.claude-plugin/plugin.json` declares. Nothing else leaves the machine: no ticket data, no telemetry. This is the only network access the solver ever makes.
 A cold first run took about 27 s on a fast connection (one measurement in an isolated cache; it is network-bound, so a slow connection takes longer); later runs reuse the cache.

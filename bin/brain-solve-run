@@ -7,6 +7,8 @@
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
 # environment (test/solver-launcher.test.ts). The uv branches run the locked script environment; the two uv preparation calls run from this
 # bin directory, so a uv.toml in the caller's repository is not read (the `uv run` fallbacks still run in the caller's directory: KNOWN_ISSUES.md).
+# Interpreter: both `uv run` fallbacks pass an absolute --python found by `uv python find` run from this bin directory (UV_PYTHON is the
+# request when set), never one a .venv or .python-version in the caller's directory names; none found exits 3 (this launcher never installs one).
 # Signals: every path execs the solver's Python, so this process IS the solver and any signal (SIGKILL included) reaches it: on the uv path,
 # uv only prepares the locked script environment (`uv sync --locked --script`, which verifies the pinned lock) and names its interpreter.
 # Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (BRAIN_SOLVE_WATCH_PARENT=1) and exits without
@@ -24,9 +26,17 @@ if command -v uv >/dev/null 2>&1; then
      && PY="$(cd "$HERE" && uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
     exec "$PY" "$SCRIPT" "$@"
   fi
+  # The `uv run` fallbacks run in the caller's directory, where uv would pick the interpreter from a committed .venv (every uv version) or
+  # .python-version (uv 0.4.30), even with --no-config. Find it from this bin directory instead and pass it as an absolute --python.
+  PYI="$(cd "$HERE" && uv python find "${UV_PYTHON:->=3.10,<3.15}" 2>/dev/null)"
+  case "$PYI" in /*) ;; *) PYI="" ;; esac
+  if [ -z "$PYI" ] || [ ! -x "$PYI" ]; then
+    echo "brain-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14" >&2
+    exit 3
+  fi
   BRAIN_SOLVE_WATCH_PARENT=1; export BRAIN_SOLVE_WATCH_PARENT
-  if [ -z "${BRAIN_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --locked --script "$SCRIPT" "$@"; fi
-  exec uv run --quiet --no-project --python '>=3.10,<3.15' --with "$PIN" python "$SCRIPT" "$@"
+  if [ -z "${BRAIN_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
+  exec uv run --quiet --no-project --python "$PYI" --with "$PIN" python "$SCRIPT" "$@"
 fi
 VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv"
 if [ ! -x "$VENV/bin/python" ] || ! "$VENV/bin/python" -I -c 'import ortools' >/dev/null 2>&1; then
