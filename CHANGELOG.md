@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3
+
+Test fixes only; no behavior change of the plugin.
+- Mutation: the CI `mutation` job failed on Linux. It reported a survivor in `lib/store.ts`: the deliberately quadratic, output-identical line scan of `doctorMergeDriver`, which `scripts/mutate.ts` pins. Only a wall-clock n-vs-4n ratio killed it, and on a fast runner the ratio stayed under the limit. The same held for the other two pinned quadratic mutants (`lib/gitsafe.ts` `nextIndex`, `lib/render.ts` verdict count).
+- Tests: new `workScaling` and `builtinWork` in `test/helpers/perf.ts` count the elements that common Array and String built-ins touch, n vs 4n, with no clock. The real code stays near 4x and each quadratic mutant gives about 16x, the same on every machine. Each of the three mutants now fails a `work:` test in `test/driver-wiring.test.ts`, `test/hook.test.ts` and `test/gitsafe.test.ts`. The wall-clock timing tests stay.
+- Tests: `test/lock-bound.test.ts` counts lock attempts through a spy on `fs.openSync`, so an endless `acquireLock` retry loop fails at once instead of waiting for the mutation runner's timeout. The four such mutants in `lib/store.ts` are now pinned in `scripts/mutate.ts`.
+- `KNOWN_ISSUES.md` lists the clock dependence that remains (`mutate-all` timeouts in files not yet audited, the wall-clock tests themselves).
+
 ## 0.2.2
 
 CI fixes only; no behavior change of the plugin.

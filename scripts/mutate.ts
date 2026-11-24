@@ -54,10 +54,16 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ['src/db.ts', 'info.some((c) => c.hidden !== 0) || ', '', DB],
   ['src/db.ts', 'if (old || dead) fs.rmSync', 'if (old && dead) fs.rmSync', DB],
   ['lib/gitsafe.ts', 'if (variable > 1) throw', 'if (variable > 9) throw', ['test/gitsafe.test.ts']], // two variable # runs: backtracking
-  // deliberately quadratic, output-identical mutants: killed only by the size-axis timing checks (n vs 4n)
+  // deliberately quadratic, output-identical mutants: killed by the deterministic size-axis work counts (test/helpers/perf.ts workScaling,
+  // n vs 4n, no clock), so the kill does not depend on the machine; the wall-clock timing checks in the same files time the whole path too
   ['lib/gitsafe.ts', 'nextIndex: (/** @type {string} */ text) => text.search(prefix),', "nextIndex: (/** @type {string} */ text) => { let k = 0; for (let i = 0; i < text.length; i++) k += text.indexOf('\\0', i) >>> 31; return k >= 0 ? text.search(prefix) : -1; },", ['test/gitsafe.test.ts']],
   ['lib/render.ts', 'vc.set(v, (vc.get(v) || 0) + 1); }', "vc.set(v, [...model.tickets.values()].filter((u) => String(u.verdict || 'unrated').slice(0, 20) === String(t.verdict || 'unrated').slice(0, 20)).length); }", ['test/hook.test.ts']],
   ['lib/store.ts', "text.split('\\n').some((l) => l.trim() ===", "text.split('\\n').some((l, i, a) => a.slice(0, i).join('\\n').length >= 0 && l.trim() ===", ['test/driver-wiring.test.ts']],
+  // endless lock loops (the counter, the retry guard, the steal result, a held guard): killed by an attempt count, not by this runner's timeout
+  ['lib/store.ts', '/* gone */ }\n    return false;', '/* gone */ }\n    return true;', ['test/lock-bound.test.ts']],
+  ['lib/store.ts', 'for (let i = 0; ; i++) {', 'for (let i = 0; ; i--) {', ['test/lock-bound.test.ts']],
+  ['lib/store.ts', 'if (stealStale(lockPath, staleMs, onStealDecision)) continue;', 'if (!stealStale(lockPath, staleMs, onStealDecision)) continue;', ['test/lock-bound.test.ts']],
+  ['lib/store.ts', '      if (i >= retries) throw locked();\n      sleepMs(waitMs);', '      sleepMs(waitMs);', ['test/lock-bound.test.ts']],
   // limitations wave: index content digest, swap races, 0-SP capacity, stale driver target
   ['src/db.ts', 'if (got !== want) throw new BrainError', 'if (got !== want && false) throw new BrainError', ['test/index-integrity.test.ts']],
   ['lib/jsonl.ts', 'if (pre && (st.dev !== pre.dev || st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'if (false) throw', ['test/toctou-race.test.ts']],

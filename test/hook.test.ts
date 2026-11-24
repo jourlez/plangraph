@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
-import { budget } from './helpers/perf.ts';
+import { budget, workScaling } from './helpers/perf.ts';
 import { genPlan } from './fixtures/gen.ts';
 import { main } from '../src/cli.ts';
 
@@ -175,4 +175,27 @@ test('timing: the hook path scales linearly with the plan size (n vs 4n tickets,
   const a = await min3(small), b = await min3(large), ratio = b / Math.max(a, 0.05);
   console.log(`# hook path ms: ${a.toFixed(1)} at ${n} tickets, ${b.toFixed(1)} at ${4 * n} (ratio ${ratio.toFixed(1)})`);
   assert.ok(ratio < 9, `hook path scaling ratio ${ratio.toFixed(1)} (${a.toFixed(1)} ms at ${n} tickets, ${b.toFixed(1)} ms at ${4 * n}; linear ~4, quadratic ~16)`);
+});
+
+// The same size axis without a clock (test/helpers/perf.ts workScaling): the elements the Array and String built-ins touch on the hook
+// path, n vs 4n tickets. Deterministic on every machine; the deliberately quadratic verdict count in lib/render.ts renderCard
+// (scripts/mutate.ts) filters every ticket once per ticket, which this counts.
+test('work: the hook path touches linearly many elements in the plan size (n vs 4n tickets, built-in work count, no clock)', async () => {
+  const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
+  const worlds = new Map<number, ReturnType<typeof world>>();
+  for (const m of [500, 2000]) {
+    const w = world(); ok(w.brain(['init']));
+    const p = genPlan({ n: m, people: 5, seed: 3 });
+    for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.brain', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
+    ok(w.brain(['build']));
+    worlds.set(m, w);
+  }
+  const once = async (m: number) => {
+    const w = worlds.get(m) as ReturnType<typeof world>, out: string[] = []; // both sizes were built above
+    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, BRAIN_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
+    assert.equal(code, 0); assert.match(out[0] ?? '', /^brain [0-9a-f]{8} \| \d+ tickets/);
+  };
+  const s = await workScaling(once, 500);
+  console.log(`# hook path work: ${s.small} at 500 tickets, ${s.large} at 2000 (ratio ${s.ratio.toFixed(2)})`);
+  assert.ok(s.ratio < s.maxRatio, `hook path work ratio ${s.ratio.toFixed(2)} (${s.small} at 500 tickets, ${s.large} at 2000; linear ~4, quadratic ~16)`);
 });

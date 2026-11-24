@@ -37,3 +37,11 @@ Each entry lists the problem, why it is not fixed now, the recommended resolutio
 - Recommended resolution: keep both files small; the behavior is covered by tests that run them as processes (`test/floor.test.ts`, `test/compile-cache.test.ts`, `test/install-path.test.ts`, the merge-driver tests).
 - Risk: informational.
 - Affected files: `bin/brain`, `bin/brain-merge`.
+
+### Mutation kills that still depend on a clock or a timeout
+
+- Problem: since 0.2.3 every mutant that `npm run mutate` (the required CI job) pins is killed by a failing assertion. The audit for 0.2.3 recorded, for each pinned mutant, which tests fail and how long the run takes. It also ran `mutate-all` on `lib/store.ts`. Three kinds of clock dependence remain. (1) `scripts/mutate-all.ts` (local, informational in CI) still counts a run past its per-mutant timeout as killed, by design. Only `lib/store.ts` was audited for those: its 4 timeouts were endless lock loops, and `test/lock-bound.test.ts` now kills them on an attempt count. The other files were not audited, because a full run takes hours. (2) The wall-clock checks stay in the suite as tests: the `timing:` and `scaling` tests, and the `budget()` bounds in `test/helpers/perf.ts`. They can still fail on a badly overloaded machine, but no pinned mutant relies on them any more. (3) The deterministic work count (`builtinWork` in `test/helpers/perf.ts`) only sees the listed Array and String built-ins. A quadratic hand-written loop is caught only by the wall-clock `scaling` check.
+- Why not fixed now: a hang can only be told apart from slow progress with a bound, and auditing every library file under `mutate-all` takes hours of machine time. The remaining wall-clock tests check real elapsed time, which no work count replaces.
+- Recommended resolution: when `mutate-all` reports a `timeout` for a file, add a test that bounds the loop by a count (see `test/lock-bound.test.ts`). When a new size-axis check is added, pair it with a `workScaling` check.
+- Risk: informational (test tooling only; no runtime effect).
+- Affected files: `scripts/mutate-all.ts`, `test/helpers/perf.ts`, the `timing:` tests in `test/hook.test.ts`, `test/driver-wiring.test.ts` and `test/gitsafe.test.ts`.

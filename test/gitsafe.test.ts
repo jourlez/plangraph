@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkRef, checkRepoPath, compileHeading, makeGit } from '../lib/gitsafe.ts';
 import { rng } from './fixtures/gen.ts';
-import { budget, scaling } from './helpers/perf.ts';
+import { budget, scaling, workScaling } from './helpers/perf.ts';
 
 test('checkRef rejects option-shaped and traversal refs, accepts normal refs', () => {
   for (const bad of ['--output=/tmp/x', '-x', '--upload-pack=sh', 'a..b', '', ' HEAD', 'a b', 'ref\n', 'x:y/../z']) assert.throws(() => checkRef(bad), TypeError, bad);
@@ -66,6 +66,14 @@ test('compileHeading: find and nextIndex scale linearly with the text (n vs 4n, 
   const texts = [(n: number) => `${'#'.repeat(n)}x`, (n: number) => '## Task 1.\n'.repeat(Math.ceil(n / 11)), (n: number) => `${'#'.repeat(98)} `.repeat(Math.ceil(n / 99))];
   const s = scaling((n: number) => { for (const mk of texts) { const t = mk(n); for (const h of hs) { h.find(t, '1.2'); h.nextIndex(t); } } }, 40000) as NonNullable<ReturnType<typeof scaling>>; // scaling runs at least one attempt, so its best result is set
   assert.ok(s.ratio < s.maxRatio, `compileHeading scaling ratio ${s.ratio.toFixed(1)} (${s.small.toFixed(1)} ms at n, ${s.large.toFixed(1)} ms at 4n; linear ~4, quadratic ~16)`);
+});
+// The same size axis without a clock (test/helpers/perf.ts workScaling): the elements the Array and String built-ins touch, n vs 4n
+// characters. Deterministic on every machine; the deliberately quadratic nextIndex in scripts/mutate.ts runs an indexOf from every offset.
+test('compileHeading: find and nextIndex touch linearly many characters in the text (n vs 4n, built-in work count, no clock)', async () => {
+  const hs = ['^#{2,3} Task {id}:', '#{0,99} {id}', '#{1,99}#### x{id}', 'Task {id}:', '{id}'].map((t) => compileHeading(t));
+  const texts = [(n: number) => `${'#'.repeat(n)}x`, (n: number) => '## Task 1.\n'.repeat(Math.ceil(n / 11)), (n: number) => `${'#'.repeat(98)} `.repeat(Math.ceil(n / 99))];
+  const s = await workScaling((n: number) => { for (const mk of texts) { const t = mk(n); for (const h of hs) { h.find(t, '1.2'); h.nextIndex(t); } } }, 40000);
+  assert.ok(s.ratio < s.maxRatio, `compileHeading work ratio ${s.ratio.toFixed(2)} (${s.small} at n, ${s.large} at 4n; linear ~4, quadratic ~16)`);
 });
 test('makeGit pins LC_ALL=C and disables prompts for the git child, whatever the caller locale', () => {
   const dir = fs.mkdtempSync(path.join(process.env.BRAIN_TEST_TMP || os.tmpdir(), 'gitsafe-env-'));

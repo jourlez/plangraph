@@ -11,7 +11,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import type { TestContext } from 'node:test';
 import * as S from '../lib/store.ts';
-import { budget, scaling } from './helpers/perf.ts';
+import { budget, scaling, workScaling } from './helpers/perf.ts';
 
 const test = (name: string, fn: (t: TestContext) => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
 const PLUGIN = path.resolve(import.meta.dirname, '..');
@@ -159,4 +159,25 @@ test('timing: merge-driver wiring scales linearly with the .gitattributes size (
   const s = scaling(wire, n) as { small: number; large: number; ratio: number; maxRatio: number }; // attempts >= 1, so a result is always set
   console.log(`# wiring ms: ${s.small.toFixed(1)} at ${n} lines, ${s.large.toFixed(1)} at ${4 * n} (ratio ${s.ratio.toFixed(1)})`);
   assert.ok(s.ratio < s.maxRatio, `wiring scaling ratio ${s.ratio.toFixed(1)} (${s.small.toFixed(1)} ms at ${n} lines, ${s.large.toFixed(1)} ms at ${4 * n}; linear ~1-4, quadratic ~16)`);
+});
+
+// The same size axis without a clock (test/helpers/perf.ts workScaling): the elements the Array and String built-ins touch on the wiring
+// path, n vs 4n lines. Deterministic, so it fails the same way on every machine; the deliberately quadratic line scan in doctorMergeDriver
+// (scripts/mutate.ts) re-joins every prefix of the lines, which this counts (ratio about 16), while the real scan stays near 4.
+test('work: merge-driver wiring touches linearly many elements in the .gitattributes size (n vs 4n lines, built-in work count, no clock)', async () => {
+  const n = 2000, repos = new Map<number, string>();
+  for (const m of [n, 4 * n]) {
+    const d = tmp('dw-work-'); git(d, 'init', '-q');
+    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=brain-jsonl\n`);
+    repos.set(m, d);
+  }
+  const wire = (m: number) => {
+    const d = repos.get(m) as string; // both sizes were created above
+    S.installMergeDriver(d, { dir: '.brain', driverPath: '/opt/brain/brain-merge' });
+    assert.equal(S.doctorMergeDriver(d, { dir: '.brain' }).attributes, true);
+  };
+  const s = await workScaling(wire, n);
+  console.log(`# wiring work: ${s.small} at ${n} lines, ${s.large} at ${4 * n} (ratio ${s.ratio.toFixed(2)})`);
+  assert.ok(s.small >= n, `the count sees the line scan (${s.small} elements at ${n} lines)`);
+  assert.ok(s.ratio < s.maxRatio, `wiring work ratio ${s.ratio.toFixed(2)} (${s.small} at ${n} lines, ${s.large} at ${4 * n}; linear ~4, quadratic ~16)`);
 });
