@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+
+CI fixes only; no behavior change of the plugin.
+- CI: the `unit` and `macos` jobs now install the locked dev tools (`npm ci --ignore-scripts --no-fund`), because `test/types.test.ts` runs `tsc` from `node_modules`.
+- Tests: the baseline normalizer (`scripts/baseline.ts`, a development harness) now also drops the per-run directory under the host temp directory. On Linux that directory is `/tmp`, which left `<ROOT>/<run-dir>/...` behind. `test/baseline.test.ts` runs its assertions under the host temp directory and a mocked `/tmp`.
+- Tests: the solver-launcher probes run with a PATH that is one directory of symlinks to the tools the fallback needs, so uv stays hidden even when it shares a directory with them. Their uv check takes any non-zero `command -v` status with no output as hidden. On Ubuntu, `sh` is dash, which exits 127 rather than 1 for a missing command.
+
 ## 0.2.1
 
 Fixed (the open items parked by the 0.2.0 migration; these are intended behavior changes):

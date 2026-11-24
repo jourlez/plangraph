@@ -130,11 +130,14 @@ test('ci.yml: the slow job runs the no-coverage group with uv, smoke first, with
   assert.match(s, /^ {10}files=\$\(node scripts\/ci-tests\.ts nocoverage\)\n {10}test -n "\$files"\n(?: {10}#.*\n)? {10}node --test \$files$/m);
 });
 
-test('ci.yml: npm ci and its npm cache are in the static job only', () => {
+// unit and macos run test/types.test.ts, which runs tsc from node_modules, so they install the locked dev tools too (lifecycle scripts off).
+test('ci.yml: npm ci runs in static, unit and macos only (unit and macos: lockfile-exact, no scripts); its npm cache is in the static job only', () => {
   const t = read('workflows', 'ci.yml');
+  const install = new Set(['static', 'unit', 'macos']);
   for (const name of jobNames(t)) {
     const j = job(t, name);
-    assert.equal(/npm ci/.test(j), name === 'static', `npm ci in ${name}`);
+    assert.equal(/npm ci/.test(j), install.has(name), `npm ci in ${name}`);
+    if (name !== 'static' && install.has(name)) assert.equal([...j.matchAll(/npm ci.*/g)].map((m) => m[0]).join('|'), 'npm ci --ignore-scripts --no-fund', `npm ci in ${name}`);
     assert.equal(/^ {10}cache: npm$/m.test(j), name === 'static', `npm cache in ${name}`);
   }
 });
@@ -238,8 +241,9 @@ test('ci.yml: the unit job runs the coverage group once with the floors; `npm te
   const t = read('workflows', 'ci.yml');
   const j = job(t, 'unit');
   const steps = j.split(/\n {6}- /).slice(1).map((x) => /^name: (.+)\n {8}run: [>|]?\s*([\s\S]*)$/.exec(x)).filter(Boolean).map((m) => [(m as RegExpExecArray)[1], (m as RegExpExecArray)[2].replace(/\s+/g, ' ').trim()]);
-  assert.equal(steps.length, 1, `one test step: ${JSON.stringify(steps)}`);
-  const run = steps[0][1];
+  assert.equal(steps.length, 2, `the dev-tool install, then one test step: ${JSON.stringify(steps)}`);
+  assert.equal(steps[0][1], 'npm ci --ignore-scripts --no-fund', 'the first step installs the locked dev tools (test/types.test.ts runs tsc)');
+  const run = steps[1][1];
   assert.match(run, /^files=\$\(node scripts\/ci-tests\.ts coverage\) test -n "\$files" (?:# .* )?node --test --experimental-test-coverage .* \$files$/, run);
   assert.ok(!/npm test|npm run mutate|npm run smoke/.test(j), 'npm test would run the suite a second time; the mutation run and smoke belong to their own jobs');
   assert.ok(run.includes("--test-coverage-include='lib/**'") && run.includes("--test-coverage-include='src/**'"));

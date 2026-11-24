@@ -43,8 +43,11 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 export function normalizeOutput(text: string, roots: string[] = []) {
   let s = String(text);
-  const known = [...new Set([...roots, PLUGIN, fs.realpathSync(PLUGIN), os.tmpdir(), fs.realpathSync(os.tmpdir())].filter((r) => r && r !== '/'))].sort((a, b) => b.length - a.length);
-  for (const r of known) s = s.split(r).join('<ROOT>');
+  const byLength = (list: string[]) => [...new Set(list.filter((r) => r && r !== '/'))].sort((a, b) => b.length - a.length);
+  for (const r of byLength([...roots, PLUGIN, fs.realpathSync(PLUGIN)])) s = s.split(r).join('<ROOT>');
+  // The temp directory (/tmp on Linux, /var/folders/../T on macOS) takes the per-run directory below it along, whatever the platform,
+  // the same as the fixed /tmp and /var/folders patterns below.
+  for (const t of byLength([os.tmpdir(), fs.realpathSync(os.tmpdir())])) s = s.replace(new RegExp(`${escapeRe(t)}(?![^/\\s"'<>])(?:/[^/\\s"'<>]+)?`, 'g'), '<ROOT>');
   s = s.replace(/(?:\/private)?\/var\/folders\/[^/\s"']+\/[^/\s"']+\/T\/[^/\s"'<>]+/g, '<ROOT>').replace(/\/tmp\/[A-Za-z0-9._-]+/g, '<ROOT>');
   s = s.replace(new RegExp(`${escapeRe('<ROOT>')}(?:/<ROOT>)+`, 'g'), '<ROOT>');
   s = s.replace(/node v\d+\.\d+\.\d+/g, 'node vX').replace(/solver runtime: [^\n\\]*/g, 'solver runtime: X');

@@ -341,7 +341,7 @@
      },
      "serverInfo": {
       "name": "plangraph",
-      "version": "0.2.1"
+      "version": "0.2.2"
      }
     }
    },
@@ -604,7 +604,7 @@
     },
     "serverInfo": {
      "name": "plangraph",
-     "version": "0.2.1"
+     "version": "0.2.2"
     }
    }
   },
@@ -618,7 +618,7 @@
   }
  ],
  "mcp-serve": [
-  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"plangraph\",\"version\":\"0.2.1\"}}}",
+  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"plangraph\",\"version\":\"0.2.2\"}}}",
   "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}",
   "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"message too large\"}}",
   "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{}}"

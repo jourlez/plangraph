@@ -3,8 +3,8 @@
 // user. Every python invocation of the launcher therefore carries -I (isolated mode: no current directory or script directory on
 // sys.path, PYTHON* variables and the user site ignored; -P alone does not exist on 3.10). The uv branches are not changed here.
 // Covered: (1) static: every python command line of the script (uv lines excluded) passes -I first; (2) probes, run for real with uv hidden
-// from PATH and a fake python3 / python3.14 first in PATH (each execs the real python3 with its arguments unchanged), from a hostile working
-// directory: (a) ortools.py, venv/__main__.py and pip.py present: the venv step and the python3 import probe; (b) ortools.py and pip.py
+// from PATH (PATH is one directory of symlinks to the few tools the fallback needs, never a host directory) and a fake python3 /
+// python3.14 in it (each execs the real python3 with its arguments unchanged), from a hostile working directory: (a) ortools.py, venv/__main__.py and pip.py present: the venv step and the python3 import probe; (b) ortools.py and pip.py
 // only: a real venv gets created, then the pip step, the venv's import probe and the final exec; (c) a cached venv already exists: its
 // import probe runs first. PIP_NO_INDEX keeps pip offline: the install fails fast and the launcher exits 3 (or runs the stub solver when
 // the host python3 has ortools). No marker file may appear.
@@ -38,9 +38,13 @@ test('every python invocation in bin/brain-solve-run carries -I (isolated mode);
   assert.equal(calls.length, 7, `found: ${calls.join(' | ')}`);
 });
 
-const real = spawnSync('sh', ['-c', 'command -v python3'], { encoding: 'utf8' }).stdout.trim();
+const which = (name: string) => spawnSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' }).stdout.trim();
+const real = which('python3');
 const SKIP = process.platform === 'win32' ? 'skipped: the launcher is a POSIX sh script' : real ? false : 'skipped: no python3 on this host, the launcher fallback cannot run (the static -I test above still ran)';
 if (SKIP) console.log(SKIP);
+// The external commands the launcher's fallback path runs (besides python, faked below), and sh for the uv check. The probes' PATH is ONE
+// directory holding symlinks to exactly these, so uv stays hidden even where it shares a directory with them (/usr/bin, /opt/homebrew/bin).
+const TOOLS = ['sh', 'dirname', 'rm', 'mkdir'];
 
 /** A hostile working directory, a fake bin dir (python3 and python3.14 exec the real python3), and a run of the launcher's fallback path. */
 function probe(files: Record<string, string>, { prebuiltVenv = false } = {}) {
@@ -50,10 +54,18 @@ function probe(files: Record<string, string>, { prebuiltVenv = false } = {}) {
     fs.writeFileSync(path.join(cwd, rel), body.replace('MARK', JSON.stringify(path.join(marks, rel.replace(/\W/g, '_')))));
   }
   for (const name of ['python3', 'python3.14']) fs.writeFileSync(path.join(bin, name), `#!/bin/sh\nexec ${JSON.stringify(real)} "$@"\n`, { mode: 0o755 });
+  for (const name of TOOLS) {
+    const at = which(name);
+    assert.ok(at.startsWith('/'), `${name} not found on this host's PATH`);
+    fs.symlinkSync(at, path.join(bin, name));
+  }
   if (prebuiltVenv) assert.equal(spawnSync(real, ['-I', '-m', 'venv', '--without-pip', path.join(data, 'venv')], { cwd: tmp('sl-clean-') }).status, 0, 'a cached venv without ortools');
   const stub = path.join(tmp('sl-stub-'), 'solver.py'); fs.writeFileSync(stub, 'print("stub solver ran")\n');
-  const env = { PATH: `${bin}:/usr/bin:/bin`, HOME: home, CLAUDE_PLUGIN_DATA: data, BRAIN_SOLVE_SCRIPT: stub, PIP_NO_INDEX: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_CONFIG_FILE: '/dev/null' };
-  assert.equal(spawnSync('sh', ['-c', 'command -v uv'], { env, encoding: 'utf8' }).status, 1, 'uv is hidden from PATH: the fallback runs');
+  const env = { PATH: bin, HOME: home, CLAUDE_PLUGIN_DATA: data, BRAIN_SOLVE_SCRIPT: stub, PIP_NO_INDEX: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_CONFIG_FILE: '/dev/null' };
+  assert.deepEqual(fs.readdirSync(bin).sort(), [...TOOLS, 'python3', 'python3.14'].sort(), 'the probe PATH holds only the fakes and the needed tools');
+  // `command -v` of a missing command exits 1 in bash and zsh but 127 in dash (Ubuntu's sh): any non-zero status with no output is "hidden".
+  const uv = spawnSync('sh', ['-c', 'command -v uv'], { env, encoding: 'utf8' });
+  assert.ok(uv.status !== 0 && uv.stdout === '', `uv is hidden from PATH: the fallback runs (status ${uv.status}, found ${uv.stdout.trim()})`);
   const r = spawnSync(RUN, ['--help'], { cwd, env, encoding: 'utf8', timeout: 240000 });
   return { r, marks: fs.readdirSync(marks) };
 }

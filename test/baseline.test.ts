@@ -21,13 +21,21 @@ test('captures twice and compares equal', { timeout: 600000 }, async () => {
   assert.deepEqual(compareDirs(a, b).differing, []);
 });
 
-test('normalizeOutput maps .mjs, .ts and .js to .EXT', () => {
-  assert.equal(normalizeOutput('src/cli.ts lib/a.ts x.js'), 'src/cli.EXT lib/a.EXT x.EXT');
-  assert.equal(normalizeOutput('a.json and b.jsx stay'), 'a.json and b.jsx stay');
-  assert.equal(normalizeOutput(`at ${ROOT}/src/cli.mjs:3`), 'at <ROOT>/src/cli.EXT:3');
-  assert.equal(normalizeOutput('/tmp/abc123/x.mjs'), '<ROOT>/x.EXT');
-  assert.equal(normalizeOutput('/private/var/folders/ab/cdef/T/clik-X1/.brain'), '<ROOT>/.brain');
-});
+// The temp directory differs by platform (/tmp on Linux, /var/folders/../T on macOS), so the same assertions run under each: the host's
+// own os.tmpdir() and a mocked Linux-style /tmp. Whatever the platform, a temp path loses its temp prefix and the per-run directory name.
+for (const [label, tmpdir] of [['host temp directory', null], ['Linux-style /tmp', '/tmp']] as const) {
+  test(`normalizeOutput maps .mjs, .ts and .js to .EXT (${label})`, (t) => {
+    if (tmpdir) t.mock.method(os, 'tmpdir', () => tmpdir);
+    assert.equal(normalizeOutput('src/cli.ts lib/a.ts x.js'), 'src/cli.EXT lib/a.EXT x.EXT');
+    assert.equal(normalizeOutput('a.json and b.jsx stay'), 'a.json and b.jsx stay');
+    assert.equal(normalizeOutput(`at ${ROOT}/src/cli.mjs:3`), 'at <ROOT>/src/cli.EXT:3');
+    assert.equal(normalizeOutput('/tmp/abc123/x.mjs'), '<ROOT>/x.EXT');
+    assert.equal(normalizeOutput('/private/var/folders/ab/cdef/T/clik-X1/.brain'), '<ROOT>/.brain');
+    assert.equal(normalizeOutput(`${os.tmpdir()}/abc123/x.mjs`), '<ROOT>/x.EXT');
+    assert.equal(normalizeOutput(`${fs.realpathSync(os.tmpdir())}/abc123/x.mjs`), '<ROOT>/x.EXT');
+    assert.equal(normalizeOutput(`cwd ${os.tmpdir()}`), 'cwd <ROOT>');
+  });
+}
 
 test('compareDirs lists the id of a changed file', () => {
   const a = dir(), b = dir();

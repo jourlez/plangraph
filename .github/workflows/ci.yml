@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
+      # test/types.test.ts runs tsc from node_modules
+      - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
+        run: npm ci --ignore-scripts --no-fund
       - name: unit tests with coverage ratchet (the coverage group; raise these floors when coverage rises, never lower)
         run: |
           files=$(node scripts/ci-tests.ts coverage)
@@ -102,6 +105,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+      # test/types.test.ts runs tsc from node_modules
+      - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
+        run: npm ci --ignore-scripts --no-fund
       - name: portable test group, one shard (every test file but the Linux-only solver; coverage is measured by the unit job)
         run: |
           files=$(node scripts/ci-tests.ts portable)
