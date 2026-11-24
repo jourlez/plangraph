@@ -77,10 +77,10 @@ Adopted from the owner's playbooks for their other TypeScript projects (`1-BULLE
 - `lefthook.yml` pre-commit, in parallel: Biome check on staged files, `typecheck`, and the tests related to the staged files (`scripts/related-tests`, which maps staged source files to the test files that import them, plus two smoke files). The full suite takes minutes, so it runs in CI and in `bulletproof`, not on every commit; the playbook's "include the full test command" is adapted for that reason.
 - `.node-version`, `.npmrc` (`engine-strict=true`, `save-exact=true`, `package-lock=true`), `.editorconfig`.
 - `knip` for dead code, run in the audit and in CI.
-- Biome: linter rules tightened per the playbook (`noUnusedVariables`, `noUnusedImports`, `useConst`, `noVar`, `useImportType`, `useExportType`, `noDoubleEquals` as errors). Formatter stays off.
+- Biome: linter rules tightened per the playbook (`noUnusedVariables`, `noUnusedImports`, `useConst`, `noVar`, `useImportType`, `useExportType`, `noDoubleEquals` as errors). Formatter stays off (superseded on 2026-11-24 by decision D1 of `docs/superpowers/specs/2026-11-24-zero-gaps-design.md`: the formatter is adopted in 0.3.0).
 - CI: `npm ci`, `npm audit --audit-level=high`, `bulletproof:check`, the existing coverage floors (99 lines, 95 branches, 98 functions), the mutation workflow unchanged in intent.
 - The audit playbook (`3-AUDIT.md`) is run once at the end as a checklist: dependencies, static analysis, security-sensitive code (the Jira credential path above all), test quality, configuration, branding and private-data scan.
-- Not adopted: Conventional Commits with ticket ids (`DCC-###`), because the plugin has no such tracker. Commit subjects stay short and imperative.
+- Not adopted: Conventional Commits with issue-tracker ids, because the plugin has no such tracker. Commit subjects stay short and imperative.
 
 ## 7. What may change in output
 

@@ -1,5 +1,7 @@
 # Tracker Provider and Tenant Alias Implementation Plan
 
+> **Superseded (2026-11-24):** executed as Tasks 17 to 19 of `docs/superpowers/plans/2026-11-24-zero-gaps-0.3.0.md`, which refresh this plan against 0.2.1 (module table, `Trust` brand, real type names, the hand-built-trust test replaced by a `bad_config` test). Where the two differ, the zero-gaps plan wins. Kept for history.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Split the Jira module by responsibility, put a `TrackerProvider` seam under the commands, and add a neutral tenant alias so public repositories commit no company data.
@@ -78,7 +80,7 @@ git commit -m "split lib/jira into modules by responsibility"
 - Produces in `lib/tracker.ts`:
   - `interface TrackerSettings { kind?: string; tenant?: string; auth?: { mode: AuthMode }; base_url?: string; cloud_id?: string; jql?: string; sprint_field?: string }`
   - `interface Trust { allowGeneric: boolean; pinned: boolean; userTenant: boolean }`
-  - `interface TrackerProvider { readonly kind: string; tenantId(s: TrackerSettings): string; credentials(tenant: string, trust: Trust): Promise<JiraCredentials>; pull(opts: PullOptions): Promise<SnapshotResult>; importIssues(previous: Snapshot | null, input: unknown): Snapshot; renderIssue(key: string, opts?: RenderOptions): Promise<string> }`
+  - `interface TrackerProvider { readonly kind: string; tenantId(s: TrackerSettings): string; credentials(tenant: string, trust: Trust): Promise<JiraCredentials>; pull(opts: PullOptions): Promise<PullResult>; importIssues(previous: Snapshot | null, input: RawImport | RawIssue[] | null): ImportResult; renderIssue(key: string, opts?: { maxChars?: number }): Promise<string> }`
   - `const PROVIDERS: Readonly<Record<string, (ctx: Ctx) => TrackerProvider>>` containing exactly `jira`
   - `createTracker(ctx: Ctx): TrackerProvider`, which reads `tracker.kind` (default `'jira'`) and throws the existing data error (exit 2) naming the known kinds for an unknown kind.
 - Produces in `src/context.ts`: `Ctx.tracker(): TrackerProvider`, memoized, overridable by the context factory's options (`opts.tracker`) for tests.
