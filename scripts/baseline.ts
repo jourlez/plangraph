@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Differential baseline harness: records what the plugin does today so a later change (the TypeScript migration) can prove it behaves the same.
 //   node scripts/baseline.ts capture --out DIR [--data DIR]    record every observation as one JSON file per id under DIR
-//   node scripts/baseline.ts compare --a DIR --b DIR           print `same: N`, `differing: M` and one line per differing id (exit 1 when M > 0)
+//   node scripts/baseline.ts compare [--only-common] --a DIR --b DIR   print `same: N`, `differing: M` and one line per differing id (exit 1 when M > 0);
+//                                                              with --only-common an id on one side only is not differing: `new: K` counts them
 //   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `brain card --if-present`
 //                                                                on the plan fixture (one untimed warm-up run first; N defaults to 30)
 // Observations: (a) a CLI matrix built from `brain explain --json` (each command plain, -v, --json, with a bad flag, with a bad argument,
@@ -349,17 +350,20 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
 /**
  * Compare two capture directories by normalized content (a file missing on one side counts as differing, so a different number of
  * entries is reported by id). Throws when a path is not a directory or a directory holds no .json file: an empty comparison proves nothing.
- * @param {string} a @param {string} b @returns {{ same: number, differing: string[] }}
+ * With `onlyCommon` an id present on one side only is listed in `added`, not counted as differing (a later capture may add probes).
+ * @param {string} a @param {string} b @param {{ onlyCommon?: boolean }} [opts] @returns {{ same: number, differing: string[], added: string[] }}
  */
-export function compareDirs(a: string, b: string): { same: number; differing: string[] } {
+export function compareDirs(a: string, b: string, opts: { onlyCommon?: boolean } = {}): { same: number; differing: string[]; added: string[] } {
   for (const d of [a, b]) if (!fs.existsSync(d) || !fs.statSync(d).isDirectory()) throw new Error(`not a directory: ${path.basename(d)}`);
   const ids = (d: string) => fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
   const read = (d: string, id: string) => { try { return normalizeOutput(fs.readFileSync(fileFor(d, id), 'utf8')); } catch { return null; } };
   const na = ids(a).length, nb = ids(b).length;
   if (!na || !nb) throw new Error(`no captured files in ${na ? 'the second' : 'the first'} directory`);
   const all = [...new Set([...ids(a), ...ids(b)])].sort();
-  const differing = all.filter((id) => read(a, id) !== read(b, id));
-  return { same: all.length - differing.length, differing };
+  const onlyOne = opts.onlyCommon ? all.filter((id) => read(a, id) === null || read(b, id) === null) : [];
+  const rest = all.filter((id) => !onlyOne.includes(id));
+  const differing = rest.filter((id) => read(a, id) !== read(b, id));
+  return { same: rest.length - differing.length, differing, added: onlyOne };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- startup benchmark
@@ -400,11 +404,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const { count } = await captureAll({ root: PLUGIN, outDir: path.resolve(out), dataDir: data ? fs.realpathSync(data) : undefined });
     process.stdout.write(`captured: ${count}\n`);
   } else if (cmd === 'compare') {
-    const a = opt(rest, 'a'), b = opt(rest, 'b');
-    if (!a || !b) { process.stderr.write('usage: baseline.ts compare --a DIR --b DIR\n'); process.exit(2); }
+    const a = opt(rest, 'a'), b = opt(rest, 'b'), onlyCommon = rest.includes('--only-common');
+    const usage = 'usage: baseline.ts compare [--only-common] --a DIR --b DIR\n';
+    if (!a || !b) { process.stderr.write(usage); process.exit(2); }
     let r: ReturnType<typeof compareDirs>;
-    try { r = compareDirs(path.resolve(a), path.resolve(b)); } catch (e) { process.stderr.write(`compare: ${(e as Error).message}\nusage: baseline.ts compare --a DIR --b DIR\n`); process.exit(2); } // as Error: whatever compareDirs threw
-    process.stdout.write(`same: ${r.same}\ndiffering: ${r.differing.length}\n${r.differing.map((id) => `  ${id}\n`).join('')}`);
+    try { r = compareDirs(path.resolve(a), path.resolve(b), { onlyCommon }); } catch (e) { process.stderr.write(`compare: ${(e as Error).message}\n${usage}`); process.exit(2); } // as Error: whatever compareDirs threw
+    process.stdout.write(`same: ${r.same}\ndiffering: ${r.differing.length}\n${onlyCommon ? `new: ${r.added.length}\n` : ''}${r.differing.map((id) => `  ${id}\n`).join('')}`);
     process.exitCode = r.differing.length ? 1 : 0;
   } else if (cmd === 'bench') {
     const raw = opt(rest, 'runs') ?? '30', runs = /^\d+$/.test(raw) ? Number(raw) : NaN;

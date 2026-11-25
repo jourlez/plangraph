@@ -24,18 +24,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # test/public-clean.test.ts checks the author of every commit of the branch
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
       # test/types.test.ts runs tsc from node_modules
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
         run: npm ci --ignore-scripts --no-fund
-      - name: unit tests with coverage ratchet (the coverage group; raise these floors when coverage rises, never lower)
-        run: |
-          files=$(node scripts/ci-tests.ts coverage)
-          test -n "$files"
-          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
-          node --test --experimental-test-coverage --test-coverage-include='lib/**' --test-coverage-include='src/**' --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=98 $files
+      - name: unit tests with coverage ratchet (the coverage group; the floors live in scripts/test-coverage.ts, raise them when coverage rises, never lower)
+        run: node scripts/test-coverage.ts --group coverage
   slow:
     name: solver, evals and icon tests, smoke (ubuntu)
     runs-on: ubuntu-24.04
@@ -72,7 +69,7 @@ jobs:
           node-version: '24'
           cache: npm
       - name: plugin layout
-        run: npm run validate
+        run: npm run validate:plugin
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
         run: npm ci --ignore-scripts --no-fund
       - name: audit (high and critical advisories fail the job)

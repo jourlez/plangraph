@@ -593,11 +593,11 @@ What is defended, each covered by tests:
 
 ## Quality
 
-- **Tests.** Node's built-in test runner, no framework. Run `node --test $(ls test/*.test.ts | grep -v solver)` for the main suite, `node --test test/solver.test.ts` for the solver (needs uv or an OR-Tools Python; a few minutes), `npm run smoke` for an end-to-end run, and `npm run validate` for the plugin layout. Fixtures are generated; no real people or company data.
+- **Tests.** Node's built-in test runner, no framework. Run `node --test $(ls test/*.test.ts | grep -v solver)` for the main suite, `node --test test/solver.test.ts` for the solver (needs uv or an OR-Tools Python; a few minutes), `npm run smoke` for an end-to-end run, and `npm run validate:plugin` for the plugin layout. Fixtures are generated; no real people or company data.
 - **Exhaustive small-scope checks.** `npm run assure` runs verify, whatif, relieve, find, merge, stale, ready, forecast gates and the canonical round trip against clean-room oracles on every instance up to small bounds (each file states its bounds). It is exhaustive within those bounds, not a proof beyond them.
 - **Mutation testing.** `npm run mutate` runs hand-written mutants of known past defects; every one must be killed, on every push. `npm run mutate:all` generates every mutant of `lib/`, `src/` and `mcp/` (a long run); `npm run mutate:smoke` runs a seeded sample weekly as an informational job.
 - **Coverage floors.** The CI unit job enforces line, branch and function coverage floors on `lib/` and `src/`; the values live in `.github/workflows/ci.yml` and are raised, never lowered.
-- **Static checks.** `npm run typecheck` runs `tsc --noEmit` twice and fails on any error: `tsconfig.json` checks every `.ts` file except `test/types-fixtures` (only `test/types.test.ts` checks those) with `strict`, `noImplicitAny` and `exactOptionalPropertyTypes`, keeps `allowJs` and `checkJs` on so the plain-JavaScript `src/floor.js` Node-version guard is type-checked through JSDoc, and `tsconfig.prod.json` adds `noUncheckedIndexedAccess` for `lib/`, `src/` and `mcp/`. `noPropertyAccessFromIndexSignature` is not adopted: it only changes how index-signature reads are spelled (`env['NAME']` instead of `env.NAME`) and adds no safety beyond `noUncheckedIndexedAccess`. `npm run lint:check` runs Biome. `claude plugin validate .` passes on Claude Code 2.1.329.
+- **Static checks.** `npm run typecheck` runs `tsc --noEmit` twice and fails on any error: `tsconfig.json` checks every `.ts` file except `test/types-fixtures` (only `test/types.test.ts` checks those) with `strict`, `noImplicitAny` and `exactOptionalPropertyTypes`, keeps `allowJs` and `checkJs` on so the plain-JavaScript `src/floor.js` Node-version guard is type-checked through JSDoc, and `tsconfig.prod.json` adds `noUncheckedIndexedAccess` for `lib/`, `src/` and `mcp/`. `noPropertyAccessFromIndexSignature` is not adopted: it only changes how index-signature reads are spelled (`env['NAME']` instead of `env.NAME`) and adds no safety beyond `noUncheckedIndexedAccess`. `npm run lint:check` runs Biome (`biome check`, formatter and import assist off). `claude plugin validate .` passes on Claude Code 2.1.329.
 - **CI layout.** Parallel jobs: `unit` (with coverage), `slow` (solver, evals, smoke), `static` (typecheck, lint, plugin layout), `macos` (two shards), `mutation` and `gitleaks`. A green run takes about 4 minutes of wall time.
 - **Token budget.** `npm run bench` regenerates [docs/TOKENS.md](docs/TOKENS.md) and fails if any answer is wrong; a test fails when the committed table drifts.
 
@@ -664,13 +664,16 @@ Node 24.2 or newer runs the TypeScript and JavaScript sources directly (type str
 | --- | --- |
 | `npm test` | Runs every test file with `node --test` |
 | `npm run test:related` | Runs only the tests related to the files you changed |
-| `npm run lint:check` / `npm run lint:fix` | Biome lint rules, with or without autofix (`npm run lint` is an alias of `lint:check`) |
+| `npm run test:coverage` | Runs every test file under Node's V8 coverage over `lib`, `src` and `mcp`, with the floors (99 lines, 95 branches, 98 functions) held in `scripts/test-coverage.ts`; writes `coverage/lcov.info` |
+| `npm run test:watch` | Reruns the tests when a file changes |
+| `npm run lint:check` / `npm run lint:fix` | Biome checks (the formatter stays off, so lint rules), without or with autofix (`npm run lint` is an alias of `lint:fix`) |
 | `npm run typecheck` | `tsc --noEmit` over `tsconfig.json` and `tsconfig.prod.json`; fails on any error |
 | `npm run knip` | Finds unused files, exports and dependencies |
 | `npm run bulletproof` | Lint with autofix, typecheck, full test suite |
 | `npm run bulletproof:check` | The same without autofix; what CI runs |
 | `npm run smoke` | Shell smoke test of the installed commands |
-| `npm run validate` | Checks the plugin layout |
+| `npm run validate:plugin` | Checks the plugin layout |
+| `npm run validate` | The full pipeline: lint, typecheck, coverage run, assurance tests, plugin layout, knip and `npm audit --audit-level=high` (the audit needs the registry, so it fails offline) |
 | `npm run mutate` | Mutation run; every listed mutant must be killed |
 
 ## Contributing

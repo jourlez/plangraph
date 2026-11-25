@@ -92,9 +92,9 @@ test('ci.yml: the parallel jobs, their commands and gates', () => {
   assert.ok(!/^ {4}needs:/m.test(t), 'every CI job starts at once: none waits for another');
   assert.ok(!/^ {4}if:/m.test(t), 'every CI job always runs');
   for (const [name, cmds] of ([
-    ['unit', ['node --test --experimental-test-coverage', '--test-coverage-include=', 'node scripts/ci-tests.ts coverage']],
+    ['unit', ['node scripts/test-coverage.ts --group coverage']],
     ['slow', ['npm run smoke', 'node scripts/ci-tests.ts nocoverage', 'node --test $files', 'astral-sh/setup-uv@']],
-    ['static', ['npm run validate', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint', 'claude plugin validate . --strict', '::notice::']],
+    ['static', ['npm run validate:plugin', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint', 'claude plugin validate . --strict', '::notice::']],
     ['macos', ['node scripts/ci-tests.ts portable', 'npm run smoke']],
     ['mutation', ['npm run mutate']],
     ['secrets', ['gitleaks/gitleaks-action@']],
@@ -207,10 +207,14 @@ test('ci.yml: only the gitleaks job adds permissions, exactly contents and pull-
 test('ci.yml: no continue-on-error anywhere, and the coverage floors and include globs stay put', () => {
   for (const f of WF) assert.ok(!/continue-on-error:\s*true/i.test(read('workflows', f)), `${f} lets a failure pass`);
   const t = read('workflows', 'ci.yml');
-  const floor = (k: string) => Number(new RegExp(`--test-coverage-${k}=(\\d+)`).exec(t)?.[1]);
-  assert.ok(floor('lines') >= 99 && floor('branches') >= 95 && floor('functions') >= 98, 'coverage floors were lowered or removed');
-  assert.ok(t.includes("--test-coverage-include='lib/**'") && t.includes("--test-coverage-include='src/**'"), 'src/** must stay in coverage');
-  for (const f of WF) assert.equal((read('workflows', f).match(/--experimental-test-coverage/g) ?? []).length, f === 'ci.yml' ? 1 : 0, `${f}: coverage is measured once, by the unit job`);
+  const script = fs.readFileSync(path.join(ROOT, 'scripts/test-coverage.ts'), 'utf8');
+  const floor = (k: string) => Number(new RegExp(`const ${k} = (\\d+)`).exec(script)?.[1]);
+  assert.ok(floor('LINES') >= 99 && floor('BRANCHES') >= 95 && floor('FUNCTIONS') >= 98, 'coverage floors were lowered or removed');
+  for (const g of ['lib/**', 'src/**', 'mcp/**']) assert.ok(script.includes(`'${g}'`), `${g} must stay in coverage`);
+  assert.ok(!/test-coverage-(lines|branches|functions)=/.test(t), 'the floors live in scripts/test-coverage.ts once, not in ci.yml');
+  for (const f of WF) assert.ok(!/--experimental-test-coverage/.test(read('workflows', f)), `${f}: coverage is measured by scripts/test-coverage.ts only`);
+  assert.equal((script.match(/--experimental-test-coverage/g) ?? []).length, 1);
+  assert.match(job(t, 'unit'), /fetch-depth: 0/, 'the unit job runs the commit-author check, which needs history');
 });
 
 test('release.yml: the release job needs verify, checks the tag is on main, and attests a specific subject', () => {
@@ -244,12 +248,8 @@ test('ci.yml: the unit job runs the coverage group once with the floors; `npm te
   assert.equal(steps.length, 2, `the dev-tool install, then one test step: ${JSON.stringify(steps)}`);
   assert.equal(steps[0][1], 'npm ci --ignore-scripts --no-fund', 'the first step installs the locked dev tools (test/types.test.ts runs tsc)');
   const run = steps[1][1];
-  assert.match(run, /^files=\$\(node scripts\/ci-tests\.ts coverage\) test -n "\$files" (?:# .* )?node --test --experimental-test-coverage .* \$files$/, run);
+  assert.equal(run, 'node scripts/test-coverage.ts --group coverage', 'the floors and includes live in scripts/test-coverage.ts, checked in the floors test');
   assert.ok(!/npm test|npm run mutate|npm run smoke/.test(j), 'npm test would run the suite a second time; the mutation run and smoke belong to their own jobs');
-  assert.ok(run.includes("--test-coverage-include='lib/**'") && run.includes("--test-coverage-include='src/**'"));
-  for (const { k, min } of [{ k: 'lines', min: 99 }, { k: 'branches', min: 95 }, { k: 'functions', min: 98 }]) {
-    assert.ok(Number(new RegExp(`--test-coverage-${k}=(\\d+)`).exec(run)?.[1]) >= min, `${k} floor lowered or missing in the unit test step`);
-  }
   assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.test, 'node --test "test/*.test.{mjs,ts}"', 'local npm test unchanged');
 });
 

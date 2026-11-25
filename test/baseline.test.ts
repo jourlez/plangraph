@@ -41,10 +41,25 @@ test('compareDirs lists the id of a changed file', () => {
   const a = dir(), b = dir();
   for (const d of [a, b]) { fs.writeFileSync(path.join(d, 'one.json'), '{"x":1}\n'); fs.writeFileSync(path.join(d, 'two.json'), '{"y":"a.mjs"}\n'); }
   fs.writeFileSync(path.join(b, 'two.json'), '{"y":"a.ts"}\n'); // only the extension changed: equal
-  assert.deepEqual(compareDirs(a, b), { same: 2, differing: [] });
+  assert.deepEqual(compareDirs(a, b), { same: 2, differing: [], added: [] });
   fs.writeFileSync(path.join(b, 'one.json'), '{"x":2}\n');
   fs.writeFileSync(path.join(b, 'three.json'), '{}\n');
-  assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['one', 'three'] });
+  assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['one', 'three'], added: [] });
+});
+
+test('compare --only-common ignores ids present on one side and prints new: N', () => {
+  const a = dir(), b = dir();
+  for (const d of [a, b]) fs.writeFileSync(path.join(d, 'one.json'), '{"x":1}\n');
+  fs.writeFileSync(path.join(b, 'two.json'), '{}\n'); fs.writeFileSync(path.join(b, 'three.json'), '{}\n');
+  assert.deepEqual(compareDirs(a, b, { onlyCommon: true }), { same: 1, differing: [], added: ['three', 'two'] });
+  assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['three', 'two'], added: [] }, 'without the option one-sided ids differ');
+  fs.writeFileSync(path.join(b, 'one.json'), '{"x":2}\n');
+  assert.deepEqual(compareDirs(a, b, { onlyCommon: true }).differing, ['one']);
+  const cli = (...args: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'scripts/baseline.ts'), 'compare', ...args], { encoding: 'utf8' });
+  fs.writeFileSync(path.join(b, 'one.json'), '{"x":1}\n');
+  const r = cli('--only-common', '--a', a, '--b', b);
+  assert.equal(r.status, 0); assert.equal(r.stdout, 'same: 1\ndiffering: 0\nnew: 2\n');
+  assert.equal(cli('--a', a, '--b', b).status, 1);
 });
 
 test('the matrix covers every command that brain explain lists', () => {
@@ -90,7 +105,7 @@ test('compare refuses an empty directory, a missing one and a different number o
   assert.throws(() => compareDirs(empty, empty), /no captured files/);
   assert.throws(() => compareDirs(a, path.join(a, 'nope')), /not a directory/);
   fs.writeFileSync(path.join(b, 'y.json'), '{}\n');
-  assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['y'] });
+  assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['y'], added: [] });
   const cli = (...args: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'scripts/baseline.ts'), 'compare', ...args], { encoding: 'utf8' });
   const e = cli('--a', a, '--b', empty); assert.equal(e.status, 2); assert.match(e.stderr, /no captured files/); assert.doesNotMatch(e.stderr, /at .*\.mjs:\d+/);
   const m = cli('--a', a, '--b', path.join(a, 'nope')); assert.equal(m.status, 2); assert.match(m.stderr, /not a directory/); assert.doesNotMatch(m.stderr, /ENOENT/);

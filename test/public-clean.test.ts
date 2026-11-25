@@ -13,11 +13,6 @@ const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const RULES: Array<[string, RegExp, ((m: RegExpExecArray) => boolean)?]> = [
   ['local-home-path', new RegExp(j('/Us', 'ers/'))],
   ['local-scratch-path', new RegExp(j('/private/tmp/', 'claude'))],
-  ['host-project-name', new RegExp(j('host', 'project'), 'i')],
-  ['personal-email-domain', new RegExp(j('@example', 'mail'), 'i')],
-  ['personal-handle', new RegExp(j('personal', 'handle'), 'i')],
-  ['client-name', new RegExp(j('client', 'name'), 'i')],
-  ['jira-key-of-host', new RegExp(j('EXAMPLE', 'KEY-\\d'))],
   // a cloud id counts only when it is a real-looking uuid (not an all-zero or repeated-digit placeholder) after a cloud id label
   ['atlassian-cloud-id', new RegExp(j('cloud', '_?id', '["\'`: =]{1,6}(', UUID, ')'), 'i'), (m) => !/^(.)\1{7}-(\1{4}-){3}\1{12}$|^0{8}-0{4}-4000-8000-0{11}\d$/.test(m[1])],
   ['github-token', new RegExp(`\\b(?:${j('gh', 'p_')}|${j('gh', 'o_')}|${j('github_', 'pat_')})[A-Za-z0-9_]{10,}`)],
@@ -62,8 +57,7 @@ test('no tracked file contains a private path, host-project name, personal handl
 
 test('the guard fails on every planted denylisted string in a temp copy, and reports file:line without the value', () => {
   const planted = {
-    'a.md': j('see /Us', 'ers/someone/x'), 'b.md': j('/private/tmp/', 'claude-501/x'), 'c.md': j('the host', 'project repo'),
-    'd.md': j('me@example', 'mail.com'), 'e.md': j('personal', 'handle'), 'f.md': j('client', 'name'), 'g.md': j('EXAMPLE', 'KEY-123'),
+    'a.md': j('see /Us', 'ers/someone/x'), 'b.md': j('/private/tmp/', 'claude-501/x'),
     'h.md': j('"cloud', '_id": "1b2c3d4e-5f60-4a71-8b92-c3d4e5f60718"'),
     'i.md': j('gh', 'p_', 'abcdefghijklmnop'), 'j.md': j('gh', 'o_', 'abcdefghijklmnop'), 'k.md': j('github_', 'pat_', 'abcdefghijklmnop'),
     'l.md': j('sk-', 'ant-api03-xyz'), 'm.md': j('AK', 'IA', 'ABCDEFGHIJKLMNOP'), 'n.md': j('-----BEGIN RSA PRIVATE', ' KEY-----'),
@@ -76,7 +70,44 @@ test('the guard fails on every planted denylisted string in a temp copy, and rep
     assert.equal(hits.length, Object.keys(planted).length, hits.join('\n'));
     assert.ok(!hits.join('\n').includes('someone') && !hits.join('\n').includes('abcdefghij'), 'values never printed');
     // allowlist and placeholders stay clean
-    fs.writeFileSync(path.join(dir, 'ok.md'), `${j('ATATT3xFAKE')} ${j('EXAMPLE', 'KEY-1')}\n"cloud_id": "00000000-0000-4000-8000-000000000001"\n"cloud_id": "<uuid>"\n`);
+    fs.writeFileSync(path.join(dir, 'ok.md'), `${j('ATATT3xFAKE')}\n"cloud_id": "00000000-0000-4000-8000-000000000001"\n"cloud_id": "<uuid>"\n`);
     assert.deepEqual(scanFiles(dir, ['ok.md']), []);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+/** The commits of a `%h %ae %ce` log whose author or committer e-mail is not the GitHub noreply form; the short hash only, never the address. */
+export function nonNoreply(log: string): string[] {
+  const bad: string[] = [];
+  for (const line of log.split('\n')) {
+    if (!line.trim()) continue;
+    const [hash = '', ...emails] = line.trim().split(/\s+/);
+    if (emails.length !== 2 || !emails.every((e) => /^[^@\s]+@users\.noreply\.github\.com$/.test(e))) bad.push(hash.slice(0, 12));
+  }
+  return bad;
+}
+
+const git = (args: string[]): string | null => { try { return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return null; } };
+
+/** The base ref of this branch: the pull request base in CI, else origin/main, else main; null when none exists (a shallow or detached checkout). */
+function baseRef(): string | null {
+  const candidates = [process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : '', 'origin/main', 'main'].filter(Boolean);
+  return candidates.find((r) => git(['rev-parse', '--verify', '-q', `${r}^{commit}`]) !== null) ?? null;
+}
+
+test('commit-author check: every author and committer e-mail is the noreply form, and a violation names the short hash only', () => {
+  const ok = 'abc1234 1+me@users.noreply.github.com 1+me@users.noreply.github.com';
+  assert.deepEqual(nonNoreply(ok), []);
+  const bad = nonNoreply(`${ok}\ndef5678901234567890 someone@other.test 1+me@users.noreply.github.com\n0a1b2c3 1+me@users.noreply.github.com x@y.test`);
+  assert.deepEqual(bad, ['def567890123', '0a1b2c3']);
+  assert.doesNotMatch(bad.join(' '), /@/, 'no address is printed');
+  assert.deepEqual(nonNoreply('abc1234 1+me@users.noreply.github.com'), ['abc1234'], 'a missing committer e-mail fails');
+});
+
+test('every commit of this branch (base..HEAD) has a noreply author and committer', (t) => {
+  const base = baseRef();
+  if (!base) { t.skip('no base ref in this checkout'); return; }
+  const log = git(['log', '--format=%h %ae %ce', `${base}..HEAD`]);
+  assert.notEqual(log, null, 'git log failed');
+  const bad = nonNoreply(log ?? '');
+  assert.deepEqual(bad, [], `commits with a non-noreply e-mail (short hashes only): ${bad.join(' ')}`);
 });

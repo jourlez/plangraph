@@ -19,6 +19,8 @@
     "strict": true,
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": true,
+    "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,

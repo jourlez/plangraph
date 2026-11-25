@@ -19,3 +19,16 @@ evals/pass-*/
 # differential baseline captures (scripts/baseline.ts)
 .baseline/
 .no-hooks/
+
+# playbook template entries
+coverage/
+.DS_Store
+*.tsbuildinfo
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+*.local
+dist/
+*.tgz

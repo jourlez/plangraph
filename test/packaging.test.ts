@@ -23,7 +23,7 @@ test('LICENSE, CHANGELOG.md and SECURITY.md exist and are not stubs', () => {
 test('plugin.json and package.json carry the same version', () => {
   const a = json('.claude-plugin/plugin.json').version;
   const b = json('package.json').version;
-  assert.match(a, /^\d+\.\d+\.\d+$/);
+  assert.match(a, /^\d+\.\d+\.\d+(-dev)?$/);
   assert.equal(a, b);
 });
 
@@ -135,10 +135,24 @@ test('README states the real status: what was verified, what was not, and the un
 test('CHANGELOG has a 0.1.0 entry matching the version and names every removed feature', () => {
   const v = json('package.json').version;
   const c = read('CHANGELOG.md');
-  assert.ok(c.includes(`## ${v}`), `no entry for ${v}`);
+  // a -dev version is the open development line: its entries live under the Unreleased heading until the release commit
+  if (v.endsWith('-dev')) assert.match(c, /^## (\[Unreleased\]|Unreleased)\s*$/m, 'a -dev version needs an Unreleased section');
+  else assert.ok(c.includes(`## [${v}] - `) || c.includes(`## ${v}`), `no entry for ${v}`);
   for (const w of [/claims?/i, /hash(ed)? ids?/i, /compaction/i, /command execution/i, /format_version/, /\bextra\b/, /impl_status/, /live (Claude Code )?session/i]) {
     assert.match(c, w, `CHANGELOG lacks ${w}`);
   }
+});
+
+test('a -dev version passes the version check and needs an Unreleased CHANGELOG section', () => {
+  const versionOk = (v: string) => /^\d+\.\d+\.\d+(-dev)?$/.test(v);
+  const changelogOk = (v: string, c: string) => (v.endsWith('-dev') ? /^## (\[Unreleased\]|Unreleased)\s*$/m.test(c) : c.includes(`## [${v}] - `) || c.includes(`## ${v}`));
+  assert.ok(versionOk('0.3.0-dev') && versionOk('0.3.0'));
+  assert.ok(!versionOk('0.3.0-rc1') && !versionOk('0.3-dev'));
+  assert.ok(changelogOk('0.3.0-dev', '# Changelog\n\n## [Unreleased]\n\n## 0.2.4\n'));
+  assert.ok(!changelogOk('0.3.0-dev', '# Changelog\n\n## 0.2.4\n'), 'a -dev version without the heading fails');
+  assert.ok(!changelogOk('0.3.0', '# Changelog\n\n## [Unreleased]\n\n## 0.2.4\n'), 'a release needs its own entry');
+  assert.ok(changelogOk('0.3.0', '## [0.3.0] - 2026-12-01\n') && changelogOk('0.2.4', '## 0.2.4\n'));
+  assert.match(json('package.json').version, /^\d+\.\d+\.\d+(-dev)?$/);
 });
 
 test('SECURITY.md invents no contact and states the real limits', () => {

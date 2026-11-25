@@ -13,12 +13,14 @@ Contribute through issues and pull requests on the project's GitHub repository (
 3. Run these checks and make sure they pass:
    - `node --test $(ls test/*.test.ts | grep -v solver)` (the solver suite is slow and run separately)
    - `bash test/smoke.sh`
-   - `node test/validate-plugin.ts`
+   - `npm run validate:plugin` (`node test/validate-plugin.ts`)
    - after `npm ci`, the development scripts:
      - `npm run bulletproof`: the whole gate in one command (lint with autofix, typecheck, full test suite)
      - `npm run bulletproof:check`: the same without autofix; this is what CI runs
      - `npm run typecheck`: `tsc --noEmit` over `tsconfig.json` (every `.ts` file except `test/types-fixtures`, which only `test/types.test.ts` checks, plus `src/floor.js`: `allowJs` and `checkJs` stay on so the plain-JavaScript Node-version guard is type-checked through JSDoc; `strict`, `noImplicitAny`, `exactOptionalPropertyTypes`) and `tsconfig.prod.json` (`lib`, `src` and `mcp`, adding `noUncheckedIndexedAccess`); any error fails
-     - `npm run lint:check`: Biome lint rules only (no formatter); `npm run lint:fix` applies the safe fixes
+     - `npm run lint:check`: Biome checks, lint rules only (the formatter and import assist are off); `npm run lint` and `npm run lint:fix` apply the safe fixes
+     - `npm run test:coverage`: the suite under V8 coverage over `lib`, `src` and `mcp` with the floors in `scripts/test-coverage.ts`
+     - `npm run validate` is the full pipeline (lint, typecheck, coverage, assurance tests, plugin layout, knip, `npm audit --audit-level=high`). The audit needs the registry, so `validate` fails offline by design: the audit is part of the gate
      - `npm run knip`: unused files, exports and dependencies; any finding fails
      - `npm run test:related`: while you work, runs only the tests that touch the files you changed
 4. Keep `version` only in `plugin.json` and `package.json` (they must match). Add a line to `CHANGELOG.md` for user-visible changes.

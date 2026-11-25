@@ -69,7 +69,10 @@ test('a new test/*.test.ts file runs in npm test, in the CI coverage and portabl
     assert.match(r.stdout, /zz-old ran as javascript/);
   } finally { rm(dir); }
   const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8');
-  for (const g of ['coverage', 'nocoverage', 'portable']) assert.match(ci, new RegExp(`node scripts/ci-tests\\.(mjs|ts) ${g}`), `CI job for ${g}`);
+  for (const g of ['nocoverage', 'portable']) assert.match(ci, new RegExp(`node scripts/ci-tests\\.(mjs|ts) ${g}`), `CI job for ${g}`);
+  // the coverage group is reached through scripts/test-coverage.ts, which takes it from scripts/ci-tests.ts
+  assert.match(ci, /node scripts\/test-coverage\.ts --group coverage/, 'CI job for coverage');
+  assert.match(fs.readFileSync(path.join(ROOT, 'scripts/test-coverage.ts'), 'utf8'), /groups\(all\)\.coverage/, 'the script takes the coverage group from ci-tests');
 });
 
 test('scripts/mutate-all finds at least the target files it found before (and src/floor.js), and isSource accepts the migration extensions', () => {

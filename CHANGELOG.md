@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## 0.2.4
 
 Security hotfix.

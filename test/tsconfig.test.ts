@@ -17,7 +17,7 @@ export interface Expect {
   includeFiles?: string[]; // each must be an include entry
 }
 
-const FINAL_FLAGS = ['strict', 'noImplicitAny', 'exactOptionalPropertyTypes', 'noImplicitOverride', 'noFallthroughCasesInSwitch', 'verbatimModuleSyntax', 'erasableSyntaxOnly', 'allowImportingTsExtensions'];
+const FINAL_FLAGS = ['noUnusedLocals', 'forceConsistentCasingInFileNames', 'strict', 'noImplicitAny', 'exactOptionalPropertyTypes', 'noImplicitOverride', 'noFallthroughCasesInSwitch', 'verbatimModuleSyntax', 'erasableSyntaxOnly', 'allowImportingTsExtensions'];
 export const TABLE: Expect[] = [
   { name: 'tsconfig.json', isTrue: [...FINAL_FLAGS, 'allowJs', 'checkJs'], notTrue: ['noUncheckedIndexedAccess', 'noPropertyAccessFromIndexSignature'], includeFiles: ['src/floor.js'] },
   { name: 'tsconfig.prod.json', isTrue: ['noUncheckedIndexedAccess'], notTrue: ['noPropertyAccessFromIndexSignature'], extendsPath: './tsconfig.json', includeDirs: ['lib', 'src', 'mcp'], includeFiles: ['src/floor.js'] },

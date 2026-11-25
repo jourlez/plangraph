@@ -35,6 +35,30 @@ test('package.json: private, ESM, node floor, packageManager, license', () => {
   assert.equal(p.license, 'MIT');
 });
 
+test('package.json has the playbook script set', () => {
+  const s = JSON.parse(read('package.json')).scripts as Record<string, string>;
+  const want: Record<string, string> = {
+    lint: 'biome check --write .',
+    'lint:fix': 'biome check --write .',
+    'lint:check': 'biome check .',
+    'test:coverage': 'node scripts/test-coverage.ts',
+    'test:watch': 'node --test --watch "test/*.test.{mjs,ts}"',
+    'validate:plugin': 'node test/validate-plugin.ts',
+    validate: 'npm run lint:check && npm run typecheck && npm run test:coverage && npm run assure && npm run validate:plugin && npm run knip && npm audit --audit-level=high',
+    typecheck: 'node scripts/typecheck.ts',
+    test: 'node --test "test/*.test.{mjs,ts}"',
+    bulletproof: 'npm run lint:fix && npm run typecheck && npm run test',
+    'bulletproof:check': 'npm run lint:check && npm run typecheck && npm run test',
+  };
+  for (const [k, v] of Object.entries(want)) assert.equal(s[k], v, `script ${k}`);
+});
+
+test('package.json has keywords and author', () => {
+  const p = JSON.parse(read('package.json')), m = JSON.parse(read('.claude-plugin/plugin.json'));
+  assert.deepEqual(p.keywords, m.keywords);
+  assert.equal(p.author, m.author.name);
+});
+
 test('dependabot: weekly npm and github-actions, dev and production in separate groups', () => {
   const t = read('.github/dependabot.yml');
   const blocks = t.split(/^ {2}- package-ecosystem: /m).slice(1);

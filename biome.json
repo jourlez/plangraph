@@ -42,7 +42,7 @@
 			"linter": { "rules": { "correctness": { "noPrecisionLoss": "off" } } }
 		},
 		{
-			"includes": ["test/**/*.ts", "evals/**/*.ts"],
+			"includes": ["test/**/*.ts", "evals/**/*.ts", "scripts/baseline.ts"],
 			"linter": {
 				"rules": { "suspicious": { "noTemplateCurlyInString": "off" } }
 			}
