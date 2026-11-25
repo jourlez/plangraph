@@ -122,7 +122,7 @@ const SHAPES = {
   units: [['--keys', 'H-1,H-2,H-3', '--out', 'u', '--text', 'jt'], [SAFE_REFS, '--stale', '--full', '--out', 'u2']], bundle: [['H-1', 'H-2', '--text', 'jt'], ['H-3']],
   'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['H-1', '--out', 'jtout', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],
   'open-items': [[], ['--write'], ['--suggest-from-status'], ['--close', 'H-2', OIKIND], ['--register', 'H-1', 'newkind', '--owner', M('regowner'), '--text', M('regtext')], ['--findings', 'f.jsonl'], ['--mine', '--me', OWNER]],
-  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]],
+  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]], 'migrate-names': [[]],
   'sp-ingest': [['docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none']], 'sp-link': [['H-1', 'docs/plan.md']],
   // @handle: the handle `rules --repo` prints for the hostile rule (its exact text holds line breaks, so the text form finds no rule)
   learn: [['--from-wolf', RULE_TEXT], ['--from-wolf', '@handle']], report: [[]], explain: [[], ['ticket']],

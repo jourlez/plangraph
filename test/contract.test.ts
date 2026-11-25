@@ -311,7 +311,7 @@ test('explain: per-flag writes of doctor --fix and card --heal (and init) are de
   assert.match(run(R, ['explain', 'doctor']).stdout, /^writes: none; --fix: git-config gitattributes merge-shim$/m);
   assert.match(run(R, ['explain', 'card']).stdout, /^writes: file; --heal: git-config gitattributes merge-shim$/m);
   assert.match(run(R, ['explain', 'init']).stdout, /^writes: text, git-config gitattributes merge-shim$/m);
-  assert.match(run(R, ['explain']).stdout, /^also writes: card --heal, doctor --fix, init: git config, .gitattributes, merge shim$/m);
+  assert.match(run(R, ['explain']).stdout, /^also writes: card --heal, doctor --fix, init, migrate-names --apply: git config, .gitattributes, merge shim$/m);
   const j = JSON.parse(run(R, ['explain', 'doctor', '--json']).stdout).data.commands[0];
   assert.deepEqual(j.options.find((o: { name: string }) => o.name === 'fix').writes, WIRING);
   assert.deepEqual(JSON.parse(run(R, ['explain', 'init', '--json']).stdout).data.commands[0].also, WIRING);

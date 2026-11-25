@@ -73,7 +73,7 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 | output (no ground-truth check) | bytes | est tok |
 |---|--:|--:|
 | card (session start, printed once per session) | 533 | 134 |
-| explain | 736 | 184 |
+| explain | 773 | 194 |
 | explain whatif | 513 | 129 |
 | ticket T-1200 -v | 1110 | 278 |
 

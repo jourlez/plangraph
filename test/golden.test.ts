@@ -129,7 +129,7 @@ const CASES: Case[] = [
   { name: 'build', args: ['build'] }, { name: 'build-json', args: J('build') },
   { name: 'export', args: ['export'] },
   { name: 'migrate', args: ['migrate'] }, { name: 'migrate-write', args: ['migrate', '--write'] }, { name: 'migrate-json', args: J('migrate') },
-  { name: 'doctor', args: ['doctor'] }, { name: 'doctor-json', args: J('doctor') },
+  { name: 'doctor', args: ['doctor'] }, { name: 'migrate-names', args: ['migrate-names'] }, { name: 'doctor-json', args: J('doctor') },
   { name: 'doctor-fix', args: ['doctor', '--fix'] },
   { name: 'doctor-conflict', args: ['doctor'], setup: (r) => fs.appendFileSync(path.join(r, '.plangraph/findings.jsonl'), '<<<<<<< ours\n') },
   { name: 'integrations', args: ['integrations'] }, { name: 'integrations-verbose', args: ['integrations', '-v'] }, { name: 'integrations-json', args: J('integrations') },

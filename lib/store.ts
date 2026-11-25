@@ -310,9 +310,11 @@ export function installMergeDriver(repoRoot: string, { dir = '.plangraph', drive
   const cur = readGitattributes(ga);
   if (!cur.split('\n').some((l) => l.trim() === line)) writeAtomic(ga, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + line + '\n');
   git(repoRoot, ['config', `merge.${DRIVER}.name`, 'plangraph jsonl three-way merge']);
-  git(repoRoot, ['config', `merge.${DRIVER}.driver`, `${shq(driverPath)} %O %A %B %P`]);
-  return { gitattributes: line, driver: `${shq(driverPath)} %O %A %B %P` };
+  git(repoRoot, ['config', `merge.${DRIVER}.driver`, mergeDriverCommand(driverPath)]);
+  return { gitattributes: line, driver: mergeDriverCommand(driverPath) };
 }
+/** The git config `merge.plangraph-jsonl.driver` value for a driver path (shell-quoted when needed). */
+export const mergeDriverCommand = (driverPath: string): string => `${shq(driverPath)} %O %A %B %P`;
 // .gitattributes is repo-controlled: lstat first (a symlink is refused, never followed), then one capped read of a regular file (a FIFO,
 // device or directory is refused without blocking). Missing -> ''. A refusal throws code ATTR_REFUSED with a fixed message.
 export const GITATTRIBUTES_MAX = 256 * 1024;
