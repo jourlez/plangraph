@@ -43,7 +43,7 @@ test('the declared hook is exec form node with the stable event, matcher and tim
   const entry = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0];
   assert.equal(entry.matcher, 'startup|resume|clear|compact|fork');
   assert.equal(hook.command, 'node'); assert.equal(hook.timeout, 10);
-  assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/bin/plangraph', 'card', '--if-present', '--heal']);
+  assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--heal']);
 });
 
 test('no plangraph: exit 0, stdout and stderr empty, and nothing is created (uv is not on PATH)', () => {

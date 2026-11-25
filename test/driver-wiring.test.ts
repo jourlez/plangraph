@@ -106,7 +106,7 @@ test('(e) --heal with no plan directory, or outside a git work tree, prints noth
 test('(f) hooks.json passes --heal, keeps matcher and timeout; the declared command exits 0 under 1 s', () => {
   const entry = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0];
   assert.equal(entry.matcher, 'startup|resume|clear|compact|fork');
-  const hook = entry.hooks[0]; assert.equal(hook.timeout, 10); assert.equal(hook.command, 'node'); assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/bin/plangraph', 'card', '--if-present', '--heal']);
+  const hook = entry.hooks[0]; assert.equal(hook.timeout, 10); assert.equal(hook.command, 'node'); assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--heal']);
   const w = world(); ok(w.plangraph(PLUGIN, ['init'])); fs.rmSync(w.shim);
   const args = hook.args.map((a: string) => a.replace('${CLAUDE_PLUGIN_ROOT}', PLUGIN));
   const t0 = Date.now(); const r = spawnSync(hook.command, args, { cwd: w.repo, env: w.env, encoding: 'utf8' }); const ms = Date.now() - t0;

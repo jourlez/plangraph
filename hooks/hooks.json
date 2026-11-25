@@ -4,7 +4,7 @@
       {
         "matcher": "startup|resume|clear|compact|fork",
         "hooks": [
-          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/bin/plangraph", "card", "--if-present", "--heal"], "timeout": 10 }
+          { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/src/entry.js", "card", "--if-present", "--heal"], "timeout": 10 }
         ]
       }
     ]

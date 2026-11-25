@@ -55,11 +55,11 @@ test('detects a bare path under a path key that does not exist', () => assert.ma
 test('detects a bare top-level-directory path that does not exist', () => assert.match(messages({ x: 'skills/gone-skill' }), /missing path: skills\/gone-skill/));
 test('detects an mcpServers args entry naming a missing file', () => assert.match(messages({ mcpServers: { b: { command: 'node', args: ['mcp/gone.mjs'] } } }), /missing path: mcp\/gone\.mjs/));
 test('detects a missing mcpServers command path', () => assert.match(messages({ mcpServers: { b: { command: 'bin/gone' } } }), /missing path: bin\/gone/));
-test('detects a wrong extension on the hooks command arg', () => {
+test('detects a wrong extension on the hooks command arg (src/entry.js to src/entry.mjs)', () => {
   const hooks = readJson('hooks/hooks.json');
-  const mutant = JSON.parse(JSON.stringify(hooks).replace('/bin/plangraph"', '/bin/plangraph.mjs"'));
+  const mutant = JSON.parse(JSON.stringify(hooks).replace('/src/entry.js"', '/src/entry.mjs"'));
   assert.deepEqual(checkManifest(hooks, 'hooks.json'), []);
-  assert.match(messages(mutant), /missing path: bin\/plangraph\.mjs/);
+  assert.match(messages(mutant), /missing path: src\/entry\.mjs/);
 });
 test('detects a wrong icon extension', () => assert.match(messages({ icon: './.claude-plugin/icon.jpg' }), /missing path: \.claude-plugin\/icon\.jpg/));
 test('an empty manifest is a problem, not a pass', () => assert.match(messages({ name: 'x' }), /names no path/));

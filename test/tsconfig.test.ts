@@ -18,9 +18,10 @@ export interface Expect {
 }
 
 const FINAL_FLAGS = ['noUnusedLocals', 'forceConsistentCasingInFileNames', 'strict', 'noImplicitAny', 'exactOptionalPropertyTypes', 'noImplicitOverride', 'noFallthroughCasesInSwitch', 'verbatimModuleSyntax', 'erasableSyntaxOnly', 'allowImportingTsExtensions'];
+const JS_SRC = ['src/floor.js', 'src/entry.js', 'src/merge-entry.js'];
 export const TABLE: Expect[] = [
-  { name: 'tsconfig.json', isTrue: [...FINAL_FLAGS, 'allowJs', 'checkJs'], notTrue: ['noUncheckedIndexedAccess', 'noPropertyAccessFromIndexSignature'], includeFiles: ['src/floor.js'] },
-  { name: 'tsconfig.prod.json', isTrue: ['noUncheckedIndexedAccess'], notTrue: ['noPropertyAccessFromIndexSignature'], extendsPath: './tsconfig.json', includeDirs: ['lib', 'src', 'mcp'], includeFiles: ['src/floor.js'] },
+  { name: 'tsconfig.json', isTrue: [...FINAL_FLAGS, 'allowJs', 'checkJs'], notTrue: ['noUncheckedIndexedAccess', 'noPropertyAccessFromIndexSignature'], includeFiles: JS_SRC },
+  { name: 'tsconfig.prod.json', isTrue: ['noUncheckedIndexedAccess'], notTrue: ['noPropertyAccessFromIndexSignature'], extendsPath: './tsconfig.json', includeDirs: ['lib', 'src', 'mcp'], includeFiles: JS_SRC },
 ];
 
 /** The problems of one config against its expectation; empty when it conforms. */
@@ -37,12 +38,12 @@ export function checkConfig(cfg: Config, expect: Expect): string[] {
 const globToRegex = (g: string): RegExp => new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '(?:.*/)?').replace(/\*/g, '[^/]*')}$`);
 /** True when an include entry (exact path or glob) selects the file. */
 export const included = (include: string[], file: string): boolean => include.some((i) => i === file || globToRegex(i).test(file));
-/** The problems of the tracked plain-JavaScript sources: only src/floor.js may be in a tsconfig include. */
+/** The problems of the tracked plain-JavaScript sources: only src/floor.js, src/entry.js and src/merge-entry.js may be in a tsconfig include. */
 export function checkJsSources(tracked: string[], includes: Record<string, string[]>): string[] {
-  const out: string[] = [], want = ['src/floor.js', 'workflows/audit.workflow.js'];
+  const out: string[] = [], want = ['src/entry.js', 'src/floor.js', 'src/merge-entry.js', 'workflows/audit.workflow.js'];
   if (tracked.slice().sort().join() !== want.join()) out.push(`tracked .js files must be ${want.join(', ')}; found ${tracked.join(', ')}`);
   for (const [name, inc] of Object.entries(includes)) for (const f of tracked) {
-    const should = f === 'src/floor.js';
+    const should = JS_SRC.includes(f);
     if (included(inc, f) !== should) out.push(`${name}: ${f} must ${should ? '' : 'not '}be in the include`);
   }
   return out;
@@ -52,7 +53,7 @@ const read = (rel: string): Config => JSON.parse(fs.readFileSync(path.join(ROOT,
 
 for (const e of TABLE) test(`${e.name} holds its expected flags and include`, () => assert.deepEqual(checkConfig(read(e.name), e), []));
 
-test('src/floor.js is the only tracked .js source in a tsconfig include (R25)', () => {
+test('the tracked .js files are src/floor.js, src/entry.js, src/merge-entry.js and the workflow; only the three src files are in a tsconfig include (R25)', () => {
   const tracked = execFileSync('git', ['ls-files', '*.js'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
   const includes = Object.fromEntries(TABLE.map((e) => [e.name, read(e.name).include ?? []]));
   assert.deepEqual(checkJsSources(tracked, includes), []);
@@ -76,10 +77,10 @@ test('checkConfig fails when each setting is mutated', () => {
 });
 
 test('checkJsSources fails on an extra tracked .js, a missing floor.js or a workflow in an include', () => {
-  const tracked = ['src/floor.js', 'workflows/audit.workflow.js'];
-  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', 'src/floor.js'] }), []);
-  assert.equal(checkJsSources([...tracked, 'lib/x.js'], { a: ['src/floor.js'] }).length, 1);
-  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts'] }), ['a: src/floor.js must be in the include']);
-  assert.deepEqual(checkJsSources(tracked, { a: ['src/floor.js', 'workflows/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
-  assert.deepEqual(checkJsSources(tracked, { a: ['src/floor.js', '**/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
+  const tracked = [...JS_SRC, 'workflows/audit.workflow.js'];
+  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', ...JS_SRC] }), []);
+  assert.equal(checkJsSources([...tracked, 'lib/x.js'], { a: JS_SRC }).length, 1);
+  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', 'src/floor.js', 'src/merge-entry.js'] }), ['a: src/entry.js must be in the include']);
+  assert.deepEqual(checkJsSources(tracked, { a: [...JS_SRC, 'workflows/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
+  assert.deepEqual(checkJsSources(tracked, { a: [...JS_SRC, '**/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
 });

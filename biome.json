@@ -52,6 +52,7 @@
 		"includes": [
 			"lib/**/*.ts",
 			"src/**/*.ts",
+			"src/**/*.js",
 			"mcp/*.ts",
 			"scripts/**/*.ts",
 			"test/**/*.ts",

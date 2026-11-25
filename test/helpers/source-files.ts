@@ -1,10 +1,10 @@
-// The one definition of "a plugin source file" for tests that walk the tree, whatever the extension: .mjs and .ts, plus src/floor.js (the
-// only plain-JavaScript file, the Node floor guard). A walker that filters on one extension silently finds nothing after the rename.
+// The one definition of "a plugin source file" for tests that walk the tree, whatever the extension: .mjs and .ts, plus the plain-JavaScript files in src/ (the
+// Node floor guard and the two entry points). A walker that filters on one extension silently finds nothing after the rename.
 import fs from 'node:fs';
 import path from 'node:path';
 
 /** rel: posix path relative to the repo root */
-export const isSourceFile = (rel: string): boolean => /\.(mjs|ts)$/.test(rel) || rel === 'src/floor.js';
+export const isSourceFile = (rel: string): boolean => /\.(mjs|ts)$/.test(rel) || /^src\/[^/]+\.js$/.test(rel);
 
 /** Source files under the given directories (recursive), as posix paths relative to `root`, sorted. */
 export function sourceFilesIn(root: string, dirs: string[]): string[] {
