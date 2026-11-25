@@ -35,7 +35,7 @@ function world() {
   const env = { PATH: binDir, HOME: home, CLAUDE_PLUGIN_DATA: dataDir, ...GIT_ENV };
   const run = (e = env) => spawnSync(hook.command, hook.args.map(sub), { cwd: repo, env: e, encoding: 'utf8' });
   const brain = (args: string[]) => spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), ...args], { cwd: repo, env: { ...process.env, ...env, PATH: `${binDir}:${path.dirname(process.execPath)}` }, encoding: 'utf8' });
-  return { dataDir, repo, env, run, brain, shim: path.join(dataDir, 'bin', 'brain-merge'), cfg: () => { try { return git(repo, 'config', '--get', 'merge.brain-jsonl.driver').trim(); } catch { return ''; } } };
+  return { dataDir, repo, env, run, brain, shim: path.join(dataDir, 'bin', 'plangraph-merge'), cfg: () => { try { return git(repo, 'config', '--get', 'merge.plangraph-jsonl.driver').trim(); } catch { return ''; } } };
 }
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\n${r.stdout}\n${r.stderr}`); assert.equal(r.stderr, ''); return r; };
 
@@ -122,7 +122,7 @@ test('plugin.json userConfig.card: string, options auto and off, default auto (t
 test('running the hook repairs a missing merge driver once; a second run changes nothing', () => {
   const w = world(); ok(w.brain(['init']));
   const want = `${w.shim} %O %A %B %P`; assert.equal(w.cfg(), want);
-  fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.brain-jsonl.driver'); assert.equal(w.cfg(), '');
+  fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.plangraph-jsonl.driver'); assert.equal(w.cfg(), '');
   ok(w.run()); assert.equal(w.cfg(), want); assert.ok(fs.existsSync(w.shim));
   const m = fs.statSync(w.shim).mtimeMs; ok(w.run()); assert.equal(fs.statSync(w.shim).mtimeMs, m); assert.equal(w.cfg(), want);
 });
@@ -130,7 +130,7 @@ test('running the hook repairs a missing merge driver once; a second run changes
 test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence the hook only, and still heal', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
   for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
-    git(w.repo, 'config', '--unset', 'merge.brain-jsonl.driver');
+    git(w.repo, 'config', '--unset', 'merge.plangraph-jsonl.driver');
     const r = ok(w.run({ ...w.env, [key]: 'off' })); assert.equal(r.stdout, '');
     assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
     assert.ok(ok(w.run({ ...w.env, [key]: 'auto' })).stdout.length > 0);

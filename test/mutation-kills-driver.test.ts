@@ -54,7 +54,7 @@ test('win32: the ownership and mode checks are skipped (a group-writable data di
   const root = tmp(), t = target(root), open = path.join(root, 'open'); fs.mkdirSync(open); fs.chmodSync(open, 0o775);
   const desc = Object.getOwnPropertyDescriptor(process, 'platform') as PropertyDescriptor; // process.platform is an own property
   Object.defineProperty(process, 'platform', { ...desc, value: 'win32' });
-  try { assert.equal(ensureStableDriver({ dataDir: open, target: t }), path.join(open, 'bin', 'brain-merge')); } finally { Object.defineProperty(process, 'platform', desc); }
+  try { assert.equal(ensureStableDriver({ dataDir: open, target: t }), path.join(open, 'bin', 'plangraph-merge')); } finally { Object.defineProperty(process, 'platform', desc); }
   assert.equal(fs.statSync(open).mode & 0o777, 0o775, 'never chmodded');
 });
 
@@ -62,14 +62,14 @@ baseTest('a failed shim write surfaces the original error and leaves no temp fil
   const root = tmp(), t = target(root), dataDir = path.join(root, 'data');
   ensureStableDriver({ dataDir, target: t });
   const bin = path.join(dataDir, 'bin');
-  fs.rmSync(path.join(bin, 'brain-merge'));
+  fs.rmSync(path.join(bin, 'plangraph-merge'));
   fs.chmodSync(bin, 0o500); // still private (no group/world write) but not writable: the temp file cannot be created
   try {
     assert.throws(() => ensureStableDriver({ dataDir, target: t }), (e: NodeJS.ErrnoException) => e.code === 'EACCES');
   } finally { fs.chmodSync(bin, 0o700); }
   assert.deepEqual(fs.readdirSync(bin), []);
   // the rename fails (the destination is a non-empty directory): the temp file is removed and the rename error is thrown
-  fs.mkdirSync(path.join(bin, 'brain-merge', 'x'), { recursive: true });
+  fs.mkdirSync(path.join(bin, 'plangraph-merge', 'x'), { recursive: true });
   assert.throws(() => ensureStableDriver({ dataDir, target: t }), (e: NodeJS.ErrnoException) => ['EISDIR', 'ENOTEMPTY', 'EEXIST', 'EPERM'].includes(e.code as string)); // an OS error always carries a code
-  assert.deepEqual(fs.readdirSync(bin), ['brain-merge']);
+  assert.deepEqual(fs.readdirSync(bin), ['plangraph-merge']);
 });

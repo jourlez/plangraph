@@ -107,7 +107,7 @@ claude plugin uninstall plangraph@plangraph-marketplace
 claude plugin marketplace remove plangraph-marketplace
 ```
 
-`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.brain/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=brain-jsonl` line in `.gitattributes`, and the `merge.brain-jsonl.*` entries in `.git/config`.
+`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.brain/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=plangraph-jsonl` line in `.gitattributes`, and the `merge.plangraph-jsonl.*` entries in `.git/config`.
 
 ### Turning the session card off
 
@@ -254,7 +254,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
 ```console
 $ brain doctor
 data format v0 (legacy: run `brain migrate --write`); tool supports v1
-merge driver: .gitattributes lacks ".brain/*.jsonl merge=brain-jsonl"; git config merge.brain-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)
+merge driver: .gitattributes lacks ".brain/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)
 node v24.18.0: ok
 solver runtime: uv found (brain-solve-run will use it)
 $ brain migrate

@@ -201,7 +201,7 @@ test('doctorMergeDriver reports problems; installMergeDriver is idempotent and q
   const d0 = S.doctorMergeDriver(root); assert.equal(d0.installed, false); assert.ok(d0.problems.length >= 2);
   fs.writeFileSync(path.join(root, '.gitattributes'), '*.png binary');
   S.installMergeDriver(root, { driverPath: BIN_MERGE }); S.installMergeDriver(root, { driverPath: BIN_MERGE });
-  assert.equal(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'), '*.png binary\n.brain/*.jsonl merge=brain-jsonl\n');
+  assert.equal(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'), '*.png binary\n.brain/*.jsonl merge=plangraph-jsonl\n');
   assert.equal(S.doctorMergeDriver(root).installed, true);
   S.installMergeDriver(root, { driverPath: '/no such dir/brain-merge' });
   const d1 = S.doctorMergeDriver(root); assert.equal(d1.installed, false); assert.equal(d1.executable, false); assert.match(d1.problems.join(), /not found/);

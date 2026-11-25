@@ -17,7 +17,7 @@ git add -A && git commit -qm base
 fail() { echo "FAIL: $1"; exit 1; }
 
 "$BRAIN" init >/dev/null
-git config --get merge.brain-jsonl.driver | grep -q "^$CLAUDE_PLUGIN_DATA/bin/brain-merge " || fail "init did not install the stable shim"
+git config --get merge.plangraph-jsonl.driver | grep -q "^$CLAUDE_PLUGIN_DATA/bin/plangraph-merge " || fail "init did not install the stable shim"
 printf '%s\n' \
   '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}' \
   '{"key":"T-2","summary":"second","epic":"E","sp":5,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}' \

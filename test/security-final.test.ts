@@ -39,7 +39,7 @@ function repo({ build = true }: { build?: boolean } = {}): string {
 }
 
 // ---------- I1: a brain dir name with a newline or a pattern character never reaches .gitattributes ----------
-const EVIL_DIR = 'b\n* working-tree-encoding=UTF-16 merge=brain-jsonl\n#';
+const EVIL_DIR = 'b\n* working-tree-encoding=UTF-16 merge=plangraph-jsonl\n#';
 test('I1: a committed .brainrc dir with a newline is refused; card --if-present --heal writes no .gitattributes', () => {
   const d = tmp(); git(d, 'init', '-q');
   fs.mkdirSync(path.join(d, EVIL_DIR));
@@ -63,7 +63,7 @@ test('I1: --dir with a pattern character, whitespace or control character is ref
     assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, JSON.stringify(bad));
   }
   ok(run(d, ['init', '--dir', 'plan/brain-1.x']), 'a normal nested name still works');
-  assert.match(fs.readFileSync(path.join(d, '.gitattributes'), 'utf8'), /^plan\/brain-1\.x\/\*\.jsonl merge=brain-jsonl$/m);
+  assert.match(fs.readFileSync(path.join(d, '.gitattributes'), 'utf8'), /^plan\/brain-1\.x\/\*\.jsonl merge=plangraph-jsonl$/m);
 });
 test('I1: installMergeDriver refuses a dir outside [A-Za-z0-9._/-]', async () => {
   const { installMergeDriver } = await import('../lib/store.ts');
@@ -76,15 +76,15 @@ test('I1: installMergeDriver refuses a dir outside [A-Za-z0-9._/-]', async () =>
 function badAttrs(d: string, kind: 'symlink' | 'fifo' | 'big') {
   const ga = path.join(d, '.gitattributes');
   fs.rmSync(ga, { force: true });
-  if (kind === 'symlink') { const target = path.join(tmp(), 'outside'); fs.writeFileSync(target, '.brain/*.jsonl merge=brain-jsonl\n'); fs.symlinkSync(target, ga); }
+  if (kind === 'symlink') { const target = path.join(tmp(), 'outside'); fs.writeFileSync(target, '.brain/*.jsonl merge=plangraph-jsonl\n'); fs.symlinkSync(target, ga); }
   if (kind === 'fifo') execFileSync('mkfifo', [ga]);
-  if (kind === 'big') fs.writeFileSync(ga, `${'# filler line\n'.repeat(30000)}.brain/*.jsonl merge=brain-jsonl\n`);
+  if (kind === 'big') fs.writeFileSync(ga, `${'# filler line\n'.repeat(30000)}.brain/*.jsonl merge=plangraph-jsonl\n`);
   return ga;
 }
 for (const kind of (['symlink', 'fifo', 'big'] as const)) {
   test(`I2a: a ${kind} .gitattributes is refused by heal (silent, exit 0), doctor (exit 1, refused problem) and init (refused note)`, () => {
     const d = repo({ build: false });
-    git(d, 'config', '--unset', 'merge.brain-jsonl.driver'); // doctor sees a problem, so heal tries to repair
+    git(d, 'config', '--unset', 'merge.plangraph-jsonl.driver'); // doctor sees a problem, so heal tries to repair
     const ga = badAttrs(d, kind), before = fs.lstatSync(ga);
     const h = run(d, ['card', '--if-present', '--heal'], {}, { timeout: 15000 });
     assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, 'brain: plan data found in .brain but no index: run brain build\n'); // the first-use line, no card without an index assert.equal(h.stderr, '');

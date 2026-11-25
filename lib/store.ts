@@ -297,11 +297,11 @@ export function runMigration(dir: string, { write = false, onWrite, ...o }: { wr
 // ---------- git merge driver install / doctor ----------
 const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });
 const tryGit = (cwd: string, args: string[]): { ok: true; out: string; err?: never } | { ok: false; err: string; out?: never } => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String((e as Coded & { stderr?: unknown }).stderr || (e as Coded).message) }; } }; // whatever was thrown: its fields are read as before
-const DRIVER = 'brain-jsonl';
+const DRIVER = 'plangraph-jsonl';
 const VERSIONED = '/plugins/cache/';
 const SAFE_ATTR_DIR = /^[A-Za-z0-9._/-]+$/;
 const shq = (s: string): string => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
-export function installMergeDriver(repoRoot: string, { dir = '.brain', driverPath = 'brain-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
+export function installMergeDriver(repoRoot: string, { dir = '.brain', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
   if (String(driverPath).includes(VERSIONED)) throw new TypeError(`refusing a versioned plugin-cache driver path (${VERSIONED} is deleted after a plugin update); pass the stable shim from ensureStableDriver`);
   // The dir becomes a gitattributes pattern line: only a plain name can go there (no newline, space, glob, comment or quote character).
   if (typeof dir !== 'string' || !SAFE_ATTR_DIR.test(dir)) throw new TypeError('refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -');

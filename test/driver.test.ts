@@ -26,7 +26,7 @@ test('update survival: same shim path runs the new target after the old one is d
   const root = tmp(), dataDir = path.join(root, 'data'); fs.mkdirSync(dataDir);
   const a = echoer(root, 'a.mjs', 'A'), b = echoer(root, 'b.mjs', 'B');
   const shim = ensureStableDriver({ dataDir, target: a });
-  assert.equal(shim, path.join(dataDir, 'bin', 'brain-merge'));
+  assert.equal(shim, path.join(dataDir, 'bin', 'plangraph-merge'));
   assert.equal(fs.statSync(shim).mode & 0o777, 0o755);
   let r = runShim(shim, 'x', 'y z'); assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), 'A x y z');
   fs.rmSync(a); assert.equal(ensureStableDriver({ dataDir, target: b }), shim);
@@ -88,7 +88,7 @@ test('ensureStableDriver validates its inputs', () => {
 });
 test('ensureStableDriver is idempotent (identical bytes) and records the node path', () => {
   const root = tmp(), t = echoer(root, 't.mjs', 'T'), dataDir = path.join(root, 'd'); fs.mkdirSync(dataDir);
-  const files = ['bin/brain-merge', 'driver.target', 'driver.node'];
+  const files = ['bin/plangraph-merge', 'driver.target', 'driver.node'];
   ensureStableDriver({ dataDir, target: t }); const one = files.map((f) => fs.readFileSync(path.join(dataDir, f), 'utf8'));
   ensureStableDriver({ dataDir, target: t }); const two = files.map((f) => fs.readFileSync(path.join(dataDir, f), 'utf8'));
   assert.deepEqual(one, two); assert.equal(one[1], t + '\n'); assert.equal(one[2], process.execPath + '\n');
@@ -132,7 +132,7 @@ test('doctorMergeDriver reports each stale-shim problem', () => {
   fs.rmSync(path.join(dataDir, 'driver.target')); assert.ok(has(/driver\.target/), 'driver.target missing');
   ensureStableDriver({ dataDir, target: t }); fs.writeFileSync(path.join(dataDir, 'driver.node'), path.join(root, 'no-node') + '\n'); assert.ok(has(/driver\.node/), 'node missing');
   ensureStableDriver({ dataDir, target: t }); assert.deepEqual(probs(), []);
-  execFileSync('git', ['config', 'merge.brain-jsonl.driver', '/x/plugins/cache/p/1/bin/brain-merge %O %A %B %P'], { cwd: d });
+  execFileSync('git', ['config', 'merge.plangraph-jsonl.driver', '/x/plugins/cache/p/1/bin/brain-merge %O %A %B %P'], { cwd: d });
   assert.ok(has(/plugins\/cache/), 'versioned path configured');
 });
 
@@ -157,8 +157,8 @@ test('real git merge via the shim keeps working after the target moves (same git
   const shim = ensureStableDriver({ dataDir, target: path.join(v1, 'bin/brain-merge') });
   const want = (tag: string) => S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31' + tag), tk('T-32' + tag)], T);
   let d = scenario(shim, 'a'); git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8'), want('a'));
-  const cfg = git(d, 'config', '--get', 'merge.brain-jsonl.driver');
+  const cfg = git(d, 'config', '--get', 'merge.plangraph-jsonl.driver');
   fs.rmSync(v1, { recursive: true }); ensureStableDriver({ dataDir, target: path.join(v2, 'bin/brain-merge') });
-  d = scenario(shim, 'b'); assert.equal(git(d, 'config', '--get', 'merge.brain-jsonl.driver'), cfg);
+  d = scenario(shim, 'b'); assert.equal(git(d, 'config', '--get', 'merge.plangraph-jsonl.driver'), cfg);
   git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8'), want('b'));
 });

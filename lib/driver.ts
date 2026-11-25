@@ -2,7 +2,7 @@
 // plugin-cache directories), so it points at a shim in a stable data directory that reads the CURRENT target at run time.
 // No printing, no process.exit. Writes only under dataDir.
 // Trust model: the data directory is a code-execution trust root, because whoever can write driver.node, driver.target or
-// bin/brain-merge runs code as the user at the next merge. ensureStableDriver therefore creates the data dir and bin/ 0700,
+// bin/plangraph-merge runs code as the user at the next merge. ensureStableDriver therefore creates the data dir and bin/ 0700,
 // and REFUSES (never silently chmods) an existing data dir or bin/ that is a symlink, is not owned by the current user, or is
 // group/world writable. On win32 the ownership and mode checks are skipped (POSIX modes are not meaningful there; the shim
 // itself is POSIX sh and is not supported on Windows). Only the final path components are checked, not their parents.
@@ -64,7 +64,7 @@ export function ensureStableDriver({ dataDir, target, nodePath = process.execPat
   const bin = path.join(dataDir, 'bin');
   checkPrivateDir(dataDir, 'directory'); checkPrivateDir(bin, 'bin/');
   fs.mkdirSync(bin, { recursive: true, mode: 0o700 });
-  const shim = path.join(bin, 'brain-merge');
+  const shim = path.join(bin, 'plangraph-merge');
   // node FIRST, target LAST: a merge running between the two writes sees a consistent old pair or (new node, old target),
   // which is benign (an older target still runs under a newer node binary). Each write is atomic.
   writeAtomicSafe(path.join(dataDir, 'driver.node'), nodePath + '\n');

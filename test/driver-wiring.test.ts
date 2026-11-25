@@ -26,7 +26,7 @@ function world() {
   git(repo, 'init', '-q', '-b', 'main'); git(repo, 'config', 'user.name', 't'); git(repo, 'config', 'user.email', 't@example.invalid'); git(repo, 'config', 'commit.gpgsign', 'false');
   const env = { ...BASE_ENV, HOME: home, CLAUDE_PLUGIN_DATA: dataDir };
   const brain = (plugin: string, args: string[], cwd = repo, e: NodeJS.ProcessEnv = env) => spawnSync(process.execPath, [path.join(plugin, 'bin/brain'), ...args], { cwd, env: e, encoding: 'utf8' });
-  return { dataDir, home, repo, env, brain, shim: path.join(dataDir, 'bin', 'brain-merge'), cfg: () => git(repo, 'config', '--get', 'merge.brain-jsonl.driver').trim() };
+  return { dataDir, home, repo, env, brain, shim: path.join(dataDir, 'bin', 'plangraph-merge'), cfg: () => git(repo, 'config', '--get', 'merge.plangraph-jsonl.driver').trim() };
 }
 const T = S.SCHEMAS['tickets.jsonl'], tk = (key: string, o: S.Rec = {}) => ({ key, summary: 's-' + key, epic: 'E', sp: 1, v2_owner: 'Ana', v2_sprint: 1, ...o });
 // two branches editing different fields of the same record plus adjacent adds: plain git conflicts, the driver merges cleanly
@@ -49,7 +49,7 @@ test('(a) init points git config at the stable shim under the data dir, never a 
   const w = world(); ok(w.brain(PLUGIN, ['init']));
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
   assert.ok(w.cfg().startsWith(w.dataDir) && !w.cfg().includes('/plugins/cache/'));
-  assert.match(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), /^\.brain\/\*\.jsonl merge=brain-jsonl$/m);
+  assert.match(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), /^\.brain\/\*\.jsonl merge=plangraph-jsonl$/m);
   assert.equal(fs.readFileSync(path.join(w.dataDir, 'driver.target'), 'utf8'), path.join(PLUGIN, 'bin/brain-merge') + '\n');
 });
 test('(a2) init run from a copy installed under a plugins/cache path still installs the driver', () => {
@@ -76,7 +76,7 @@ test('(c) after the plugin moves, doctor reports it, doctor --fix repairs it, an
 });
 test('(d) card --if-present --heal repairs a deleted shim and missing git config silently', () => {
   const w = world(); ok(w.brain(PLUGIN, ['init']));
-  fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.brain-jsonl.driver');
+  fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.plangraph-jsonl.driver');
   const r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal']));
   assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, ''); // no index yet, so no card, only the first-use line
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`); assert.equal(fs.statSync(w.shim).mode & 0o777, 0o755);
@@ -147,7 +147,7 @@ test('timing: merge-driver wiring scales linearly with the .gitattributes size (
   const n = 3500, repos = new Map();
   for (const m of [n >> 2, n, 4 * n]) {
     const d = tmp('dw-attr-'); git(d, 'init', '-q');
-    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=brain-jsonl\n`);
+    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=plangraph-jsonl\n`);
     repos.set(m, d);
   }
   assert.ok(fs.statSync(path.join(repos.get(4 * n), '.gitattributes')).size < S.GITATTRIBUTES_MAX);
@@ -168,7 +168,7 @@ test('work: merge-driver wiring touches linearly many elements in the .gitattrib
   const n = 2000, repos = new Map<number, string>();
   for (const m of [n, 4 * n]) {
     const d = tmp('dw-work-'); git(d, 'init', '-q');
-    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=brain-jsonl\n`);
+    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=plangraph-jsonl\n`);
     repos.set(m, d);
   }
   const wire = (m: number) => {

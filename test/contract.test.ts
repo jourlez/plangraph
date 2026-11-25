@@ -294,7 +294,7 @@ test('explain: per-flag writes of doctor --fix and card --heal (and init) are de
     return { 'git-config': cfg, gitattributes: fs.existsSync(path.join(d, '.gitattributes')) ? fs.readFileSync(path.join(d, '.gitattributes'), 'utf8') : '', 'merge-shim': shim };
   };
   const unwire = () => {
-    spawnSync('git', ['config', '--remove-section', 'merge.brain-jsonl'], { cwd: d, env: ENV });
+    spawnSync('git', ['config', '--remove-section', 'merge.plangraph-jsonl'], { cwd: d, env: ENV });
     for (const s of spawnSync('git', ['config', '--name-only', '--get-regexp', '^merge\\.'], { cwd: d, encoding: 'utf8', env: ENV }).stdout.split('\n').filter(Boolean)) spawnSync('git', ['config', '--unset-all', s], { cwd: d, env: ENV });
     fs.rmSync(path.join(d, '.gitattributes'), { force: true }); fs.rmSync(data, { recursive: true, force: true });
   };

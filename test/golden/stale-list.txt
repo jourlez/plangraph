@@ -1,7 +1,7 @@
 $ brain stale --ref HEAD --list
 exit: 0
 --- stdout
-stale vs HEAD (54718a0): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
+stale vs HEAD (c469e6a): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
 T-1: plan,files
 T-13: producer_changed via T-7
 T-16: producer_changed via T-8
