@@ -120,17 +120,16 @@ test('(g) doctor without --fix reports a missing shim as a problem and changes n
   assert.deepEqual(snapshot(w.dataDir), a); assert.deepEqual(snapshot(w.repo), b);
   assert.match(ok(w.plangraph(PLUGIN, ['doctor', '--fix'])).stdout, /^merge driver: ok$/m);
 });
-test('(h) a non-private data dir: init and doctor print one short line without a stack, init still completes, heal is silent', () => {
+test('(h) a group- or world-writable CLAUDE_PLUGIN_DATA: init prints one line and installs the shim under ~/.cache/plangraph instead; the directory is never changed (D19)', () => {
   const w = world(); fs.chmodSync(w.dataDir, 0o777);
+  const fb = path.join(w.home, '.cache', 'plangraph'), bytes = fs.readdirSync(w.dataDir);
   const r = ok(w.plangraph(PLUGIN, ['init']));
-  assert.match(r.stderr, /^merge driver not installed: data directory is not private/m); assert.doesNotMatch(r.stderr + r.stdout, /\n\s+at |Error:/);
-  assert.equal(r.stderr.trim().split('\n').length, 1);
+  assert.equal(r.stderr, `plangraph: CLAUDE_PLUGIN_DATA (${w.dataDir}) is group or world writable; using ${fb} instead\n`);
   assert.ok(fs.existsSync(path.join(w.repo, '.plangraph/config.json')) && fs.existsSync(path.join(w.repo, '.plangraph/tickets.jsonl')));
   assert.match(r.stdout, /^initialised \.plangraph/);
-  const d = w.plangraph(PLUGIN, ['doctor', '--fix']); assert.equal(d.status, 1);
-  assert.match(d.stdout, /^merge driver not installed: data directory is not private/m); assert.doesNotMatch(d.stdout + d.stderr, /\n\s+at /);
-  assert.match(d.stdout, /^node v/m); // the rest of doctor still ran
-  const bytes = fs.readdirSync(w.dataDir);
+  assert.equal(w.cfg().split(' ')[0].replace(/^'|'$/g, '').startsWith(fb), true, w.cfg()); assert.equal(fs.statSync(fb).mode & 0o777, 0o700);
+  assert.equal(fs.statSync(w.dataDir).mode & 0o777, 0o777); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
+  assert.match(ok(w.plangraph(PLUGIN, ['doctor', '--fix'])).stdout, /^merge driver: ok$/m);
   const h = ok(w.plangraph(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(h.stdout, NUDGE); assert.equal(h.stderr, ''); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
 });
 test('(h2) a symlinked data dir is refused the same way', () => {
