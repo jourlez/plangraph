@@ -99,6 +99,21 @@ Both shapes are first class: one Jira project may span many repositories, and on
 - Tests that can fail: hostile manifest and CODEOWNERS text never reaches a node or any output; a scan runs no subprocess but `git` (planted `postinstall`, Makefile); two scans on different paths and platforms are byte-identical; changing a script or dependency fails `--check`, changing only a README does not; CODEOWNERS last match wins, no negation, unresolvable owners dropped, oversized file refused; one alias with three repositories and one repository with two aliases produce no collision; no signal gives `unknown`, ties return both, closure never exceeds "possible"; a monorepo ticket naming `packages/web/**` resolves to the sub-unit; a repository rename keeps ids and `touches` edges; two branches each adding a different repo node merge cleanly with canonical array order; a `touches` or `depends_on` to a deleted repo id is reported by verify.
 
 
+### 3.11 What the model sees (LLM-facing representation; evidence from a 2026-11-25 survey, partly unverified)
+
+The graph is the source of truth and the relational index; it is not what goes into the model's context. Evidence read or summarized: format choice moves accuracy little and differences are mostly inside confidence intervals, while token cost differs a lot (compact tabular text saves roughly a third on mixed data and more on flat data against pretty JSON); every format scores under 50 percent when the model must count, filter or aggregate in its head; models are poor at multi-step graph computation (ordering, cycles, shortest paths) and good at asking a deterministic engine; GraphRAG-style systems win on multi-hop and temporal questions and lose on single-hop lookups, and most of their cost is extracting a graph from prose, which plangraph does not do because its rows are authored. Weak spots, stated plainly: no source studies planning graphs consumed by agents; most format numbers are the format authors' own benchmark; vendor memory benchmarks are disputed.
+
+Rules that follow (binding for 0.4.0 and 0.5.0 output design):
+1. Default answer = a verdict line plus at most three supporting rows, for example `READY` or `BLOCKED by ABC-12 (in_progress, S4)`. Counting, summing, filtering, sorting, ordering, cycles and capacity are computed by the engine (SQL views, `blockersOf`, the solver) and never left to the model.
+2. Row output is a flat table: header line, declared row count, sorted stable columns, one fact per row (CSV-like or TOON-like text). Nested JSON only inside `structuredContent` with an `outputSchema`; the text mirror stays compact.
+3. A raw subgraph is an explicit drill-down (`graph KEY --rel --depth`, with caps and a `truncated N` line); "everything" returns a file path or a named SQL view, never a dump into context.
+4. Per-node cards and per-sprint digests are precomputed into the index keyed by the source fingerprint (cache, derived, never committed).
+5. Tool and schema text stays small, deterministic in order and stable between releases so prompt caching hits; tiered tool sets stay available.
+6. Imported text never appears in the default answer (section 3.5).
+
+Benchmark (new Task 7B, run once in the 0.4.0 audit and kept as `evals/graph-format`): about 100 to 200 held-out questions over a fixed synthetic plan (point lookup, 1-hop, 2-3 hop transitive blockers, aggregation such as load per person and count by status, filter, what-if, cycle and ordering) with ground truth from SQL and the solver. Arms: flat table; edge list; nested JSON; TOON-like; verdict plus rows (the planned default); an agent calling the CLI or MCP tools; optionally an agent writing SQL against the index. Fixed model set (at least three), fixed temperature, fixed tokenizer; report accuracy with Wilson intervals, input and output tokens, tool-call count and latency; adversarial cases (stale rows, ties). The format of the default answer is chosen from this result, not from the survey. Expected, not assumed: the verdict arm wins on aggregation and ordering; the format arms differ little elsewhere.
+
+
 ## 4. Rulings on defects found in the graph plan
 
 1. Rename: every `brain` command, `.brain`, `brain.sqlite`, `bin/brain-solve` and `brain-jsonl` in the graph plan reads as its plangraph name from the rename map of `2026-11-25-plangraph-0.3.0-revised.md` section 3. `.baseline/pre-040` is captured on the renamed 0.3.0 tree.
@@ -126,6 +141,7 @@ Both shapes are first class: one Jira project may span many repositories, and on
 | 4 | `REL_SEMANTICS`; `blockersOf` reads only gate and order relations (test); openitem in `g_nodes`. |
 | 5 | `graph` KEY accepts `pg:` URIs; `--json` ids in URI form; xrefs printed fenced. |
 | 6, 6A, 7 | Unchanged; Task 7's audit adds the forward-compatibility fixture (section 6). |
+| 7B (new) | Format benchmark `evals/graph-format` (section 3.11); the default answer format is set from its result before 0.4.0 ships. |
 | 8 | Becomes `plangraph graph materialize` (no format bump) per D23. |
 | 9 (0.5.0) | Provider seam, `jira`, `sp` and `generic` providers, `plangraph import --sys`, `obs` table, cache git-ignore. |
 | 10 (0.5.0) | `lib/graph/drift.ts`, `plangraph sync --plan`. |
