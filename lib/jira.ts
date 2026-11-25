@@ -157,9 +157,47 @@ function base64Cores(b: Buffer): string[] {
   }
   return out;
 }
+// Decision D11: a raw API token (registered as { raw }) is also matched in any letter case and through any substring of WINDOW or more
+// characters; a raw token of 12 to WINDOW - 1 characters is matched in any letter case as a whole. Only the raw token gets this: the
+// derived forms (the Basic credential, base64, hex, percent) stay whole-form matches, so their fragments are never widened.
+const WINDOW = 16;
+const rawWindows = new Set<string>(); // the ASCII-folded WINDOW-character substrings of every raw token of WINDOW+ characters
+const rawWindowHeads = new Set<number>(); // the first two folded character codes of each window: a cheap filter before the set lookup
+const rawShort = new Set<string>(); // ASCII-folded raw tokens of 12 to WINDOW - 1 characters
+// Folds only ASCII A-Z to a-z: String#toLowerCase can change the length (U+0130 becomes two code units) and would shift every offset.
+const asciiFold = (s: string): string => s.replace(/[A-Z]+/g, (m) => m.toLowerCase());
+function registerRaw(raw: string): void {
+  const f = asciiFold(raw);
+  if (f.length >= WINDOW) {
+    for (let i = 0; i + WINDOW <= f.length; i++) { rawWindows.add(f.slice(i, i + WINDOW)); rawWindowHeads.add(f.charCodeAt(i) * 65536 + f.charCodeAt(i + 1)); }
+  } else if (f.length >= 12) rawShort.add(f);
+}
+// The [start, end) ranges of s that hold a case-changed raw token or a WINDOW+ character piece of one, merged where they overlap or touch,
+// so a run of matching windows extends to the longest match.
+function rawRanges(s: string): Array<[number, number]> {
+  if (!rawWindows.size && !rawShort.size) return [];
+  const f = asciiFold(s), found: Array<[number, number]> = [];
+  if (rawWindows.size) {
+    for (let i = 0, last = f.length - WINDOW; i <= last; i++) {
+      if (rawWindowHeads.has(f.charCodeAt(i) * 65536 + f.charCodeAt(i + 1)) && rawWindows.has(f.slice(i, i + WINDOW))) found.push([i, i + WINDOW]);
+    }
+  }
+  for (const t of rawShort) for (let i = f.indexOf(t); i !== -1; i = f.indexOf(t, i + 1)) found.push([i, i + t.length]);
+  found.sort((a, b) => a[0] - b[0]);
+  const out: Array<[number, number]> = [];
+  for (const r of found) {
+    const prev = out[out.length - 1];
+    if (prev && r[0] <= prev[1]) prev[1] = Math.max(prev[1], r[1]); else out.push([r[0], r[1]]);
+  }
+  return out;
+}
+/** Registers secrets for redact(). A plain string gets its whole forms only; { raw } (the API token itself) also gets the D11 matching. */
 function registerSecret(...vals: unknown[]): void {
-  for (const v of vals) {
+  for (const item of vals) {
+    const isRaw = typeof item === 'object' && item !== null && 'raw' in item;
+    const v: unknown = isRaw ? item.raw : item;
     if (typeof v !== 'string' || v.length < 6) continue;
+    if (isRaw) registerRaw(v);
     const b = Buffer.from(v), hex = b.toString('hex'), uri = encodeURIComponent(v);
     secrets.add(v); secrets.add(uri); secrets.add(JSON.stringify(v).slice(1, -1));
     secrets.add(b.toString('base64')); secrets.add(b.toString('base64url'));
@@ -176,7 +214,12 @@ export function redact(text: unknown): string {
   s = s.replace(/(authorization["']?\s*[:=]\s*["']?)(?:(?:basic|bearer)\s+)?[^\s"',;]+/gi, '$1[redacted]');
   s = s.replace(/\b(Basic|Bearer)\s+[A-Za-z0-9+/=._~-]{8,}/g, '$1 [redacted]');
   s = s.replace(/\bAT[A-Z]TT[A-Za-z0-9_=+/.-]{16,}/g, '[redacted]'); // Atlassian API token prefix (heuristic)
-  return s;
+  // D11 last: a window redacted first could cut a token the patterns above would have removed whole, leaving its other part in the output
+  const ranges = rawRanges(s);
+  if (!ranges.length) return s;
+  let out = '', at = 0;
+  for (const [a, b] of ranges) { out += `${s.slice(at, a)}[redacted]`; at = b; }
+  return out + s.slice(at);
 }
 
 export class JiraError extends Error {
@@ -237,7 +280,7 @@ const EMAIL_RE = /^[^\s:@]+@[^\s:@]+$/, TOKEN_RE = /^[\x21-\x7e]{8,}$/;
 function finishCreds(email: string, token: string, source: string): JiraCredentials {
   if (email && !EMAIL_RE.test(email)) throw new JiraError('bad_credentials', 'JIRA_EMAIL is not an email address');
   if (!TOKEN_RE.test(token || '')) throw new JiraError('bad_credentials', `token from ${source} is malformed (8+ printable characters, no spaces)`);
-  registerSecret(token, email ? Buffer.from(`${email}:${token}`).toString('base64') : '');
+  registerSecret({ raw: token }, email ? Buffer.from(`${email}:${token}`).toString('base64') : '');
   const c = { email: email || '', source };
   Object.defineProperty(c, 'token', { value: token, enumerable: false }); // keeps the token out of JSON.stringify / inspect
   return c as JiraCredentials; // token was defined on the line above (non-enumerable, so TypeScript cannot see it)
@@ -362,7 +405,7 @@ export function makeClient({ baseConfig = {}, creds, fetchImpl, sleep, now, rand
   }
   if (!creds || !creds.token || (!dc && !creds.email)) throw new JiraError('no_credentials', dc ? 'a personal access token is required' : 'an email and an API token are required');
   const token = String(creds.token), email = String(creds.email || '');
-  registerSecret(token); if (!dc) registerSecret(Buffer.from(`${email}:${token}`).toString('base64'));
+  registerSecret({ raw: token }); if (!dc) registerSecret(Buffer.from(`${email}:${token}`).toString('base64'));
   const authHeader = dc ? `Bearer ${token}` : `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}`;
   const fetchFn = fetchImpl ?? globalThis.fetch, sleepFn = sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms))), rnd = random ?? Math.random;
   const clock = () => new Date(now ? now() : Date.now());
