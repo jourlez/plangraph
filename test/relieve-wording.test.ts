@@ -19,13 +19,13 @@ test('the targets together lack room: "the targets have room for X of Y SP"', ()
   assert.deepEqual(renderRelieve(r, { cmd: () => null }), [
     'NO RELIEF: Ana S2 4/2: no relief found within the allowed moves (this cell\'s tickets, later sprints, same owner)',
     '- frozen (started or closed) 1: Z', '- the targets have room for 1 of 2 SP',
-    'try: --earlier, --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too']);
+    'try: --earlier, --owner-change, or plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too']);
 });
 
 test('sprint N is first_sprint: the try: line does not suggest --earlier', () => {
   const r = relieve(roomModel(2), { person: 'Ana', sprint: 2 });
   assert.equal(r.status, 'no_relief');
-  assert.equal(renderRelieve(r, { cmd: () => null }).at(-1), 'try: --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too');
+  assert.equal(renderRelieve(r, { cmd: () => null }).at(-1), 'try: --owner-change, or plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too');
   const both = relieve(roomModel(2), { person: 'Ana', sprint: 2 }, { allowOwnerChange: true });
-  assert.equal(renderRelieve(both, { cmd: () => null }).at(-1), 'try: brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too');
+  assert.equal(renderRelieve(both, { cmd: () => null }).at(-1), 'try: plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too');
 });

@@ -2,8 +2,8 @@
  "attr-big": [
   [
    ".gitattributes refused: larger than 262144 bytes",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
   ],
   {
    "(error)": "Error",
@@ -14,8 +14,8 @@
  "attr-dir": [
   [
    ".gitattributes refused: not a regular file",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
   ],
   {
    "(error)": "Error",
@@ -26,8 +26,8 @@
  "attr-symlink": [
   [
    ".gitattributes refused: it is a symlink",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
   ],
   {
    "(error)": "Error",
@@ -110,9 +110,9 @@
   "attributes": true,
   "config": true,
   "executable": false,
-  "driver": "no-such-brain-merge-on-path %O %A %B %P",
+  "driver": "no-such-plangraph-merge-on-path %O %A %B %P",
   "problems": [
-   "merge driver executable not found: no-such-brain-merge-on-path"
+   "merge driver executable not found: no-such-plangraph-merge-on-path"
   ]
  },
  "doctor-none": {
@@ -123,7 +123,7 @@
   "driver": "",
   "problems": [
    ".gitattributes lacks \".plangraph/*.jsonl merge=plangraph-jsonl\"",
-   "git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)"
+   "git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `plangraph init` or `plangraph doctor --fix` in every clone)"
   ]
  },
  "doctor-other-dir": {
@@ -131,10 +131,10 @@
   "attributes": false,
   "config": true,
   "executable": false,
-  "driver": "no-such-brain-merge-on-path %O %A %B %P",
+  "driver": "no-such-plangraph-merge-on-path %O %A %B %P",
   "problems": [
    ".gitattributes lacks \"elsewhere/*.jsonl merge=plangraph-jsonl\"",
-   "merge driver executable not found: no-such-brain-merge-on-path"
+   "merge driver executable not found: no-such-plangraph-merge-on-path"
   ]
  },
  "doctor-shim-empty": {
@@ -144,8 +144,8 @@
   "executable": true,
   "driver": "<repo>/data-dir/bin/plangraph-merge %O %A %B %P",
   "problems": [
-   "merge driver shim has an unreadable or empty driver.target in <repo>/data-dir: run `brain doctor --fix`",
-   "merge driver shim has an unreadable or empty driver.node in <repo>/data-dir: run `brain doctor --fix`"
+   "merge driver shim has an unreadable or empty driver.target in <repo>/data-dir: run `plangraph doctor --fix`",
+   "merge driver shim has an unreadable or empty driver.node in <repo>/data-dir: run `plangraph doctor --fix`"
   ]
  },
  "doctor-shim-missing": {
@@ -155,8 +155,8 @@
   "executable": true,
   "driver": "<repo>/data-dir/bin/plangraph-merge %O %A %B %P",
   "problems": [
-   "merge driver.target points to a missing file: <repo>/missing.mjs: run `brain doctor --fix`",
-   "merge driver.node points to a missing file: <repo>/missing-node: run `brain doctor --fix`"
+   "merge driver.target points to a missing file: <repo>/missing.mjs: run `plangraph doctor --fix`",
+   "merge driver.node points to a missing file: <repo>/missing-node: run `plangraph doctor --fix`"
   ]
  },
  "doctor-shim-ok": [],
@@ -165,10 +165,10 @@
   "attributes": true,
   "config": true,
   "executable": false,
-  "driver": "/u/.claude/plugins/cache/x/1/bin/brain-merge %O %A %B %P",
+  "driver": "/u/.claude/plugins/cache/x/1/bin/plangraph-merge %O %A %B %P",
   "problems": [
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/brain-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `brain doctor --fix`"
+   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
+   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
   ]
  },
  "driver-default": [
@@ -186,11 +186,11 @@
   },
   {
    "(error)": "TypeError",
-   "message": "refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -"
+   "message": "refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -"
   },
   {
    "(error)": "TypeError",
-   "message": "refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -"
+   "message": "refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -"
   }
  ],
  "driver-unreadable": "ok",
@@ -205,12 +205,12 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
     "code": "NEEDS_MIGRATION"
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
     "code": "NEEDS_MIGRATION"
    }
   ],
@@ -390,7 +390,7 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 1) is newer than this tool supports (1): upgrade the brain tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 1) is newer than this tool supports (1): upgrade the plangraph tool",
     "code": "TOO_NEW"
    },
    {
@@ -409,12 +409,12 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the brain tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the plangraph tool",
     "code": "TOO_NEW"
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the brain tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the plangraph tool",
     "code": "TOO_NEW"
    }
   ],
@@ -427,12 +427,12 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
     "code": "NEEDS_MIGRATION"
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `brain migrate --write`",
+    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
     "code": "NEEDS_MIGRATION"
    }
   ]
@@ -468,19 +468,19 @@
  "install": [
   {
    "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "'/opt/brain'\\''s tools/brain-merge' %O %A %B %P"
+   "driver": "'/opt/plangraph'\\''s tools/plangraph-merge' %O %A %B %P"
   },
   "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\n",
   {
-   "gitattributes": "data/brain/*.jsonl merge=plangraph-jsonl",
-   "driver": "no-such-brain-merge-on-path %O %A %B %P"
+   "gitattributes": "data/plangraph/*.jsonl merge=plangraph-jsonl",
+   "driver": "no-such-plangraph-merge-on-path %O %A %B %P"
   },
-  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\ndata/brain/*.jsonl merge=plangraph-jsonl\n"
+  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\ndata/plangraph/*.jsonl merge=plangraph-jsonl\n"
  ],
  "install-quoted-doctor": [
   {
    "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P"
+   "driver": "'<repo>/it'\\''s here/plangraph-merge' %O %A %B %P"
   },
   "plangraph jsonl three-way merge\n",
   {
@@ -488,7 +488,7 @@
    "attributes": true,
    "config": true,
    "executable": true,
-   "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P",
+   "driver": "'<repo>/it'\\''s here/plangraph-merge' %O %A %B %P",
    "problems": []
   }
  ],
@@ -580,7 +580,7 @@
   "written": true
  },
  "migrate-refusals": [
-  "{\"(error)\":\"FormatError\",\"message\":\"<dir>: data format 9 is newer than this tool supports (1): upgrade the brain tool\",\"code\":\"TOO_NEW\"}",
+  "{\"(error)\":\"FormatError\",\"message\":\"<dir>: data format 9 is newer than this tool supports (1): upgrade the plangraph tool\",\"code\":\"TOO_NEW\"}",
   {
    "(error)": "IngestError",
    "message": "tickets.jsonl: is a symlink, not a regular file"

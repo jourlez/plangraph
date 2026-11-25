@@ -1,5 +1,5 @@
-$ brain card --json
+$ plangraph card --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"card","ok":true,"exit":0,"data":{"lines":["brain 0512544c | 40 tickets, 76 links, S1-S5, 3 people","verdicts: <untrusted n=\"fe7e5bee\">39 READY, 1 BLOCKED</untrusted>","over cap: none","findings: <untrusted n=\"319b1427\">plan_text 2, export_clash 1, external 1, +1 more</untrusted>","plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"card","ok":true,"exit":0,"data":{"lines":["plangraph 0512544c | 40 tickets, 76 links, S1-S5, 3 people","verdicts: <untrusted n=\"fe7e5bee\">39 READY, 1 BLOCKED</untrusted>","over cap: none","findings: <untrusted n=\"319b1427\">plan_text 2, export_clash 1, external 1, +1 more</untrusted>","plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
 --- stderr

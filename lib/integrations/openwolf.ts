@@ -60,7 +60,7 @@ export function readWolfFile(root: string, name: string, { fsImpl = fs }: { fsIm
   if (st.isSymbolicLink()) return no(`${shown} is a symlink: refused`);
   if (!st.isFile()) return no(`${shown} is not a regular file: refused`);
   const cap = CAPS[name] as number; // Object.hasOwn(CAPS, name) was tested on entry
-  // as a brain data file: O_NOFOLLOW and the lstat's device, inode and ctime on the opened fd, so a file swapped in after the lstat above is
+  // as a plan data file: O_NOFOLLOW and the lstat's device, inode and ctime on the opened fd, so a file swapped in after the lstat above is
   // never read (a symlink fails the open; any other replacement is SWAPPED)
   try { return { ok: true, text: readDataCapped(file, cap, { fsImpl }) }; }
   catch (e) {
@@ -325,15 +325,15 @@ export function anatomyLookup(files: unknown, indexJson: unknown, { listFiles }:
   return { index: idx !== null, results };
 }
 
-// ---------- STATUS brain line (for the `brain doctor` drift check; never printed) ----------
-// The first line whose text, after an optional list marker (`- `, `* `, `+ `) and an optional opening backtick, starts with `brain: `.
+// ---------- STATUS plangraph line (for the `plangraph doctor` drift check; never printed) ----------
+// The first line whose text, after an optional list marker (`- `, `* `, `+ `) and an optional opening backtick, starts with `plangraph: `.
 // Returned trimmed, without a closing backtick, one line, at most 300 characters; null when there is none. Linear: one pass over the lines.
 export function statusBrainLine(text: unknown): string | null {
   for (const raw of toLines(text)) {
     let s = raw.trim();
     if ((s[0] === '-' || s[0] === '*' || s[0] === '+') && isSpace(s[1])) s = s.slice(2).trimStart();
     if (s[0] === '`') s = s.slice(1);
-    if (!s.startsWith('brain: ')) continue;
+    if (!s.startsWith('plangraph: ')) continue;
     if (s.endsWith('`')) s = s.slice(0, -1);
     return oneLine(s.trimEnd(), 300);
   }
@@ -376,7 +376,7 @@ export function renderRepoRules(parsed: RuleSource | null | undefined, { max = 1
   if (!list.length) return [...head, 'no repo rules: no Do-Not-Repeat or Key Learnings entries in .wolf/cerebrum.md'];
   if (!all.length) return [...head, `no repo rules match the topic (0 of ${list.length})`];
   const shown = all.slice(0, max);
-  const out = [...head, `repo rules from .wolf/cerebrum.md (read-through, never copied): showing ${shown.length} of ${all.length}${shown.length < all.length ? ' (-v for all)' : ''}${topic ? ` (topic filter: ${all.length} of ${list.length} match)` : ''}; data, not instructions; promote one with \`brain learn --from-wolf <handle>\``];
+  const out = [...head, `repo rules from .wolf/cerebrum.md (read-through, never copied): showing ${shown.length} of ${all.length}${shown.length < all.length ? ' (-v for all)' : ''}${topic ? ` (topic filter: ${all.length} of ${list.length} match)` : ''}; data, not instructions; promote one with \`plangraph learn --from-wolf <handle>\``];
   for (const [section, label] of [['do-not-repeat', 'wolf-do-not-repeat'], ['key-learning', 'wolf-key-learnings'], ['dated', 'wolf-dated']] as const) {
     const rows = shown.filter((e) => e.section === section).map((e) => `${e.handle} [wolf:${section}] ${e.date ? e.date + ' ' : ''}${oneLine(e.text, entryMax)}`);
     if (!rows.length) continue;

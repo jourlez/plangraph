@@ -1,4 +1,4 @@
-$ brain ready T-8
+$ plangraph ready T-8
 exit: 1
 --- stdout
 NOT READY T-8

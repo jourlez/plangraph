@@ -1,4 +1,4 @@
-$ brain ready --person Ana --sprint 1
+$ plangraph ready --person Ana --sprint 1
 exit: 0
 --- stdout
 Ana S1: ready 2 of 5, done 0, not ready 3 (waiting on producers 1, open items 2)

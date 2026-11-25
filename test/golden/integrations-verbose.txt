@@ -1,4 +1,4 @@
-$ brain integrations -v
+$ plangraph integrations -v
 exit: 0
 --- stdout
 superpowers: absent
@@ -23,6 +23,6 @@ connector hints (connectors cannot be detected from a shell; match these against
   artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))
 always-on token budget, measured 2026-11-22 on one machine, not a live measurement:
   openwolf 1067
-  brain card 185
+  plangraph card 185
   total 1252
 --- stderr

@@ -1,6 +1,6 @@
-// The definition of ready lives in ONE pure function (lib/ready.ts): `brain ready` and `brain report` both call it.
+// The definition of ready lives in ONE pure function (lib/ready.ts): `plangraph ready` and `plangraph report` both call it.
 // A ticket whose own status is closed (Jira status in Done + config.closed_statuses, or an sp: task with impl_status done) is DONE: not
-// ready to start (exit 1, a negative answer) and not under "Can start today". `brain blockers` stays the stored verdict list.
+// ready to start (exit 1, a negative answer) and not under "Can start today". `plangraph blockers` stays the stored verdict list.
 // Not covered here: the readiness rules over a generated plan against the CLI and an independent brute-force oracle (test/report.test.ts).
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ import type { Ticket } from '../lib/model.ts';
 import { readiness, readySet, closedStatuses } from '../lib/ready.ts';
 import { buildReport } from '../lib/report.ts';
 
-const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/brain');
+const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE: string, REPO: string;
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
@@ -60,7 +60,7 @@ test('readiness: own status closed -> done, never ready; the Jira snapshot statu
   assert.deepEqual(readySet(m).done, ['D-1', 'D-2', 'sp:a']);
 });
 
-test('brain ready on a Done ticket says DONE with exit 1 (a negative answer), also in --json', () => {
+test('plangraph ready on a Done ticket says DONE with exit 1 (a negative answer), also in --json', () => {
   let r = run('ready', 'D-1');
   assert.deepEqual([r.status, r.stdout, r.stderr], [1, 'DONE D-1 (status Done)\n', '']);
   r = run('ready', 'D-2');

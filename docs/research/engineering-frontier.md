@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # plangraph: engineering frontier, threat model and audit
 
 Date: 2026-11-22. Scope: bin/*, lib/*.mjs, hooks/, skills/, docs/CONTRACT.md, docs/JIRA.md, .claude-plugin/*. No project code was modified. All reproductions ran in a throwaway fixture (a git repo made by `brain init` in the session scratchpad, `fx/`, plus decoy targets next to it). Evidence tags: VERIFIED = primary source read or reproduced locally; SECONDARY = reputable secondary source; UNVERIFIED = reasoning or search snippet only.

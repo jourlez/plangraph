@@ -149,9 +149,9 @@ test('sp: tickets: unplaced is not UNPLACED; placed ones are verified like any t
 });
 
 // ---------- first-sprint window: oracle agreement with the solver's own verifier ----------
-// bin/brain-solve's prepare() and verify() need no OR-Tools (it is imported in main()), so the solver module itself is the oracle:
+// bin/plangraph-solve's prepare() and verify() need no OR-Tools (it is imported in main()), so the solver module itself is the oracle:
 // every instance of a small exhaustive grid is judged by both, and the sets of tickets reported before the first sprint must be equal.
-const SOLVER = path.join(import.meta.dirname, '../bin/brain-solve');
+const SOLVER = path.join(import.meta.dirname, '../bin/plangraph-solve');
 const ORACLE = `
 import sys, json, argparse, importlib.machinery, importlib.util
 loader = importlib.machinery.SourceFileLoader('brain_solve', sys.argv[1])
@@ -167,7 +167,7 @@ print(json.dumps(out))
 `;
 const python = () => { const r = spawnSync('python3', ['--version'], { encoding: 'utf8' }); return r.status === 0; };
 
-test('BEFORE_FIRST agrees with bin/brain-solve verify() on an exhaustive grid (first_sprint, frozen_statuses, frozen_before_sprint)', { skip: !python() && 'python3 not found' }, () => {
+test('BEFORE_FIRST agrees with bin/plangraph-solve verify() on an exhaustive grid (first_sprint, frozen_statuses, frozen_before_sprint)', { skip: !python() && 'python3 not found' }, () => {
   const insts: Array<{ tickets: Ticket[]; cur: Record<string, [string, number]>; assign: Record<string, [string, number]>; cfg: PlanConfig }> = [], S = [0, 1, 2];
   for (const ca of S) for (const cb of S) for (const aa of S) for (const ab of S) for (const sa of ['To Do', 'In Progress', 'Done']) for (const sb of ['To Do', '']) for (const first of [0, 1, 2, 3]) for (const fst of [[], ['In Progress'], ['']]) for (const fb of [undefined, 1, 2]) {
     const cfg = { end_sprint: 9, caps: { default: 50 }, first_sprint: first, frozen_statuses: fst, ...(fb === undefined ? {} : { frozen_before_sprint: fb }) };
@@ -204,7 +204,7 @@ test('BEFORE_FIRST: message, opts.frozen exemption, default first sprint 1, and 
   assert.ok(verifyPlan(m({ first_sprint: -1e6 })).every((v) => v.code !== 'CONFIG'), 'the bound itself is accepted');
 });
 
-test('BEFORE_FIRST: Done and closed_statuses tickets are always frozen (as in bin/brain-solve), whatever frozen_statuses says', () => {
+test('BEFORE_FIRST: Done and closed_statuses tickets are always frozen (as in bin/plangraph-solve), whatever frozen_statuses says', () => {
   const tickets = [{ key: 'A', sp: 1, jira_status: 'Done' }, { key: 'B', sp: 1, jira_status: 'Closed' }, { key: 'C', sp: 1, jira_status: 'To Do' }];
   const schedule = [{ key: 'A', owner: 'Ana', sprint: 1 }, { key: 'B', owner: 'Ana', sprint: 1 }, { key: 'C', owner: 'Ana', sprint: 1 }];
   const m = (config: PlanConfig) => buildModel({ tickets, schedule, config: { caps: { default: 10 }, first_sprint: 2, ...config } });

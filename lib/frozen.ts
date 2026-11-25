@@ -1,5 +1,5 @@
 // lib/frozen.ts: the frozen-history rule, in ONE place (pure: plain model data in, booleans out; no I/O). lib/verify.ts, lib/whatif.ts
-// (whatif, proposeMove, relieve) and lib/ready.ts read it from here; bin/brain-solve mirrors it in Python (prepare: pr.closed, pr.frozen),
+// (whatif, proposeMove, relieve) and lib/ready.ts read it from here; bin/plangraph-solve mirrors it in Python (prepare: pr.closed, pr.frozen),
 // and test/frozen.test.ts compares the two on a grid.
 //
 // CLOSED: the ticket is finished. An `sp:` task whose impl_status is `done`, or any ticket whose jira_status is `Done` or one of
@@ -47,8 +47,8 @@ export function frozenTest(model: Model, opts: { frozen?: { has: (k: string) => 
   };
 }
 
-/** The frozen tickets of the CURRENT schedule with their slots: Map key -> {owner, sprint} (only placed tickets). `brain verify FILE`
- * passes it as opts.frozen (so FROZEN_MOVED fires) and `brain schedule-load` refuses a schedule that moves one. */
+/** The frozen tickets of the CURRENT schedule with their slots: Map key -> {owner, sprint} (only placed tickets). `plangraph verify FILE`
+ * passes it as opts.frozen (so FROZEN_MOVED fires) and `plangraph schedule-load` refuses a schedule that moves one. */
 export function frozenSlots(model: Model): Map<string, { owner: string; sprint: number }> {
   const frozen = frozenTest(model), out = new Map<string, { owner: string; sprint: number }>();
   for (const [k, p] of model.sched) if (model.tickets.has(k) && placed(p) && frozen(k)) out.set(k, { owner: p.owner, sprint: p.sprint });

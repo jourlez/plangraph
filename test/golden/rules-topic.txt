@@ -1,4 +1,4 @@
-$ brain rules loops
+$ plangraph rules loops
 exit: 0
 --- stdout
 <untrusted src="rules:loops" n="de6e2e9d" len="355">

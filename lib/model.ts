@@ -83,7 +83,7 @@ export function buildModel({ tickets = [], edges = [], schedule = [], config = {
 }
 
 // config.json: THE one reader (loadModel, src/context.ts ctx.config() and every command go through it). Small and repo-controlled: one
-// capped read through the same data-file reader as every brain file (lib/jsonl.ts readDataCapped: lstat refuses a symlink, one fd opened
+// capped read through the same data-file reader as every plangraph file (lib/jsonl.ts readDataCapped: lstat refuses a symlink, one fd opened
 // with O_NOFOLLOW, its fstat dev/ino compared with the lstat, a FIFO, device or directory refused, at most CONFIG_MAX bytes), then a JSON object.
 // Missing -> {}. Failures are an IngestError (exit 2 in the CLI) with a `code` and a fixed message naming the base file only (never a path
 // or the content). A symlink swapped in between the lstat and the open fails the open (SYMLINK); any other file swapped in is refused

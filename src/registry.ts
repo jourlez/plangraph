@@ -20,16 +20,16 @@ export type CommandMap = Record<string, CommandSpec>;
 export interface Command { run: Handler['run']; options: Options; positionals: readonly [number, number]; summary: string; writes: Writes; guard: Guard; also?: readonly string[] }
 
 const NAME = /^[a-z][a-z0-9-]{0,39}$/;
-// writes: text/index = brain data; file = no brain data, but output files on request (--out, card --write); none = read-only.
+// writes: text/index = plan data; file = no plan data, but output files on request (--out, card --write); none = read-only.
 const WRITES = new Set(['text', 'index', 'file', 'none']);
-// Writes outside the brain data that a class does not say: the merge-driver wiring (git config of the repository, its .gitattributes, the
+// Writes outside the plan data that a class does not say: the merge-driver wiring (git config of the repository, its .gitattributes, the
 // shim in the plugin data dir). A command that always does them lists them in `also`; a flag that does them, in its option's `writes`.
 const SIDE_WRITES: readonly string[] = Object.freeze(['git-config', 'gitattributes', 'merge-shim']);
 const sideWrites = (where: string, list: unknown): readonly string[] => {
   if (!Array.isArray(list) || !list.length || list.some((x) => !SIDE_WRITES.includes(x)) || new Set(list).size !== list.length) throw new TypeError(`${where}: writes must be a non-empty list of ${SIDE_WRITES.join(', ')}`);
   return Object.freeze([...list]);
 };
-// Data-format guard (lib/store.ts checkFormat) run by src/cli.ts before the command when the brain dir exists:
+// Data-format guard (lib/store.ts checkFormat) run by src/cli.ts before the command when the plan dir exists:
 // 'none' skips it; 'soft' prints a NEEDS_MIGRATION note and runs; 'strict' (commands that write text) refuses on any format problem.
 // A TOO_NEW directory is refused by 'soft' and 'strict' alike. A function gets the parsed option values and returns one of the three.
 const GUARDS = new Set<unknown>(['none', 'soft', 'strict']);
@@ -61,5 +61,5 @@ export function defineCommand(reg: Map<string, Command>, name: unknown, spec: un
   return cmd;
 }
 
-// ---------- the brain commands ----------
+// ---------- the plangraph commands ----------
 for (const group of Object.values(GROUPS)) for (const [name, spec] of Object.entries(group)) defineCommand(registry, name, spec);

@@ -1,24 +1,24 @@
 # Optional read-only MCP adapter
 
-`mcp/brain-mcp.ts` is a small MCP server (stdio) with three read-only tools: `ready`, `whatif` (dry run only) and `ticket`. It is
+`mcp/plangraph-mcp.ts` is a small MCP server (stdio) with three read-only tools: `ready`, `whatif` (dry run only) and `ticket`. It is
 **off by default**. Installing the plugin does not start it and does not add it to any session: `plugin.json` has no `mcpServers` entry,
 there is no `.mcp.json` at the plugin root, and the file is not in `bin/`, so it is not a command on PATH. A default install pays zero
 tokens for it (checked with `claude plugin details`, below).
 
-It duplicates the CLI. Everything it can answer, `brain ready KEY`, `brain whatif KEY ...` and `brain ticket KEY` already answer through
+It duplicates the CLI. Everything it can answer, `plangraph ready KEY`, `plangraph whatif KEY ...` and `plangraph ticket KEY` already answer through
 Bash, with the same bytes. Turn it on only if your own evals show the MCP condition is no worse than the CLI (success within noise,
 median total tokens not worse by more than 25%; docs/research/ai-engineering.md section 6.3). Two reasons you might: a client with no
-shell, or a locked-down session where you would rather grant three read-only tools than `Bash(brain *)`.
+shell, or a locked-down session where you would rather grant three read-only tools than `Bash(plangraph *)`.
 
 ## Turning it on
 
-Pick one. The server finds the repository from its working directory, the way `brain` does (the nearest `.git`, then `PLANGRAPH_DIR`,
+Pick one. The server finds the repository from its working directory, the way `plangraph` does (the nearest `.git`, then `PLANGRAPH_DIR`,
 `.plangraphrc` or `.plangraph`), so register it where the client starts it in the project.
 
 1. Claude Code, one project, private to you (stored in your user config, not in the repo):
 
    ```
-   claude mcp add brain -- node /absolute/path/to/plangraph/mcp/brain-mcp.ts
+   claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
    ```
 
 2. A project `.mcp.json` you commit in YOUR repository (Claude Code asks each person to approve it once):
@@ -26,10 +26,10 @@ Pick one. The server finds the repository from its working directory, the way `b
    ```json
    {
      "mcpServers": {
-       "brain": {
+       "plangraph": {
          "type": "stdio",
          "command": "node",
-         "args": ["/absolute/path/to/plangraph/mcp/brain-mcp.ts"]
+         "args": ["/absolute/path/to/plangraph/mcp/plangraph-mcp.ts"]
        }
      }
    }
@@ -38,7 +38,7 @@ Pick one. The server finds the repository from its working directory, the way `b
 Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details plangraph` shows its
 source). The installed copy's path contains the version, so it changes on update; a checkout does not. Node 24.2 or newer is needed.
 
-Turning it off: `claude mcp remove brain`, or delete the entry. Do not add the snippet to the plugin's own root: Claude Code would then
+Turning it off: `claude mcp remove plangraph`, or delete the entry. Do not add the snippet to the plugin's own root: Claude Code would then
 start it for every user of the plugin.
 
 For evals, `claude --strict-mcp-config --mcp-config <file>` runs a session with only the servers in that file (condition C of the
@@ -48,17 +48,17 @@ eval plan), so other servers do not skew the token counts.
 
 | tool | arguments | same text as |
 |---|---|---|
-| `ready` | `key`, `verbose` | `brain ready KEY [-v]` |
-| `whatif` | `key`, `to`, `sprint`, `earlier`, `owner_change`, `slip`, `strict`, `verbose` | `brain whatif KEY [--to P] [--sprint N] [flags] [-v]`, never `--apply-plan` or `--write` |
-| `ticket` | `key`, `verbose` | `brain ticket KEY [-v]` |
+| `ready` | `key`, `verbose` | `plangraph ready KEY [-v]` |
+| `whatif` | `key`, `to`, `sprint`, `earlier`, `owner_change`, `slip`, `strict`, `verbose` | `plangraph whatif KEY [--to P] [--sprint N] [flags] [-v]`, never `--apply-plan` or `--write` |
+| `ticket` | `key`, `verbose` | `plangraph ticket KEY [-v]` |
 
-Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command that writes. The bulk forms `brain ready --person NAME
---sprint N` and `brain whatif --relieve NAME --sprint N` are read-only and bounded, but they are CLI-only on purpose: adding their
+Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command that writes. The bulk forms `plangraph ready --person NAME
+--sprint N` and `plangraph whatif --relieve NAME --sprint N` are read-only and bounded, but they are CLI-only on purpose: adding their
 arguments would raise the up-front tool-definition cost every MCP session pays (the table below), for a server that is off by default.
 
 A call runs the same command through the CLI runner (`src/cli.ts`) with a collecting output, so fencing of untrusted text, output
 sanitization, the 40-line bound, the STALE warning and the error lines are the CLI's own. The result is one text item: the command's
-stdout lines, then its stderr lines (as `brain ... 2>&1` would print them in that order), cut at 256 KiB with a marker line.
+stdout lines, then its stderr lines (as `plangraph ... 2>&1` would print them in that order), cut at 256 KiB with a marker line.
 `isError` is true only for exit codes 2 and up (usage, data, environment, refused); `NOT READY` and a `NO:` dry run are answers (exit 1),
 not errors.
 
@@ -110,18 +110,18 @@ Claude Code 2.1.329 (the native CLI), in an isolated config (`CLAUDE_CONFIG_DIR`
 
 - Default plugin install (`claude plugin marketplace add <checkout>`, `claude plugin install plangraph@plangraph-marketplace`,
   `claude plugin details plangraph`): `MCP servers (0)`, always-on cost `~630 tok`, the same before and after this change.
-- Opt-in: `claude mcp add brain -- <script>` in a scratch git repository, then `claude mcp list` and `claude mcp get brain`:
+- Opt-in: `claude mcp add plangraph -- <script>` in a scratch git repository, then `claude mcp list` and `claude mcp get plangraph`:
   `✔ Connected`. A tee wrapper logged the exchange: Claude Code first sent `server/discover` (protocol 2026-07-28), got -32601, fell back
   to `initialize` with `protocolVersion` 2025-11-25, which was echoed, then sent `notifications/initialized` and `tools/list` and got the
   three tools. `test/mcp.test.ts` replays that exact sequence.
-- The `.mcp.json` snippet above, placed in a scratch repository: `claude mcp list` and `claude mcp get brain` read it as a project-scope
+- The `.mcp.json` snippet above, placed in a scratch repository: `claude mcp list` and `claude mcp get plangraph` read it as a project-scope
   stdio server, `⏸ Pending approval` (approval is interactive and was not given there).
 - `claude --help` lists `--mcp-config` and `--strict-mcp-config` as described above.
 
 Then, in a logged-in Claude Code 2.1.329 session with the server opted in (an owner-run session, not part of the automated tests):
 
 - Claude Code DEFERS the MCP tool definitions and loads them on demand: the model's first step was a `ToolSearch` select of the three
-  `brain` tools, and only then did it call them. The definitions are not in the context up front.
+  `plangraph` tools, and only then did it call them. The definitions are not in the context up front.
 - A model made the tool calls: a 5-turn session made 3 correct calls and cost $0.046 in total (as reported by Claude Code).
 
 Still not verified: how many tokens the deferred entry (the tool names listed for `ToolSearch`) costs before the first use; how Claude
@@ -140,22 +140,22 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 
 | up-front item | bytes | est tok |
 |---|--:|--:|
-| tool definitions (JSON of the 3 tools) | 1980 | 495 |
-| - ready | 613 | 154 |
-| - whatif | 833 | 209 |
-| - ticket | 530 | 133 |
-| tools/list reply line | 2024 | 506 |
+| tool definitions (JSON of the 3 tools) | 1992 | 498 |
+| - ready | 617 | 155 |
+| - whatif | 837 | 210 |
+| - ticket | 534 | 134 |
+| tools/list reply line | 2036 | 509 |
 | initialize reply line | 169 | 43 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|
-| 1 | ticket {"key":"T-700"} | 316 | 316 | yes | 411 | 95 | 79 | 103 |
-| 4 | ready {"key":"T-700"} | 500 | 500 | yes | 600 | 100 | 125 | 150 |
-| 15 | ticket {"key":"T-1200"} | 310 | 310 | yes | 405 | 95 | 77 | 101 |
-| 21 | ticket {"key":"T-20"} | 288 | 288 | yes | 383 | 95 | 72 | 96 |
-| 22 | ticket {"key":"T-99999"} | 87 | 87 | yes | 178 | 91 | 22 | 45 |
-| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 522 | 522 | yes | 613 | 91 | 131 | 154 |
-| | total | 2023 | | | 2590 | 567 | | |
+| 1 | ticket {"key":"T-700"} | 324 | 324 | yes | 419 | 95 | 81 | 105 |
+| 4 | ready {"key":"T-700"} | 508 | 508 | yes | 608 | 100 | 127 | 152 |
+| 15 | ticket {"key":"T-1200"} | 318 | 318 | yes | 413 | 95 | 79 | 103 |
+| 21 | ticket {"key":"T-20"} | 296 | 296 | yes | 391 | 95 | 74 | 98 |
+| 22 | ticket {"key":"T-99999"} | 95 | 95 | yes | 186 | 91 | 24 | 47 |
+| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 530 | 530 | yes | 621 | 91 | 133 | 156 |
+| | total | 2071 | | | 2638 | 567 | | |
 <!-- MCP-BENCH:END -->
 
 Reading it:

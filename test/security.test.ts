@@ -1,7 +1,7 @@
-// Task 12: the CLI wiring of the safety helpers, proven through real runs of bin/brain in mkdtemp git repos (removed in `after`).
+// Task 12: the CLI wiring of the safety helpers, proven through real runs of bin/plangraph in mkdtemp git repos (removed in `after`).
 // One test per verified finding of the brief (1-9), plus: format.json read through readCapped with symlink/non-regular refusal (a),
-// fencing of every free-text output and none in `card` (b), the brain dir shown relative to the repo root in format notes (c) and the
-// first-sprint window of `brain verify` (d; its oracle agreement with the solver's rule is in test/verify.test.ts).
+// fencing of every free-text output and none in `card` (b), the plan dir shown relative to the repo root in format notes (c) and the
+// first-sprint window of `plangraph verify` (d; its oracle agreement with the solver's rule is in test/verify.test.ts).
 // NOT covered here: jira-pull and jira-text against a live Jira (network); jira-text is driven through --from-json.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ import { STALE_WARNING } from '../src/context.ts';
 import type { SpawnSyncReturns } from 'node:child_process';
 type Row = Record<string, unknown>;
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sec-'))); tmps.push(d); return d; };
@@ -30,7 +30,7 @@ const ok = (r: SpawnSyncReturns<string>, what: string) => assert.equal(r.status,
 /** Every file under dir (recursive) -> its bytes, to prove "nothing written". */
 function snapshot(dir: string) {
   const m = new Map();
-  // bin/brain's private compile cache under the data dir (.data/compile-cache) is an optimization, not a command's write: left out
+  // bin/plangraph's private compile cache under the data dir (.data/compile-cache) is an optimization, not a command's write: left out
   const walk = (d: string) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (path.relative(dir, p) === path.join('.data', 'compile-cache')) continue; if (e.isDirectory()) walk(p); else m.set(path.relative(dir, p), e.isSymbolicLink() ? `-> ${fs.readlinkSync(p)}` : fs.readFileSync(p).toString('base64')); } };
   walk(dir); return m;
 }
@@ -42,7 +42,7 @@ function fenced(text: string, needle: string) {
 }
 
 const PLAN = '# Plan\n\n### Task 1: first\nbuild a\n\n### Task 2: second\nbuild b using a\n';
-/** A committed git repo with a built brain over a small generated plan and a refs row for T-1 (so bundle reads git). */
+/** A committed git repo with a built plangraph over a small generated plan and a refs row for T-1 (so bundle reads git). */
 function repo({ build = true } = {}) {
   const d = tmp();
   git(d, 'init', '-q');
@@ -83,32 +83,32 @@ test('(2) config ref_heading ^(a+)+{id}$ exits 2 quickly naming the allowed gram
   assert.equal(fs.existsSync(path.join(d, 'u')), false, 'units created no output dir');
 });
 
-// ---------- (3) the brain dir is confined to the repository ----------
+// ---------- (3) the plan dir is confined to the repository ----------
 test('(3) .plangraphrc {"dir":"../../x"} (and --dir, PLANGRAPH_DIR) exits 4 "outside the repository", nothing created', () => {
   const d = repo(), x = `x-${path.basename(d)}`; // a unique name: the host may already hold a ../../x
   put(d, '.plangraphrc', `{"dir":"../../${x}"}\n`);
   for (const [args, env] of ([[['ticket', 'T-1'], {}], [['init'], {}], [['ticket', 'T-1', '--dir', `../${x}`], {}], [['build'], { PLANGRAPH_DIR: `../${x}` }]] as Array<[string[], Record<string, string>]>)) { // a literal list of these tuples
     const r = run(d, args, env);
     assert.equal(r.status, 4, args.join(' '));
-    assert.equal(r.stderr, `error: brain directory is outside the repository\nhint: use a relative --dir inside the repository\ntry: brain explain ${args[0]}\n`, args.join(' '));
+    assert.equal(r.stderr, `error: plan directory is outside the repository\nhint: use a relative --dir inside the repository\ntry: plangraph explain ${args[0]}\n`, args.join(' '));
   }
   assert.equal(fs.existsSync(path.join(path.dirname(path.dirname(d)), x)), false);
   assert.equal(fs.existsSync(path.join(path.dirname(d), x)), false);
 });
 
 // ---------- (4) a symlinked state file is never written through ----------
-test('(4) .plangraph/findings.jsonl symlinked to a victim file: export exits 4, victim and brain dir untouched', () => {
+test('(4) .plangraph/findings.jsonl symlinked to a victim file: export exits 4, victim and plan dir untouched', () => {
   const d = repo(), victim = path.join(path.dirname(d), `victim-${path.basename(d)}.jsonl`);
   tmps.push(victim);
   const body = jl([{ key: 'T-1', kind: 'note', text: 'victim content' }]);
   fs.writeFileSync(victim, body);
   const f = path.join(d, '.plangraph/findings.jsonl'); fs.writeFileSync(f, body);
-  ok(run(d, ['build']), 'build'); // built from a regular file; `brain build` itself refuses a symlinked source (test/platform.test.ts)
+  ok(run(d, ['build']), 'build'); // built from a regular file; `plangraph build` itself refuses a symlinked source (test/platform.test.ts)
   fs.rmSync(f); fs.symlinkSync(victim, f);
   const before = snapshot(path.join(d, '.plangraph'));
   const r = run(d, ['export']);
   assert.equal(r.status, 4);
-  assert.equal(r.stderr, 'error: refusing to write findings.jsonl: it is a symlink (nothing was written)\ntry: brain explain export\n');
+  assert.equal(r.stderr, 'error: refusing to write findings.jsonl: it is a symlink (nothing was written)\ntry: plangraph explain export\n');
   assert.equal(fs.readFileSync(victim, 'utf8'), body);
   assert.deepEqual(snapshot(path.join(d, '.plangraph')), before);
 });
@@ -195,12 +195,12 @@ test('(b) bounds: many findings never cut a fence (ticket, findings KIND, ready)
   const b = run(d, ['bundle', 'T-1']); ok(b, 'bundle');
   assert.match(b.stdout, /z{100}…\[\+30\d{3} chars\]\n<\/untrusted>/, 'plan section capped at 20000 chars with the marker');
   assert.ok(fenced(b.stdout, 'zzzz') && /<untrusted src="plan:docs\/plan.md" n="" len="\d+">\n### Task 1: first/.test(b.stdout), 'plan section fenced');
-  assert.match(b.stdout, /^\.\.\. 10 more findings \(brain findings KIND\)$/m);
+  assert.match(b.stdout, /^\.\.\. 10 more findings \(plangraph findings KIND\)$/m);
   assert.ok(b.stdout.length < 60000, `bundle of one ticket is bounded (${b.stdout.length})`);
   const many = Array.from({ length: 101 }, (_, i) => `T-${i + 1}`);
   const r = run(d, ['bundle', ...many]);
   assert.equal(r.status, 2); assert.equal(r.stdout, '');
-  assert.equal(r.stderr, 'error: bundle takes at most 100 keys (got 101); use `brain units` for larger sets\ntry: brain explain bundle\n');
+  assert.equal(r.stderr, 'error: bundle takes at most 100 keys (got 101); use `plangraph units` for larger sets\ntry: plangraph explain bundle\n');
   ok(run(d, ['bundle', ...many.slice(0, 100)]), 'bundle of 100 keys');
 });
 
@@ -245,12 +245,12 @@ test('(8) a JSONL record with an unknown field builds and survives export', () =
 });
 
 // ---------- (9) prototype names are not commands ----------
-test('(9) brain constructor / __proto__ / toString / hasOwnProperty exit 2 unknown command', () => {
+test('(9) plangraph constructor / __proto__ / toString / hasOwnProperty exit 2 unknown command', () => {
   const d = tmp();
   for (const name of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
     const r = run(d, [name]);
     assert.equal(r.status, 2, name);
-    assert.equal(r.stderr, `error: unknown command ${name}\ntry: brain explain\n`);
+    assert.equal(r.stderr, `error: unknown command ${name}\ntry: plangraph explain\n`);
     assert.equal(r.stdout, '');
   }
 });
@@ -278,13 +278,13 @@ test('(a) format.json symlinked, a directory, too large or invalid: exit 2 with 
   }
 });
 
-// ---------- (c) format notes and errors name the brain dir relative to the repository ----------
-test('(c) the data-format note and the too-new error show the brain dir relative to the repo root', () => {
+// ---------- (c) format notes and errors name the plan dir relative to the repository ----------
+test('(c) the data-format note and the too-new error show the plan dir relative to the repo root', () => {
   const d = repo(), fmt = path.join(d, '.plangraph/format.json');
   fs.rmSync(fmt);
   const r = run(d, ['ticket', 'T-1']);
   ok(r, 'ticket');
-  assert.match(r.stderr, /^note: \.plangraph: data format 0 is older than 1: run `brain migrate --write`$/m);
+  assert.match(r.stderr, /^note: \.plangraph: data format 0 is older than 1: run `plangraph migrate --write`$/m);
   assert.ok(!r.stderr.includes(d));
   fs.writeFileSync(fmt, '{"format_version":99,"min_reader":99}\n');
   for (const args of [['ticket', 'T-1'], ['migrate']]) {
@@ -295,8 +295,8 @@ test('(c) the data-format note and the too-new error show the brain dir relative
   }
 });
 
-// ---------- (d) the first-sprint window of brain verify ----------
-test('(d) brain verify reports a free ticket placed before config.first_sprint; a frozen-status ticket keeps its sprint', () => {
+// ---------- (d) the first-sprint window of plangraph verify ----------
+test('(d) plangraph verify reports a free ticket placed before config.first_sprint; a frozen-status ticket keeps its sprint', () => {
   const d = repo(), cfg = path.join(d, '.plangraph/config.json');
   editJson(cfg, (c) => { c.first_sprint = 2; c.frozen_statuses = ['In Progress']; });
   ok(run(d, ['build']), 'build');

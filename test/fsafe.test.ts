@@ -47,11 +47,11 @@ test('files named like real leftovers (<file>.tmp-<pid>-<hex>) are untouched and
   assert.deepEqual(readdirSync(root).sort(), ['f.txt', ...left.map((l) => l.slice(root.length + 1))].sort());
 });
 test('a dangling symlink anywhere in the path is refused, even with a missing tail', () => {
-  const root = tmp(); symlinkSync('/nonexistent-brain-target', join(root, 'dangle'));
+  const root = tmp(); symlinkSync('/nonexistent-plangraph-target', join(root, 'dangle'));
   for (const t of [join(root, 'dangle'), join(root, 'dangle', 'sub', 'x')])
     assert.throws(() => assertInside(root, t), (e: NodeJS.ErrnoException) => e.code === 'OUTSIDE_REPO' && /dangling symlink/.test(e.message), t);
   assert.throws(() => writeAtomicSafe(join(root, 'dangle', 'x'), 'x', { root }), (e: NodeJS.ErrnoException) => e.code === 'OUTSIDE_REPO');
-  assert.equal(existsSync('/nonexistent-brain-target'), false);
+  assert.equal(existsSync('/nonexistent-plangraph-target'), false);
   const out = tmp(); symlinkSync(join(out, 'later'), join(root, 'later')); // dangling today, would be created outside the repo
   assert.throws(() => assertInside(root, join(root, 'later', 'x')), /dangling symlink/);
 });

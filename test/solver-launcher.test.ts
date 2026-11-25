@@ -1,4 +1,4 @@
-// bin/brain-solve-run on the no-uv fallback must not run code from the current directory. A plain `python -c`, `python -m venv` or
+// bin/plangraph-solve-run on the no-uv fallback must not run code from the current directory. A plain `python -c`, `python -m venv` or
 // `python -m pip` puts the current directory first on sys.path, so a repo that commits ortools.py, venv/ or pip.py would run it as the
 // user. Every python invocation of the launcher therefore carries -I (isolated mode: no current directory or script directory on
 // sys.path, PYTHON* variables and the user site ignored; -P alone does not exist on 3.10). The uv branches are not changed here.
@@ -21,12 +21,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const RUN = path.resolve(import.meta.dirname, '../bin/brain-solve-run');
+const RUN = path.resolve(import.meta.dirname, '../bin/plangraph-solve-run');
 const made: string[] = [];
 const tmp = (p: string) => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); made.push(d); return d; };
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 
-test('every python invocation in bin/brain-solve-run carries -I (isolated mode); the uv branches are left alone', () => {
+test('every python invocation in bin/plangraph-solve-run carries -I (isolated mode); the uv branches are left alone', () => {
   const code = fs.readFileSync(RUN, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l) && !/^\s*echo\b/.test(l) && !/\buv (run|sync|python)\b/.test(l));
   const PY = /("\$VENV\/bin\/python"|"python\$v"|\bpython3\b(?!\.))(\s+(\S+))?/g;
   const calls: string[] = [];
@@ -107,7 +107,7 @@ test('uv path: uv sync and uv python find run from the plugin bin directory, nev
   assert.equal(r.status, 0, r.stderr);
   const here = fs.realpathSync(path.dirname(RUN));
   const lines = fs.readFileSync(log, 'utf8').trim().split('\n');
-  assert.deepEqual(lines, [`uv ${here} sync --quiet`, `uv ${here} python find`, `solver ${cwd} ${path.join(here, 'brain-solve')} --in x.json`]);
+  assert.deepEqual(lines, [`uv ${here} sync --quiet`, `uv ${here} python find`, `solver ${cwd} ${path.join(here, 'plangraph-solve')} --in x.json`]);
 });
 
 // The `uv run` fallbacks (an older uv without `sync --script`, or PLANGRAPH_SOLVE_LAUNCH=uv-run) run in the caller's directory, where uv picks
@@ -137,7 +137,7 @@ test('the fallback passes an absolute --python found by uv python find run from 
   // sync fails (an older uv): the locked-script fallback
   const a = fallback();
   assert.equal(a.r.status, 0, a.r.stderr);
-  assert.deepEqual(a.lines.slice(1), [`uv ${a.here} python find >=3.10,<3.15`, `uv ${a.cwd} run --quiet --python ${a.py} --locked --script ${path.join(a.here, 'brain-solve')} --in x.json`]);
+  assert.deepEqual(a.lines.slice(1), [`uv ${a.here} python find >=3.10,<3.15`, `uv ${a.cwd} run --quiet --python ${a.py} --locked --script ${path.join(a.here, 'plangraph-solve')} --in x.json`]);
   // PLANGRAPH_SOLVE_LAUNCH=uv-run skips sync; PLANGRAPH_SOLVE_SCRIPT takes the --with branch; UV_PYTHON is the request given to uv python find
   const stub = path.join(tmp('sl-fbstub-'), 'solver.py'); fs.writeFileSync(stub, 'print(1)\n');
   const b = fallback({ script: stub, env: { PLANGRAPH_SOLVE_LAUNCH: 'uv-run', UV_PYTHON: '3.12' } });
@@ -149,7 +149,7 @@ test('with no interpreter found the fallback exits 3 naming uv python install 3.
   for (const find of ['', './evil/python3', '/nonexistent/python3']) {
     const c = fallback({ find });
     assert.equal(c.r.status, 3, `find ${JSON.stringify(find)}: ${c.r.stderr}`);
-    assert.equal(c.r.stderr, 'brain-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14\n');
+    assert.equal(c.r.stderr, 'plangraph-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14\n');
     assert.ok(!c.lines.some((l) => / run /.test(l)), `no uv run: ${c.lines.join(' | ')}`);
     assert.ok(!c.lines.some((l) => /python install/.test(l)), 'the launcher never installs a Python itself');
   }

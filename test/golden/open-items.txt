@@ -1,4 +1,4 @@
-$ brain open-items
+$ plangraph open-items
 exit: 0
 --- stdout
 open items: 6 (due S1: 5)

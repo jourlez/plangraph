@@ -1,7 +1,7 @@
 // Property (b): the CLI `check` and `verify` agree with each other and with the library, on a stratified subset of the verify families
-// (process spawn is slow, so the strata run in-process through src/cli.ts main over a built index, and a few also through bin/brain).
+// (process spawn is slow, so the strata run in-process through src/cli.ts main over a built index, and a few also through bin/plangraph).
 // Strata: every distinct combination of oracle violation kinds (plus "has a loop" and --enforce-min) in the quick verify enumeration,
-// first instance of each (full: up to 3 per combination). Only instances that `brain build` accepts are used (whole sprints, numeric sp,
+// first instance of each (full: up to 3 per combination). Only instances that `plangraph build` accepts are used (whole sprints, numeric sp,
 // no duplicate link key, no opts.frozen, which has no CLI flag).
 // Per instance: `verify --json -v` lists exactly lib verifyPlan's violations (code, key, detail), its exit is 1 iff any; and `check`
 // agrees with it: strict-rule violations == HANDOFF count, person-sprints over cap == CAPACITY count, loop-free == no CYCLE, the
@@ -22,7 +22,7 @@ import type { Instance, Placement } from './oracle.ts';
 import type { Level } from './enum.ts';
 import { makeRepo, run, tmpBase, rmBase } from './cli.ts';
 
-const BIN = path.join(import.meta.dirname, '../../bin/brain');
+const BIN = path.join(import.meta.dirname, '../../bin/plangraph');
 const buildable = (inst: Instance): boolean => !inst.frozen && new Set(inst.edges.map((e) => `${e.consumer}\t${e.producer}`)).size === inst.edges.length && inst.tickets.every((t) => typeof t.sp === 'number') && [...inst.sched.values()].every((p) => Number.isInteger(p.sprint) && typeof p.owner === 'string');
 const fail: (what: string, x: unknown) => never = (what, x) => assert.fail(`cli: ${what}\n${JSON.stringify(x)}`);
 
@@ -64,7 +64,7 @@ export async function assureCli(lvl: Level): Promise<{ strata: number; instances
       if (show(env.data.violations) !== show(lib) || env.data.total !== lib.length || v.code !== (lib.length ? 1 : 0)) fail('verify CLI differs from the library', { rows, cli: env.data, lib });
       const m = /strict-rule violations (\d+) \| person-sprints over cap (\d+) \| loop-free (true|false)/.exec(c.out);
       if (!m) fail('check output not recognized', { out: c.out });
-      const [hv, ov, lf] = [+m[1], +m[2], m[3] === 'true'], up = +(/ \| unplaced (\d+) \(brain verify lists them\)$/.exec(c.out)?.[1] ?? 0);
+      const [hv, ov, lf] = [+m[1], +m[2], m[3] === 'true'], up = +(/ \| unplaced (\d+) \(plangraph verify lists them\)$/.exec(c.out)?.[1] ?? 0);
       const n = (code: string): number => lib.filter((x) => x.code === code).length;
       if (up !== n('UNPLACED')) fail('check unplaced differs from verify UNPLACED', { rows, check: c.out, lib });
       const exact = [...inst.sched].every(([k, p]) => inst.tickets.some((t) => t.key === k) && validPlacement(p)) && inst.tickets.every((t) => validPlacement(inst.sched.get(t.key)));
@@ -75,7 +75,7 @@ export async function assureCli(lvl: Level): Promise<{ strata: number; instances
         for (const argv of [['check'], ['verify', '--json', '-v', ...flags]]) {
           const p = spawnSync(process.execPath, [BIN, ...argv], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: root, SOURCE_DATE_EPOCH: '1' } });
           const inproc = argv[0] === 'check' ? c : v;
-          if (p.stdout.trimEnd() !== inproc.out || p.status !== inproc.code) fail('bin/brain differs from in-process main', { argv, spawned: p.stdout, inproc: inproc.out });
+          if (p.stdout.trimEnd() !== inproc.out || p.status !== inproc.code) fail('bin/plangraph differs from in-process main', { argv, spawned: p.stdout, inproc: inproc.out });
         }
         counts.spawned++;
       }

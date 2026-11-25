@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Reproducible token benchmark: brain CLI answers vs. what an agent would otherwise read from the raw files.
+// Reproducible token benchmark: plangraph CLI answers vs. what an agent would otherwise read from the raw files.
 //   node test/bench-tokens.ts [--dir SCRATCH] [--no-write | --check]
 // --check compares the block with docs/TOKENS.md and exits 1 on drift without writing (used by test/packaging.test.ts).
 // Generates a synthetic plan (1400 tickets, 4 people, ~10k links, ~1.6 evidence rows per ticket, ~3k chars of plan text per ticket),
-// runs `bin/brain build` on it, then for a FIXED list of questions records the CLI answer, a grep baseline (only the matching lines,
+// runs `bin/plangraph build` on it, then for a FIXED list of questions records the CLI answer, a grep baseline (only the matching lines,
 // with file:line: prefixes, the generous baseline) and a file baseline (cat of the whole files needed).
 // Each CLI answer is checked against a ground truth computed straight from the JSONL with an independent JS implementation.
 // Reported per answer: bytes (exact, the source of truth) and `est tok` = ceil(chars/4 x factor), factor from
 // test/token-calibration.json (1.0, UNVERIFIED until the owner runs count_tokens against the current tokenizer). Exit code 1 if any
 // answer is wrong. The result table is written into docs/TOKENS.md between markers. Importing this file runs nothing (reportBlock is
 // exported for test/contract.test.ts).
-// Limits: synthetic data; the CLI as it is at run time (whatever bin/brain prints now); no MCP or competitor measured.
+// Limits: synthetic data; the CLI as it is at run time (whatever bin/plangraph prints now); no MCP or competitor measured.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +24,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const CALIBRATION = path.join(ROOT, 'test/token-calibration.json');
 const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'plangraph-bench'));
-const BRAIN = path.join(SCRATCH, 'brain');
+const BRAIN = path.join(SCRATCH, 'plangraph');
 const lt = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 // ---------- 1. generate ----------
@@ -52,9 +52,9 @@ function generate() {
   w('findings.jsonl', findings.sort((a, b) => lt(a.key, b.key) || lt(a.kind, b.kind) || lt(a.text, b.text)));
   fs.writeFileSync(path.join(BRAIN, 'config.json'), JSON.stringify(p.config) + '\n'); fs.writeFileSync(path.join(SCRATCH, 'plan', 'plan.md'), plan.join('\n'));
 }
-// a private plugin data directory in the scratch dir: bin/brain's compile cache never goes to the real HOME
+// a private plugin data directory in the scratch dir: bin/plangraph's compile cache never goes to the real HOME
 const run = (args: string[]) => {
-  const o = spawnSync(process.execPath, [path.join(ROOT, 'bin/brain'), ...args], { cwd: SCRATCH, env: { ...process.env, PLANGRAPH_DIR: path.relative(SCRATCH, BRAIN), CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }, encoding: 'utf8', timeout: 120000 });
+  const o = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), ...args], { cwd: SCRATCH, env: { ...process.env, PLANGRAPH_DIR: path.relative(SCRATCH, BRAIN), CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }, encoding: 'utf8', timeout: 120000 });
   return { out: ((o.stdout || '') + (o.stderr || '')).replace(/\n+$/, ''), code: o.status };
 };
 function main() {

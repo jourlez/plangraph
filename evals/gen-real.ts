@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Real-project eval generator. Reads a project's brain directory (READ-ONLY; found through its .plangraphrc, else .plangraph) and writes, into a
+// Real-project eval generator. Reads a project's plan directory (READ-ONLY; found through its .plangraphrc, else .plangraph) and writes, into a
 // TEMP directory only, a self-contained suite: a private copy of the plugin, the copied plan as fixture R, the native case directories
 // and cases.json (the case objects with ground truth, for evals/report.ts). Real people, ticket keys and summaries therefore exist only
 // in that temp directory: nothing is ever written into this repository or into the source project.
 //   node evals/gen-real.ts --from <project root> [--out <empty dir outside both trees>] [--runs N] [--verify]
-// --verify cross-checks every derivable answer against the real `brain` CLI on scaffolded workspaces (zero model calls).
+// --verify cross-checks every derivable answer against the real `plangraph` CLI on scaffolded workspaces (zero model calls).
 // Output: one line per fact (out dir, counts), never ticket text, keys or names. Exit 0 ok, 1 truth mismatch (--verify), 2 refused.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -55,13 +55,13 @@ export function readBrain(from: string): { dir: string; files: Record<string, st
     if (!j || typeof j.dir !== 'string' || !j.dir) refuse('.plangraphrc needs a "dir" string');
     dir = j.dir;
   }
-  let abs: string | undefined; try { abs = resolveBrainDir(root, dir); } catch { refuse('the brain directory is not usable'); }
-  if (!fs.existsSync(path.join(abs, 'tickets.jsonl'))) refuse('no tickets.jsonl in the brain directory');
+  let abs: string | undefined; try { abs = resolveBrainDir(root, dir); } catch { refuse('the plan directory is not usable'); }
+  if (!fs.existsSync(path.join(abs, 'tickets.jsonl'))) refuse('no tickets.jsonl in the plan directory');
   const files: Record<string, string> = {};
   for (const n of COPY) {
     const f = path.join(abs, n);
     if (!fs.existsSync(f)) { files[n] = n === 'config.json' ? '{}\n' : ''; continue; }
-    if (fs.lstatSync(f).isSymbolicLink()) refuse('a brain data file is a symlink');
+    if (fs.lstatSync(f).isSymbolicLink()) refuse('a plan data file is a symlink');
     files[n] = readCapped(f, MAX_FILE);
   }
   return { dir: path.posix.normalize(dir.split(path.sep).join('/')).replace(/\/$/, ''), files };
@@ -123,7 +123,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(process
       const r = generateReal({ from: o.from, out: o.out, runs, verify: !!o.verify });
       process.stdout.write(`out: ${r.out}\ncases: ${r.manifest.cases} (${r.manifest.families} families) on ${r.manifest.tickets} tickets, ${r.manifest.people} people\nskipped families: ${r.manifest.skipped.length ? r.manifest.skipped.join(', ') : 'none'}\n`);
       if (r.truth) {
-        process.stdout.write(`truth vs brain CLI: ${r.truth.checked.length} cases checked, ${r.truth.mismatches.length} mismatches, ${r.truth.unchecked.length} not CLI-derivable\n`);
+        process.stdout.write(`truth vs plangraph CLI: ${r.truth.checked.length} cases checked, ${r.truth.mismatches.length} mismatches, ${r.truth.unchecked.length} not CLI-derivable\n`);
         for (const x of r.truth.mismatches.slice(0, 20)) process.stdout.write(`  mismatch: ${x.id} ${x.what}\n`);
         if (r.truth.mismatches.length) process.exitCode = 1;
       }

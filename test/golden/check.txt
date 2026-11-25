@@ -1,4 +1,4 @@
-$ brain check
+$ plangraph check
 exit: 0
 --- stdout
 tickets 40 | links 76 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 5

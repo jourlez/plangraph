@@ -1,4 +1,4 @@
-$ brain ready T-1
+$ plangraph ready T-1
 exit: 0
 --- stdout
 READY TO START T-1

@@ -24,7 +24,7 @@ const run = (mode: string, seed: number) => new Promise((res) => {
   const out = path.join(work, `out-${mode}-${seed}.json`);
   const args = ['--jsonl-dir', dir, '--out', out, '--time', T, '--seed', String(seed), ...(process.env.DET === '0' ? [] : ['--deterministic']), '--verbose', ...extra, ...(mode === 'decompose' ? ['--decompose'] : [])];
   const t0 = Date.now(); let first: number | null = null, err = '', lastImp: number | null = null, writes = 0;
-  const ch = spawn(path.join(root, 'bin/brain-solve-run'), args, { cwd: work });
+  const ch = spawn(path.join(root, 'bin/plangraph-solve-run'), args, { cwd: work });
   ch.stderr.on('data', (d) => { const s = String(d); err += s; const n = (s.match(/^anytime /gm) || []).length; if (n) { writes += n; lastImp = (Date.now() - t0) / 1000; } if (first === null && /anytime \{"source":"cp-sat"/.test(err)) first = (Date.now() - t0) / 1000; });
   let so = ''; ch.stdout.on('data', (d) => { so += d; });
   ch.on('close', (code) => {

@@ -113,10 +113,10 @@ test('importsOf and testMap: direct importers are tier 1, transitive and CLI-spa
     w('lib/a.mjs', 'export const a = 1;\n');
     w('lib/b.mjs', "import { a } from './a.mjs';\nexport const b = a;\n");
     w('src/cli.ts', "import { b } from '../lib/b.mjs';\nexport const main = () => b;\n");
-    w('bin/brain', "const { main } = await import('../src/cli.ts');\n");
+    w('bin/plangraph', "const { main } = await import('../src/cli.ts');\n");
     w('test/a.test.mjs', "import { a } from '../lib/a.mjs';\n");
     w('test/b.test.mjs', "import { b } from '../lib/b.mjs';\n");
-    w('test/cli.test.mjs', "const BIN = path.join(ROOT, 'bin', 'brain');\n");
+    w('test/cli.test.mjs', "const BIN = path.join(ROOT, 'bin', 'plangraph');\n");
     w('test/none.test.mjs', "import fs from 'node:fs';\n");
     const m = testMap(dir, ['lib/a.mjs', 'lib/b.mjs', 'src/cli.ts'], ['test/a.test.mjs', 'test/b.test.mjs', 'test/cli.test.mjs', 'test/none.test.mjs']);
     assert.deepEqual(m.get('lib/a.mjs'), { direct: ['test/a.test.mjs'], extended: ['test/b.test.mjs', 'test/cli.test.mjs'] });

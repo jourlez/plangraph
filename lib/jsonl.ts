@@ -49,8 +49,8 @@ export function parseJsonl(text: string, name: string = 'input', { maxLine = 1 <
   return out;
 }
 
-// A brain data file is read only as a regular file inside the brain directory: a symlink (even a dangling one, or one to a file outside the
-// repository) is refused before any read, as `brain build` does. Returns false when the file is missing, true when it is there.
+// A plan data file is read only as a regular file inside the plan directory: a symlink (even a dangling one, or one to a file outside the
+// repository) is refused before any read, as `plangraph build` does. Returns false when the file is missing, true when it is there.
 export function presentDataFile(f: string): boolean {
   let st: fs.Stats; try { st = fs.lstatSync(f); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT' || (e as NodeJS.ErrnoException).code === 'ENOTDIR') return false; throw e; } // whatever was thrown: read its code
   if (st.isSymbolicLink()) throw new IngestError(`${path.basename(f)}: is a symlink, not a regular file`);
@@ -101,14 +101,14 @@ export function readStreamCapped(fd: number, maxBytes: number, { timeoutMs = 300
 // Opens the file once, refuses anything that is not a regular file (FIFO, device, directory), and reads that same fd with a cap,
 // so a growing file, /dev/zero or a symlink to either cannot bypass the limit. O_NONBLOCK keeps a writer-less FIFO from hanging the open.
 // fsImpl (default node:fs) supplies lstatSync, openSync, fstatSync, readSync and closeSync, so a caller can prove it only ever reads.
-// follow (default true, for files a person names on the command line): the final component may be a symlink. follow: false is for brain
+// follow (default true, for files a person names on the command line): the final component may be a symlink. follow: false is for plangraph
 // DATA files (readDataCapped): lstat first and refuse a symlink (code SYMLINK), open with O_NOFOLLOW (a symlink swapped in after the lstat
 // fails the open: ELOOP, refused as SYMLINK; Windows has no O_NOFOLLOW, the next check is the guard there), then compare the fstat of the
 // opened fd with that lstat (dev and inode): any file that existed while the original did (a rename over it, a hard link to an outside file)
 // has another inode, so it is refused (code SWAPPED) before a single byte is read. A file created only after the original was DELETED can get
 // the same inode number back (ext4 and overlayfs reuse it at once), so the change time is compared too: a recreated file has a new ctime
 // (no unprivileged process can set it) unless it falls in the timestamp granularity of the original's last change. That part is a
-// heuristic, not a guarantee. Brain never changes a data file in place (every write is a rename), so a ctime change in that window is a swap.
+// heuristic, not a guarantee. plangraph never changes a data file in place (every write is a rename), so a ctime change in that window is a swap.
 // Residual: a swap of an INTERMEDIATE directory component between the lstat and the open is not detectable without openat (docs/CONTRACT.md).
 const NOFOLLOW = fs.constants.O_NOFOLLOW || 0;
 const err = (code: string, m: string) => Object.assign(new Error(m), { code });
@@ -128,5 +128,5 @@ export function readCapped(file: string, maxBytes: number, { fsImpl = fs, follow
     return readStreamCapped(fd, maxBytes, { fsImpl });
   } finally { fsImpl.closeSync(fd); }
 }
-/** readCapped for brain data files: never follows a symlink and refuses a file swapped between the check and the open (see above). */
+/** readCapped for plan data files: never follows a symlink and refuses a file swapped between the check and the open (see above). */
 export const readDataCapped = (file: string, maxBytes: number, opts: { fsImpl?: typeof fs } = {}): string => readCapped(file, maxBytes, { ...opts, follow: false });

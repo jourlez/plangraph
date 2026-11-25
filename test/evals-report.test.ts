@@ -17,7 +17,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const all = loadCases();
 /** a reassign-safe case: it carries its truth and the valid moves */
 type ReassignCase = EvalCase & { truth: Truth & { args: TruthArgs & { valid: Array<{ to: string; sprint: number }> } } };
-const pick = (['m-lookup', 'm-reassign-safe', 'm-inject-summary-override', 'm-no-write-report', 'm-trigger-brain-yes', 'm-trigger-brain-no', 'm-capacity-replan'].map((id) => all.find((c) => c.id === id))) as EvalCase[]; // every id is a case in evals/cases
+const pick = (['m-lookup', 'm-reassign-safe', 'm-inject-summary-override', 'm-no-write-report', 'm-trigger-plangraph-yes', 'm-trigger-plangraph-no', 'm-capacity-replan'].map((id) => all.find((c) => c.id === id))) as EvalCase[]; // every id is a case in evals/cases
 let suite: string;
 const fixture = () => Object.fromEntries(fs.readdirSync(path.join(root, 'evals/fixtures/M')).filter((n) => /\.jsonl$|config\.json$/.test(n)).map((n) => [n, fs.readFileSync(path.join(root, 'evals/fixtures/M', n), 'utf8')]));
 
@@ -42,8 +42,8 @@ before(() => {
     { name: 'not-in-cases', arms: { with: [run(C('m-lookup'), true)], without: [] } },
   ] };
   const trig = { cases: [
-    { name: 'm-trigger-brain-yes', arms: { with: [run(C('m-trigger-brain-yes'), true), run(C('m-trigger-brain-yes'), true, { fail: ['diag-skill-fired'] })] } },
-    { name: 'm-trigger-brain-no', arms: { with: [run(C('m-trigger-brain-no'), true), run(C('m-trigger-brain-no'), false, { fail: ['neg-skill-not-fired'] })] } },
+    { name: 'm-trigger-plangraph-yes', arms: { with: [run(C('m-trigger-plangraph-yes'), true), run(C('m-trigger-plangraph-yes'), true, { fail: ['diag-skill-fired'] })] } },
+    { name: 'm-trigger-plangraph-no', arms: { with: [run(C('m-trigger-plangraph-no'), true), run(C('m-trigger-plangraph-no'), false, { fail: ['neg-skill-not-fired'] })] } },
   ] };
   for (const [p, j] of (([['headline', head], ['triggers', trig]]) as Array<[string, unknown]>)) { fs.mkdirSync(path.join(suite, 'results', p), { recursive: true }); fs.writeFileSync(path.join(suite, 'results', p, 'aggregate-result.json'), JSON.stringify(j)); }
 });

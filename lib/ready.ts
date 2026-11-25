@@ -1,5 +1,5 @@
-// lib/ready.ts: the definition of ready, in ONE place. `brain ready` (src/commands/queries.ts; its bulk form `--person/--sprint` through
-// readyScope), `brain blockers` and `brain report` (lib/report.ts) all call it, so they cannot drift apart. Pure: plain model data in, plain data out; no I/O, no clock.
+// lib/ready.ts: the definition of ready, in ONE place. `plangraph ready` (src/commands/queries.ts; its bulk form `--person/--sprint` through
+// readyScope), `plangraph blockers` and `plangraph report` (lib/report.ts) all call it, so they cannot drift apart. Pure: plain model data in, plain data out; no I/O, no clock.
 // May this ticket be started now? In this order:
 //  1. not in the plan -> { found: false };
 //  2. DONE: its own status is closed (an sp: task: impl_status done; any other: the Jira status from the snapshot when given, else the
@@ -89,7 +89,7 @@ export function readySet(model: Model, items: readonly PlanRecord[] = [], status
   return { ready, done, blocked, waiting, verdict };
 }
 
-/** The bulk answer of `brain ready --person NAME --sprint N`: readySet over the tickets placed with that owner and/or in that sprint (at
+/** The bulk answer of `plangraph ready --person NAME --sprint N`: readySet over the tickets placed with that owner and/or in that sprint (at
  * least one filter; the owner is matched exactly: the caller resolves a name first). keys: the scope, sorted; notReady: the keys neither
  * ready nor done, so ready + done + notReady is the scope, each key once. */
 export function readyScope(model: Model, { owner, sprint }: { owner?: string; sprint?: number } = {}, items: readonly PlanRecord[] = [], statuses: Statuses | null = null): ReadySet & { keys: string[]; notReady: string[] } {

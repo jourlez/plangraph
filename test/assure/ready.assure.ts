@@ -1,16 +1,16 @@
 // Property (f): "can start today" against the clean-room ready oracle (oracle.ts oracleReady), EXHAUSTIVELY for the shared library
-// function (lib/ready.ts readySet, the shared function used by `brain ready` and the report), and on a stratified subset for the CLI
-// `brain ready KEY --json` itself (in-process src/cli.ts main over a built index: one instance per distinct per-ticket outcome pattern).
+// function (lib/ready.ts readySet, the shared function used by `plangraph ready` and the report), and on a stratified subset for the CLI
+// `plangraph ready KEY --json` itself (in-process src/cli.ts main over a built index: one instance per distinct per-ticket outcome pattern).
 // Families: every graph on up to 4 tickets (self-links included) x every Done/To Do status vector x three Jira snapshots; every per-ticket
 // state (verdict, finding, closing or open register item, status) on up to 2 tickets x every graph x a dangling producer and an ignored
 // link kind; sp: tasks (impl_status) mixed with a Jira ticket on 3 tickets.
-// Bulk form (assureReadyBulk, `brain ready --person NAME --sprint N`): lib/ready.ts readyScope against oracle.ts oracleReadyScope on
+// Bulk form (assureReadyBulk, `plangraph ready --person NAME --sprint N`): lib/ready.ts readyScope against oracle.ts oracleReadyScope on
 // EVERY instance of BULK_BOUNDS and EVERY filter (Ana, Ben, S1, S2, each pair): same scope, same ready set (so bulk == the per-ticket
 // oracle set), same done / not-ready split (ready + done + notReady == scope, each key once), same reason groups (each not-ready ticket in at
 // least one); families: every graph x every Done/To Do vector x every placement (unplaced, Ana S1, Ana S2, Ben S1) on up to 3 tickets, and
-// every per-ticket state (plain, BLOCKED verdict, open register item) on up to 2. The CLI `brain ready --person X --sprint N --json` and
+// every per-ticket state (plain, BLOCKED verdict, open register item) on up to 2. The CLI `plangraph ready --person X --sprint N --json` and
 // `--sprint N --json` (and a lowercase name once) on a stratified subset: data lists and counts equal the oracle, exit 0 iff something is ready.
-// NOT covered: tickets beyond BOUNDS, the reason TEXT of `brain ready` (only the ready/not-ready verdict and that a not-ready answer has a
+// NOT covered: tickets beyond BOUNDS, the reason TEXT of `plangraph ready` (only the ready/not-ready verdict and that a not-ready answer has a
 // reason), the report's other sections, Jira snapshot files in the .jsonl format (the CLI strata use the legacy JSON map), the text form
 // of the bulk answer (test/ready-bulk.test.ts freezes it), names other than Ana/Ben and first-name resolution (test/ready-bulk.test.ts).
 import assert from 'node:assert/strict';

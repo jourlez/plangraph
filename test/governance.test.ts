@@ -13,7 +13,7 @@ test('governance files and templates exist and are not stubs', () => {
     assert.ok(read(f).length > 100, `${f} is too short to be real`);
   }
   for (const f of ['.github/ISSUE_TEMPLATE/bug_report.md', '.github/pull_request_template.md']) {
-    assert.match(read(f), /npm run bulletproof:check|brain doctor/, `${f} has no checklist command`);
+    assert.match(read(f), /npm run bulletproof:check|plangraph doctor/, `${f} has no checklist command`);
   }
   assert.match(read('.github/pull_request_template.md'), /npm run bulletproof:check/);
 });

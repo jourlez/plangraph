@@ -103,17 +103,17 @@ test('README says Node 24, never the old floor', () => {
   assert.equal(/22\.13/.test(t), false);
 });
 
-test('every brain command in the README quickstart is a registered command', async () => {
+test('every plangraph command in the README quickstart is a registered command', async () => {
   const { registry } = await import('../src/registry.ts');
   const readme = read('README.md');
   const i = readme.indexOf('## Quickstart');
   assert.ok(i >= 0);
   const next = readme.indexOf('\n## ', i + 5);
   const section = readme.slice(i, next < 0 ? undefined : next);
-  const cmds = [...section.matchAll(/`brain ([a-z][a-z-]*)/g)].map((m) => m[1]);
-  assert.ok(cmds.length >= 3, `quickstart names ${cmds.length} brain commands`);
-  for (const c of cmds) assert.ok(registry.has(c), `brain ${c} is not a registered command`);
-  for (const c of ['build', 'doctor', 'integrations']) assert.ok(cmds.includes(c), `quickstart lacks brain ${c}`);
+  const cmds = [...section.matchAll(/`plangraph ([a-z][a-z-]*)/g)].map((m) => m[1]);
+  assert.ok(cmds.length >= 3, `quickstart names ${cmds.length} plangraph commands`);
+  for (const c of cmds) assert.ok(registry.has(c), `plangraph ${c} is not a registered command`);
+  for (const c of ['build', 'doctor', 'integrations']) assert.ok(cmds.includes(c), `quickstart lacks plangraph ${c}`);
 });
 
 test('quickstart skill commands exist as skills', () => {
@@ -121,7 +121,7 @@ test('quickstart skill commands exist as skills', () => {
   for (const m of t.matchAll(/\/plangraph:([a-z-]+)/g)) {
     assert.ok(fs.existsSync(path.join(root, 'skills', m[1], 'SKILL.md')), `no skill ${m[1]}`);
   }
-  assert.match(t, /\/plangraph:brain-init/);
+  assert.match(t, /\/plangraph:init/);
 });
 
 test('README states the real status: what was verified, what was not, and the untested newer releases', () => {
@@ -222,18 +222,18 @@ test('README lists every skill and every registry command; REUSE.md does not cal
   const { registry } = await import('../src/registry.ts');
   const cmds = readme.split('## Commands')[1].split('\n## ')[0];
   for (const c of registry.keys()) assert.ok(new RegExp(`(^|[\`|\\s])${c}([\`|\\s,;.]|$)`).test(cmds), `README Commands omits ${c}`);
-  assert.doesNotMatch(read('docs/REUSE.md'), /brain report`?,? planned|\d+x vs grep/);
+  assert.doesNotMatch(read('docs/REUSE.md'), /plangraph report`?,? planned|\d+x vs grep/);
 });
 
-test('SECURITY.md states that brain doctor spawns uv and git', () => {
-  const line = read('SECURITY.md').split('\n').find((l) => /brain doctor/.test(l) && /spawn/.test(l)) || '';
+test('SECURITY.md states that plangraph doctor spawns uv and git', () => {
+  const line = read('SECURITY.md').split('\n').find((l) => /plangraph doctor/.test(l) && /spawn/.test(l)) || '';
   assert.match(line, /uv/);
   assert.match(line, /git/);
   assert.doesNotMatch(read('SECURITY.md'), /never start another program/);
 });
 
 test('docs/MCP.md token table equals the benchmark output (bench-mcp --check), fails on drift, and never writes', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-mcp-check-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mcp-check-'));
   try {
     const run = (doc: string) => spawnSync(process.execPath, [path.join(root, 'test/bench-mcp.ts'), '--check', '--doc', doc, '--dir', path.join(dir, 'scratch')], { encoding: 'utf8', timeout: 300000 });
     const real = path.join(root, 'docs/MCP.md');

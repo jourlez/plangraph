@@ -17,36 +17,36 @@ const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir
 const locked: string[] = [];
 after(() => { for (const d of locked) fs.chmodSync(d, 0o700); for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const fails = (fn: () => unknown, code: string, message?: string) => assert.throws(fn, (e: NodeJS.ErrnoException) => e.code === code && (message === undefined || e.message === message), `${code} ${message ?? ''}`);
-const BAD_NAME = 'brain directory name has a character that is not allowed (whitespace, control characters and * ? [ ] \\ ! # " are refused)';
+const BAD_NAME = 'plan directory name has a character that is not allowed (whitespace, control characters and * ? [ ] \\ ! # " are refused)';
 
 test('resolveBrainDir: exact code and message for a bad name, and for an escape (excerpt of 80 characters)', () => {
   const root = tmp();
   fails(() => resolveBrainDir(root, 'a b'), 'BAD_DIR_NAME', BAD_NAME);
-  fails(() => resolveBrainDir(root, '../x'), 'OUTSIDE_REPO', 'brain directory is outside the repository: ../x');
+  fails(() => resolveBrainDir(root, '../x'), 'OUTSIDE_REPO', 'plan directory is outside the repository: ../x');
   const long = `../${'y'.repeat(120)}`;
-  fails(() => resolveBrainDir(root, long), 'OUTSIDE_REPO', `brain directory is outside the repository: ${long.slice(0, 80)}`);
+  fails(() => resolveBrainDir(root, long), 'OUTSIDE_REPO', `plan directory is outside the repository: ${long.slice(0, 80)}`);
 });
 
 test('resolveBrainDir: an absolute directory is refused even when it lies inside the root', () => {
   const root = tmp();
-  fails(() => resolveBrainDir(root, path.join(root, 'b')), 'OUTSIDE_REPO', `brain directory is outside the repository: ${path.join(root, 'b').slice(0, 80)}`);
+  fails(() => resolveBrainDir(root, path.join(root, 'b')), 'OUTSIDE_REPO', `plan directory is outside the repository: ${path.join(root, 'b').slice(0, 80)}`);
 });
 
 test('resolveBrainDir: a lexical escape is refused even when the real path lands back inside a symlinked root', () => {
   const base = tmp(), real = path.join(base, 'real'), inner = path.join(real, 'inner');
   fs.mkdirSync(inner, { recursive: true });
   const viaLink = path.join(base, 'link'); fs.symlinkSync(real, viaLink); // root /base/link -> /base/real
-  fails(() => resolveBrainDir(viaLink, '../real/x'), 'OUTSIDE_REPO', 'brain directory is outside the repository: ../real/x');
+  fails(() => resolveBrainDir(viaLink, '../real/x'), 'OUTSIDE_REPO', 'plan directory is outside the repository: ../real/x');
   const selfLink = path.join(inner, 'self'); fs.symlinkSync(inner, selfLink); // root /base/real/inner/self -> /base/real/inner
-  fails(() => resolveBrainDir(selfLink, '..'), 'OUTSIDE_REPO', 'brain directory is outside the repository: ..');
+  fails(() => resolveBrainDir(selfLink, '..'), 'OUTSIDE_REPO', 'plan directory is outside the repository: ..');
 });
 
-test('resolveBrainDir: a symlink escape is reported with the brain-directory message, other errors pass through', () => {
+test('resolveBrainDir: a symlink escape is reported with the plangraph-directory message, other errors pass through', () => {
   const root = tmp(), out = tmp();
   fs.symlinkSync(out, path.join(root, 'lnk'));
-  fails(() => resolveBrainDir(root, 'lnk'), 'OUTSIDE_REPO', 'brain directory is outside the repository: lnk');
+  fails(() => resolveBrainDir(root, 'lnk'), 'OUTSIDE_REPO', 'plan directory is outside the repository: lnk');
   fs.symlinkSync(path.join(root, 'nowhere'), path.join(root, 'dead'));
-  fails(() => resolveBrainDir(root, 'dead/x'), 'OUTSIDE_REPO', 'brain directory is outside the repository: dead/x');
+  fails(() => resolveBrainDir(root, 'dead/x'), 'OUTSIDE_REPO', 'plan directory is outside the repository: dead/x');
 });
 
 test('assertInside: excerpt of 80 characters, ENOTDIR ends the walk, a symlink into a file is dangling', () => {

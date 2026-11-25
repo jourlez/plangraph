@@ -8,7 +8,7 @@ and `--max-cost-usd`.
 
 **Two arms, same task.** Every case runs in `claude plugin eval` twice per run: with the plugin loaded (A) and as a no-plugin
 baseline (B), in a fresh workspace built by the case's own `scaffold.sh`. Both arms get the same prompt, the same plan files and the
-same operator tool grant (read tools plus `Bash(brain|jq|grep|rg|node|cat|ls|wc|head|git *)`), so B is the honest baseline: a capable
+same operator tool grant (read tools plus `Bash(plangraph|jq|grep|rg|node|cat|ls|wc|head|git *)`), so B is the honest baseline: a capable
 agent that can read the JSONL. Prompts state the domain rules (handoff, capacity, readiness, the forecast policy) so arm B can answer
 from the files; the plugin's value shows as accuracy, fewer turns, fewer tokens and lower cost, not as secret knowledge. The headline is
 the per-case score delta A - B with a cluster bootstrap CI over cases (`evals/report.ts`).
@@ -17,13 +17,13 @@ the per-case score delta A - B with a cluster bootstrap CI over cases (`evals/re
 *generated* from the ground truth (anchored at the line start, linear lookaheads, exact sets for lists, `7` never matches `70`).
 Ground truth is never typed: `evals/families.ts` computes it with the library (`lib/model`, `whatif`, `proposeMove`, `verifyPlan`,
 `report.readySet`, `computeStale`, `forecast`) on exactly the data the workspace holds (base fixture + the case's overlay, applied by the
-same `evals/overlay.ts` the scaffold runs). `evals/truthcheck.ts` re-derives every answer it can with the real `brain` CLI (SQLite
+same `evals/overlay.ts` the scaffold runs). `evals/truthcheck.ts` re-derives every answer it can with the real `plangraph` CLI (SQLite
 index, a different code path) on scaffolded workspaces; tests fail on any mismatch, and a test injects corrupted derivations (a
 `whatif` that drops CAPACITY, a `readySet` that ignores findings, a `verifyPlan` without capacity, a forecast that never refuses) to
 prove the cross-check catches them.
 
 **Grader types and roles.** `outcome` (the answer is right), `safety` (nothing forbidden happened: tool bans, canary tokens absent,
-file-content sentinels, no created files), `diagnostic` (with-only indicators: `brain` used, a plugin skill fired; never part of the
+file-content sentinels, no created files), `diagnostic` (with-only indicators: `plangraph` used, a plugin skill fired; never part of the
 headline score), `judge` (an LLM rubric, used once, for "does not claim a report was published", which no regex expresses; the judge
 defaults to `claude-opus-5-5`, a larger model than the agent, against self-preference). Trajectory and efficiency (turns, cost, tokens)
 come from the run records, not from graders, so they never distort the score.
@@ -44,16 +44,16 @@ skills directory, single arm), to separate the value of the card, the skills and
 ## Direct runner (`evals/run-p.ts`): the headline path
 
 Pilot #1 (`claude plugin eval` on a real 1,397-ticket plan) was invalid for the plugin arm: that harness loads the plugin's skills and
-SessionStart card but does not put its `bin/` on the Bash PATH, so every `brain` call exited 127. `evals/run-p.ts` runs each case with
-`claude -p` itself, where `--plugin-dir` does put `brain` on PATH (verified by `--probe`: `brain card --line` runs in arm A, is not found in
+SessionStart card but does not put its `bin/` on the Bash PATH, so every `plangraph` call exited 127. `evals/run-p.ts` runs each case with
+`claude -p` itself, where `--plugin-dir` does put `plangraph` on PATH (verified by `--probe`: `plangraph card --line` runs in arm A, is not found in
 arm B).
 
 - **Same conditions in both arms**: the same prompt on stdin, a fresh workspace per run (temp dir outside the repository, scaffolded like the
   native `scaffold.sh` plus the merge driver wired and a `.gitignore` for the index before the commit, so the plugin's session hook finds
   nothing to heal), `--setting-sources project --strict-mcp-config` (no user plugins, hooks, permissions or MCP servers), `--tools
   Read,Grep,Glob,Bash,Skill,Edit,Write`, `--permission-mode dontAsk` with one `--allowedTools` list (reads and read-style Bash including
-  `Bash(brain:*)`, `cd`, `python3`, `node`; Edit/Write visible but never granted), `--no-session-persistence`, `--max-budget-usd` per run,
-  `--include-hook-events`, the parent session's `CLAUDE_*` variables removed and PATH entries holding a `brain` binary dropped. Arm A adds
+  `Bash(plangraph:*)`, `cd`, `python3`, `node`; Edit/Write visible but never granted), `--no-session-persistence`, `--max-budget-usd` per run,
+  `--include-hook-events`, the parent session's `CLAUDE_*` variables removed and PATH entries holding a `plangraph` binary dropped. Arm A adds
   only `--plugin-dir <private plugin copy>`. Auth is the operator's normal login (an isolated `CLAUDE_CONFIG_DIR` is not logged in).
 - **Prompt styles** (`--style natural|layout-told|both`, default natural): `natural` is the question as a user asks it (no file layout, no
   rule text; "About the sprint plan in this repo:"; rule-code names kept where the answer needs them); `layout-told` is the committed
@@ -61,14 +61,14 @@ arm B).
 - **Graders**: the case's own graders over the parsed trace (`evals/trace.ts`), except that `safe-no-write-bash` uses the structural reader
   in `evals/bashwrite.ts` (heredocs, quotes, script writes) and the file list is a sha256 diff of every workspace file plus a moved git
   HEAD (derived `*.sqlite` ignored; `CARD.md`/`report.*` ignored only in cases not tagged no-write).
-- **Plugin use is measured, not assumed**: an arm-A run counts as using the plugin only when a brain call ran (not denied, not 127). The
-  report shows that share per family, the A score split by used/not used, skills fired, answers from the session card alone, and any brain
+- **Plugin use is measured, not assumed**: an arm-A run counts as using the plugin only when a plangraph call ran (not denied, not 127). The
+  report shows that share per family, the A score split by used/not used, skills fired, answers from the session card alone, and any plangraph
   call that ran in arm B (a leak).
 - **Budget**: `--max-cost-usd` is a global hard cap checked before each launch (spent + in-flight per-run caps + the new run's cap);
   results are resumable (`--resume <suite>`). Exit 3 when the cap stopped launches.
 
 ```
-node evals/run-p.ts --probe --max-cost-usd 0.3 [--claude PATH]          ~$0.05: brain runs in A, absent in B
+node evals/run-p.ts --probe --max-cost-usd 0.3 [--claude PATH]          ~$0.05: plangraph runs in A, absent in B
 node evals/run-p.ts --dry-run [--real <root>] [--style both]            build the suite, print the command line (no model call)
 node evals/run-p.ts --run --max-cost-usd N [--real <root>] [--style both] [--runs 3] [-j 3] [--per-run-usd X]
 node evals/report.ts --suite <suite dir>
@@ -80,7 +80,7 @@ node evals/report.ts --suite <suite dir>
 |---|---|---|
 | lookup (control) | owner and sprint of a ticket; a read B can also do | schedule |
 | unknown-key (negative) | says "not in the plan" instead of inventing an owner | model |
-| ready-no / ready-yes | may X start: verdict, open finding kinds (closures in open-items respected), producers not Done; and a ticket that may | ready rules = `brain ready` |
+| ready-no / ready-yes | may X start: verdict, open finding kinds (closures in open-items respected), producers not Done; and a ticket that may | ready rules = `plangraph ready` |
 | ready-cell | which of P's sprint-N tickets may start (a set; every member must be checked) | `readySet` |
 | blockers | tickets whose verdict is not READY (keys, or counts per verdict on big sets) | tickets |
 | overload / overload-peak | person-sprints over capacity (on a valid plan: none) and the tightest cell | `verifyPlan`, loads |
@@ -102,11 +102,11 @@ project, generated at run time.
 
 ## Real-project data never enters the repository
 
-`node evals/gen-real.ts --from <project root> [--out <empty temp dir>] [--verify]` reads the project's brain directory (through its
+`node evals/gen-real.ts --from <project root> [--out <empty temp dir>] [--verify]` reads the project's plan directory (through its
 `.plangraphrc`, read-only) and writes a self-contained suite into a TEMP directory: a private plugin copy, the copied plan as fixture R (no
 evidence file, no SQLite index; refs re-fingerprinted on a plan.md built from the summaries), the native case directories and
 `cases.json`. It refuses any output inside this repository or the source project (symlinks resolved) and any non-empty directory, and
-prints counts only. `--verify` cross-checks the truth with the brain CLI (zero model calls). Tests generate a stand-in project with a
+prints counts only. `--verify` cross-checks the truth with the plangraph CLI (zero model calls). Tests generate a stand-in project with a
 canary list (invented names, key prefix, summary markers), prove the canaries reach the temp suite, and fail if any committable file
 under `evals/` contains one; with `PLANGRAPH_REAL_PROJECT=<root>` the same test also checks the real project's names and keys.
 
@@ -143,13 +143,13 @@ operator grant and no "cannot pass with the granted tools" warning; the first ca
 `aggregate-result.json` shape the report reads (`cases[].arms.{with,without}[]`: score, passed, turns, costUsd, tracePath,
 graders[{name, passed}]).
 
-Unverified (needs a logged-in run): that `brain` is on PATH inside arm A (the validator lists `bin: brain` as provided, not exercised
+Unverified (needs a logged-in run): that `plangraph` is on PATH inside arm A (the validator lists `bin: plangraph` as provided, not exercised
 with a model); that `count:N` means exactly N (the offline grader assumes exact; if the CLI means at least N, an added line still
 fails but a removed line also fails, so the sentinel stays safe); that kept traces (`--keep-temp`) end with a `result` event carrying
 `usage` (tokens and post-checks are skipped when absent); that the judge model name is valid for your account; the cost model's
 constants; that an attempted but sandbox-denied tool call appears in the trace (the safety graders count attempts).
 
-Known limits: arm B may run this plugin's `bin/brain` by absolute path through `Bash(node *)`; check traces for `/bin/brain` in B.
+Known limits: arm B may run this plugin's `bin/plangraph` by absolute path through `Bash(node *)`; check traces for `/bin/plangraph` in B.
 The no-write sentinels approximate a file hash (line count, the target's exact line, no created files) because native graders cannot
 hash. `proposeMove` on the real plan rarely completes (every cell sits at capacity), so `reassign-ripple` is skipped there and the
 dry-run lists it. Real data changes while you work; the suite evaluates the snapshot taken at generation time.

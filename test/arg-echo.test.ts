@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { oneLine, guardOutput } from '../lib/sanitize.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE: string, REPO: string;
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });

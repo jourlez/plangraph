@@ -2381,11 +2381,11 @@
   "tag": "model-conditional, not a prediction",
   "planPoints": null,
   "reasons": [
-   "the links contain a loop (run `brain check`)"
+   "the links contain a loop (run `plangraph check`)"
   ],
   "runs": 0,
-  "text": "FORECAST [REFUSED n=8] plan ? pts: no probability: the links contain a loop (run `brain check`)",
-  "tokens": 24
+  "text": "FORECAST [REFUSED n=8] plan ? pts: no probability: the links contain a loop (run `plangraph check`)",
+  "tokens": 25
  },
  "fc-refuse-nothing-left": {
   "state": "REFUSED",

@@ -196,6 +196,6 @@ export function detectTools({ root, home, env = process.env, fsImpl = fs, names 
   // its cost arrives through the CLAUDE.md `@.wolf/OPENWOLF.md` import, not through hooks.
   const costs = (t: DetectedTool) => (t.name === 'openwolf' ? t.state !== 'absent' : t.state === 'enabled');
   const items = tools.filter(costs).map((t) => ({ name: t.name, tokens: BUDGET[t.name] ?? 0, source: MEASURED }));
-  items.push({ name: 'brain card', tokens: PLANGRAPH_CARD, source: MEASURED });
+  items.push({ name: 'plangraph card', tokens: PLANGRAPH_CARD, source: MEASURED });
   return { tools, connectorHints: CONNECTOR_HINTS.map((h) => ({ ...h })), budget: { items, total: items.reduce((n, i) => n + i.tokens, 0) } };
 }

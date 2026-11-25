@@ -1,4 +1,4 @@
-// Output rendering for the brain CLI: everything an agent reads goes through here so it is small, stable and bounded.
+// Output rendering for the plangraph CLI: everything an agent reads goes through here so it is small, stable and bounded.
 // Pure functions: strings in, strings out. No console, no process, no clock.
 // Guarantees: deterministic, no ANSI, no trailing spaces, no trailing blank lines.
 import { capOf } from './model.ts';
@@ -6,7 +6,7 @@ import { sanitizeText, oneLine, fenceInline } from './sanitize.ts';
 import { steerLine } from './steer.ts';
 import type { Model } from './model.ts';
 
-/** renderCard's meta: the source fingerprint, whether the index is stale, the brain dir as the repo names it. Other fields are ignored. */
+/** renderCard's meta: the source fingerprint, whether the index is stale, the plan dir as the repo names it. Other fields are ignored. */
 export interface CardMeta { fp?: unknown; stale?: unknown; dir?: string; [extra: string]: unknown }
 /** The model fields renderCard reads. */
 export type CardModel = Pick<Model, 'tickets' | 'edges' | 'sched' | 'config'> & { findings?: Model['findings'] | null };
@@ -65,18 +65,18 @@ export function outputMode(argv: readonly string[]): { verbose: boolean; json: b
 // ---- session-start card ----
 // Cache-stable: the card is a pure function of the model and the source fingerprint (no clock, no relative age, no mtime, no "?"), so
 // the same data gives the same bytes in every session, resume and eval run (docs/research/ai-engineering.md 1.4). Usage guidance is not
-// repeated here: `brain explain` owns it; the card ends with one fixed steer line (lib/steer.ts: use brain for plan questions, do not read
-// the brain dir's JSONL). The only conditional line, STALE, is the last.
+// repeated here: `plangraph explain` owns it; the card ends with one fixed steer line (lib/steer.ts: use plangraph for plan questions, do not read
+// the plan dir's JSONL). The only conditional line, STALE, is the last.
 // Card fields (verdicts, owners, finding kinds) are data: one line each (no embedded newline can forge a card line), then cut, and each
 // card line that lists them holds the list inside one inline <untrusted> fence (fenceInline); our labels and `none` stay outside.
 const short = (s: unknown, n: number = 16): string => oneLine(s, 4000).slice(0, n);
 const top = (entries: readonly string[], limit: number): string => bound(entries, { limit, marker: '+{n} more' }).join(', ');
-export const CARD_STALE = 'STALE: index older than text, run `brain build`';
+export const CARD_STALE = 'STALE: index older than text, run `plangraph build`';
 /** The card identity: the first 8 hex digits of the source fingerprint (anything else in the input is dropped), or `unbuilt`. */
 const cardId = (fp: unknown): string => String(fp ?? '').replace(/[^0-9a-f]/g, '').slice(0, 8) || 'unbuilt';
 
 // renderCard(model, { fp, stale }, {maxTokens}) -> text (no trailing newline) with estTokens(text + '\n') <= maxTokens (default 250).
-// fp: the source fingerprint of the text (src/db.ts); stale: true when the index no longer matches that text; dir: the brain dir as the
+// fp: the source fingerprint of the text (src/db.ts); stale: true when the index no longer matches that text; dir: the plan dir as the
 // repo names it (default `.plangraph`), printed in the steer line. Any other meta field (a clock, an mtime) is ignored. Lines carry a priority (lower = more important); when over budget the least important lines are
 // dropped whole and one `... N lines omitted` line says so. Identity and size (priority 0) and STALE are never dropped (except by the
 // final hard cut).
@@ -88,7 +88,7 @@ export function renderCard(model: CardModel, meta: CardMeta = {}, { maxTokens = 
     if (s.owner) people.add(s.owner);
   }
   const range = first <= last ? `S${first}-S${last}` : 'no sprints';
-  add(0, `brain ${cardId(meta.fp)} | ${model.tickets.size} tickets, ${model.edges.length} links, ${range}, ${people.size} ${people.size === 1 ? 'person' : 'people'}`);
+  add(0, `plangraph ${cardId(meta.fp)} | ${model.tickets.size} tickets, ${model.edges.length} links, ${range}, ${people.size} ${people.size === 1 ? 'person' : 'people'}`);
 
   const vc = new Map<string, number>(); for (const t of model.tickets.values()) { const v = short(t.verdict || 'unrated', 20); vc.set(v, (vc.get(v) || 0) + 1); }
   const vs = [...vc].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([v, c]) => `${c} ${v}`);

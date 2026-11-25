@@ -58,7 +58,7 @@ export { est as estTokens };
 // frozen_before_sprint), the same as verify and the solver. whatif's STARTED: closed, opts.frozen and frozen_before_sprint are a hard stop
 // (history); a status in the warn set only warns (stops under opts.strict). proposeMove and relieve never move a frozen ticket.
 /** The statuses that warn (STARTED, warn) when the ticket is not otherwise frozen: In Progress always (someone started it, whatever
- * frozen_statuses says: `brain init` writes ["Done"]), plus every status config.frozen_statuses lists. */
+ * frozen_statuses says: `plangraph init` writes ["Done"]), plus every status config.frozen_statuses lists. */
 function warnSet(model: Model): Set<string> { const f = (model.config || {}).frozen_statuses; return new Set(['In Progress', ...(Array.isArray(f) ? f.filter((x) => typeof x === 'string') : [])]); } // f is typed string[] (PlanConfig) but unchecked: the filter keeps only strings
 
 function people(model: Model, opts: { people?: readonly string[] | undefined }): string[] {
@@ -90,7 +90,7 @@ function range(model: Model, opts: { allowOverflow?: boolean; overflowLimit?: nu
 }
 
 // Resolve person name: exact, then unique case-insensitive, then a unique first name or name prefix; null when none or ambiguous.
-// Exported: `brain ready --person` resolves its name the same way.
+// Exported: `plangraph ready --person` resolves its name the same way.
 export function resolvePerson(model: Model, name: string, opts: { people?: readonly string[] | undefined } = {}): string | null {
   const ps = people(model, opts);
   if (ps.includes(name)) return name;
@@ -535,7 +535,7 @@ export function relieve(model: Model, { person, sprint }: { person: string; spri
   return res;
 }
 
-// ---- findSlots: every (owner, sprint) slot one ticket may move to with NO violation anywhere (`brain whatif KEY --find`, read-only). ----
+// ---- findSlots: every (owner, sprint) slot one ticket may move to with NO violation anywhere (`plangraph whatif KEY --find`, read-only). ----
 // Slot space (relieve's move space for one ticket): the same owner in every later sprint (always); an earlier sprint with opts.allowEarlier;
 // every other person (an owner or a caps person) with opts.allowOwnerChange, in the current sprint or later (earlier too with both);
 // sprints first_sprint..end_sprint; --slip is implied. A slot is VALID when whatif() says ok (a STARTED warning keeps it valid, marked warn;
@@ -593,13 +593,13 @@ export function renderFind(r: FindResult, { cmd, top = 5, name = String, key = S
     const why = Object.entries(r.reasons).sort((a, b) => (b[1]) - (a[1]) || (a[0] < b[0] ? -1 : 1)).map(([c, n]) => `${c} ${n}`).join(', ');
     out.push(`${head}: no valid slot among ${r.tried} tried (${FIND_SPACE(r.allowed)})${why ? `: ${why}` : ''}${budget}`);
     const flags = ['earlier', 'owner-change'].filter((f) => !r.allowed.includes(f) && !(f === 'earlier' && (r.from as Slot).sprint <= (r.first as number))).map((f) => `--${f}`); // findSlots sets from and first for every status but unknown
-    out.push(`try: ${flags.length ? `${flags.join(', ')}, or ` : ''}brain whatif ${key(r.key)} --sprint M --slip --apply-plan to shift other tickets too`);
+    out.push(`try: ${flags.length ? `${flags.join(', ')}, or ` : ''}plangraph whatif ${key(r.key)} --sprint M --slip --apply-plan to shift other tickets too`);
     return out;
   }
   out.push(`${head}: ${r.valid} valid slot${r.valid === 1 ? '' : 's'} of ${r.tried} tried (${FIND_SPACE(r.allowed)}); best: ${r.slots.slice(0, top).map(label).join(', ')}${budget}`);
   for (const x of r.slots.slice(0, top)) out.push(`${label(x)}: slip ${x.slip}, load ${x.load}/${x.cap}${x.warn ? ', started: confirm with the assignee' : ''} | ${cmd(x) ?? '(no shell-safe command: a key or name has unsafe characters)'}`);
   if (r.valid > top) out.push(`... ${r.valid - top} more valid slots (--json lists up to 200)`);
-  out.push('(dry run, nothing changed: each slot was checked with whatif and brain verify on a copy; to apply one, run its command with --apply-plan --write, then brain export)');
+  out.push('(dry run, nothing changed: each slot was checked with whatif and plangraph verify on a copy; to apply one, run its command with --apply-plan --write, then plangraph export)');
   return out;
 }
 
@@ -618,15 +618,15 @@ export function renderRelieve(r: RelieveResult, { cmd, limit = 15, keys = 5, nam
     }
     // no --earlier when sprint N is first_sprint: there is no earlier sprint to move to
     const flags = ['earlier', 'owner-change'].filter((f) => !r.allowed.includes(f) && !(f === 'earlier' && Number.isFinite(r.first) && r.sprint <= r.first)).map((f) => `--${f}`);
-    out.push(`try: ${flags.length ? `${flags.join(', ')}, or ` : ''}brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too`);
+    out.push(`try: ${flags.length ? `${flags.join(', ')}, or ` : ''}plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too`);
     return out;
   }
   const n = r.moves.length;
   out.push(`RELIEF: ${head} ${r.load}/${r.cap} -> ${r.after}/${r.cap} with ${n} move${n === 1 ? '' : 's'} (slip ${r.slip}, ${r.ownerChanges} owner change${r.ownerChanges === 1 ? '' : 's'})${r.searchComplete ? '' : ` (search budget ${r.budget} hit: not proven minimal)`}`);
   for (const m of r.moves.slice(0, limit)) out.push(`${key(m.key)} ${m.sp} SP: ${name(m.from.owner)} S${m.from.sprint} > ${name(m.to.owner)} S${m.to.sprint} | ${cmd(m) ?? '(no shell-safe command: a key or name has unsafe characters)'}`);
   if (n > limit) out.push(`... ${n - limit} more moves (-v for up to 100)`);
-  out.push(r.order === 'sequential' ? '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then brain export)'
-    : '(dry run, nothing changed: these moves only work together, and brain cannot apply them together: it applies one move at a time with its own repair (brain whatif KEY --sprint N --apply-plan --write), and each of these moves alone breaks a link or a capacity, so no command above says OK on its own. To apply them, edit schedule.json by hand, check it with brain verify FILE, then brain schedule-load FILE NAME)');
+  out.push(r.order === 'sequential' ? '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then plangraph export)'
+    : '(dry run, nothing changed: these moves only work together, and plangraph cannot apply them together: it applies one move at a time with its own repair (plangraph whatif KEY --sprint N --apply-plan --write), and each of these moves alone breaks a link or a capacity, so no command above says OK on its own. To apply them, edit schedule.json by hand, check it with plangraph verify FILE, then plangraph schedule-load FILE NAME)');
   return out;
 }
 

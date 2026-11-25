@@ -1,4 +1,4 @@
-$ brain simulate --runs 50 --seed 3
+$ plangraph simulate --runs 50 --seed 3
 exit: 0
 --- stdout
 baseline with exact sizes: ends sprint 5 (planned 5) [reproduces the plan]

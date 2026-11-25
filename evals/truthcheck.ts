@@ -1,4 +1,4 @@
-// Independent check of generated ground truth against the real `brain` CLI (a different code path: SQLite index, command wiring),
+// Independent check of generated ground truth against the real `plangraph` CLI (a different code path: SQLite index, command wiring),
 // on a workspace built by the case's own generated scaffold.sh (so the scaffold and the overlay are tested too). Zero model calls.
 // checkTruth(cases, { evalDir, tmp }) -> { checked: [ids], unchecked: [ids], mismatches: [{id, what}] }. Messages name the case and the
 // field, never data values (real-project text must not leak into logs).
@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import type { EvalCase, TruthArgs, TruthValue } from './schema.ts';
 
 export interface TruthCheck { checked: string[]; unchecked: string[]; mismatches: Array<{ id: string; what: string }> }
-// the JSON a `brain ... --json` command prints under `data`; each case reads only the fields it names
+// the JSON a `plangraph ... --json` command prints under `data`; each case reads only the fields it names
 interface BrainData { lines?: string[]; found?: boolean; ready?: boolean; ok?: boolean; more?: unknown; reasons: Array<{ code: string; kind: string; key: string; detail?: string; warn?: boolean }>; violations?: Array<{ code: string; key: string }> }
 
 const sortS = (a: Iterable<string>) => [...a].sort();
@@ -22,7 +22,7 @@ function scaffold(evalDir: string, c: EvalCase, tmp: string): { ws: string; erro
 }
 
 export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: string; tmp: string }): TruthCheck {
-  const brainBin = path.join(evalDir, '..', 'bin', 'brain');
+  const brainBin = path.join(evalDir, '..', 'bin', 'plangraph');
   const out: TruthCheck = { checked: [], unchecked: [], mismatches: [] };
   for (const c of cases) {
     const t = c.truth;
@@ -30,7 +30,7 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
     const bad = (what: string) => out.mismatches.push({ id: c.id, what });
     const sc = scaffold(evalDir, c, tmp);
     if (sc.error) { bad(sc.error); continue; }
-    // a private plugin data directory under the temp root: bin/brain's compile cache never goes to the real HOME
+    // a private plugin data directory under the temp root: bin/plangraph's compile cache never goes to the real HOME
     const run = (...a: string[]) => spawnSync(process.execPath, [brainBin, ...a], { cwd: sc.ws, encoding: 'utf8', timeout: 120000, env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(tmp, 'plugin-data') } });
     const json = (...a: string[]): BrainData | null => { const r = run(...a, '--json'); try { return JSON.parse(r.stdout).data; } catch { return null; } };
     const lines = (...a: string[]) => (json(...a)?.lines) || [];

@@ -1,4 +1,4 @@
-$ brain rules
+$ plangraph rules
 exit: 0
 --- stdout
 agents: 4

@@ -8,12 +8,12 @@
     "synthetic",
     "size-m",
     "should-trigger",
-    "brain"
+    "plangraph"
   ],
   "fixture": {
     "size": "M",
     "seed": 7,
-    "brain": true,
+    "plangraph": true,
     "overlay": []
   },
   "prompt": "Wrap up the session and hand off the plan state to the next person: how many tickets are not READY, and how many audit verdicts are stale because the plan text changed? Do not change anything. Finish with one line: ANSWER: {\"not_ready\":<number>,\"stale\":<number>}",
@@ -50,11 +50,11 @@
       "arm": "both"
     },
     {
-      "id": "diag-used-brain",
+      "id": "diag-used-plangraph",
       "role": "diagnostic",
       "type": "tool_used",
       "tool": "Bash",
-      "input_match": "(?:^|[\\s;&|(])brain\\s",
+      "input_match": "(?:^|[\\s;&|(])plangraph\\s",
       "min": 1,
       "weight": 1,
       "arm": "with-only"
@@ -64,7 +64,7 @@
       "role": "diagnostic",
       "type": "tool_used",
       "tool": "Skill",
-      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:brain)\"",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph)\"",
       "min": 1,
       "weight": 1,
       "arm": "with-only"
@@ -73,7 +73,7 @@
   "difficulty": "medium",
   "expected": {
     "trigger": true,
-    "skill": "brain",
+    "skill": "plangraph",
     "job": "handoff"
   }
 }

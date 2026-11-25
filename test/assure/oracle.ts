@@ -174,7 +174,7 @@ export function personsOf(inst: Instance, extra: string[] = []): Set<string> {
   return s;
 }
 
-// ---- ready oracle (CONTRACT `brain ready`, docs/OPENITEMS.md, FORMAT section 6) ----
+// ---- ready oracle (CONTRACT `plangraph ready`, docs/OPENITEMS.md, FORMAT section 6) ----
 // A ticket may start now when: (1) it is not already done: an sp: task whose impl_status is done, or a Jira ticket whose status (the snapshot's when
 // the snapshot names it, else its jira_status) is Done or in config.closed_statuses (wave B: a closed ticket is "DONE", never "ready to start");
 // (2) its verdict is empty or READY; (3) no finding of it is open (a finding is closed by an open-items row {key, kind, status:'done'});
@@ -206,7 +206,7 @@ export function oracleReady(inst: ReadyInstance, items: OItem[] = [], snapshot: 
   return res;
 }
 
-// ---- bulk ready oracle (`brain ready --person NAME --sprint N`, CONTRACT) ----
+// ---- bulk ready oracle (`plangraph ready --person NAME --sprint N`, CONTRACT) ----
 // Scope: the tickets whose current placement is valid and has that owner (exact) and/or that sprint (at least one filter). Within it each
 // ticket is exactly one of: ready (oracleReady), done (its own status closed, as in (1) above), not ready. A not-ready ticket is in every
 // group whose cause it has: verdict (a verdict other than READY), openItems (an open finding or an open register row), waiting (a live

@@ -3,12 +3,12 @@
 // parsed as strings and converted here with Number.isFinite / Number.isSafeInteger checks). `values` has a null prototype.
 import { parseArgs } from 'node:util';
 import { oneLine } from '../lib/sanitize.ts';
-import { BrainError, didYouMean } from './errors.ts';
+import { PlangraphError, didYouMean } from './errors.ts';
 import { OPTION_TYPES } from './registry.ts';
 import type { OptionSpec } from './registry.ts';
 
-// A usage error carries no hint: the error table (src/errors.ts) adds `try: brain explain <command>` for the command that failed.
-const usage = (message: string, cause?: unknown) => new BrainError('USAGE', message, { cause });
+// A usage error carries no hint: the error table (src/errors.ts) adds `try: plangraph explain <command>` for the command that failed.
+const usage = (message: string, cause?: unknown) => new PlangraphError('USAGE', message, { cause });
 const DECIMAL = /^-?\d+(?:\.\d+)?$/; // ASCII digits only: no exponent, hex, sign '+', unicode digits or surrounding space
 const MAX_NUM_LEN = 40, MAX_NAME = 60;
 
@@ -39,7 +39,7 @@ export function parse(spec: { options?: Record<string, OptionSpec>; positionals?
       // A string option with its own `missing` message (a command's long-standing wording) reports a missing or dash-led value with
       // that message and no hint, instead of parseArgs' generic text.
       const o = defs[t.name] as OptionSpec; // Object.hasOwn(cfg, t.name) above: defs and cfg are filled with the same keys
-      if (o.type === 'string' && typeof o.missing === 'string' && (t.value === undefined || (!t.inlineValue && t.value.length > 1 && t.value.startsWith('-')))) throw new BrainError('USAGE', o.missing);
+      if (o.type === 'string' && typeof o.missing === 'string' && (t.value === undefined || (!t.inlineValue && t.value.length > 1 && t.value.startsWith('-')))) throw new PlangraphError('USAGE', o.missing);
       continue;
     }
     const near = t.rawName.startsWith('--') ? didYouMean(t.name, Object.keys(cfg)) : null;

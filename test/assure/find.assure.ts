@@ -1,4 +1,4 @@
-// Property (j): lib/whatif.ts findSlots (`brain whatif KEY --find`) against a clean-room brute force, on EVERY instance of the family.
+// Property (j): lib/whatif.ts findSlots (`plangraph whatif KEY --find`) against a clean-room brute force, on EVERY instance of the family.
 //
 // The specified rule (docs/CONTRACT.md "Find"), stated here once, written from the contract and not from the library:
 //   slot space of KEY (current owner O, sprint C): O in every sprint C+1..end; with allowEarlier O in first..C-1; with allowOwnerChange every

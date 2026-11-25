@@ -4,10 +4,10 @@
 //   node evals/report.ts --suite <dir> [--json <file>]
 // <dir> is a suite built by evals/run-p.ts (cases.json, results/run-p.json, one block per prompt style: natural is the headline) or by
 // evals/run.ts (cases.json, pass-*/, results/<pass>/.../aggregate-result.json). Plugin use: an arm-A run counts as using the plugin only
-// when a brain call ran (not denied, not "command not found"; a skill that fired without a working brain does not count, it is shown
+// when a plangraph call ran (not denied, not "command not found"; a skill that fired without a working plangraph does not count, it is shown
 // apart); the table shows that share per family, and the
 // score of A is split into runs that used it and runs that did not, so a plugin arm that never touched the plugin is never read as
-// plugin evidence. A brain call that ran in arm B is reported as a leak. Per family: pass rate, mean
+// plugin evidence. A plangraph call that ran in arm B is reported as a leak. Per family: pass rate, mean
 // score, delta, mean turns, mean cost, mean tokens (from the run traces when they were kept: --keep-temp), plus injection resistance,
 // no-write integrity, post-checked moves (the model's proposed move applied to a copy of the plan and re-verified by lib/verify.ts),
 // trigger recall and false-fire rate (single-arm pass), and ablation variants. Prints ids, families and numbers only: never prompts,
@@ -187,7 +187,7 @@ export function render(s: ReturnType<typeof summarize>): string {
   const L: string[] = [];
   const pad = (x: unknown, n: number) => String(x).padEnd(n), lp = (x: unknown, n: number) => String(x).padStart(n);
   const r2 = (x: Rate) => `${x.k}/${x.n} ${pct(x.rate)} [${pct(x.ci[0])}-${pct(x.ci[1])}]`;
-  L.push(`cases ${s.cases}, runs ${s.runs}. A = WITH the plugin, B = bare (no plugin). delta = mean per-case score A - B. A used = share of A runs where a brain call ran.`);
+  L.push(`cases ${s.cases}, runs ${s.runs}. A = WITH the plugin, B = bare (no plugin). delta = mean per-case score A - B. A used = share of A runs where a plangraph call ran.`);
   const blocks = s.styles && s.styles.length ? s.styles : [s];
   for (const b of blocks) {
     if (b.style && blocks.length > 1) L.push('', `== prompt style: ${b.style}${b === blocks[0] ? ' (headline)' : ''} ==`);
@@ -198,7 +198,7 @@ export function render(s: ReturnType<typeof summarize>): string {
     row('ALL', b.overall.A, b.overall.B);
     L.push(`delta score ${fmt(b.overall.delta)} (95% cluster bootstrap over cases ${fmt(b.overall.deltaCI[0])}..${fmt(b.overall.deltaCI[1])}); run errors A ${b.overall.A.errors}, B ${b.overall.B.errors}`);
     const pu = b.pluginUse;
-    L.push(`plugin used in arm A (a brain call ran): ${pu.used.n ? r2(pu.used) : '- (no traces)'}; a plugin skill fired: ${pu.skill.n ? r2(pu.skill) : '-'}${pu.unknown ? `, ${pu.unknown} runs without a trace` : ''}; answered from the session card alone (no tool call): ${pu.cardOnly}; A score when used ${fmt(pu.scoreUsed)}, when NOT used ${fmt(pu.scoreNotUsed)}${pu.used.n && pu.used.k < pu.used.n ? ' (runs that did not use the plugin are not plugin evidence)' : ''}; brain ran in arm B: ${pu.brainInB} runs${pu.brainInB ? ' (LEAK: check those traces)' : ''}`);
+    L.push(`plugin used in arm A (a plangraph call ran): ${pu.used.n ? r2(pu.used) : '- (no traces)'}; a plugin skill fired: ${pu.skill.n ? r2(pu.skill) : '-'}${pu.unknown ? `, ${pu.unknown} runs without a trace` : ''}; answered from the session card alone (no tool call): ${pu.cardOnly}; A score when used ${fmt(pu.scoreUsed)}, when NOT used ${fmt(pu.scoreNotUsed)}${pu.used.n && pu.used.k < pu.used.n ? ' (runs that did not use the plugin are not plugin evidence)' : ''}; plangraph ran in arm B: ${pu.brainInB} runs${pu.brainInB ? ' (LEAK: check those traces)' : ''}`);
     L.push(`injection resistance (every safety grader passed): A ${r2(b.injection.A)}  B ${r2(b.injection.B)}`);
     L.push(`no-write integrity: A ${r2(b.noWrite.A)}  B ${r2(b.noWrite.B)}`);
     L.push(`post-checked moves (applied to a copy, re-verified): A ${r2(b.postcheck.A)}  B ${r2(b.postcheck.B)}${b.postcheck.A.n + b.postcheck.B.n === 0 ? ' (needs kept traces)' : ''}`);

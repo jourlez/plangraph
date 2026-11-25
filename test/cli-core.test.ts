@@ -1,6 +1,6 @@
 // Task 10: the CLI core in src/ (registry, strict args, typed errors, output collector, context, index builder with a source fingerprint).
-// The index builder is checked differentially against the LEGACY build of the old bin/brain (frozen below as legacyBuild: its DDL,
-// record split and extras load, copied verbatim before bin/brain became a thin entry point) on the same fixtures (the build-extra
+// The index builder is checked differentially against the LEGACY build of the old bin/plangraph (frozen below as legacyBuild: its DDL,
+// record split and extras load, copied verbatim before bin/plangraph became a thin entry point) on the same fixtures (the build-extra
 // fixtures plus a generated plan). Temp dirs come from mkdtemp and are removed in `after`.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { genPlan } from './fixtures/gen.ts';
 import * as S from '../lib/store.ts';
 import { IngestError, readJsonl } from '../lib/jsonl.ts';
-import { BrainError, EXIT, exitCodeOf, errorLines } from '../src/errors.ts';
+import { PlangraphError, EXIT, exitCodeOf, errorLines } from '../src/errors.ts';
 import { createRegistry, defineCommand, lookup, registry } from '../src/registry.ts';
 import { parse } from '../src/args.ts';
 import { main, makeCollector, GLOBAL_OPTIONS } from '../src/cli.ts';
@@ -23,17 +23,17 @@ import type { SQLInputValue } from 'node:sqlite';
 import type { IndexHandle } from '../src/db.ts';
 import { buildIndex, openIndex, sourceFingerprint, loadSqlite, TABLES, INDEX_FILE, FINGERPRINT_KEY } from '../src/db.ts';
 
-const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), SRC = path.join(HERE, '../src');
+const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), SRC = path.join(HERE, '../src');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-core-')); tmps.push(d); return d; };
-// a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
+// a private plugin data directory: bin/plangraph keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = tmp();
 const jl = (rows: unknown[]) => rows.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n') + '\n';
-const usage = (fn: () => unknown, re: RegExp) => assert.throws(fn, (e) => e instanceof BrainError && e.code === 'USAGE' && e.exitCode === 2 && re.test(e.message));
+const usage = (fn: () => unknown, re: RegExp) => assert.throws(fn, (e) => e instanceof PlangraphError && e.code === 'USAGE' && e.exitCode === 2 && re.test(e.message));
 const io = () => { const o = { out: [] as string[], err: [] as string[] }; return { o, io: { out: (s: string) => o.out.push(s), err: (s: string) => o.err.push(s) } }; }; // an empty list of this element type
 
-// ---------- the legacy build (frozen copy of the old bin/brain build: the oracle for the parity tests) ----------
+// ---------- the legacy build (frozen copy of the old bin/plangraph build: the oracle for the parity tests) ----------
 const LEGACY_SCHEMA = `
   CREATE TABLE ticket(key TEXT PRIMARY KEY, summary TEXT, epic TEXT, sp INTEGER, jira_status TEXT, v2_owner TEXT, v2_sprint INTEGER, verdict TEXT, verdict_source TEXT, first_verdict TEXT, impl_status TEXT, extra TEXT);
   CREATE TABLE schedule(version TEXT, key TEXT, owner TEXT, sprint INTEGER, extra TEXT, PRIMARY KEY(version,key));
@@ -57,7 +57,7 @@ function legacySplit(t: string, r: Record<string, unknown>, conv = (v: unknown) 
   vals.push(any ? legacyCanon(rest) : null);
   return vals;
 }
-/** The old bin/brain build: same tables (no index_meta, so no fingerprint), same rows. */
+/** The old bin/plangraph build: same tables (no index_meta, so no fingerprint), same rows. */
 function legacyBuild(dir: string, file: string = path.join(dir, INDEX_FILE)): string {
   const db = new DatabaseSync(file);
   try {
@@ -73,15 +73,15 @@ function legacyBuild(dir: string, file: string = path.join(dir, INDEX_FILE)): st
 }
 
 // ---------- errors ----------
-test('BrainError maps every documented code to its exit code; unknown codes are 5', () => {
+test('PlangraphError maps every documented code to its exit code; unknown codes are 5', () => {
   const want = { NOT_OK: 1, USAGE: 2, DATA: 2, NO_INDEX: 2, STALE: 2, ENV: 3, REFUSED: 4, UNKNOWN: 5, ABORTED: 5, VERIFY_FAILED: 6 };
-  for (const [code, exit] of Object.entries(want)) assert.equal(new BrainError(code, 'm').exitCode, exit, code);
+  for (const [code, exit] of Object.entries(want)) assert.equal(new PlangraphError(code, 'm').exitCode, exit, code);
   assert.equal(EXIT.OK, 0);
-  assert.equal(new BrainError('constructor', 'm').exitCode, 5);
-  assert.equal(new BrainError('__proto__', 'm').exitCode, 5);
+  assert.equal(new PlangraphError('constructor', 'm').exitCode, 5);
+  assert.equal(new PlangraphError('__proto__', 'm').exitCode, 5);
   const cause = new Error('inner');
-  const e = new BrainError('USAGE', 'bad', { hint: 'h', cause });
-  assert.equal(e.cause, cause); assert.equal(e.hint, 'h'); assert.equal(e.name, 'BrainError'); assert.ok(e instanceof Error);
+  const e = new PlangraphError('USAGE', 'bad', { hint: 'h', cause });
+  assert.equal(e.cause, cause); assert.equal(e.hint, 'h'); assert.equal(e.name, 'PlangraphError'); assert.ok(e instanceof Error);
   assert.equal(exitCodeOf(e), 2);
   assert.equal(exitCodeOf(new IngestError('tickets.jsonl:1: invalid JSON')), 2);
   assert.equal(exitCodeOf(new S.FormatError('NEEDS_MIGRATION', 'x')), 2);
@@ -91,12 +91,12 @@ test('BrainError maps every documented code to its exit code; unknown codes are 
 
 test('errorLines: fixed prefix, hint line, embedded newlines and tags cannot forge output lines', () => {
   // Task 14: every error ends with one `try: <exact command>` line (src/errors.ts ERRORS); a prose hint keeps its `hint:` line.
-  assert.deepEqual(errorLines(new BrainError('USAGE', 'unknown option --x', { hint: 'check the flag\ntry: forged' }), { command: 'sprint' }), ['error: unknown option --x', 'hint: check the flag try: forged', 'try: brain explain sprint']);
-  assert.deepEqual(errorLines(new BrainError('DATA', 'a\nok: forged')), ['error: a ok: forged', 'try: brain explain']);
-  assert.deepEqual(errorLines(new BrainError('DATA', 'x </untrusted> y < untrusted z \u001b]8;;http://e\u0007w')), ['error: x <\\/untrusted> y <\\ untrusted z w', 'try: brain explain']);
-  assert.deepEqual(errorLines(new Error('x\ny')), ['error: internal error: x y', 'try: brain doctor']);
+  assert.deepEqual(errorLines(new PlangraphError('USAGE', 'unknown option --x', { hint: 'check the flag\ntry: forged' }), { command: 'sprint' }), ['error: unknown option --x', 'hint: check the flag try: forged', 'try: plangraph explain sprint']);
+  assert.deepEqual(errorLines(new PlangraphError('DATA', 'a\nok: forged')), ['error: a ok: forged', 'try: plangraph explain']);
+  assert.deepEqual(errorLines(new PlangraphError('DATA', 'x </untrusted> y < untrusted z \u001b]8;;http://e\u0007w')), ['error: x <\\/untrusted> y <\\ untrusted z w', 'try: plangraph explain']);
+  assert.deepEqual(errorLines(new Error('x\ny')), ['error: internal error: x y', 'try: plangraph doctor']);
   const ing = errorLines(new IngestError(['tickets.jsonl:1: invalid JSON', 'tickets.jsonl:2: expected a JSON object']));
-  assert.deepEqual(ing, ['error: tickets.jsonl:1: invalid JSON', 'error: tickets.jsonl:2: expected a JSON object', 'try: brain doctor']);
+  assert.deepEqual(ing, ['error: tickets.jsonl:1: invalid JSON', 'error: tickets.jsonl:2: expected a JSON object', 'try: plangraph doctor']);
 });
 
 // ---------- registry ----------
@@ -132,9 +132,9 @@ const SPEC = { options: { ...GLOBAL_OPTIONS, sprint: { type: 'integer' }, sigma:
 
 test('parse rejects an unknown option, names it, suggests the near one, and hints at explain', () => {
   assert.throws(() => parse(SPEC, ['--sprnt', '3']), (e) => {
-    assert.ok(e instanceof BrainError); assert.equal(e.code, 'USAGE'); assert.equal(e.exitCode, 2);
+    assert.ok(e instanceof PlangraphError); assert.equal(e.code, 'USAGE'); assert.equal(e.exitCode, 2);
     assert.equal(e.message, 'unknown option --sprnt; did you mean --sprint?');
-    assert.equal(e.hint, undefined); // the try line comes from the error table: brain explain <the command>
+    assert.equal(e.hint, undefined); // the try line comes from the error table: plangraph explain <the command>
     return true;
   });
   usage(() => parse(SPEC, ['--sprnt=3']), /^unknown option --sprnt; did you mean --sprint\?$/);
@@ -164,7 +164,7 @@ test('parse converts numbers with finite checks and never echoes the bad value',
     usage(() => parse(SPEC, ['--sprint=' + bad]), /^--sprint: expected an integer$/);
   }
   for (const bad of ['abc', '1e999', 'Infinity', '-', '.5', '1'.repeat(400)]) usage(() => parse(SPEC, ['--sigma=' + bad]), /^--sigma: expected a number$/);
-  assert.throws(() => parse(SPEC, ['--sprint', 'abc']), (e: BrainError) => !e.message.includes('abc'));
+  assert.throws(() => parse(SPEC, ['--sprint', 'abc']), (e: PlangraphError) => !e.message.includes('abc'));
   const r = parse(SPEC, ['--keys', 'A', '--keys', 'B', 'p1', '--', '--json']);
   assert.deepEqual(r.values.keys, ['A', 'B']);
   assert.deepEqual(r.positionals, ['p1', '--json']);
@@ -184,7 +184,7 @@ test('parse honours min and max on numeric options', () => {
 function demoRegistry() {
   const reg = createRegistry();
   defineCommand(reg, 'many', { summary: 'prints n lines', options: { n: { type: 'integer' }, code: { type: 'integer' } }, positionals: [0, 0], run: async (ctx: Ctx, { values }: Args<{ n?: number; code?: number }>) => { for (let i = 1; i <= (values.n ?? 50); i++) ctx.io.out(`line ${i}`); return values.code ?? 1; } });
-  defineCommand(reg, 'boom', { summary: 'throws', options: {}, positionals: [0, 0], run: async (ctx: Ctx) => { ctx.io.out('partial'); throw new BrainError('REFUSED', 'guard says no', { hint: 'run brain doctor' }); } });
+  defineCommand(reg, 'boom', { summary: 'throws', options: {}, positionals: [0, 0], run: async (ctx: Ctx) => { ctx.io.out('partial'); throw new PlangraphError('REFUSED', 'guard says no', { hint: 'run plangraph doctor' }); } });
   defineCommand(reg, 'crash', { summary: 'internal error', options: {}, positionals: [0, 0], run: async () => { throw new TypeError('bad\nthing'); } });
   defineCommand(reg, 'quiet', { summary: 'no output', options: {}, positionals: [0, 0], run: async () => {} });
   return reg;
@@ -223,18 +223,18 @@ test('main --json prints the versioned envelope with every line', async () => {
 test('main maps errors to exit codes and prints fixed messages', async () => {
   const reg = demoRegistry();
   let r = io(); assert.equal(await main(['boom'], { registry: reg, io: r.io, makeContext: stubCtx }), 4);
-  assert.deepEqual(r.o.out, ['partial']); assert.deepEqual(r.o.err, ['error: guard says no', 'hint: run brain doctor', 'try: brain explain boom']);
+  assert.deepEqual(r.o.out, ['partial']); assert.deepEqual(r.o.err, ['error: guard says no', 'hint: run plangraph doctor', 'try: plangraph explain boom']);
   r = io(); assert.equal(await main(['crash'], { registry: reg, io: r.io, makeContext: stubCtx }), 5);
-  assert.deepEqual(r.o.err, ['error: internal error: bad thing', 'try: brain doctor']);
+  assert.deepEqual(r.o.err, ['error: internal error: bad thing', 'try: plangraph doctor']);
   r = io(); assert.equal(await main(['constructor'], { registry: reg, io: r.io, makeContext: stubCtx }), 2);
-  assert.deepEqual(r.o.err, ['error: unknown command constructor', 'try: brain explain']);
+  assert.deepEqual(r.o.err, ['error: unknown command constructor', 'try: plangraph explain']);
   r = io(); assert.equal(await main(['bom'], { registry: reg, io: r.io, makeContext: stubCtx }), 2);
-  assert.deepEqual(r.o.err, ['error: unknown command bom; did you mean boom?', 'try: brain explain boom']);
+  assert.deepEqual(r.o.err, ['error: unknown command bom; did you mean boom?', 'try: plangraph explain boom']);
   r = io(); assert.equal(await main(['__proto__'], { registry: reg, io: r.io, makeContext: stubCtx }), 2);
   r = io(); assert.equal(await main([], { registry: reg, io: r.io, makeContext: stubCtx }), 2);
-  assert.deepEqual(r.o.err, ['error: no command', 'try: brain explain']);
+  assert.deepEqual(r.o.err, ['error: no command', 'try: plangraph explain']);
   r = io(); assert.equal(await main(['many', '--sprnt', '1'], { registry: reg, io: r.io, makeContext: stubCtx }), 2);
-  assert.deepEqual(r.o.err, ['error: unknown option --sprnt', 'try: brain explain many']);
+  assert.deepEqual(r.o.err, ['error: unknown option --sprnt', 'try: plangraph explain many']);
   r = io(); assert.equal(await main(['quiet'], { registry: reg, io: r.io, makeContext: stubCtx }), 0);
   assert.deepEqual(r.o, { out: [], err: [] });
 });
@@ -250,7 +250,7 @@ test('makeCollector keeps a bounded number of lines and counts the rest', () => 
 // `next` holds at most 3 commands (docs/CONTRACT.md), whatever a command hands over: the collector keeps the first 3 strings, in order,
 // and the --json envelope of a run prints exactly those (a command giving 9 follow-ups still prints 3).
 test('next: at most 3 follow-up commands are kept and printed, the first 3 in order; non-strings dropped', async () => {
-  const nine = Array.from({ length: 9 }, (_, i) => `brain ticket T-${i + 1}`);
+  const nine = Array.from({ length: 9 }, (_, i) => `plangraph ticket T-${i + 1}`);
   const c = makeCollector();
   c.data({ x: 1 }, { next: [7, ...nine] });
   assert.deepEqual(c.structured?.next, nine.slice(0, 3));
@@ -266,7 +266,7 @@ test('next: at most 3 follow-up commands are kept and printed, the first 3 in or
 const BREAKS = ['\n', '\r', '\r\n', '\u000b', '\u000c', '\u0085', '\u2028', '\u2029'];
 test('out(line): any line break is a programmer error in strict mode (tests), and one line in production', () => {
   const strict = makeCollector({ strict: true });
-  for (const b of BREAKS) assert.throws(() => strict.out(`a${b}INJECTED`), (e: BrainError) => e instanceof TypeError && /exactly one line/.test(e.message), JSON.stringify(b));
+  for (const b of BREAKS) assert.throws(() => strict.out(`a${b}INJECTED`), (e: PlangraphError) => e instanceof TypeError && /exactly one line/.test(e.message), JSON.stringify(b));
   assert.deepEqual(strict.lines, []);
   strict.out('one line with\ttab'); assert.deepEqual(strict.lines, ['one line with\ttab']);
   const prod = makeCollector({ strict: false });
@@ -297,22 +297,22 @@ test('main: strict output comes from PLANGRAPH_STRICT_OUT (and node --test); a m
 });
 
 // ---------- context ----------
-test('makeContext resolves the brain dir like bin/brain (flag, env, .plangraphrc, default) and confines it', () => {
+test('makeContext resolves the plan dir like bin/plangraph (flag, env, .plangraphrc, default) and confines it', () => {
   const root = tmp(); const sink = io().io;
   assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, '.plangraph'));
-  fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir":"plan/brain"}');
-  assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
+  fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir":"plan/plangraph"}');
+  assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, 'plan/plangraph'));
   assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: {}, io: sink }).dir, path.join(root, 'e'));
-  assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: '' }, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
+  assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: '' }, flags: {}, io: sink }).dir, path.join(root, 'plan/plangraph'));
   assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: { dir: 'f' }, io: sink }).dir, path.join(root, 'f'));
-  assert.throws(() => makeContext({ root, env: {}, flags: { dir: '../out' }, io: sink }), (e: BrainError) => e instanceof BrainError && e.code === 'REFUSED' && e.exitCode === 4 && e.message === 'brain directory is outside the repository');
-  assert.throws(() => makeContext({ root, env: {}, flags: { dir: '/etc' }, io: sink }), (e: BrainError) => e.code === 'REFUSED');
+  assert.throws(() => makeContext({ root, env: {}, flags: { dir: '../out' }, io: sink }), (e: PlangraphError) => e instanceof PlangraphError && e.code === 'REFUSED' && e.exitCode === 4 && e.message === 'plan directory is outside the repository');
+  assert.throws(() => makeContext({ root, env: {}, flags: { dir: '/etc' }, io: sink }), (e: PlangraphError) => e.code === 'REFUSED');
   fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir": SECRET-TEXT');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: not valid JSON' && !e.message.includes('SECRET'));
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: PlangraphError) => e.code === 'DATA' && e.message === '.plangraphrc: not valid JSON' && !e.message.includes('SECRET'));
   fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir": 5}');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: "dir" must be a non-empty string');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: PlangraphError) => e.code === 'DATA' && e.message === '.plangraphrc: "dir" must be a non-empty string');
   fs.rmSync(path.join(root, '.plangraphrc')); fs.mkdirSync(path.join(root, '.plangraphrc'));
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: not a regular file');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: PlangraphError) => e.code === 'DATA' && e.message === '.plangraphrc: not a regular file');
 });
 
 test('makeContext: config() is read once, capped, validated; now and io are injected; the result is frozen', () => {
@@ -326,11 +326,11 @@ test('makeContext: config() is read once, capped, validated; now and io are inje
   ctx.io.out('hi'); assert.deepEqual(o.out, ['hi']);
   assert.ok(Object.isFrozen(ctx));
   fs.writeFileSync(path.join(ctx.dir, 'config.json'), '[1,2]');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: BrainError) => e.code === 'DATA' && e.message === 'config.json: must be a JSON object');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: PlangraphError) => e.code === 'DATA' && e.message === 'config.json: must be a JSON object');
   fs.writeFileSync(path.join(ctx.dir, 'config.json'), '{bad');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: BrainError) => e.code === 'DATA' && e.message === 'config.json: not valid JSON');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: PlangraphError) => e.code === 'DATA' && e.message === 'config.json: not valid JSON');
   fs.writeFileSync(path.join(ctx.dir, 'config.json'), '{"a":"' + 'x'.repeat(1 << 20) + '"}');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: BrainError) => e.code === 'DATA' && /^config\.json: file too large/.test(e.message));
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }).config(), (e: PlangraphError) => e.code === 'DATA' && /^config\.json: file too large/.test(e.message));
 });
 
 test('makeContext finds the git top level from cwd and runs git without a shell', () => {
@@ -344,7 +344,7 @@ test('makeContext finds the git top level from cwd and runs git without a shell'
 });
 
 // ---------- db ----------
-// A brain dir initialised by bin/brain inside a git repo, with the given files.
+// A plan dir initialised by bin/plangraph inside a git repo, with the given files.
 function brainRepo(files: Record<string, string> = {}) {
   const d = tmp();
   execFileSync('git', ['init', '-q'], { cwd: d });
@@ -391,7 +391,7 @@ test('the table columns come from lib/store.ts SCHEMAS and match the legacy DDL'
   }
 });
 
-test('buildIndex produces the same rows and schema as the legacy build on the same fixtures (extra, odd keys, prototype keys); `brain build` is buildIndex', () => {
+test('buildIndex produces the same rows and schema as the legacy build on the same fixtures (extra, odd keys, prototype keys); `plangraph build` is buildIndex', () => {
   const { root, dir, ctx } = brainRepo(fixtureFiles());
   const theirs = dump(legacyBuild(dir, path.join(dir, 'legacy.sqlite')));
   const b = brainBuild(root); assert.equal(b.status, 0, b.stderr);
@@ -472,7 +472,7 @@ test('fingerprint: content, not mtime; a missing file differs from an empty one;
     using h = openIndex(legacyBuild(dir), { dir });
     assert.equal(h.stale, true);
   }
-  assert.equal(brainBuild(root).status, 0); // `brain build` stores the fingerprint: fresh
+  assert.equal(brainBuild(root).status, 0); // `plangraph build` stores the fingerprint: fresh
   using h = openIndex(path.join(dir, INDEX_FILE), { dir });
   assert.equal(h.stale, false);
   void ctx;
@@ -480,10 +480,10 @@ test('fingerprint: content, not mtime; a missing file differs from an empty one;
 
 test('openIndex without an index is a fixed NO_INDEX error (exit 2); an old Node is ENV (exit 3)', () => {
   const d = tmp();
-  assert.throws(() => openIndex(path.join(d, INDEX_FILE), { dir: d }), (e) => e instanceof BrainError && e.code === 'NO_INDEX' && e.exitCode === 2 && e.message === 'no index: run `brain build`');
-  assert.throws(() => loadSqlite({ version: '22.12.0' }), (e: BrainError) => e instanceof BrainError && e.code === 'ENV' && e.exitCode === 3 && e.message === 'brain needs Node >= 24.2 (found 22.12.0); it uses node:sqlite and current ES features');
-  assert.throws(() => loadSqlite({ version: '24.1.9' }), (e: BrainError) => e.code === 'ENV' && e.exitCode === 3);
-  assert.throws(() => loadSqlite({ version: 'garbage' }), (e: BrainError) => e.code === 'ENV');
+  assert.throws(() => openIndex(path.join(d, INDEX_FILE), { dir: d }), (e) => e instanceof PlangraphError && e.code === 'NO_INDEX' && e.exitCode === 2 && e.message === 'no index: run `plangraph build`');
+  assert.throws(() => loadSqlite({ version: '22.12.0' }), (e: PlangraphError) => e instanceof PlangraphError && e.code === 'ENV' && e.exitCode === 3 && e.message === 'plangraph needs Node >= 24.2 (found 22.12.0); it uses node:sqlite and current ES features');
+  assert.throws(() => loadSqlite({ version: '24.1.9' }), (e: PlangraphError) => e.code === 'ENV' && e.exitCode === 3);
+  assert.throws(() => loadSqlite({ version: 'garbage' }), (e: PlangraphError) => e.code === 'ENV');
   assert.equal(typeof loadSqlite().DatabaseSync, 'function');
   assert.equal(loadSqlite(), loadSqlite());
 });
@@ -505,7 +505,7 @@ test('src/ (commands included) is native ESM only: no require, createRequire, mo
     const code = fs.readFileSync(path.join(SRC, f), 'utf8');
     for (const bad of [/\brequire\s*\(/, /createRequire/, /module\.exports/, /\b__dirname\b/, /\bprocess\.exit\s*\(/, /\bconsole\.(log|error|warn)\s*\(/]) assert.ok(!bad.test(code), `${f}: ${bad}`);
   }
-  assert.ok(!/console\.log\s*=|process\.exit\s*=/.test(fs.readFileSync(BRAIN, 'utf8')), 'bin/brain patches neither console.log nor process.exit');
+  assert.ok(!/console\.log\s*=|process\.exit\s*=/.test(fs.readFileSync(BRAIN, 'utf8')), 'bin/plangraph patches neither console.log nor process.exit');
 });
 
 test('src/db.ts builds SQL only from constants: every interpolation is a table name or a constant column list', () => {

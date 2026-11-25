@@ -1,6 +1,6 @@
-$ brain ready
+$ plangraph ready
 exit: 2
 --- stdout
 --- stderr
 error: ready needs a KEY, or --person NAME and/or --sprint N
-try: brain explain ready
+try: plangraph explain ready

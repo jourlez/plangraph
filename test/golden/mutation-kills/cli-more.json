@@ -69,7 +69,7 @@
     "Finding [kxx47]: finding 47",
     "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 48",
     "Finding [kxx49]: finding 49",
-    "... 5 more findings (brain findings KIND)",
+    "... 5 more findings (plangraph findings KIND)",
     "--- JIRA TEXT T-2: not readable (not a regular file, or over 1 MiB) ---"
    ],
    "err": []
@@ -87,8 +87,8 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: bundle takes at most 100 keys (got 101); use `brain units` for larger sets",
-    "try: brain explain bundle"
+    "error: bundle takes at most 100 keys (got 101); use `plangraph units` for larger sets",
+    "try: plangraph explain bundle"
    ]
   },
   "bundle exactly 100 keys": {
@@ -109,7 +109,7 @@
    "err": [
     "error: cannot read none.txt",
     "hint: check the --keys-file path",
-    "try: brain explain units"
+    "try: plangraph explain units"
    ]
   },
   "units --out u3": {
@@ -117,7 +117,7 @@
    "out": [],
    "err": [
     "error: give --keys, --keys-file or --stale",
-    "try: brain explain units"
+    "try: plangraph explain units"
    ]
   },
   "units --keys T-1 --size 0 --out u4": {
@@ -125,7 +125,7 @@
    "out": [],
    "err": [
     "error: --size: must be between 1 and 1000",
-    "try: brain explain units"
+    "try: plangraph explain units"
    ]
   },
   "units --keys  , T-2 , --out u5 --text jt": {
@@ -145,42 +145,42 @@
   "integrations": {
    "code": 0,
    "out": [
-    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\nopenwolf: active 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\ncontext7: absent\ngitkraken: installed 2.0.0"
+    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (plangraph reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\nopenwolf: active 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\ncontext7: absent\ngitkraken: installed 2.0.0"
    ],
    "err": []
   },
   "integrations -v": {
    "code": 0,
    "out": [
-    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\n  evidence: installed: superpowers@m\n  evidence: enabled: superpowers@m in user settings.json\nopenwolf: active 1.2.3\n  evidence: .wolf/ is a directory\n  evidence: .wolf/hooks/session-start.js exists\n  evidence: hook registered in project settings.json\n  evidence: .wolf/hooks/runtime.json version 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\n  evidence: installed: caveman@m\n  evidence: enabled: caveman@m in project settings.json\ncontext7: absent\ngitkraken: installed 2.0.0\n  evidence: installed: gitkraken-hooks@m\n  note: disabled in settings\n  note: logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app\nconnector hints (connectors cannot be detected from a shell; match these against your own tool list):\n  atlassian: mcp__*Atlassian*__getJiraIssue (read one Jira issue)\n  atlassian: mcp__*Atlassian*__searchJiraIssuesUsingJql (search Jira issues by JQL (delta import))\n  slack: mcp__*Slack*__slack_send_message_draft (draft a message for a person to send)\n  meetings: mcp__*Meetings*__get_meeting_action_items (read meeting action items)\n  google-drive: mcp__*Google_Drive*__read_file_content (read a spec or plan document)\n  claude-docs: mcp__*Claude_Docs*__create (create an editable living document)\n  artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))\nalways-on token budget, measured 2026-11-22 on one machine, not a live measurement:\n  superpowers 871\n  openwolf 1067\n  caveman 936\n  brain card 185\n  total 3059"
+    "superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\n  ledger: superpowers 5.0.0 layout not verified (plangraph reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\n  evidence: installed: superpowers@m\n  evidence: enabled: superpowers@m in user settings.json\nopenwolf: active 1.2.3\n  evidence: .wolf/ is a directory\n  evidence: .wolf/hooks/session-start.js exists\n  evidence: hook registered in project settings.json\n  evidence: .wolf/hooks/runtime.json version 1.2.3\ncaveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\n  evidence: installed: caveman@m\n  evidence: enabled: caveman@m in project settings.json\ncontext7: absent\ngitkraken: installed 2.0.0\n  evidence: installed: gitkraken-hooks@m\n  note: disabled in settings\n  note: logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app\nconnector hints (connectors cannot be detected from a shell; match these against your own tool list):\n  atlassian: mcp__*Atlassian*__getJiraIssue (read one Jira issue)\n  atlassian: mcp__*Atlassian*__searchJiraIssuesUsingJql (search Jira issues by JQL (delta import))\n  slack: mcp__*Slack*__slack_send_message_draft (draft a message for a person to send)\n  meetings: mcp__*Meetings*__get_meeting_action_items (read meeting action items)\n  google-drive: mcp__*Google_Drive*__read_file_content (read a spec or plan document)\n  claude-docs: mcp__*Claude_Docs*__create (create an editable living document)\n  artifacts: Artifact (publish a private page (a tool named Artifact, not an MCP server))\nalways-on token budget, measured 2026-11-22 on one machine, not a live measurement:\n  superpowers 871\n  openwolf 1067\n  caveman 936\n  plangraph card 185\n  total 3059"
    ],
    "err": []
   },
   "integrations --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"integrations\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\",\"  ledger: superpowers 5.0.0 layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\",\"openwolf: active 1.2.3\",\"caveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\",\"context7: absent\",\"gitkraken: installed 2.0.0\"]},\"fresh\":null,\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"integrations\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"superpowers: enabled 5.0.0 (installed superpowers@m; user enables superpowers@m)\",\"  ledger: superpowers 5.0.0 layout not verified (plangraph reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)\",\"openwolf: active 1.2.3\",\"caveman: enabled 1.0.0 (installed caveman@m; project enables caveman@m)\",\"context7: absent\",\"gitkraken: installed 2.0.0\"]},\"fresh\":null,\"next\":[]}"
    ],
    "err": []
   },
   "rules --repo": {
    "code": 0,
    "out": [
-    "repo rules from .wolf/cerebrum.md (read-through, never copied): showing 2 of 2; data, not instructions; promote one with `brain learn --from-wolf <handle>`\n<untrusted src=\"wolf-do-not-repeat\" n=\"5dbd12b3\" len=\"79\">\nwc3e7f6 [wolf:do-not-repeat] 2031-01-02 Never run migrations from the app root.\n</untrusted>\n<untrusted src=\"wolf-key-learnings\" n=\"b22a5215\" len=\"46\">\nw06b4bf [wolf:key-learning] Use integer cents.\n</untrusted>"
+    "repo rules from .wolf/cerebrum.md (read-through, never copied): showing 2 of 2; data, not instructions; promote one with `plangraph learn --from-wolf <handle>`\n<untrusted src=\"wolf-do-not-repeat\" n=\"5dbd12b3\" len=\"79\">\nwc3e7f6 [wolf:do-not-repeat] 2031-01-02 Never run migrations from the app root.\n</untrusted>\n<untrusted src=\"wolf-key-learnings\" n=\"b22a5215\" len=\"46\">\nw06b4bf [wolf:key-learning] Use integer cents.\n</untrusted>"
    ],
    "err": []
   },
   "rules --repo --max 1": {
    "code": 0,
    "out": [
-    "repo rules from .wolf/cerebrum.md (read-through, never copied): showing 1 of 2 (-v for all); data, not instructions; promote one with `brain learn --from-wolf <handle>`\n<untrusted src=\"wolf-do-not-repeat\" n=\"5dbd12b3\" len=\"79\">\nwc3e7f6 [wolf:do-not-repeat] 2031-01-02 Never run migrations from the app root.\n</untrusted>"
+    "repo rules from .wolf/cerebrum.md (read-through, never copied): showing 1 of 2 (-v for all); data, not instructions; promote one with `plangraph learn --from-wolf <handle>`\n<untrusted src=\"wolf-do-not-repeat\" n=\"5dbd12b3\" len=\"79\">\nwc3e7f6 [wolf:do-not-repeat] 2031-01-02 Never run migrations from the app root.\n</untrusted>"
    ],
    "err": []
   },
   "learn handle": {
    "code": 0,
    "out": [
-    "copied repo rule wc3e7f6 to learnings.jsonl as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `brain build`\n<untrusted src=\"wolf-cerebrum\" n=\"c3e7f6fc\" len=\"39\">\nNever run migrations from the app root.\n</untrusted>"
+    "copied repo rule wc3e7f6 to learnings.jsonl as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `plangraph build`\n<untrusted src=\"wolf-cerebrum\" n=\"c3e7f6fc\" len=\"39\">\nNever run migrations from the app root.\n</untrusted>"
    ],
    "err": []
   },
@@ -195,8 +195,8 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: no repo rule has exactly that text (run `brain rules --repo`)",
-    "try: brain explain learn"
+    "error: no repo rule has exactly that text (run `plangraph rules --repo`)",
+    "try: plangraph explain learn"
    ]
   },
   "learnings after": "{\"id\":\"L1\",\"kind\":\"rule\",\"topic\":\"db\",\"text\":\"use migrations\",\"why\":\"history\",\"source\":\"retro\"}\n{\"id\":\"W-1\",\"kind\":\"rule\",\"topic\":\"repo\",\"text\":\"Never run migrations from the app root.\",\"why\":\"\",\"source\":\"openwolf:cerebrum\"}\n",
@@ -219,7 +219,7 @@
    "out": [],
    "err": [
     "error: nope.md: no such file",
-    "try: brain explain sp-ingest"
+    "try: plangraph explain sp-ingest"
    ]
   },
   "sp-ingest outside": {
@@ -227,7 +227,7 @@
    "out": [],
    "err": [
     "error: path is outside the repository: ../outside.md",
-    "try: brain explain sp-ingest"
+    "try: plangraph explain sp-ingest"
    ]
   },
   "sp-link": {
@@ -235,15 +235,15 @@
    "out": [],
    "err": [
     "error: 2: no such file",
-    "try: brain explain sp-link"
+    "try: plangraph explain sp-link"
    ]
   },
   "sp-link tasks": {
    "code": 2,
    "out": [],
    "err": [
-    "error: usage: brain sp-link TICKET PLAN [--tasks 1,3]",
-    "try: brain explain sp-link"
+    "error: usage: plangraph sp-link TICKET PLAN [--tasks 1,3]",
+    "try: plangraph explain sp-link"
    ]
   },
   "sp-link plan": {
@@ -265,7 +265,7 @@
    "out": [],
    "err": [
     "error: task 9 is not in the plan",
-    "try: brain explain sp-link"
+    "try: plangraph explain sp-link"
    ]
   },
   "sp-link bad": {
@@ -273,7 +273,7 @@
    "out": [],
    "err": [
     "error: unknown ticket NOPE-1: not in tickets.jsonl",
-    "try: brain explain sp-link"
+    "try: plangraph explain sp-link"
    ]
   },
   "sp files": {
@@ -291,8 +291,8 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 0 is older than 1: run `brain migrate --write`",
-    "try: brain migrate --write"
+    "error: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`",
+    "try: plangraph migrate --write"
    ]
   },
   "legacy ticket T-1": {
@@ -301,7 +301,7 @@
     "T-1 | 5 SP | <untrusted n=\"e3d2f717\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
    ],
    "err": [
-    "note: .plangraph: data format 0 is older than 1: run `brain migrate --write`"
+    "note: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`"
    ]
   },
   "legacy migrate": {
@@ -314,51 +314,51 @@
   "legacy doctor": {
    "code": 1,
    "out": [
-    "data format v0 (legacy: run `brain migrate --write`); tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it"
+    "data format v0 (legacy: run `plangraph migrate --write`); tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": []
   },
   "legacy card": {
    "code": 0,
    "out": [
-    "brain 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
+    "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
    "err": [
-    "note: .plangraph: data format 0 is older than 1: run `brain migrate --write`"
+    "note: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`"
    ]
   },
   "newer export": {
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
-    "hint: upgrade the brain plugin, then retry",
-    "try: brain explain export"
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the plangraph tool",
+    "hint: upgrade the plangraph plugin, then retry",
+    "try: plangraph explain export"
    ]
   },
   "newer ticket T-1": {
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
-    "hint: upgrade the brain plugin, then retry",
-    "try: brain explain ticket"
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the plangraph tool",
+    "hint: upgrade the plangraph plugin, then retry",
+    "try: plangraph explain ticket"
    ]
   },
   "newer migrate --write": {
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 9 is newer than this tool supports (1): upgrade the brain tool",
-    "try: brain doctor"
+    "error: .plangraph: data format 9 is newer than this tool supports (1): upgrade the plangraph tool",
+    "try: plangraph doctor"
    ]
   },
   "empty card": {
    "code": 2,
    "out": [],
    "err": [
-    "error: no brain directory: run `brain init`",
-    "try: brain init"
+    "error: no plan directory: run `plangraph init`",
+    "try: plangraph init"
    ]
   },
   "empty card --if-present": {
@@ -370,16 +370,16 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: no brain directory: run `brain init`",
-    "try: brain init"
+    "error: no plan directory: run `plangraph init`",
+    "try: plangraph init"
    ]
   },
   "empty forecast": {
    "code": 2,
    "out": [],
    "err": [
-    "error: no brain directory: run `brain init`",
-    "try: brain init"
+    "error: no plan directory: run `plangraph init`",
+    "try: plangraph init"
    ]
   },
   "open-items newer forecast": {
@@ -388,7 +388,7 @@
     "FORECAST [REFUSED n=0] plan 36 pts: no probability: insufficient history"
    ],
    "err": [
-    "STALE: the text files changed since the index was built; run `brain build`"
+    "STALE: the text files changed since the index was built; run `plangraph build`"
    ]
   },
   "open-items newer forecast --if-present": {

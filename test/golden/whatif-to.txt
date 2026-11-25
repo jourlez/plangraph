@@ -1,4 +1,4 @@
-$ brain whatif T-9 --to Ben
+$ plangraph whatif T-9 --to Ben
 exit: 1
 --- stdout
 NO: T-9. SAME_SLOT T-9 (already Ben S1). Fix: nothing to do.

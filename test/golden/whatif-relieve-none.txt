@@ -1,9 +1,9 @@
-$ brain whatif --relieve Ana --sprint 1
+$ plangraph whatif --relieve Ana --sprint 1
 exit: 1
 --- stdout
 NO RELIEF: Ana S1 16/4: no relief found within the allowed moves (this cell's tickets, later sprints, same owner)
 - every target breaks a link 3: T-1 T-5 T-6
 - every target is over capacity 2: T-12 T-27
 - the tickets that can move free 0 SP of the 12 needed
-try: --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too
+try: --owner-change, or plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too
 --- stderr

@@ -1,4 +1,4 @@
-$ brain forecast
+$ plangraph forecast
 exit: 0
 --- stdout
 FORECAST [REFUSED n=0] plan 120 pts: no probability: insufficient history

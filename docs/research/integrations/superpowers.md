@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # superpowers integration research
 
 Date: 2026-11-22. Scope: how plangraph should detect, ingest, read through, and recommend the `superpowers` Claude Code plugin without duplicating it or contradicting it.

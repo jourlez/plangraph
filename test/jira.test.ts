@@ -517,7 +517,7 @@ test('the token never appears in any error, result, summary, stack or log line a
 
 // ---------------------------------------------------------------- issue text
 interface LegacyNode { type?: string; text?: string; content?: LegacyNode[]; attrs?: { level?: number; text?: string } }
-const legacyAdf = (n: LegacyNode | string | null | undefined): string => { // verbatim copy of the pre-lib bin/brain implementation (oracle)
+const legacyAdf = (n: LegacyNode | string | null | undefined): string => { // verbatim copy of the pre-lib bin/plangraph implementation (oracle)
   if (n == null) return ''; if (typeof n === 'string') return n;
   const kids = (n.content || []).map(legacyAdf).join('');
   switch (n.type) {

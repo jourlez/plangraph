@@ -1,4 +1,4 @@
-$ brain verify
+$ plangraph verify
 exit: 0
 --- stdout
 OK plan valid (40 tickets)

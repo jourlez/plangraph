@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # plangraph: plugin excellence research and audit
 
 Date: 2026-11-22. Scope: deep research against primary sources plus an adversarial audit of this repository. Nothing in the plugin was edited; this file is the only output.

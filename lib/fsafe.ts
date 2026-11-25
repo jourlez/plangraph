@@ -34,7 +34,7 @@ export function assertInside(root: string, target: string): SafePath {
   return real as SafePath; // confinement to root was checked on the line above
 }
 
-// Absolute brain directory for dir under root. Rejects absolute dirs and anything escaping root
+// Absolute plan directory for dir under root. Rejects absolute dirs and anything escaping root
 // (lexically or through a symlink). Returns the LEXICAL absolute path, not the real one: confinement is only enforced later, and only when
 // the caller passes { root } to writeAtomicSafe (which re-checks with assertInside at write time). Resolving here is advisory.
 // The name also reaches .gitattributes (`<dir>/*.jsonl merge=...`, one pattern per line) and printed lines, so a control character,
@@ -42,8 +42,8 @@ export function assertInside(root: string, target: string): SafePath {
 // BAD_DIR_NAME; the message never echoes the name.
 const BAD_DIR_CHARS = /[\u0000- \u007F-\u009F\s*?[\]\\!#"]/u;
 export function resolveBrainDir(root: string, dir: string): SafePath {
-  if (BAD_DIR_CHARS.test(String(dir))) throw fail('BAD_DIR_NAME', 'brain directory name has a character that is not allowed (whitespace, control characters and * ? [ ] \\ ! # " are refused)');
-  const bad = () => outside(`brain directory is outside the repository: ${String(dir).slice(0, 80)}`);
+  if (BAD_DIR_CHARS.test(String(dir))) throw fail('BAD_DIR_NAME', 'plan directory name has a character that is not allowed (whitespace, control characters and * ? [ ] \\ ! # " are refused)');
+  const bad = () => outside(`plan directory is outside the repository: ${String(dir).slice(0, 80)}`);
   if (path.isAbsolute(dir)) throw bad();
   const abs = path.resolve(root, dir);
   const rel = path.relative(path.resolve(root), abs);

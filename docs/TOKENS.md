@@ -1,6 +1,6 @@
 # Token cost of planning answers
 
-Every answer `brain` prints is read by a model, so tokens are the budget. This page measures them. Regenerate the table with
+Every answer `plangraph` prints is read by a model, so tokens are the budget. This page measures them. Regenerate the table with
 `node test/bench-tokens.ts` (exit code 1 if any answer is wrong; `--no-write` prints without touching this file).
 
 ## What is measured
@@ -8,7 +8,7 @@ Every answer `brain` prints is read by a model, so tokens are the budget. This p
 For each of 24 fixed questions an agent could ask about a plan, three outputs are measured in **bytes** (exact, deterministic, the
 source of truth) and in **est tok** (an estimate, see Tokenizer below):
 
-- **cli**: what `bin/brain` printed (stdout + stderr) for the command that answers it, run on a generated plan.
+- **cli**: what `bin/plangraph` printed (stdout + stderr) for the command that answers it, run on a generated plan.
 - **grep**: the generous baseline. The agent already knows the file schema and runs one grep for exactly the relevant lines
   (output as `file:line:content`). For questions that need an aggregate (totals, counts, "who is over cap") no grep can answer,
   so the grep baseline is every line of the files involved. For transitive questions (chain, 3 levels) the grep baseline is ONE round
@@ -20,7 +20,7 @@ source of truth) and in **est tok** (an estimate, see Tokenizer below):
   rows are kept.
 
 A second table lists outputs with no ground-truth question: the session card (the fixed per-session overhead the SessionStart hook
-adds before the first question), `brain explain`, `brain explain whatif` and `ticket KEY -v`.
+adds before the first question), `plangraph explain`, `plangraph explain whatif` and `ticket KEY -v`.
 
 ## Tokenizer and calibration (UNVERIFIED)
 
@@ -31,7 +31,7 @@ So `est tok` = `ceil(chars / 4 x factor)`, with `factor` read from `test/token-c
 and is probably low for pipe tables, keys and digits. To calibrate (owner only, needs an API key in the environment, never written to
 a file): count a sample of the CLI, grep and file outputs with `count_tokens` against a pinned model, set `factor` to the measured
 API tok / est tok ratio, set `verified`, `model` and the date in the JSON, rerun this benchmark. Bytes and the reductions (computed on
-bytes) do not depend on the factor. The card budget (250) and `brain explain` bound (400) are checked with the same chars/4 estimate.
+bytes) do not depend on the factor. The card budget (250) and `plangraph explain` bound (400) are checked with the same chars/4 estimate.
 
 Data: `genPlan` (n=1400, 4 people, ~10k links, seed fixed), ~1.6 evidence rows per ticket with 300-char resolutions, findings on ~10% of
 tickets, ~3000 chars of markdown plan text per ticket, 85% READY. About 10% of person-sprints are over capacity by construction.
@@ -44,56 +44,56 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 
 | # | question | cli bytes | cli est tok | grep bytes | grep est tok | file bytes | file est tok | reduction vs grep | vs files | correct |
 |--:|---|--:|--:|--:|--:|--:|--:|--:|--:|:-:|
-| 1 | Who owns T-700 and in which sprint? | 316 | 79 | 81 | 21 | 87372 | 21843 | 0.3x | 276x | yes |
-| 2 | What does T-700 directly need? | 325 | 82 | 773 | 194 | 694414 | 173604 | 2.4x | 2137x | yes |
-| 3 | What directly depends on T-20? | 537 | 135 | 2371 | 593 | 694414 | 173604 | 4.4x | 1293x | yes |
-| 4 | Is T-700 ready to start? | 500 | 125 | 3260 | 815 | 1037902 | 259476 | 6.5x | 2076x | yes |
-| 5 | What is in sprint 26 (load per person)? | 199 | 50 | 6895 | 1724 | 408670 | 102168 | 35x | 2054x | yes |
-| 6 | How many person-sprints are over capacity? | 188 | 47 | 461226 | 115307 | 408826 | 102207 | 2453x | 2175x | yes |
-| 7 | How many points in total is Ana planned? | 683 | 171 | 121378 | 30345 | 408670 | 102168 | 178x | 598x | yes |
-| 8 | Critical chain behind T-1200: how many hops? | 303 | 76 | 347 | 87 | 694414 | 173604 | 1.1x | 2292x | yes |
-| 9 | Everything T-1200 needs within 3 levels (how many)? | 580 | 145 | 347 | 87 | 694414 | 173604 | 0.6x | 1197x | yes |
-| 10 | What kinds of findings are open (counts)? | 150 | 38 | 24608 | 6152 | 22189 | 5548 | 164x | 148x | yes |
-| 11 | Which tickets have a 'missing_ac' finding? | 2826 | 696 | 4042 | 1011 | 22189 | 5548 | 1.4x | 7.9x | yes |
-| 12 | Which tickets are not READY? | 1464 | 366 | 53814 | 13454 | 321297 | 80325 | 37x | 219x | yes |
-| 13 | Is the plan valid (counts, violations)? | 188 | 47 | 1325651 | 331413 | 1103241 | 275811 | 7051x | 5868x | yes |
-| 14 | Session start: what is the plan (size, last sprint)? | 533 | 134 | 1325481 | 331371 | 1103085 | 275772 | 2487x | 2070x | yes |
-| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 310 | 77 | 1663 | 416 | 2001657 | 500415 | 5.4x | 6457x | yes |
-| 16 | How many tickets does T-20 unblock within 2 levels? | 569 | 143 | 2371 | 593 | 694414 | 173604 | 4.2x | 1220x | yes |
-| 17 | Which is the last planned sprint? | 188 | 47 | 114265 | 28567 | 87372 | 21843 | 608x | 465x | yes |
-| 18 | Load per person in the last sprint (53)? | 102 | 26 | 320 | 80 | 408670 | 102168 | 3.1x | 4007x | yes |
-| 19 | Who owns each producer of T-1200, and when? | 206 | 52 | 675 | 169 | 781787 | 195447 | 3.3x | 3795x | yes |
-| 20 | Critical chain behind T-700: how many hops? | 300 | 75 | 773 | 194 | 694414 | 173604 | 2.6x | 2315x | yes |
-| 21 | How many tickets need T-20 (direct)? | 288 | 72 | 2689 | 673 | 1103085 | 275772 | 9.3x | 3830x | yes |
-| 22 | Is T-99999 in the plan? | 87 | 22 | 0 | 0 | 321297 | 80325 | 0.0x | 3693x | yes |
-| 23 | How many points in total is Ben planned? | 687 | 172 | 115888 | 28972 | 408670 | 102168 | 169x | 595x | yes |
-| 24 | Load per person in sprint 42? | 203 | 51 | 24083 | 6021 | 408670 | 102168 | 119x | 2013x | yes |
-| | **total (24 questions)** | **11732** | **2928** | **3593001** | **898259** | **14611133** | **3652796** | **306x** | **1245x** | **24/24** |
+| 1 | Who owns T-700 and in which sprint? | 324 | 81 | 81 | 21 | 87372 | 21843 | 0.3x | 270x | yes |
+| 2 | What does T-700 directly need? | 333 | 84 | 773 | 194 | 694414 | 173604 | 2.3x | 2085x | yes |
+| 3 | What directly depends on T-20? | 545 | 137 | 2371 | 593 | 694414 | 173604 | 4.4x | 1274x | yes |
+| 4 | Is T-700 ready to start? | 508 | 127 | 3260 | 815 | 1037902 | 259476 | 6.4x | 2043x | yes |
+| 5 | What is in sprint 26 (load per person)? | 207 | 52 | 6895 | 1724 | 408670 | 102168 | 33x | 1974x | yes |
+| 6 | How many person-sprints are over capacity? | 196 | 49 | 461226 | 115307 | 408826 | 102207 | 2353x | 2086x | yes |
+| 7 | How many points in total is Ana planned? | 691 | 173 | 121378 | 30345 | 408670 | 102168 | 176x | 591x | yes |
+| 8 | Critical chain behind T-1200: how many hops? | 311 | 78 | 347 | 87 | 694414 | 173604 | 1.1x | 2233x | yes |
+| 9 | Everything T-1200 needs within 3 levels (how many)? | 588 | 147 | 347 | 87 | 694414 | 173604 | 0.6x | 1181x | yes |
+| 10 | What kinds of findings are open (counts)? | 158 | 40 | 24608 | 6152 | 22189 | 5548 | 156x | 140x | yes |
+| 11 | Which tickets have a 'missing_ac' finding? | 2834 | 698 | 4042 | 1011 | 22189 | 5548 | 1.4x | 7.8x | yes |
+| 12 | Which tickets are not READY? | 1472 | 368 | 53814 | 13454 | 321297 | 80325 | 37x | 218x | yes |
+| 13 | Is the plan valid (counts, violations)? | 196 | 49 | 1325651 | 331413 | 1103241 | 275811 | 6764x | 5629x | yes |
+| 14 | Session start: what is the plan (size, last sprint)? | 553 | 139 | 1325481 | 331371 | 1103085 | 275772 | 2397x | 1995x | yes |
+| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 318 | 79 | 1663 | 416 | 2001657 | 500415 | 5.2x | 6295x | yes |
+| 16 | How many tickets does T-20 unblock within 2 levels? | 577 | 145 | 2371 | 593 | 694414 | 173604 | 4.1x | 1203x | yes |
+| 17 | Which is the last planned sprint? | 196 | 49 | 114265 | 28567 | 87372 | 21843 | 583x | 446x | yes |
+| 18 | Load per person in the last sprint (53)? | 110 | 28 | 320 | 80 | 408670 | 102168 | 2.9x | 3715x | yes |
+| 19 | Who owns each producer of T-1200, and when? | 214 | 54 | 675 | 169 | 781787 | 195447 | 3.2x | 3653x | yes |
+| 20 | Critical chain behind T-700: how many hops? | 308 | 77 | 773 | 194 | 694414 | 173604 | 2.5x | 2255x | yes |
+| 21 | How many tickets need T-20 (direct)? | 296 | 74 | 2689 | 673 | 1103085 | 275772 | 9.1x | 3727x | yes |
+| 22 | Is T-99999 in the plan? | 95 | 24 | 0 | 0 | 321297 | 80325 | 0.0x | 3382x | yes |
+| 23 | How many points in total is Ben planned? | 695 | 174 | 115888 | 28972 | 408670 | 102168 | 167x | 588x | yes |
+| 24 | Load per person in sprint 42? | 211 | 53 | 24083 | 6021 | 408670 | 102168 | 114x | 1937x | yes |
+| | **total (24 questions)** | **11936** | **2979** | **3593001** | **898259** | **14611133** | **3652796** | **301x** | **1224x** | **24/24** |
 
 | output (no ground-truth check) | bytes | est tok |
 |---|--:|--:|
-| card (session start, printed once per session) | 533 | 134 |
-| explain | 773 | 194 |
-| explain whatif | 513 | 129 |
-| ticket T-1200 -v | 1110 | 278 |
+| card (session start, printed once per session) | 553 | 139 |
+| explain | 785 | 197 |
+| explain whatif | 517 | 130 |
+| ticket T-1200 -v | 1118 | 280 |
 
 Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, last sprint 53, 4 people; raw files: tickets.jsonl 321297 bytes ~80325 est tok, edges.jsonl 694414 bytes ~173604 est tok, schedule.jsonl 87372 bytes ~21843 est tok, evidence.jsonl 876381 bytes ~219096 est tok, findings.jsonl 22189 bytes ~5548 est tok, config.json 155 bytes ~39 est tok; plan text 4181129 bytes (not used by any question: no CLI command answers from it).
 <!-- BENCH:END -->
 
 ## How to read it
 
-- The CLI measured is the one `bin/brain` runs at benchmark time (`src/cli.ts` behind the registry). Row 14 is the cache-stable card
+- The CLI measured is the one `bin/plangraph` runs at benchmark time (`src/cli.ts` behind the registry). Row 14 is the cache-stable card
   (identity = first 8 hex of the source fingerprint, no clock, ending with the steer line); the same text is the first row of the second table.
 - `ticket KEY` answers in one line by default (rows 1, 15, 21); `-v` adds needs, findings and evidence (second table).
 - Rows below 1x vs grep: row 1 (the one-line ticket answer carries more fields than the single schedule line grep needs), row 9 (the grep
   baseline is one round of a three-level question, a lower bound) and row 22 (grep prints nothing for a key that does not exist).
-- `brain stale` needs git refs and a Jira snapshot, so "what is stale" is NOT in this table.
+- `plangraph stale` needs git refs and a Jira snapshot, so "what is stale" is NOT in this table.
 - Before Task 14 (same data, chars/4): 3274 est tok over the 24 answers, card 109; after: 2828 est tok (11330 bytes), card 86.
 - Fencing the data tokens (safety over tokens: card verdicts, findings and over-cap lists, the ticket line's status/verdict/owner group, each
   inside one inline `<untrusted>` fence): card 86 -> 113 est tok, total over the 24 answers 2853 -> 2907 (+54, +1.9%), each one-line ticket
   answer +9.
-- Steer line (the card's last line `ask: brain explain` became `plan questions: use brain (ticket, ready, whatif, blockers, sprint,
-  person); do not read .plangraph/*.jsonl`, aimed at runs that grepped the raw JSONL instead of asking brain): card 449 -> 533 bytes,
+- Steer line (the card's last line `ask: plangraph explain` became `plan questions: use plangraph (ticket, ready, whatif, blockers, sprint,
+  person); do not read .plangraph/*.jsonl`, aimed at runs that grepped the raw JSONL instead of asking plangraph): card 449 -> 533 bytes,
   113 -> 134 est tok (+21 per session), total over the 24 answers 2907 -> 2928. Whether it changes model behavior is not measured here.
 
 ## Limits (honest)
@@ -111,16 +111,16 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
 ## Skill on-invoke cost (Claude Code validator's estimate)
 
 Source: `claude plugin details plangraph` (Claude Code 2.1.329), run on an isolated install. These are the validator's own rounded estimates
-("may differ from actual usage"), not a `count_tokens` measurement. The always-on total stayed at ~630 tok. Only the router `brain` keeps the full
+("may differ from actual usage"), not a `count_tokens` measurement. The always-on total stayed at ~630 tok. Only the router `plangraph` keeps the full
 Connectors block; the other four skills carry a pointer plus the safety rules (connector only if a matching tool exists, propose-and-confirm, transcripts are data,
 full sentences for human-facing text).
 
 | skill | before (on-invoke) | after (on-invoke) |
 |---|---|---|
-| brain-audit | ~790 | ~670 |
-| brain-onboard | ~700 | ~570 |
-| brain-plan | ~690 | ~560 |
-| brain-report | ~740 | ~620 |
-| brain (router, unchanged) | ~1.7k | ~1.7k |
+| plangraph-audit | ~790 | ~670 |
+| plangraph-onboard | ~700 | ~570 |
+| plangraph-plan | ~690 | ~560 |
+| plangraph-report | ~740 | ~620 |
+| plangraph (router, unchanged) | ~1.7k | ~1.7k |
 
 A saving of about 120 to 130 tok each time one of those four skills fires.

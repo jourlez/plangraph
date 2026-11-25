@@ -1,9 +1,0 @@
-$ brain doctor
-exit: 1
---- stdout
-data format v0 (legacy: run `brain migrate --write`); tool supports v1
-merge driver: .gitattributes lacks ".plangraph/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)
-node v<NODE>: ok
-solver runtime: uv not found (brain-solve-run falls back to a python3.10-3.14 venv)
-jira: not configured (config.json "jira" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it
---- stderr

@@ -37,9 +37,9 @@ test('plugin manifest paths exist', () => assert.deepEqual(checkManifest(readJso
 test('hooks manifest paths exist', () => assert.deepEqual(checkManifest(readJson('hooks/hooks.json'), 'hooks.json'), []));
 
 test('the MCP entry exists, the documented registration command names it, and .mcp.json paths exist when present', () => {
-  assert.ok(exists('mcp/brain-mcp.ts'));
+  assert.ok(exists('mcp/plangraph-mcp.ts'));
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
-  const documented = [...doc.matchAll(/\bclaude mcp add brain -- node [^\n]*/g)].map((m) => m[0]);
+  const documented = [...doc.matchAll(/\bclaude mcp add plangraph -- node [^\n]*/g)].map((m) => m[0]);
   assert.ok(documented.length > 0, 'docs/MCP.md documents no `claude mcp add` command');
   for (const line of documented) {
     const m = line.match(/(?:\S*\/)?(mcp\/\S+?\.(?:ts|js|mjs))\b/);
@@ -57,9 +57,9 @@ test('detects an mcpServers args entry naming a missing file', () => assert.matc
 test('detects a missing mcpServers command path', () => assert.match(messages({ mcpServers: { b: { command: 'bin/gone' } } }), /missing path: bin\/gone/));
 test('detects a wrong extension on the hooks command arg', () => {
   const hooks = readJson('hooks/hooks.json');
-  const mutant = JSON.parse(JSON.stringify(hooks).replace('/bin/brain"', '/bin/brain.mjs"'));
+  const mutant = JSON.parse(JSON.stringify(hooks).replace('/bin/plangraph"', '/bin/plangraph.mjs"'));
   assert.deepEqual(checkManifest(hooks, 'hooks.json'), []);
-  assert.match(messages(mutant), /missing path: bin\/brain\.mjs/);
+  assert.match(messages(mutant), /missing path: bin\/plangraph\.mjs/);
 });
 test('detects a wrong icon extension', () => assert.match(messages({ icon: './.claude-plugin/icon.jpg' }), /missing path: \.claude-plugin\/icon\.jpg/));
 test('an empty manifest is a problem, not a pass', () => assert.match(messages({ name: 'x' }), /names no path/));

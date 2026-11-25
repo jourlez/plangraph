@@ -11,7 +11,7 @@
 //   determinism: the same call twice gives the same bytes.
 // Schema: refs.jsonl (primary key `key`, set field `plans`, plain field `fp_files`), the only shipped schema with a set field.
 // NOT covered: more than 2 keys, values outside the domain (objects inside sets, numbers beyond 2^53), the evidence/unknown-file set
-// semantics (hash identity), conflict marker text beyond the block structure, bin/brain-merge file handling.
+// semantics (hash identity), conflict marker text beyond the block structure, bin/plangraph-merge file handling.
 import assert from 'node:assert/strict';
 import { mergeJsonl } from '../../lib/merge.ts';
 import { SCHEMAS } from '../../lib/store.ts';

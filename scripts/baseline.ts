@@ -3,30 +3,31 @@
 //   node scripts/baseline.ts capture --out DIR [--data DIR]    record every observation as one JSON file per id under DIR
 //   node scripts/baseline.ts compare [--only-common] --a DIR --b DIR   print `same: N`, `differing: M` and one line per differing id (exit 1 when M > 0 or when --only-common compared nothing);
 //                                                              with --only-common an id on one side only is not differing: `new: K` counts them
-//   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `brain card --if-present`
+//   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `plangraph card --if-present`
 //                                                                on the plan fixture (one untimed warm-up run first; N defaults to 30)
-// Observations: (a) a CLI matrix built from `brain explain --json` (each command plain, -v, --json, with a bad flag, with a bad argument,
+// Observations: (a) a CLI matrix built from `plangraph explain --json` (each command plain, -v, --json, with a bad flag, with a bad argument,
 // and on an empty and a legacy repository), (b) the SessionStart hook, the merge driver and a scripted MCP stdio session, (c) library
 // probes with canned inputs. Every child runs with a fixed HOME, TZ=UTC and LC_ALL=C. Output is normalized (see normalizeOutput) so that
 // the planned file-extension rename (.mjs to .ts) is the only accepted difference.
 // NOT covered: the Python solver (own tests), live network calls (Jira is only probed over a stub fetch), the real clock.
-// `--data DIR` is a real brain directory: it is copied to a temporary directory first and the original is never written.
+// `--data DIR` is a real plan directory: it is copied to a temporary directory first and the original is never written.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { RULES as COMMAND_RULES } from './rename-check.ts';
 
 const PLUGIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BRAIN = path.join(PLUGIN, 'bin/brain');
-const MERGE = path.join(PLUGIN, 'bin/brain-merge');
-const MCP = path.join(PLUGIN, 'mcp/brain-mcp.ts');
+const BRAIN = path.join(PLUGIN, 'bin/plangraph');
+const MERGE = path.join(PLUGIN, 'bin/plangraph-merge');
+const MCP = path.join(PLUGIN, 'mcp/plangraph-mcp.ts');
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
 
 interface MatrixEntry { id: string; args: string[]; fixture: 'plan' | 'empty' | 'legacy' }
 interface Probe { id: string; run: () => unknown | Promise<unknown> }
 
-/** The environment of every child: fixed HOME, TZ and locale, no brain-specific variables from the caller.
+/** The environment of every child: fixed HOME, TZ and locale, no plangraph-specific variables from the caller.
  * @param {string} home @returns {Record<string, string>} */
 function childEnv(home: string) {
   return { PATH: process.env.PATH ?? '', HOME: home, CLAUDE_PLUGIN_DATA: path.join(home, 'data'), PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', ...GIT_ENV };
@@ -57,7 +58,7 @@ export function normalizeOutput(text: string, roots: string[] = [], { oldNames =
 
 // ---------------------------------------------------------------------------------------------------------------- the 0.3.0 rename
 // The plangraph rename (0.3.0) changed names, not behavior. A capture of a tree from before it holds the old names, so the OLD side of a
-// compare is mapped to the new names first: whole token, longest first, never inside `brainstorm`. The NEW side is never mapped, and a
+// compare is mapped to the new names first: whole token, longest first, never inside `brainstorm` (the command word and the file names too). The NEW side is never mapped, and a
 // capture asserts it holds no old name (OLD_NAMES), so a stray old name in the new tree cannot hide behind the mapping. Old names are
 // assembled from pieces so that this file names them only here.
 const B = 'brain', PB = ['project', B].join('-');
@@ -71,6 +72,8 @@ export const NAME_MAP: ReadonlyArray<readonly [RegExp, string]> = Object.freeze(
   [new RegExp(`(?<![\\w.-])${B}\\.sqlite(?!\\w)`, 'g'), 'plangraph.sqlite'],
   [new RegExp(`(?<![\\w.])\\.${B}(?![\\w-])`, 'g'), '.plangraph'],
   [new RegExp(`(?<!\\w)${B.toUpperCase()}_(?=[A-Z0-9])`, 'g'), 'PLANGRAPH_'],
+  // the command word and the file names of the plugin's bin/, mcp/ and skills (scripts/rename-check.ts holds the rules)
+  ...COMMAND_RULES,
 ] as const);
 /** The OLD capture side in the new names. */
 export const mapOldNames = (text: string): string => NAME_MAP.reduce((s, [re, to]) => s.replace(re, to), text);
@@ -88,7 +91,7 @@ function brainRun(args: string[], cwd: string, env: Record<string, string>) {
 }
 
 interface CommandInfo { name: string; positionals: [number, number | null]; options: Array<{ name: string }>; writes: string }
-/** The registry as `brain explain --json` reports it. @returns {CommandInfo[]} */
+/** The registry as `plangraph explain --json` reports it. @returns {CommandInfo[]} */
 function listCommands(): CommandInfo[] {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'bl-explain-'));
   try {
@@ -98,8 +101,8 @@ function listCommands(): CommandInfo[] {
 }
 const COMMANDS = listCommands();
 
-// Placeholders resolved per capture (a real brain directory has other keys): @KEY@ a ticket key, @PERSON@ an owner, @SPRINT@ a sprint
-// number, @BRAINDIR@ the brain directory of the fixture.
+// Placeholders resolved per capture (a real plan directory has other keys): @KEY@ a ticket key, @PERSON@ an owner, @SPRINT@ a sprint
+// number, @BRAINDIR@ the plan directory of the fixture.
 /** Valid positional arguments for the commands that need some; every other command takes none. */
 const GOOD_ARGS = Object.freeze({ bundle: ['@KEY@'], chain: ['@KEY@'], neighbors: ['@KEY@'], person: ['@PERSON@'], sprint: ['@SPRINT@'], ticket: ['@KEY@'], 'schedule-load': ['baseline-old', '@BRAINDIR@/schedule.jsonl'] });
 /** Hand-picked invocations with option values, run on the plan fixture. */
@@ -133,11 +136,11 @@ function buildMatrix() {
   for (const e of m) { if (seen.has(e.id)) throw new Error(`duplicate matrix id ${e.id}`); seen.add(e.id); }
   return m;
 }
-/** Every command `brain explain --json` lists, plain, with -v and --json, with error paths, plus hand-picked option runs. @type {MatrixEntry[]} */
+/** Every command `plangraph explain --json` lists, plain, with -v and --json, with error paths, plus hand-picked option runs. @type {MatrixEntry[]} */
 export const MATRIX: MatrixEntry[] = buildMatrix();
 
 // ---------------------------------------------------------------------------------------------------------------- fixtures
-/** Build the plan fixture once: a git repository with a built brain (test/helpers/cli-fixture.ts). @returns {Promise<string>} */
+/** Build the plan fixture once: a git repository with a built plan directory (test/helpers/cli-fixture.ts). @returns {Promise<string>} */
 async function planFixture() {
   const { fixture } = await import('../test/helpers/cli-fixture.ts');
   const d = await fixture();
@@ -164,7 +167,7 @@ function buildTemplates(work: string, planSrc: string, dataDir: string | undefin
   if (dataDir) {
     // the owner's directory is copied first and never touched again; commands run against the copy
     fs.mkdirSync(path.join(plan, 'repo'), { recursive: true }); gitInit(path.join(plan, 'repo'));
-    clone(dataDir, path.join(plan, 'repo/data')); brainDir = 'data'; // inside the repository: the CLI refuses a brain directory outside it
+    clone(dataDir, path.join(plan, 'repo/data')); brainDir = 'data'; // inside the repository: the CLI refuses a plan directory outside it
     try {
       const first = fs.readFileSync(path.join(plan, 'repo/data/tickets.jsonl'), 'utf8').split('\n').find((l) => l.trim());
       const t = first ? JSON.parse(first) : {};
@@ -190,7 +193,7 @@ export function runHook(root: string): { code: number; out: string; err: string 
 const row = (key: string, o: Record<string, unknown> = {}) => JSON.stringify({ key, summary: `ticket ${key}`, epic: 'E0', sp: 2, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', ...o });
 const lines = (a: string[]) => `${a.join('\n')}\n`;
 /**
- * Run bin/brain-merge on three fixed files written into `root`: `clean` edits distinct tickets on each side, `conflict` edits the same
+ * Run bin/plangraph-merge on three fixed files written into `root`: `clean` edits distinct tickets on each side, `conflict` edits the same
  * field of one ticket differently.
  * @param {string} root @param {'clean' | 'conflict'} [variant] @returns {{ code: number, merged: string }}
  */
@@ -206,8 +209,8 @@ export function runMergeDriver(root: string, variant: 'clean' | 'conflict' = 'cl
 }
 
 /**
- * A scripted stdio session against mcp/brain-mcp.ts: initialize, initialized, tools/list, one tools/call for `ready`.
- * @param {string} root a repository with a brain, used as the working directory @returns {string[]} the responses, one JSON-RPC message per entry
+ * A scripted stdio session against mcp/plangraph-mcp.ts: initialize, initialized, tools/list, one tools/call for `ready`.
+ * @param {string} root a repository with a plan directory, used as the working directory @returns {string[]} the responses, one JSON-RPC message per entry
  */
 export function runMcpSession(root: string): string[] {
   const msg = (o: object) => JSON.stringify({ jsonrpc: '2.0', ...o });
@@ -346,7 +349,7 @@ const fileFor = (outDir: string, id: string) => path.join(outDir, `${id}.json`);
 
 /**
  * Record every observation under `outDir`, one normalized JSON file per id. `dataDir`, when given, is copied to a temporary
- * directory first and never modified; the plan-fixture runs then use the copy as their brain directory.
+ * directory first and never modified; the plan-fixture runs then use the copy as their plan directory.
  * @param {{ root: string, outDir: string, dataDir?: string }} opts `root` is the plugin directory (the harness always runs the plugin it lives in)
  * @returns {Promise<{ count: number }>}
  */
@@ -379,7 +382,7 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
     // hook, merge driver and MCP session, each on its own copy of the synthetic plan fixture (also when --data is given)
     const copyPlan = () => { const d = path.join(work, `run-${n++}`); clone(planSrc, path.join(d, 'repo')); return path.join(d, 'repo'); };
     const hookRoot = copyPlan(); save('hook.session-start', { id: 'hook', ...runHook(hookRoot) });
-    const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.plangraph'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-brain', ...runHook(hookAgain) });
+    const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.plangraph'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-plangraph', ...runHook(hookAgain) });
     for (const variant of ((['clean', 'conflict']) as const)) save(`merge-driver.${variant}`, { id: `merge-driver-${variant}`, ...runMergeDriver(copyPlan(), variant) });
     save('mcp.session', { id: 'mcp', responses: runMcpSession(copyPlan()) });
     const stray = fs.readdirSync(outDir).filter((f) => !namesOldNames(f)).flatMap((f) => oldNameHits(fs.readFileSync(path.join(outDir, f), 'utf8')).map((h) => `${f}: ${h}`));
@@ -414,7 +417,7 @@ const median = (xs: number[]): number => { const s = xs.toSorted((a, b) => a - b
 
 /**
  * Startup benchmark (the spec's budget: warm median at most 15 ms over the pre-migration median). Builds the plan fixture once, runs
- * `node bin/brain card --if-present` once untimed (so a compile cache, when the entry enables one, is warm), then `runs` timed times.
+ * `node bin/plangraph card --if-present` once untimed (so a compile cache, when the entry enables one, is warm), then `runs` timed times.
  * @param {{ runs: number, runOnce?: (cwd: string, env: Record<string, string>) => { code: number | string } }} opts runOnce: injectable for tests
  * @returns {Promise<{ median: number, samples: number[] }>} milliseconds
  */
@@ -428,7 +431,7 @@ export async function bench({ runs, runOnce = (cwd: string, env: Record<string, 
     const env = childEnv(home), cwd = path.join(work, 'repo');
     clone(planSrc, cwd);
     const warm = runOnce(cwd, env);
-    if (warm.code !== 0) throw new Error(`bench: brain card --if-present exited ${warm.code} on the plan fixture`);
+    if (warm.code !== 0) throw new Error(`bench: plangraph card --if-present exited ${warm.code} on the plan fixture`);
     const samples: number[] = [];
     for (let i = 0; i < runs; i++) { const t = process.hrtime.bigint(); runOnce(cwd, env); samples.push(Number(process.hrtime.bigint() - t) / 1e6); }
     return { median: median(samples), samples };

@@ -1,4 +1,4 @@
-$ brain sp-link T-3 docs/plan.md --tasks 1,2
+$ plangraph sp-link T-3 docs/plan.md --tasks 1,2
 exit: 0
 --- stdout
 linked T-3 to docs/plan.md: 2 tasks

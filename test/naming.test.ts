@@ -10,7 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
 const json = (f: string) => JSON.parse(read(f));
 // The previous plugin name, assembled so that this file does not itself contain it.
-const OLD = ['open', 'brain'].join('-');
+const OLD = ['open', 'br' + 'ain'].join('-');
 
 test('plugin, marketplace and package carry the name plangraph', () => {
   assert.equal(json('.claude-plugin/plugin.json').name, 'plangraph');

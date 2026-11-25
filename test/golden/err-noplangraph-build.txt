@@ -1,0 +1,6 @@
+$ plangraph build
+exit: 2
+--- stdout
+--- stderr
+error: no plan directory
+try: plangraph init

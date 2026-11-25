@@ -2,8 +2,8 @@
 # Smoke test on synthetic data (no real project data). Usage: PYTHON=/path/to/python-with-ortools test/smoke.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-BRAIN="$HERE/bin/brain"
-SOLVE="$HERE/bin/brain-solve"
+BRAIN="$HERE/bin/plangraph"
+SOLVE="$HERE/bin/plangraph-solve"
 PY="${PYTHON:-python3}"
 T="$(mktemp -d)"
 export CLAUDE_PLUGIN_DATA="$(mktemp -d)" # never the real data dir
@@ -67,7 +67,7 @@ printf '%s\n' '{"key":"T-1","kind":"export_clash","text":"two exports"}' 'not js
 grep -q "f.jsonl:2" err.txt || fail open-items-findings-error-line
 # bad --findings arguments and oversized input are refused cleanly (exit 2, short message, no stack trace)
 chk() { want="$1"; shift; set +e; out="$("$BRAIN" open-items "$@" 2>&1 </dev/null)"; rc=$?; set -e; [ "$rc" = "2" ] || fail "open-items $* exit $rc"; [ "$out" = "$want" ] || fail "open-items $*: got: $out"; }
-TRY_OI="$(printf '\ntry: brain explain open-items')"
+TRY_OI="$(printf '\ntry: plangraph explain open-items')"
 chk "error: --findings needs a file path (or - for stdin)$TRY_OI" --findings
 chk "error: --findings needs a file path (or - for stdin)$TRY_OI" --findings ""
 chk "error: --findings needs a file path (or - for stdin)$TRY_OI" --findings --write
@@ -114,7 +114,7 @@ sed -i.bak '$d' .plangraph/tickets.jsonl && rm -f .plangraph/tickets.jsonl.bak
 cat > .plangraph/config.json <<'E'
 {"first_sprint":1,"end_sprint":4,"caps":{"default":20},"min_per_sprint":{},"minimize_load_of":"Ben","ignore_link_kinds":[],"time_limit_seconds":20,"workers":2}
 E
-set +e; "$HERE/bin/brain-solve-run" --out solved.json --time 20 | tail -1; rc=${PIPESTATUS[0]}; set -e
+set +e; "$HERE/bin/plangraph-solve-run" --out solved.json --time 20 | tail -1; rc=${PIPESTATUS[0]}; set -e
 if [ "$rc" = "3" ]; then echo "skipped solver test (no uv and no python with ortools)"
 else
   [ "$rc" = "0" ] || fail "solver exit code $rc"
@@ -163,10 +163,10 @@ WFX="$HERE/test/fixtures/openwolf"; mkdir -p .wolf && cp "$WFX/cerebrum.drifted.
 grep -qE '^w[0-9a-f]{6} \[wolf:do-not-repeat\] 2031-04-02 ' wolf-rules.out || fail rules-repo
 grep -q '^<untrusted src="wolf-do-not-repeat"' wolf-rules.out || fail rules-repo-fenced
 "$BRAIN" card --line > card-line.out || fail card-line-exit
-grep -qE '^brain: [0-9]+ tickets, last sprint [0-9]+, [0-9]+ violations @[0-9a-f]{8}$' card-line.out || fail card-line
+grep -qE '^plangraph: [0-9]+ tickets, last sprint [0-9]+, [0-9]+ violations @[0-9a-f]{8}$' card-line.out || fail card-line
 [ "$(wc -l < card-line.out | tr -d ' ')" = "1" ] || fail card-line-one-line
 cp .plangraph/learnings.jsonl learn-before.jsonl
 set +e; out="$("$BRAIN" learn --from-wolf 99 2>&1)"; rc=$?; set -e
-[ "$rc" = "2" ] || fail "learn number exit $rc"; [ "$out" = "$(printf '%s\n%s' 'error: a position number is not accepted (positions shift): use the handle from `brain rules --repo` or the exact text' 'try: brain explain learn')" ] || fail "learn number message: $out"
+[ "$rc" = "2" ] || fail "learn number exit $rc"; [ "$out" = "$(printf '%s\n%s' 'error: a position number is not accepted (positions shift): use the handle from `plangraph rules --repo` or the exact text' 'try: plangraph explain learn')" ] || fail "learn number message: $out"
 cmp -s .plangraph/learnings.jsonl learn-before.jsonl || fail learn-number-wrote
 echo "OK: all smoke checks passed in $T"

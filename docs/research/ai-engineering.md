@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # plangraph: AI-engineering research and audit
 
 Date: 2026-11-22. Scope: agent-facing design of the `brain` CLI/plugin. Design only; no paid model calls were made and no code was edited.

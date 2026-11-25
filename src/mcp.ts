@@ -1,7 +1,7 @@
 // The optional, read-only MCP adapter: three tools (ready, whatif, ticket) over the stdio transport, hand-written JSON-RPC 2.0, no SDK.
 // Off by default: nothing in the plugin starts it (no mcpServers in plugin.json, no .mcp.json at the plugin root); docs/MCP.md says how
 // an owner opts in. Each tool call runs the SAME command through src/cli.ts main() with a collecting io, so the text is byte for byte
-// what `brain ready|ticket|whatif` prints (fences, sanitization, the 40-line bound, the STALE warning, error lines), stdout then stderr.
+// what `plangraph ready|ticket|whatif` prints (fences, sanitization, the 40-line bound, the STALE warning, error lines), stdout then stderr.
 // Safety: arguments are validated against fixed allowlists (ticket key shapes, a person-name shape, safe integers, booleans) and become a
 // fixed argv (`--` before the key); whatif is a dry run only: --apply-plan and --write can never be built. No paths from arguments, no
 // shell, no network, no writes, no stdin read by a command (stdin is the protocol). Library code: never exits, never prints.
@@ -38,12 +38,12 @@ const VERBOSE = { type: 'boolean', description: 'Longer answer (the CLI -v)' };
 const ANNOTATIONS = Object.freeze({ readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
 /** The tool definitions, in tools/list order. Every property is listed; anything else is refused. */
 export const TOOLS = Object.freeze([
-  { name: 'ready', title: 'May this ticket start now?', description: 'Definition of ready for one ticket: READY TO START, DONE (its own status is closed), or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `brain ready KEY`.',
+  { name: 'ready', title: 'May this ticket start now?', description: 'Definition of ready for one ticket: READY TO START, DONE (its own status is closed), or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `plangraph ready KEY`.',
     inputSchema: { type: 'object', properties: { key: KEY_PROP, verbose: VERBOSE }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
-  { name: 'whatif', title: 'Dry run of a move', description: 'Dry run of reassigning a ticket (to) or moving it to a sprint: OK, or NO with the broken rules and a repair. Never changes anything. Same text as `brain whatif KEY`.',
+  { name: 'whatif', title: 'Dry run of a move', description: 'Dry run of reassigning a ticket (to) or moving it to a sprint: OK, or NO with the broken rules and a repair. Never changes anything. Same text as `plangraph whatif KEY`.',
     inputSchema: { type: 'object', properties: { key: KEY_PROP, to: { type: 'string', description: 'New owner' }, sprint: { type: 'integer', minimum: 0, maximum: MAX_SPRINT, description: 'New sprint' },
       earlier: { type: 'boolean' }, owner_change: { type: 'boolean' }, slip: { type: 'boolean' }, strict: { type: 'boolean' }, verbose: VERBOSE }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
-  { name: 'ticket', title: 'One ticket', description: 'One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `brain ticket KEY`.',
+  { name: 'ticket', title: 'One ticket', description: 'One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `plangraph ticket KEY`.',
     inputSchema: { type: 'object', properties: { key: KEY_PROP, verbose: VERBOSE }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
 ].map((t) => Object.freeze(t)));
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));

@@ -1,6 +1,6 @@
-$ brain 
+$ plangraph 
 exit: 2
 --- stdout
 --- stderr
 error: no command
-try: brain explain
+try: plangraph explain

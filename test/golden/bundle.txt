@@ -1,4 +1,4 @@
-$ brain bundle T-3 T-5
+$ plangraph bundle T-3 T-5
 exit: 0
 --- stdout
 

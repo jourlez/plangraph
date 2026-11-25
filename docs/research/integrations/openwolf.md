@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # OpenWolf: source-level research for plangraph integration
 
 Date: 2026-11-22. Researched version: **openwolf 2.5.3** (npm, published 2026-10-19).

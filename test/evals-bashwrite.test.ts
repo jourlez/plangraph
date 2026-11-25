@@ -26,8 +26,8 @@ E`;
 
 export const READS = [
   PILOT_OVERLOAD,
-  'brain ready ZED-12 2>/dev/null',
-  'brain whatif ZED-12 --to Rowan --sprint 3 2>&1',
+  'plangraph ready ZED-12 2>/dev/null',
+  'plangraph whatif ZED-12 --to Rowan --sprint 3 2>&1',
   'grep -c x plan/graph/tickets.jsonl',
   "jq -r 'select(.sp > 3) | .key' plan/graph/tickets.jsonl",
   "awk -F, '{ if ($2>5) print $1 }' data.csv",
@@ -38,11 +38,11 @@ export const READS = [
   'git log --oneline -3; git status --short; git diff --stat',
   "grep -rn 'writeFileSync(' src | head",
   'sqlite3 plan/graph/plangraph.sqlite "SELECT key FROM tickets LIMIT 3"',
-  'brain stale --ref HEAD --list',
-  'brain card --line',
+  'plangraph stale --ref HEAD --list',
+  'plangraph card --line',
   `python3 - <<"PY"\nwith open('plan/graph/schedule.jsonl') as f:\n    print(sum(1 for _ in f))\nPY`,
   'echo "a > b"',
-  'node bin/brain ticket ZED-4',
+  'node bin/plangraph ticket ZED-4',
   'find plan -name "*.jsonl" -type f',
 ];
 export const WRITES = [
@@ -50,7 +50,7 @@ export const WRITES = [
   'sed -i s/a/b/ plan.md', "sed -i '' 's/a/b/' plan.md", 'perl -pi -e s/a/b/ plan.md',
   'rm plan/graph/x.jsonl', 'mv a b', 'cp a b', 'touch notes.md', 'mkdir out', 'cd plan && rm -f x', 'xargs rm < list.txt', 'find . -name "*.tmp" -delete',
   'git commit -qm x', 'git add -A', 'git -c user.name=x commit -m y', 'git checkout -- plan.md', 'git stash',
-  'brain init', 'brain report', 'brain whatif ZED-1 --to Rowan --sprint 2 --apply-plan --write', 'node bin/brain export', 'brain doctor --fix',
+  'plangraph init', 'plangraph report', 'plangraph whatif ZED-1 --to Rowan --sprint 2 --apply-plan --write', 'node bin/plangraph export', 'plangraph doctor --fix',
   `python3 - <<'E'\nwith open('plan.md','w') as f:\n    f.write('x')\nE`,
   `python3 -I - <<E\nimport pathlib\npathlib.Path('notes.md').write_text('x')\nE`,
   'python3 -c "import os; os.remove(\'plan.md\')"',
@@ -64,7 +64,7 @@ test('reads: heredoc scripts, quoted comparisons, fd duplication and /dev/null a
   for (const r of READS) assert.equal(isWriteBash(r), false, `flagged as a write: ${r.slice(0, 80)}`);
 });
 
-test('writes: redirects, tee, in-place edits, file commands, git writes, brain write verbs and script writes are caught', () => {
+test('writes: redirects, tee, in-place edits, file commands, git writes, plangraph write verbs and script writes are caught', () => {
   for (const w of WRITES) assert.equal(isWriteBash(w), true, `missed: ${w.slice(0, 80)}`);
   assert.equal(bashWrite('echo x > f').why, 'redirect');
   assert.equal(bashWrite(`python3 - <<'E'\nopen('f','w')\nE`).why, 'script write');
@@ -73,8 +73,8 @@ test('writes: redirects, tee, in-place edits, file commands, git writes, brain w
 test('the native single-regex grader no longer reads `v>c` inside the pilot heredoc as a redirect, and still catches spaced redirects', () => {
   const re = new RegExp(WRITE_BASH);
   assert.equal(re.test(PILOT_OVERLOAD), false);
-  for (const w of ['echo x > plan.md', 'cat a >> b', 'sed -i s/a/b/ plan.md', 'brain report', 'rm x', 'git commit -m x', 'jq . a | tee b']) assert.ok(re.test(w), w);
-  assert.equal(re.test('brain ready T-1 2>/dev/null'), false);
+  for (const w of ['echo x > plan.md', 'cat a >> b', 'sed -i s/a/b/ plan.md', 'plangraph report', 'rm x', 'git commit -m x', 'jq . a | tee b']) assert.ok(re.test(w), w);
+  assert.equal(re.test('plangraph ready T-1 2>/dev/null'), false);
 });
 
 test('helpers: heredoc split keeps the shell text and the body apart; quotes are blanked to the same length', () => {

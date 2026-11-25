@@ -1,4 +1,4 @@
-$ brain migrate-names
+$ plangraph migrate-names
 exit: 0
 --- stdout
 migrate-names: no old names found, nothing to do

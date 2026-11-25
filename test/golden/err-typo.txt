@@ -1,6 +1,6 @@
-$ brain tikcet T-5
+$ plangraph tikcet T-5
 exit: 2
 --- stdout
 --- stderr
 error: unknown command tikcet; did you mean ticket?
-try: brain explain ticket
+try: plangraph explain ticket

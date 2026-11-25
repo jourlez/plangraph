@@ -2,19 +2,19 @@
 // Direct eval runner: every case runs through `claude -p` itself, arm A WITH the plugin (--plugin-dir <private plugin copy>) and arm B
 // WITHOUT it, with the same prompt, the same freshly scaffolded workspace (a temp dir outside the repository, git-initialised), the same
 // built-in tools and the same tool grant. Why not `claude plugin eval`: in that harness the plugin's bin/ is not on the Bash PATH (every
-// `brain` call exited 127 in pilot #1), so its plugin arm did not measure the plugin; with `claude -p --plugin-dir` it is.
+// `plangraph` call exited 127 in pilot #1), so its plugin arm did not measure the plugin; with `claude -p --plugin-dir` it is.
 //   node evals/run-p.ts --dry-run [--real <root>] [selection]                 build the suite, print the plan and a cost range (no model call)
 //   node evals/run-p.ts --run --max-cost-usd N [--real <root>] [selection]    PAID: run under the global hard cap, then print the report
 //   node evals/run-p.ts --run --max-cost-usd N --resume <suite dir>           continue a suite (finished runs are kept, budget counts them)
-//   node evals/run-p.ts --probe --max-cost-usd 0.3                            PAID (cents): one Bash `brain card --line` per arm; proves
-//                                                                              brain runs in arm A and is absent in arm B
+//   node evals/run-p.ts --probe --max-cost-usd 0.3                            PAID (cents): one Bash `plangraph card --line` per arm; proves
+//                                                                              plangraph runs in arm A and is absent in arm B
 // Selection: --case ID, --family F, --kind K, --size S|M|L|R, --style natural|layout-told|both (default natural), --runs N (default 3).
 // Tuning: --model M (default the pinned agent model), -j N parallel runs (default 3), --per-run-usd X (default: the case's max_usd),
 // --claude PATH (default `claude` on PATH, or $CLAUDE_BIN), --keep-workspaces.
 // Isolation (identical in both arms): --setting-sources project (no user settings, so no user plugins, hooks or permissions),
 // --strict-mcp-config (no MCP servers), --tools Read,Grep,Glob,Bash,Skill,Edit,Write (no subagents, no web), --permission-mode dontAsk
 // with the same --allowedTools (reads and read-style Bash; Edit/Write are visible but never granted, so an attempt is denied and graded),
-// --no-session-persistence, a clean environment (the parent session's CLAUDE_* variables removed, PATH entries holding a `brain` binary
+// --no-session-persistence, a clean environment (the parent session's CLAUDE_* variables removed, PATH entries holding a `plangraph` binary
 // removed so only the plugin can provide it). Auth is the operator's normal login (an isolated CLAUDE_CONFIG_DIR is not logged in).
 // Graders: the case's own graders (evals/schema.ts grade) over the parsed stream-json trace, with two changes: safe-no-write-bash uses
 // the structural reader (evals/bashwrite.ts), and the file list is a sha256 diff of every workspace file before and after the run
@@ -56,7 +56,7 @@ export const THRESHOLD = 0.8;
 export const TOOLS = ['Read', 'Grep', 'Glob', 'Bash', 'Skill', 'Edit', 'Write'];
 // The same grant in both arms. Bash: the plugin CLI plus the read-style commands an agent uses on a repository (python3/node so arm B
 // can compute over the JSONL like a capable user would). Write-capable commands that slip through are caught by the integrity graders.
-export const BASH_CMDS = ['brain', 'cd', 'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'jq', 'sort', 'uniq', 'cut', 'awk', 'tr', 'find', 'git', 'node', 'python3', 'echo', 'printf', 'sed'];
+export const BASH_CMDS = ['plangraph', 'cd', 'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'jq', 'sort', 'uniq', 'cut', 'awk', 'tr', 'find', 'git', 'node', 'python3', 'echo', 'printf', 'sed'];
 export const ALLOWED = ['Read', 'Grep', 'Glob', 'Skill', ...BASH_CMDS.map((c) => `Bash(${c}:*)`)];
 export const ARMS: Array<'with' | 'without'> = ['with', 'without']; // A, B (names shared with the native aggregate and evals/report.ts)
 
@@ -89,10 +89,10 @@ export function claudeArgs({ arm, model, budget, pluginDir }: { arm: string; mod
     '--setting-sources', 'project', '--strict-mcp-config', '--tools', TOOLS.join(','), '--permission-mode', 'dontAsk', '--allowedTools', ALLOWED.join(','),
     ...(arm === 'with' ? ['--plugin-dir', pluginDir] : [])];
 }
-// The child environment: the operator's (auth, PATH) minus the parent session's Claude variables and brain settings, and minus PATH
-// entries that hold a `brain` executable (so arm B cannot reach one and arm A gets it only from the plugin).
+// The child environment: the operator's (auth, PATH) minus the parent session's Claude variables and plangraph settings, and minus PATH
+// entries that hold a `plangraph` executable (so arm B cannot reach one and arm A gets it only from the plugin).
 const KEEP_CLAUDE = new Set(['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_USE_FOUNDRY']);
-export function childEnv(env: Record<string, string | undefined> = process.env, { hasBrain = (d: string) => fs.existsSync(path.join(d, 'brain')) }: { hasBrain?: (dir: string) => boolean } = {}): Record<string, string> {
+export function childEnv(env: Record<string, string | undefined> = process.env, { hasBrain = (d: string) => fs.existsSync(path.join(d, 'plangraph')) }: { hasBrain?: (dir: string) => boolean } = {}): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined) continue;
@@ -150,12 +150,12 @@ function writeFixtures(suite: string, fixtures: Record<string, string | Record<s
 }
 const git = (ws: string, args: string[], env: Record<string, string>) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], { cwd: ws, encoding: 'utf8', env });
 /** Build a case workspace (same steps as the native scaffold.sh, plus the merge driver wired before the commit so the plugin's session
- * hook finds nothing to heal, and a .gitignore for the derived index as a real project has). Returns the brain dir relative to ws. */
+ * hook finds nothing to heal, and a .gitignore for the derived index as a real project has). Returns the plan dir relative to ws. */
 export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDir = null, brainDir = '.plangraph' }: { suite: string; rcDir?: string | null | undefined; brainDir?: string | undefined }): string {
-  const fx = path.join(suite, 'fixtures', c.fixture.size), dir = rcDir || brainDir, brainBin = path.join(suite, 'plugin', 'bin', 'brain');
+  const fx = path.join(suite, 'fixtures', c.fixture.size), dir = rcDir || brainDir, brainBin = path.join(suite, 'plugin', 'bin', 'plangraph');
   const env = { ...childEnv(), CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data'), HOME: process.env.HOME || os.homedir() };
   fs.copyFileSync(path.join(fx, 'plan.md'), path.join(ws, 'plan.md'));
-  if (c.fixture.brain) {
+  if (c.fixture.plangraph) {
     fs.mkdirSync(path.join(ws, dir), { recursive: true });
     for (const n of fs.readdirSync(fx)) if (/\.jsonl$/.test(n) || n === 'config.json' || n === 'format.json') fs.copyFileSync(path.join(fx, n), path.join(ws, dir, n));
     if (rcDir) fs.writeFileSync(path.join(ws, '.plangraphrc'), `${JSON.stringify({ dir: rcDir })}\n`);
@@ -163,10 +163,10 @@ export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDi
     fs.writeFileSync(path.join(ws, '.gitignore'), '*.sqlite\n*.sqlite-*\n');
   }
   if (git(ws, ['init', '-q'], env).status !== 0) throw new Error('git init failed in the workspace');
-  if (c.fixture.brain) spawnSync(process.execPath, [brainBin, 'doctor', '--fix'], { cwd: ws, env, encoding: 'utf8', timeout: 60000 });
+  if (c.fixture.plangraph) spawnSync(process.execPath, [brainBin, 'doctor', '--fix'], { cwd: ws, env, encoding: 'utf8', timeout: 60000 });
   git(ws, ['add', '-A'], env);
   if (git(ws, ['commit', '-qm', 'fixture'], env).status !== 0) throw new Error('git commit failed in the workspace');
-  if (c.fixture.brain && spawnSync(process.execPath, [brainBin, 'build'], { cwd: ws, env, encoding: 'utf8', timeout: 300000 }).status !== 0) throw new Error('brain build failed in the workspace');
+  if (c.fixture.plangraph && spawnSync(process.execPath, [brainBin, 'build'], { cwd: ws, env, encoding: 'utf8', timeout: 300000 }).status !== 0) throw new Error('plangraph build failed in the workspace');
   return dir;
 }
 
@@ -278,8 +278,8 @@ async function probe(o: Args, opt: Opt): Promise<number> {
   copyPlugin(root, path.join(suite, 'plugin'));
   writeFixtures(suite, { S: path.join(here, 'fixtures', 'S') }, ['S']);
   fs.mkdirSync(path.join(suite, 'traces'));
-  const c = { id: 'probe', tags: [], fixture: { size: 'S', seed: null, brain: true, overlay: [] }, limits: { timeout_s: 120, max_usd: 0.15 } };
-  const prompt = 'Run exactly this shell command with the Bash tool, once: brain card --line\nThen reply with its output verbatim, or with the error text if it failed. Do nothing else.';
+  const c = { id: 'probe', tags: [], fixture: { size: 'S', seed: null, plangraph: true, overlay: [] }, limits: { timeout_s: 120, max_usd: 0.15 } };
+  const prompt = 'Run exactly this shell command with the Bash tool, once: plangraph card --line\nThen reply with its output verbatim, or with the error text if it failed. Do nothing else.';
   const out: Record<string, { brainRan: number; cardLine: unknown; denials: number; [k: string]: unknown }> = {};
   let spent = 0;
   for (const arm of ARMS) {
@@ -290,12 +290,12 @@ async function probe(o: Args, opt: Opt): Promise<number> {
     await runClaude(opt.claude, claudeArgs({ arm, model: opt.model, budget: c.limits.max_usd, pluginDir: path.join(suite, 'plugin') }), { cwd: ws, prompt, env: childEnv(), timeoutS: 120, tracePath });
     const t = parseTrace(readCapped(tracePath, MAX));
     spent += t.result?.cost ?? 0;
-    out[arm] = { plugins: t.init?.plugins ?? null, mcp: t.init?.mcp ?? null, brainCalls: t.plugin.brainCalls, brainRan: t.plugin.brainRan, brainNotFound: t.plugin.brainNotFound, card: t.plugin.card, denials: t.denials, cost: t.result?.cost ?? null, cardLine: /^brain: \d+ tickets/m.test(t.message) };
+    out[arm] = { plugins: t.init?.plugins ?? null, mcp: t.init?.mcp ?? null, brainCalls: t.plugin.brainCalls, brainRan: t.plugin.brainRan, brainNotFound: t.plugin.brainNotFound, card: t.plugin.card, denials: t.denials, cost: t.result?.cost ?? null, cardLine: /^plangraph: \d+ tickets/m.test(t.message) };
     fs.rmSync(ws, { recursive: true, force: true });
   }
   process.stdout.write(`${JSON.stringify({ suite, ...out }, null, 1)}\n`);
   const ok = out.with.brainRan >= 1 && out.with.cardLine && out.without.brainRan === 0 && out.with.denials === 0;
-  process.stdout.write(ok ? 'probe: OK (brain ran from the model\'s Bash in arm A; absent in arm B)\n' : 'probe: FAILED (see the JSON above)\n');
+  process.stdout.write(ok ? 'probe: OK (plangraph ran from the model\'s Bash in arm A; absent in arm B)\n' : 'probe: FAILED (see the JSON above)\n');
   return ok ? 0 : 1;
 }
 
@@ -352,7 +352,7 @@ async function main(argv: string[]): Promise<number> {
   const spent0 = spentOf(store.records);
   const r = await pool(todo, { j: opt.j, cap: opt.budget as number, // a paid mode has --max-cost-usd (checked above)
     spent0, runOne: (job) => runJob(job, { suite, rcDir, brainDir, model: opt.model, claude: opt.claude, keepWorkspaces: opt.keepWorkspaces }),
-    onRecord: (rec) => { store.records.push(rec); saveResults(resFile, store); process.stdout.write(`${rec.key} score ${rec.score.toFixed(2)} cost ${Number.isFinite(rec.cost) ? (rec.cost as number).toFixed(3) : '-'}${rec.arm === 'with' ? ` brain ${rec.pluginUsed ? 'ran' : 'NOT run'}` : ''}${rec.error ? ` ERROR ${rec.error}` : ''}\n`); } }); // as number: Number.isFinite is the check
+    onRecord: (rec) => { store.records.push(rec); saveResults(resFile, store); process.stdout.write(`${rec.key} score ${rec.score.toFixed(2)} cost ${Number.isFinite(rec.cost) ? (rec.cost as number).toFixed(3) : '-'}${rec.arm === 'with' ? ` plangraph ${rec.pluginUsed ? 'ran' : 'NOT run'}` : ''}${rec.error ? ` ERROR ${rec.error}` : ''}\n`); } }); // as number: Number.isFinite is the check
   saveResults(resFile, store);
   const { summarize, render } = await import('./report.ts');
   process.stdout.write(render(summarize(suite)));

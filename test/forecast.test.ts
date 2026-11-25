@@ -295,7 +295,7 @@ test('forecast refuses a plan with a loop and a plan with nothing left, without 
   const mk = (status: string, edges: Edge[]) => buildModel({ tickets: [{ key: 'A', sp: 3, jira_status: status }, { key: 'B', sp: 2, jira_status: status }], edges,
     schedule: [{ key: 'A', owner: 'Ana', sprint: 13 }, { key: 'B', owner: 'Ana', sprint: 14 }], config: { caps: { default: 40 } } });
   const loop = forecast({ history: h, model: mk('To Do', [{ consumer: 'A', producer: 'B', kind: 'x' }, { consumer: 'B', producer: 'A', kind: 'x' }]), seed: 1 });
-  assert.equal(loop.state, 'REFUSED'); assert.equal(loop.text, 'FORECAST [REFUSED n=12] plan ? pts: no probability: the links contain a loop (run `brain check`)');
+  assert.equal(loop.state, 'REFUSED'); assert.equal(loop.text, 'FORECAST [REFUSED n=12] plan ? pts: no probability: the links contain a loop (run `plangraph check`)');
   const done = forecast({ history: h, model: mk('Done', []), seed: 1 });
   assert.equal(done.state, 'REFUSED'); assert.equal(done.text, 'FORECAST [REFUSED n=12] plan 0 pts: no probability: nothing left to forecast: every planned ticket is done');
   assert.doesNotMatch(done.text, /S0|%/);

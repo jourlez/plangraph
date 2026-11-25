@@ -1,4 +1,4 @@
-$ brain neighbors T-12 2 --json
+$ plangraph neighbors T-12 2 --json
 exit: 0
 --- stdout
 {"v":2,"cmd":"neighbors","ok":true,"exit":0,"data":{"lines":["T-12 needs (0):","T-12 is needed by (4): T-30 S3/Ana, T-31 S4/Cleo, T-39 S4/Cleo, T-40 S4/Cleo"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}

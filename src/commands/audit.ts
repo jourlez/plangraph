@@ -56,7 +56,7 @@ async function refsUpdate(ctx: Ctx, args: Args<StaleValues>): Promise<number> {
   const file = path.join(ctx.dir, 'refs.jsonl');
   precheckTargets(ctx, [file]);
   writeState(ctx, file, St.canonFile(r.rows, St.SCHEMAS['refs.jsonl']));
-  ctx.io.out(`refs.jsonl updated for ${r.updated?.length ?? keys.length ?? '?'} tickets at ${oneLine(commit, 64)} (ref ${oneLine(ref, 200)}); run \`brain build\``);
+  ctx.io.out(`refs.jsonl updated for ${r.updated?.length ?? keys.length ?? '?'} tickets at ${oneLine(commit, 64)} (ref ${oneLine(ref, 200)}); run \`plangraph build\``);
   return 0;
 }
 
@@ -93,7 +93,7 @@ async function jiraPull(ctx: Ctx, args: Args<{ out?: string; full?: boolean }>):
 }
 async function jiraImport(ctx: Ctx, args: Args<{ out?: string }>): Promise<number> {
   const J = await import('../../lib/jira.ts'), out = args.values.out, files = args.positionals;
-  if (!files.length || !out) throw usage('usage: brain jira-import FILE... --out snapshot.jsonl');
+  if (!files.length || !out) throw usage('usage: plangraph jira-import FILE... --out snapshot.jsonl');
   try {
     let snap = fs.existsSync(out) ? J.parseSnapshotJsonl(readSnapshotText(out)) : null, imported = 0, dropped = 0; const changed = new Set<string>();
     for (const f of files) {
@@ -108,7 +108,7 @@ async function jiraImport(ctx: Ctx, args: Args<{ out?: string }>): Promise<numbe
 async function jiraText(ctx: Ctx, args: Args<{ out?: string; 'from-json'?: string }>): Promise<number> {
   const J = await import('../../lib/jira.ts'), out = args.values.out, from = args.values['from-json'];
   const keys = args.positionals.filter((a) => J.KEY_RE.test(a));
-  if (!keys.length || !out) throw usage('usage: brain jira-text KEY... --out DIR [--from-json FILE]');
+  if (!keys.length || !out) throw usage('usage: plangraph jira-text KEY... --out DIR [--from-json FILE]');
   fs.mkdirSync(out, { recursive: true });
   try {
     if (from !== undefined) {
@@ -126,7 +126,7 @@ async function jiraText(ctx: Ctx, args: Args<{ out?: string; 'from-json'?: strin
 
 // ---- audit preparation: bundles and units, so agents read one prepared file instead of exploring ----
 // Bounds per ticket: summary 300 chars, 50 findings of 500 chars, plan sections 20000 chars each, 50 file names, Jira text 32000 chars
-// (read capped at 1 MiB). A bundle on stdout takes at most 100 keys (`brain units` writes larger sets to files).
+// (read capped at 1 MiB). A bundle on stdout takes at most 100 keys (`plangraph units` writes larger sets to files).
 const isLink = (f: string): boolean => { try { return fs.lstatSync(f).isSymbolicLink(); } catch { return false; } };
 const MAX_TEXT = 1024 * 1024, MAX_BUNDLE_KEYS = 100, MAX_FINDINGS = 50, MAX_FILES = 50, PLAN_CHARS = 20000, JIRA_CHARS = 32000;
 async function bundler(ctx: Ctx, args: Args<{ ref?: string; text?: string }>): Promise<(key: string) => string> {
@@ -145,7 +145,7 @@ async function bundler(ctx: Ctx, args: Args<{ ref?: string; text?: string }>): P
     const fs_ = d.all('SELECT kind,text FROM finding WHERE key=?', key) as Array<{ kind: unknown; text: unknown }>; // the columns this SELECT names
     const lines = [`Summary: ${oneLine(t.summary ?? '', 300)}`, ...fs_.slice(0, MAX_FINDINGS).map((f) => `Finding [${w(f.kind, 40)}]: ${oneLine(f.text, 500)}`)];
     md += `${fenceLines(`ticket:${key}`, lines)}\n`;
-    if (fs_.length > MAX_FINDINGS) md += `... ${fs_.length - MAX_FINDINGS} more findings (brain findings KIND)\n`;
+    if (fs_.length > MAX_FINDINGS) md += `... ${fs_.length - MAX_FINDINGS} more findings (plangraph findings KIND)\n`;
     const r = d.get('SELECT * FROM ref WHERE key=?', key) as { plans: string; files: string } | undefined; // build stores both as JSON text (PREP)
     if (r) {
       for (const p of JSON.parse(r.plans) as Array<{ plan?: unknown; task?: unknown }>) { // unchecked: iterated without Array.isArray (pre-existing)
@@ -171,7 +171,7 @@ async function bundler(ctx: Ctx, args: Args<{ ref?: string; text?: string }>): P
 }
 async function bundle(ctx: Ctx, args: Args<{ ref?: string; text?: string }>): Promise<number> {
   const keys = [...new Set(args.positionals.filter((a) => KEY_RE.test(a)))];
-  if (keys.length > MAX_BUNDLE_KEYS) throw usage(`bundle takes at most ${MAX_BUNDLE_KEYS} keys (got ${keys.length}); use \`brain units\` for larger sets`);
+  if (keys.length > MAX_BUNDLE_KEYS) throw usage(`bundle takes at most ${MAX_BUNDLE_KEYS} keys (got ${keys.length}); use \`plangraph units\` for larger sets`);
   const text = await bundler(ctx, args);
   ctx.io.raw(keys.map(text).join('')); // prepared text, bounded per ticket and by the key cap; not cut by the 40-line output bound
   return 0;

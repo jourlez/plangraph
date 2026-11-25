@@ -1,7 +1,7 @@
-$ brain card --write
+$ plangraph card --write
 exit: 0
 --- stdout
-wrote .plangraph/CARD.md (85 est tokens)
+wrote .plangraph/CARD.md (87 est tokens)
 --- stderr
 --- file .wolf/STATUS.md
 ---
@@ -24,6 +24,6 @@ description: handoff
 ## Context
 
 - Branch main.
-<!-- brain:card:begin -->
+<!-- plangraph:card:begin -->
 old line
-<!-- brain:card:end -->
+<!-- plangraph:card:end -->

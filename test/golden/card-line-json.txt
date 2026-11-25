@@ -1,5 +1,5 @@
-$ brain card --line --json
+$ plangraph card --line --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"card","ok":true,"exit":0,"data":{"lines":["brain: 40 tickets, last sprint 5, 0 violations @b6280500"]},"fresh":null,"next":[]}
+{"v":2,"cmd":"card","ok":true,"exit":0,"data":{"lines":["plangraph: 40 tickets, last sprint 5, 0 violations @b6280500"]},"fresh":null,"next":[]}
 --- stderr

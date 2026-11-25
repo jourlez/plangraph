@@ -5,7 +5,7 @@
 // no external resource (a Content-Security-Policy meta forbids them as well). Publishing and sharing are not done here.
 import { capOf } from './model.ts';
 import { oneLine, UNTRUSTED_NOTICE } from './sanitize.ts';
-// The definition of ready is lib/ready.ts (shared with `brain ready` and `brain blockers`): "Can start today" is its ready set, so a
+// The definition of ready is lib/ready.ts (shared with `plangraph ready` and `plangraph blockers`): "Can start today" is its ready set, so a
 // ticket whose own status is closed is never listed there.
 import { readySet } from './ready.ts';
 import type { Statuses } from './ready.ts';
@@ -108,12 +108,12 @@ export function buildReport(model: Model, opts: ReportOpts = {}): { markdown: st
   const sections: ReportSection[] = []; // { title, label, lines: string[] | table: { head, rows } }
   sections.push({ title: 'Plan', label: 'computed', text: [`${data.tickets} tickets, ${placed} placed, last sprint ${data.last_sprint}.`] });
   sections.push({ title: 'Sprint load against capacity', label: 'computed', table: { head: ['Sprint', 'Person', 'Tickets', 'SP', 'Cap', 'State'], rows: load.slice(0, LIMIT * 4).map((r) => [String(r.sprint), T(r.owner), String(r.n), String(r.sp), String(r.cap), r.over ? 'OVER CAP' : 'ok']) }, text: [`${data.over_cap} of ${load.length} person-sprints are over their cap.${load.length > LIMIT * 4 ? ` Showing ${LIMIT * 4}.` : ''}`] });
-  sections.push({ title: 'Can start today', label: readyLabel, text: [`${rs.ready.length} tickets pass the definition of ready (same rules as \`brain ready\`).`, rs.ready.slice(0, LIMIT).map((k) => T(k, 60)).join(', ') || 'none', more(rs.ready.length)].filter(Boolean) });
+  sections.push({ title: 'Can start today', label: readyLabel, text: [`${rs.ready.length} tickets pass the definition of ready (same rules as \`plangraph ready\`).`, rs.ready.slice(0, LIMIT).map((k) => T(k, 60)).join(', ') || 'none', more(rs.ready.length)].filter(Boolean) });
   sections.push({ title: 'Blocked by an open item', label: 'computed', table: { head: ['Ticket', 'Open items'], rows: rs.blocked.slice(0, LIMIT).map((b) => [T(b.key, 60), b.kinds.map((x) => T(x, 40)).join(', ')]) }, text: [`${rs.blocked.length} tickets have an unresolved finding or open item.${more(rs.blocked.length) ? ` ${more(rs.blocked.length)}.` : ''}`] });
   sections.push({ title: 'Per person', label: 'computed', table: { head: ['Person', 'Tickets', 'SP', 'Ready now', 'Sprints'], rows: people.slice(0, LIMIT).map((p) => [T(p.owner), String(p.tickets), String(p.sp), String(p.ready), `${p.first}-${p.last}`]) }, text: [] });
-  sections.push({ title: 'Critical chain', label: 'computed', text: [`Longest dependency chain: ${cc.hops} hops${cc.loop ? ' (the links contain a loop; run `brain check`)' : ''}.`, cc.chain.slice(0, 30).map((k) => { const p = place(k); return p ? `${T(k, 60)} (S${p.sprint} ${T(p.owner, 40)})` : T(k, 60); }).join(' -> ') + (cc.chain.length > 30 ? ` -> ... (${cc.chain.length - 30} more)` : '')].filter((x) => x !== '') });
-  sections.push({ title: 'Stale plan text', label: st ? (data.stale as { label: string }).label : 'not computed', text: [st ? `${st.count} tickets have inputs that changed since their last audit.` : 'Not computed for this report (run `brain stale`).'] }); // st is set: the stale data was built from it
-  sections.push({ title: 'Delivery forecast', label: fc ? (data.forecast as { label: string }).label : 'not computed', text: [fc ? `State ${T(fc.state, 20)} (${(data.forecast as { tag: string }).tag}). A REFUSED or PRIOR-ONLY state means the history is too thin for a date.` : 'Not computed for this report (run `brain forecast`).'] }); // fc is set: the forecast data was built from it
+  sections.push({ title: 'Critical chain', label: 'computed', text: [`Longest dependency chain: ${cc.hops} hops${cc.loop ? ' (the links contain a loop; run `plangraph check`)' : ''}.`, cc.chain.slice(0, 30).map((k) => { const p = place(k); return p ? `${T(k, 60)} (S${p.sprint} ${T(p.owner, 40)})` : T(k, 60); }).join(' -> ') + (cc.chain.length > 30 ? ` -> ... (${cc.chain.length - 30} more)` : '')].filter((x) => x !== '') });
+  sections.push({ title: 'Stale plan text', label: st ? (data.stale as { label: string }).label : 'not computed', text: [st ? `${st.count} tickets have inputs that changed since their last audit.` : 'Not computed for this report (run `plangraph stale`).'] }); // st is set: the stale data was built from it
+  sections.push({ title: 'Delivery forecast', label: fc ? (data.forecast as { label: string }).label : 'not computed', text: [fc ? `State ${T(fc.state, 20)} (${(data.forecast as { tag: string }).tag}). A REFUSED or PRIOR-ONLY state means the history is too thin for a date.` : 'Not computed for this report (run `plangraph forecast`).'] }); // fc is set: the forecast data was built from it
 
   const mdEsc = (s: unknown) => String(s).replace(/&/g, '&amp;').replace(/[\\`*_[\]|!#~]/g, '\\$&');
   const md: string[] = ['# Plan status report', '', NOTICE, ''];

@@ -1,6 +1,6 @@
 // Tests for lib/stale.ts. Core: a DIFFERENTIAL test of computeStale against an independent from-scratch oracle over random mutation streams.
 // NOT covered: real Jira (stamps and link sets are injected values; whether Jira bumps `updated` on link edits is unverified), git renames/submodules/
-// symlinks (files are compared by blob id), huge repos (performance), the CLI wiring in bin/brain (integrator), hash collisions (16 hex chars of sha256).
+// symlinks (files are compared by blob id), huge repos (performance), the CLI wiring in bin/plangraph (integrator), hash collisions (16 hex chars of sha256).
 // STALE_MODULE=<path> lets the mutation-check script run this same suite against a deliberately broken copy of the module.
 import test from 'node:test';
 import assert from 'node:assert/strict';

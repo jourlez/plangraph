@@ -1,4 +1,4 @@
-$ brain card --if-present
+$ plangraph card --if-present
 exit: 0
 --- stdout
 --- stderr

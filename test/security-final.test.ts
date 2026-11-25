@@ -1,4 +1,4 @@
-// Final security review: one regression test (or group) per verified finding (I1-I9, M1-M5), driven through real runs of bin/brain in
+// Final security review: one regression test (or group) per verified finding (I1-I9, M1-M5), driven through real runs of bin/plangraph in
 // mkdtemp git repos (HOME, CLAUDE_PLUGIN_DATA and GIT_CONFIG_GLOBAL point at temp places; removed in `after`) or through the module.
 // Each test was seen failing before its fix and again with the fix reverted (see the task report).
 // NOT covered here: a live Jira (the M5 body cap is driven with a fake fetch), Windows path semantics.
@@ -15,7 +15,7 @@ import type { Command } from '../src/registry.ts';
 import type { FetchLike, JiraError } from '../lib/jira.ts';
 import type { Rec } from '../lib/store.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-tsec-'))); tmps.push(d); return d; };
@@ -27,7 +27,7 @@ const run = (cwd: string, args: string[], env: Record<string, string> = {}, o: {
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: ENV, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const ok = (r: SpawnSyncReturns<string>, what: string) => assert.equal(r.status, 0, `${what}: ${r.stderr}`);
-/** A git repo with a built brain over a small generated plan. */
+/** A git repo with a built plangraph over a small generated plan. */
 function repo({ build = true }: { build?: boolean } = {}): string {
   const d = tmp();
   git(d, 'init', '-q');
@@ -38,7 +38,7 @@ function repo({ build = true }: { build?: boolean } = {}): string {
   return d;
 }
 
-// ---------- I1: a brain dir name with a newline or a pattern character never reaches .gitattributes ----------
+// ---------- I1: a plan dir name with a newline or a pattern character never reaches .gitattributes ----------
 const EVIL_DIR = 'b\n* working-tree-encoding=UTF-16 merge=plangraph-jsonl\n#';
 test('I1: a committed .plangraphrc dir with a newline is refused; card --if-present --heal writes no .gitattributes', () => {
   const d = tmp(); git(d, 'init', '-q');
@@ -52,7 +52,7 @@ test('I1: a committed .plangraphrc dir with a newline is refused; card --if-pres
   // outside the hook the same dir is refused with exit 4 and a fixed message that does not echo the name
   const b = run(d, ['build']);
   assert.equal(b.status, 4, b.stderr);
-  assert.match(b.stderr, /^error: brain directory name has a character that is not allowed/m);
+  assert.match(b.stderr, /^error: plan directory name has a character that is not allowed/m);
   assert.doesNotMatch(b.stderr, /working-tree-encoding/);
 });
 test('I1: --dir with a pattern character, whitespace or control character is refused (exit 4)', () => {
@@ -62,13 +62,13 @@ test('I1: --dir with a pattern character, whitespace or control character is ref
     assert.equal(r.status, 4, `${JSON.stringify(bad)}: ${r.stderr}`);
     assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, JSON.stringify(bad));
   }
-  ok(run(d, ['init', '--dir', 'plan/brain-1.x']), 'a normal nested name still works');
-  assert.match(fs.readFileSync(path.join(d, '.gitattributes'), 'utf8'), /^plan\/brain-1\.x\/\*\.jsonl merge=plangraph-jsonl$/m);
+  ok(run(d, ['init', '--dir', 'plan/plangraph-1.x']), 'a normal nested name still works');
+  assert.match(fs.readFileSync(path.join(d, '.gitattributes'), 'utf8'), /^plan\/plangraph-1\.x\/\*\.jsonl merge=plangraph-jsonl$/m);
 });
 test('I1: installMergeDriver refuses a dir outside [A-Za-z0-9._/-]', async () => {
   const { installMergeDriver } = await import('../lib/store.ts');
   const d = tmp(); git(d, 'init', '-q');
-  for (const bad of [EVIL_DIR, 'a b', 'a*', 'é', '']) assert.throws(() => installMergeDriver(d, { dir: bad, driverPath: '/x/brain-merge' }), /brain directory name/, JSON.stringify(bad));
+  for (const bad of [EVIL_DIR, 'a b', 'a*', 'é', '']) assert.throws(() => installMergeDriver(d, { dir: bad, driverPath: '/x/plangraph-merge' }), /plan directory name/, JSON.stringify(bad));
   assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false);
 });
 
@@ -87,7 +87,7 @@ for (const kind of (['symlink', 'fifo', 'big'] as const)) {
     git(d, 'config', '--unset', 'merge.plangraph-jsonl.driver'); // doctor sees a problem, so heal tries to repair
     const ga = badAttrs(d, kind), before = fs.lstatSync(ga);
     const h = run(d, ['card', '--if-present', '--heal'], {}, { timeout: 15000 });
-    assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, 'brain: plan data found in .plangraph but no index: run brain build\n'); // the first-use line, no card without an index assert.equal(h.stderr, '');
+    assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, 'plangraph: plan data found in .plangraph but no index: run plangraph build\n'); // the first-use line, no card without an index assert.equal(h.stderr, '');
     const doc = run(d, ['doctor'], {}, { timeout: 15000 });
     assert.equal(doc.status, 1, `doctor: ${doc.signal} ${doc.stderr}`);
     assert.match(doc.stdout, /merge driver: \.gitattributes refused: (it is a symlink|not a regular file|larger than 262144 bytes)/);
@@ -122,7 +122,7 @@ for (const [name, sql] of Object.entries(TAMPER)) {
     const r = run(d, ['ticket', 'T-1']);
     assert.equal(r.status, 2, `${name}: ${r.stdout}${r.stderr}`);
     assert.equal(r.stdout, '');
-    assert.equal(r.stderr, 'error: the index has an unexpected schema (not built by brain build)\ntry: brain build\n');
+    assert.equal(r.stderr, 'error: the index has an unexpected schema (not built by plangraph build)\ntry: plangraph build\n');
     const h = run(d, ['card', '--if-present']);
     assert.equal(h.status, 0); assert.equal(h.stdout, ''); assert.equal(h.stderr, '');
     ok(run(d, ['build']), 'build replaces it');
@@ -271,8 +271,8 @@ test('I6: owners constructor/toString are capped like any other name in check, v
   const evil = mk('constructor', 'toString'), twin = mk('cora', 'tom');
   // the inline fence nonce is a hash of the names shown, so it differs between the twins: normalized like the fingerprint
   const nonce = (s: string) => s.replace(/<untrusted n="[0-9a-f]{8}">/g, '<untrusted n="N">');
-  const back = (s: string) => nonce(s.replaceAll('cora', 'constructor').replaceAll('tom', 'toString').replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP'));
-  const fp = (s: string) => nonce(s.replace(/brain [0-9a-f]{8}/g, 'brain FP').replace(/@[0-9a-f]{8}/g, '@FP'));
+  const back = (s: string) => nonce(s.replaceAll('cora', 'constructor').replaceAll('tom', 'toString').replace(/plangraph [0-9a-f]{8}/g, 'plangraph FP').replace(/@[0-9a-f]{8}/g, '@FP'));
+  const fp = (s: string) => nonce(s.replace(/plangraph [0-9a-f]{8}/g, 'plangraph FP').replace(/@[0-9a-f]{8}/g, '@FP'));
   const cmds = [['check'], ['verify'], ['verify', '--enforce-min'], ['card'], ['card', '--line'], ['sprint', '1'], ['sprint', '2'], ['simulate', '--runs', '30'], ['report', '--out', '.']];
   for (const c of cmds) {
     const a = run(evil, c), b = run(twin, c);
@@ -298,16 +298,16 @@ test('I6: capOf and the minimum load read own finite numbers only', async () => 
 });
 
 // ---------- I7: the merge driver prints keys, names and details as one sanitized line each ----------
-test('I7: brain-merge stderr carries no terminal escape and no forged line from a key or path', () => {
+test('I7: plangraph-merge stderr carries no terminal escape and no forged line from a key or path', () => {
   const d = tmp(), K = '\u001b]0;pwned\u0007X-1\n\u001b[31mFORGED: key line\u001b[0m';
   const f = (n: string, s: string) => put(d, n, jl([{ key: K, summary: s }]));
   const O = f('o', 'a'), A = f('a', 'b'), B = f('b', 'c');
   const P = 'x\u001b[2J\nFORGED: path line/tickets.jsonl';
-  const r = spawnSync(process.execPath, [path.join(import.meta.dirname, '../bin/brain-merge'), O, A, B, P], { encoding: 'utf8', env: ENV });
+  const r = spawnSync(process.execPath, [path.join(import.meta.dirname, '../bin/plangraph-merge'), O, A, B, P], { encoding: 'utf8', env: ENV });
   assert.equal(r.status, 1, r.stderr);
   assert.doesNotMatch(r.stderr, /[\u001b\u0007]/);
   for (const l of r.stderr.split('\n')) assert.doesNotMatch(l, /^\s*FORGED/, JSON.stringify(l));
-  assert.match(r.stderr, /^brain-merge: 1 conflict\(s\) in x FORGED: path line\/tickets\.jsonl; resolve/);
+  assert.match(r.stderr, /^plangraph-merge: 1 conflict\(s\) in x FORGED: path line\/tickets\.jsonl; resolve/);
 });
 
 // ---------- I8: per-line parse errors are bounded: the first 10 and a counter, never one stderr line per bad input line ----------
@@ -336,7 +336,7 @@ test('I8: parseFindings keeps at most 10 error messages and stops scanning at 10
 });
 
 // ---------- I9: migrate reads data files bounded, refuses symlinks and FIFOs, names files by base name, maps refused writes to exit 4 ----------
-/** A legacy (format 0) brain dir, so `migrate` has work to do. */
+/** A legacy (format 0) plan dir, so `migrate` has work to do. */
 function legacyRepo() { const d = repo({ build: false }); fs.rmSync(path.join(d, '.plangraph/format.json')); return d; }
 test('I9: migrate refuses a symlinked or FIFO data file (exit 2, base name only) and never follows it', () => {
   const d = legacyRepo(), t = path.join(d, '.plangraph/tickets.jsonl'), outside = put(tmp(), 'victim.jsonl', '{"key":"Z-1" ,"summary":"x"}\n');
@@ -433,12 +433,12 @@ test('M3: a boolean, object or array in a known text column is a data error nami
     fs.writeFileSync(path.join(b, f), `\n${line}\n`);
     const r = run(d, ['build']);
     assert.equal(r.status, 2, `${f}: ${r.stderr}`);
-    assert.equal(r.stderr, `error: ${f}:2: "${field}" must be a string or a number\ntry: brain doctor\n`);
+    assert.equal(r.stderr, `error: ${f}:2: "${field}" must be a string or a number\ntry: plangraph doctor\n`);
     fs.writeFileSync(path.join(b, f), before);
   }
 });
 
-// ---------- M4: every reader of the brain data files refuses a symlinked file, as build does ----------
+// ---------- M4: every reader of the plan data files refuses a symlinked file, as build does ----------
 test('M4: stale, units --stale, card --line, open-items, ready and report refuse a symlinked data file (exit 2) and never read its target', () => {
   const d = repo(), b = path.join(d, '.plangraph'), out = tmp();
   git(d, 'add', '-A'); git(d, 'commit', '-qm', 'base');

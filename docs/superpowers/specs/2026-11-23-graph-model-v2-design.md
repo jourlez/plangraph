@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Plan graph model v2: design
 
 Date: 2026-11-23. Status: draft for the owner's review. Executes after the TypeScript migration and the tracker-provider work, because the typed code base makes a model change safe and the differential baseline guards compatibility.

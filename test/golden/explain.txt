@@ -1,7 +1,7 @@
-$ brain explain
+$ plangraph explain
 exit: 0
 --- stdout
-brain: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}
+plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}
 exit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error
 writes none: blockers bundle chain check doctor explain findings forecast integrations neighbors person ready rules simulate sprint stale ticket verify
 writes files: card jira-import jira-pull jira-text units
@@ -9,5 +9,5 @@ writes index: build schedule-load whatif
 writes text: export init learn migrate migrate-names open-items refs-update report sp-ingest sp-link
 also writes: card --heal, doctor --fix, init, migrate-names --apply: git config, .gitattributes, merge shim
 global: --json -v --dir DIR --if-present
-more: brain explain COMMAND | brain explain --json
+more: plangraph explain COMMAND | plangraph explain --json
 --- stderr

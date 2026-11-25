@@ -6,11 +6,11 @@
 // - buildIndex parses every file first, writes a temp file beside the index, checks its integrity, and renames it over the old index
 //   only when everything loaded: a failed build keeps the old index. The same bytes that were parsed are hashed into a source fingerprint
 //   (sha256 over the sorted index source files), stored in table index_meta under key source_fingerprint.
-// - openIndex({ dir }) recomputes the fingerprint: a mismatch (or an index without one, such as one built by the old bin/brain) sets
+// - openIndex({ dir }) recomputes the fingerprint: a mismatch (or an index without one, such as one built by the old bin/plangraph) sets
 //   handle.stale = true and turns on PRAGMA query_only.
 // - Content integrity: buildIndex also stores a sha256 digest of the index CONTENT (every row of every table, index_meta included except the
 //   digest row itself, in a canonical order: primary key, then every column) under index_meta key content_digest. openIndex recomputes it
-//   (streaming, one row at a time) and refuses a mismatch as DATA with the `brain build` hint, so a row edited directly inside plangraph.sqlite is
+//   (streaming, one row at a time) and refuses a mismatch as DATA with the `plangraph build` hint, so a row edited directly inside plangraph.sqlite is
 //   never served. An index without a digest (an older build) is flagged stale (query-only) and index writes refuse it. The legitimate index
 //   writers (whatif --write, schedule-load, stampFingerprint) re-stamp the digest with stampContent before COMMIT. The digest is unkeyed: it
 //   detects direct edits, not a forger who recomputes it (docs/CONTRACT.md).
@@ -23,19 +23,19 @@ import { SCHEMAS } from '../lib/store.ts';
 import type { Schema } from '../lib/store.ts';
 import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.ts';
 import { validators } from '../lib/schema.ts';
-import { BrainError } from './errors.ts';
+import { PlangraphError } from './errors.ts';
 import { nodeSupported, floorMessage } from './floor.js';
 import type { DatabaseSync, StatementSync, SQLInputValue } from 'node:sqlite';
 
 export const INDEX_FILE = 'plangraph.sqlite';
-export const NO_BRAIN_MESSAGE = 'no brain directory: run `brain init`';
+export const NO_PLANGRAPH_MESSAGE = 'no plan directory: run `plangraph init`';
 export const FINGERPRINT_KEY = 'source_fingerprint';
 export const CONTENT_KEY = 'content_digest';
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 
 // [table, file, primary key, INTEGER columns, upsert]. learnings and refs are INSERT OR REPLACE (a later line with the same id wins),
-// as in bin/brain; the other tables refuse a duplicate primary key.
+// as in bin/plangraph; the other tables refuse a duplicate primary key.
 const DEFS: Array<[string, string, string[], string[], boolean]> = [
   ['ticket', 'tickets.jsonl', ['key'], ['sp', 'v2_sprint'], false],
   ['schedule', 'schedule.jsonl', ['version', 'key'], ['sprint'], false],
@@ -50,7 +50,7 @@ const toObj = (v: unknown) => (v !== null && typeof v === 'object' ? JSON.string
 const same = (v: unknown) => v;
 /** Per-table record preparation: the record as inserted, and the conversion of each known-column value. */
 type Prep = [(r: Record<string, unknown>) => Record<string, unknown>, (v: unknown) => unknown];
-// Per-table record preparation, as bin/brain does it: tickets..meta store object values as JSON text; learnings and refs get defaults.
+// Per-table record preparation, as bin/plangraph does it: tickets..meta store object values as JSON text; learnings and refs get defaults.
 // schedule: `version` defaults to `current` (docs/FORMAT.md, lib/model.ts); the default is applied HERE, before the insert, so the index,
 // every `version='current'` query and export agree on a row that omits it (export then writes it explicitly).
 const PREP = new Map<string, Prep>([
@@ -88,9 +88,9 @@ const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`)
 
 // ---------- node:sqlite, lazily ----------
 let sqlite: typeof import('node:sqlite') | undefined;
-/** Load node:sqlite once (the one import line; node:sqlite prints no warning on Node 24.2+). Throws BrainError ENV (exit 3) on Node < 24.2. */
+/** Load node:sqlite once (the one import line; node:sqlite prints no warning on Node 24.2+). Throws PlangraphError ENV (exit 3) on Node < 24.2. */
 export function loadSqlite({ version = process.versions.node }: { version?: string } = {}): typeof import('node:sqlite') {
-  if (!nodeSupported(version)) throw new BrainError('ENV', floorMessage(version));
+  if (!nodeSupported(version)) throw new PlangraphError('ENV', floorMessage(version));
   if (sqlite) return sqlite;
   sqlite = process.getBuiltinModule('node:sqlite');
   return sqlite;
@@ -119,7 +119,7 @@ export class IndexHandle {
 }
 
 // ---------- records ----------
-// Canonical JSON (sorted keys, undefined dropped), written by hand so "__proto__" stays a plain key. Same bytes as bin/brain canonJson.
+// Canonical JSON (sorted keys, undefined dropped), written by hand so "__proto__" stays a plain key. Same bytes as bin/plangraph canonJson.
 const canonJson = (v: unknown): string => (v === null || v === undefined ? 'null' : Array.isArray(v) ? `[${v.map(canonJson).join(',')}]`
   : typeof v === 'object' ? `{${Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonJson((v as Record<string, unknown>)[k])}`).join(',')}}` : JSON.stringify(v)); // a non-null object: typeof checked
 // Known-column values in the constant column order, then the canonical JSON of every field a column cannot give back exactly (null when
@@ -147,7 +147,7 @@ const validatorOf = (t: Readonly<TableSpec>): ((r: Record<string, unknown>) => s
 // Reads every index source once (capped, regular files only). Missing file -> null. Returns [[file, text|null]] sorted by file name.
 function readSources(dir: string): Array<[string, string | null]> {
   return SOURCE_FILES.map((f) => {
-    // A source file is a regular file inside the brain directory: a symlink (even to a file outside the repo) is refused before any read.
+    // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
     let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
     if (st?.isSymbolicLink()) throw new IngestError(`${f}: is a symlink, not a regular file`);
     try { return [f, readDataCapped(path.join(dir, f), MAX_SOURCE_BYTES)]; } // O_NOFOLLOW + dev/ino check: no swap after the lstat
@@ -220,9 +220,9 @@ export function removeStaleTemps(where: string, prefix: string, now: number = Da
 // ---------- SQLite sidecars ----------
 // SQLite keeps a rollback journal (`<db>-journal`) or WAL files (`<db>-wal`, `<db>-shm`) beside a database. A HOT journal found at open is
 // replayed into the database on the first read-write open (and makes every read-only open fail), whatever database it came from: a planted
-// or committed `plangraph.sqlite-journal` could turn a freshly built index into an attacker's copy with a valid digest. Brain never uses WAL and
+// or committed `plangraph.sqlite-journal` could turn a freshly built index into an attacker's copy with a valid digest. plangraph never uses WAL and
 // its own writes (journal_mode DELETE) remove their journal on commit, so a sidecar beside the index is never legitimate when an index
-// command starts: openIndex refuses it (DATA, `brain build`) before SQLite sees the file, and buildIndex removes regular ones (they belong to
+// command starts: openIndex refuses it (DATA, `plangraph build`) before SQLite sees the file, and buildIndex removes regular ones (they belong to
 // a prior or foreign index and must never be replayed) and refuses a symlink or non-file (REFUSED: removing it is left to a person).
 export const SIDECARS = Object.freeze(['-journal', '-wal', '-shm']);
 /** Existing sidecars of `base` as [path, lstat]. */
@@ -238,7 +238,7 @@ export function sidecarsOf(base: string): Array<[string, fs.Stats]> {
  * the lstat is removed itself, never followed). */
 function clearSidecars(base: string, remove: boolean): void {
   for (const [p, st] of sidecarsOf(base)) {
-    if (!st.isFile()) throw new BrainError('REFUSED', `refusing to build the index: ${path.basename(p)} is ${st.isSymbolicLink() ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`brain build\``);
+    if (!st.isFile()) throw new PlangraphError('REFUSED', `refusing to build the index: ${path.basename(p)} is ${st.isSymbolicLink() ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`plangraph build\``);
     if (remove) fs.rmSync(p, { force: true });
   }
 }
@@ -250,7 +250,7 @@ const insertSql = (t: Readonly<TableSpec>, verb = 'INSERT') => `${verb} INTO ${t
 export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, INDEX_FILE), now = Date.now() }: { file?: string; now?: number } = {}): { file: string; counts: Record<string, number>; fingerprint: string; digest: string } {
   let st = null;
   try { st = fs.statSync(ctx.dir); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT' && (e as NodeJS.ErrnoException).code !== 'ENOTDIR') throw e; } // fs throws errno errors
-  if (!st?.isDirectory()) throw new BrainError('DATA', 'no brain directory', { hint: 'run `brain init` first' });
+  if (!st?.isDirectory()) throw new PlangraphError('DATA', 'no plan directory', { hint: 'run `plangraph init` first' });
   const { DatabaseSync } = loadSqlite();
   removeStaleTemps(path.dirname(file), `${path.basename(file)}.tmp-`, now);
   clearSidecars(file, false); // fail fast on a symlinked or non-file sidecar; regular ones are removed only right before the rename
@@ -268,7 +268,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   let mine: fs.Stats, tfd: number;
   try { tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o644); mine = fs.fstatSync(tfd); }
   catch (e) { // fs throws errno errors
-    if ((e as NodeJS.ErrnoException).code === 'EEXIST' || (e as NodeJS.ErrnoException).code === 'ELOOP') throw new BrainError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); // fs and the readers throw errno-style errors with a code
+    if ((e as NodeJS.ErrnoException).code === 'EEXIST' || (e as NodeJS.ErrnoException).code === 'ELOOP') throw new PlangraphError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); // fs and the readers throw errno-style errors with a code
     throw e;
   }
   try {
@@ -289,11 +289,11 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
       h.prepare('INSERT INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
       digest = stampContent(h);
       h.exec('COMMIT');
-      if ((h.get('PRAGMA integrity_check') as { integrity_check: unknown }).integrity_check !== 'ok') throw new BrainError('DATA', 'index failed its integrity check'); // the columns this SELECT names
+      if ((h.get('PRAGMA integrity_check') as { integrity_check: unknown }).integrity_check !== 'ok') throw new PlangraphError('DATA', 'index failed its integrity check'); // the columns this SELECT names
       for (const t of TABLES.values()) counts[t.name] = (h.get(`SELECT COUNT(*) c FROM ${t.name}`) as { c: number }).c; // the pragma and COUNT(*) always return one row
     } // closed here, before the rename
     const now = fs.lstatSync(tmp);
-    if (!now.isFile() || now.dev !== mine.dev || now.ino !== mine.ino) throw new BrainError('REFUSED', 'refusing to build the index: its temp file was replaced during the build');
+    if (!now.isFile() || now.dev !== mine.dev || now.ino !== mine.ino) throw new PlangraphError('REFUSED', 'refusing to build the index: its temp file was replaced during the build');
     clearSidecars(tmp, true);
     clearSidecars(file, true); // a journal of the old (or a planted) index must never be replayed into the new one
     fs.renameSync(tmp, file); // rename replaces a symlink at `file` itself, never its target
@@ -306,7 +306,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
 
 // ---------- schema check ----------
 // An index is derived and git-ignored, but a committed or planted plangraph.sqlite is attacker-controlled, and its stored fingerprint can match
-// the text. Before any query its sqlite_master must be exactly what buildIndex (or the old bin/brain build, which lacks index_meta) writes:
+// the text. Before any query its sqlite_master must be exactly what buildIndex (or the old bin/plangraph build, which lacks index_meta) writes:
 // every table of TABLES as a plain table with exactly its columns plus `extra` (no hidden or generated column), optionally index_meta(k, v),
 // the indexes edge_p and ev_k, and the automatic primary-key indexes; no view, trigger, virtual table or any other object.
 export const EXPECTED_COLUMNS = new Map([...[...TABLES.values()].map((t) => ([t.name, [...t.columns, 'extra'].join(',')] as [string, string])), ['index_meta', 'k,v']]); // a [table name, column list] pair
@@ -336,30 +336,30 @@ function schemaOk(h: IndexHandle): boolean {
 export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: boolean; dir?: string | undefined } = {}): IndexHandle {
   let lst = null; try { lst = fs.lstatSync(file); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT' && (e as NodeJS.ErrnoException).code !== 'ENOTDIR') throw e; } // fs throws errno errors
   if (!lst) {
-    // no brain directory at all: the first step is `brain init` (a `brain build` there would fail and say so itself)
+    // no plan directory at all: the first step is `plangraph init` (a `plangraph build` there would fail and say so itself)
     let dirOk = false; try { dirOk = fs.statSync(dir ?? path.dirname(file)).isDirectory(); } catch { /* missing */ }
-    if (!dirOk) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
-    throw new BrainError('NO_INDEX', 'no index: run `brain build`');
+    if (!dirOk) throw new PlangraphError('NO_PLANGRAPH', NO_PLANGRAPH_MESSAGE);
+    throw new PlangraphError('NO_INDEX', 'no index: run `plangraph build`');
   }
   // a symlinked index (to a file anywhere, or dangling) is never opened; the SQLite build in Node refuses one too, this does not depend on it
-  if (lst.isSymbolicLink()) throw new BrainError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `brain build` to rebuild it' });
+  if (lst.isSymbolicLink()) throw new PlangraphError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `plangraph build` to rebuild it' });
   // SQLite opens without O_NONBLOCK: a FIFO at the index path would block the open forever (every index command, the session hook). Only a
   // regular file is handed to SQLite: lstat, then open it ourselves O_RDONLY|O_NONBLOCK|O_NOFOLLOW (never blocks, never follows), fstat must be
   // a regular file with the lstat's device and inode, close. Residual (docs/CONTRACT.md): the path is swapped between this check and SQLite's
   // own open by path.
-  const notFile = () => new BrainError('DATA', 'the index is not a regular file', { hint: 'run `brain build` to rebuild it' });
+  const notFile = () => new PlangraphError('DATA', 'the index is not a regular file', { hint: 'run `plangraph build` to rebuild it' });
   if (!lst.isFile()) throw notFile();
   {
     let fd: number;
     try { fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0) | (fs.constants.O_NOFOLLOW || 0)); }
-    catch (e) { if ((e as NodeJS.ErrnoException).code === 'ELOOP' || (e as NodeJS.ErrnoException).code === 'EMLINK') throw new BrainError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `brain build` to rebuild it' }); // fs and the readers throw errno-style errors with a code
-      throw new BrainError('DATA', 'the index is not a readable SQLite database', { hint: 'run `brain build` to rebuild it', cause: e }); }
+    catch (e) { if ((e as NodeJS.ErrnoException).code === 'ELOOP' || (e as NodeJS.ErrnoException).code === 'EMLINK') throw new PlangraphError('DATA', 'the index is a symlink, not a regular file', { hint: 'run `plangraph build` to rebuild it' }); // fs and the readers throw errno-style errors with a code
+      throw new PlangraphError('DATA', 'the index is not a readable SQLite database', { hint: 'run `plangraph build` to rebuild it', cause: e }); }
     try { const st = fs.fstatSync(fd); if (!st.isFile() || st.dev !== lst.dev || st.ino !== lst.ino) throw notFile(); }
     finally { fs.closeSync(fd); }
   }
   // a sidecar is never handed to SQLite: a hot journal would be replayed (read-write) or fail the open (read-only); see SIDECARS
   const side = sidecarsOf(file);
-  if (side.length) throw new BrainError('DATA', `the index has a SQLite journal file beside it (${path.basename((side[0] as [string, fs.Stats])[0])}); it is never replayed`, { hint: 'run `brain build` to rebuild it' }); // side.length was checked
+  if (side.length) throw new PlangraphError('DATA', `the index has a SQLite journal file beside it (${path.basename((side[0] as [string, fs.Stats])[0])}); it is never replayed`, { hint: 'run `plangraph build` to rebuild it' }); // side.length was checked
   const { DatabaseSync } = loadSqlite();
   let h: IndexHandle | undefined;
   try {
@@ -367,21 +367,21 @@ export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: b
     h.get('SELECT COUNT(*) n FROM sqlite_master'); // a non-SQLite or corrupt file fails here, not in the middle of a command
   } catch (e) {
     h?.close();
-    throw new BrainError('DATA', 'the index is not a readable SQLite database', { hint: 'run `brain build` to rebuild it', cause: e });
+    throw new PlangraphError('DATA', 'the index is not a readable SQLite database', { hint: 'run `plangraph build` to rebuild it', cause: e });
   }
   let good = false;
   try { good = schemaOk(h); } catch { good = false; }
-  if (!good) { h.close(); throw new BrainError('DATA', 'the index has an unexpected schema (not built by brain build)', { hint: 'run `brain build` to rebuild it' }); }
+  if (!good) { h.close(); throw new PlangraphError('DATA', 'the index has an unexpected schema (not built by plangraph build)', { hint: 'run `plangraph build` to rebuild it' }); }
   try {
     const has = h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='index_meta'");
     const meta = (k: string) => (has ? (h.get('SELECT v FROM index_meta WHERE k=?', k) as { v: unknown } | undefined)?.v : undefined); // one row or none
     const want = meta(CONTENT_KEY);
     if (want === undefined) {
-      if (!readOnly) throw new BrainError('DATA', 'the index has no integrity digest (built by an older brain)', { hint: 'run `brain build` to rebuild it' });
+      if (!readOnly) throw new PlangraphError('DATA', 'the index has no integrity digest (built by an older plangraph)', { hint: 'run `plangraph build` to rebuild it' });
     } else {
       let got = null;
       try { got = contentDigest(h); } catch { got = null; } // a value SQLite cannot hand back (an out-of-range integer) is tampering too
-      if (got !== want) throw new BrainError('DATA', 'the index content does not match its integrity digest (it was edited outside brain)', { hint: 'run `brain build` to rebuild it' });
+      if (got !== want) throw new PlangraphError('DATA', 'the index content does not match its integrity digest (it was edited outside plangraph)', { hint: 'run `plangraph build` to rebuild it' });
     }
     if (dir !== undefined) {
       const stored = meta(FINGERPRINT_KEY);
@@ -394,7 +394,7 @@ export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: b
 }
 
 // ---------- stamp ----------
-/** Record that the index is current with the text in dir (after `brain export` wrote that text FROM this index): store the source
+/** Record that the index is current with the text in dir (after `plangraph export` wrote that text FROM this index): store the source
  * fingerprint in index_meta and re-stamp the content digest. Nothing else in the index changes. */
 export function stampFingerprint(file: string, dir: string): string {
   const fingerprint = sourceFingerprint(dir);

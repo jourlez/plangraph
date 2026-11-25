@@ -1,4 +1,4 @@
-$ brain jira-import issue.json --out snap.jsonl
+$ plangraph jira-import issue.json --out snap.jsonl
 exit: 0
 --- stdout
 imported 1 issue(s) from 1 file(s) (changed 1, dropped 0); snapshot now 1 issues, partial

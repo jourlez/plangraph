@@ -196,7 +196,7 @@ function directReasons(row: RefsRow, fp: TicketFingerprint, a: ReturnType<typeof
   return { rs, mism: [...new Set(mism)].sort(lt) };
 }
 
-// ONE function computing the stale set (used by `brain stale`, `units --stale`, refs-update).
+// ONE function computing the stale set (used by `plangraph stale`, `units --stale`, refs-update).
 // model: buildModel() result; refs: array of refs rows (default model.refs); opts: {ref, heading, rulesVersion, full}.
 export function computeStale(model: StaleModel, refs: readonly PlanRecord[] | null | undefined, deps: StaleDeps, opts: StaleOpts = {}): StaleResult {
   const a = analyze(model, (refs || model.refs || []) as readonly RefsRow[], deps, opts); // refs rows passed lib/schema's refs check on load

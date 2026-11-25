@@ -1,4 +1,4 @@
-$ brain report
+$ plangraph report
 exit: 0
 --- stdout
 wrote .plangraph/report.md and .plangraph/report.html (40 tickets, 10 can start, 0 person-sprints over cap); publishing is a separate step
@@ -39,7 +39,7 @@ Source: computed
 
 Source: computed
 
-10 tickets pass the definition of ready (same rules as brain ready).
+10 tickets pass the definition of ready (same rules as plangraph ready).
 
 T-1, T-11, T-14, T-15, T-18, T-2, T-20, T-25, T-4, T-6
 
@@ -98,7 +98,7 @@ State REFUSED (model-conditional, not a prediction). A REFUSED or PRIOR-ONLY sta
 <table><thead><tr><th>Sprint</th><th>Person</th><th>Tickets</th><th>SP</th><th>Cap</th><th>State</th></tr></thead><tbody><tr><td>1</td><td>Ana</td><td>5</td><td>16</td><td>1000</td><td>ok</td></tr><tr><td>1</td><td>Ben</td><td>4</td><td>12</td><td>1000</td><td>ok</td></tr><tr><td>1</td><td>Cleo</td><td>6</td><td>18</td><td>1000</td><td>ok</td></tr><tr><td>2</td><td>Ana</td><td>2</td><td>5</td><td>1000</td><td>ok</td></tr><tr><td>2</td><td>Cleo</td><td>6</td><td>17</td><td>1000</td><td>ok</td></tr><tr><td>3</td><td>Ana</td><td>5</td><td>14</td><td>1000</td><td>ok</td></tr><tr><td>3</td><td>Ben</td><td>3</td><td>10</td><td>1000</td><td>ok</td></tr><tr><td>4</td><td>Ana</td><td>1</td><td>1</td><td>1000</td><td>ok</td></tr><tr><td>4</td><td>Ben</td><td>1</td><td>5</td><td>1000</td><td>ok</td></tr><tr><td>4</td><td>Cleo</td><td>5</td><td>15</td><td>1000</td><td>ok</td></tr><tr><td>5</td><td>Ana</td><td>1</td><td>2</td><td>1000</td><td>ok</td></tr><tr><td>5</td><td>Ben</td><td>1</td><td>5</td><td>1000</td><td>ok</td></tr></tbody></table>
 </section>
 <section><h2>Can start today</h2><p class="src">Source: computed</p>
-<p>10 tickets pass the definition of ready (same rules as brain ready).</p>
+<p>10 tickets pass the definition of ready (same rules as plangraph ready).</p>
 <p>T-1, T-11, T-14, T-15, T-18, T-2, T-20, T-25, T-4, T-6</p>
 </section>
 <section><h2>Blocked by an open item</h2><p class="src">Source: computed</p>

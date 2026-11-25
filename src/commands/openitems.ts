@@ -29,7 +29,7 @@ async function suggestFromStatus(ctx: Ctx, args: Args<OpenItemsValues>): Promise
     for (const k of b.keys) {
       if (!known.has(k)) { unknown.add(k); continue; }
       if (openPairs.has(`${k}|${kind}`)) continue;
-      const line = `brain open-items --register ${k} ${kind} --owner OWNER --due N --text ${shq(cap80(b.text))}`;
+      const line = `plangraph open-items --register ${k} ${kind} --owner OWNER --due N --text ${shq(cap80(b.text))}`;
       if (!seen.has(line)) { seen.add(line); lines.push(line); }
     }
   }
@@ -51,7 +51,7 @@ function readFindings(ctx: Ctx, OI: typeof import('../../lib/openitems.ts'), f: 
       if (ctx.stdin.isTTY) throw usage('--findings - needs piped input, not a terminal');
       raw = ctx.stdin.read(cap);
     } else raw = readCapped(f, cap);
-  } catch (e) { // a BrainError (code USAGE) or a coded read error
+  } catch (e) { // a PlangraphError (code USAGE) or a coded read error
     if ((e as NodeJS.ErrnoException | undefined)?.code === 'USAGE') throw e; // fs and the readers throw errno-style errors with a code
     if ((e as NodeJS.ErrnoException).code === 'TOO_LARGE') throw usage(`findings ${f === '-' ? 'input' : 'file'} too large (limit ${cap / 1048576} MiB)`); // fs and the readers throw errno-style errors with a code
     if ((e as NodeJS.ErrnoException).code === 'NOT_A_FILE') throw usage('findings path is not a regular file'); // fs and the readers throw errno-style errors with a code

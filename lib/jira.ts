@@ -657,7 +657,7 @@ export function parseSnapshotJsonl(text: string): Snapshot {
   if (!head || head.schema !== SCHEMA || !head.meta) throw new JiraError('bad_snapshot', 'unsupported snapshot schema');
   return { schema: head.schema, meta: head.meta as SnapshotMeta, issues }; // unchecked: meta is tested only for truthiness (pre-existing)
 }
-// shape the pre-lib bin/brain consumers read: { KEY: { summary, status, assignee, updated, resolved, blockedBy } }
+// shape the pre-lib bin/plangraph consumers read: { KEY: { summary, status, assignee, updated, resolved, blockedBy } }
 export function toLegacyMap(s: Snapshot): Record<string, LegacyIssue> {
   return Object.fromEntries(s.issues.map((i) => [i.key, { summary: i.summary, status: i.status, assignee: i.assignee, updated: i.updated, resolved: i.resolutiondate, blockedBy: i.issuelinks.filter((l) => l.dir === 'in').map((l) => l.key) }]));
 }
@@ -669,7 +669,7 @@ export async function fetchChangelog(client: ChangelogClient, key: string): Prom
 }
 
 // ---------------------------------------------------------------- issue text (ADF -> text)
-// Same flattening as the previous bin/brain adf(); the only addition is a depth guard because the input is untrusted JSON.
+// Same flattening as the previous bin/plangraph adf(); the only addition is a depth guard because the input is untrusted JSON.
 // `content` must be an array (anything else is a JiraError bad_input, a data error), a heading level is clamped to 1..6 (default 2).
 const contentOf = (n: RawAdf): Array<RawAdf | string> => {
   if (n.content == null) return [];

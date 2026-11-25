@@ -1,4 +1,4 @@
-// `brain migrate-names`: the one bridge from the pre-rename names (project-brain, .brainrc, .brain, brain-jsonl) to plangraph's. Real git,
+// `plangraph migrate-names`: the one bridge from the pre-rename names (project-brain, .brainrc, .brain, brain-jsonl) to plangraph's. Real git,
 // a scratch HOME and a scratch plugin data dir per test. The CLI itself never falls back to an old name: the Jira-binding test pins that
 // an old folder is invisible until this command copies it. NOT covered: Windows (POSIX modes and the sh shim).
 import baseTest, { after } from 'node:test';
@@ -41,11 +41,11 @@ function oldWorld({ rcDir }: { rcDir?: string } = {}) {
   git(repo, 'config', `merge.${OLD_DRIVER}.name`, 'old'); git(repo, 'config', `merge.${OLD_DRIVER}.driver`, '/old/shim %O %A %B %P');
   git(repo, 'add', '-A'); git(repo, 'commit', '-qm', 'base');
   const env = { ...BASE_ENV, HOME: home, CLAUDE_PLUGIN_DATA: data, PLANGRAPH_DIR: '' };
-  const run = (args: string[], cwd = repo) => spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'migrate-names', ...args], { cwd, env, encoding: 'utf8' });
+  const run = (args: string[], cwd = repo) => spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'migrate-names', ...args], { cwd, env, encoding: 'utf8' });
   return { home, data, repo, od, nd: path.join(home, '.config', 'plangraph'), env, run, dir };
 }
 /** Every file under the given roots with its mode and bytes, plus the repository's git config: a dry run must leave all of it as it was.
- * The launcher's compile cache in the data dir is an optimization of bin/brain, not a write of the command, so it is left out. */
+ * The launcher's compile cache in the data dir is an optimization of bin/plangraph, not a write of the command, so it is left out. */
 const snapshot = (...roots: string[]) => Object.fromEntries(roots.flatMap((r) => (fs.readdirSync(r, { recursive: true }) as string[]).filter((f) => (!f.startsWith('.git' + path.sep) || f === path.join('.git', 'config')) && !f.startsWith('compile-cache')).map((f) => path.join(r, f)).filter((p) => fs.lstatSync(p).isFile() || fs.lstatSync(p).isSymbolicLink()).map((p) => [p, `${fs.lstatSync(p).mode}:${fs.lstatSync(p).isSymbolicLink() ? fs.readlinkSync(p) : fs.readFileSync(p, 'latin1')}`])));
 const mode = (p: string) => (fs.statSync(p).mode & 0o777).toString(8);
 
@@ -75,7 +75,7 @@ test('--apply copies user state 0600, renames the default directory, rewrites th
   assert.notEqual(tryGit(w.repo, 'config', '--get-regexp', `^merge\\.${OLD_DRIVER}\\.`).status, 0, 'the old driver section is removed');
   assert.match(fs.readFileSync(path.join(w.repo, 'CLAUDE.md'), 'utf8'), /\.brain\/\*\.jsonl/, 'CLAUDE.md is never edited');
   assert.match(r.stdout, /^applied 6 change\(s\)$/m);
-  assert.match(r.stdout, /^note: the old index \.plangraph\/brain\.sqlite can be deleted: `brain build` writes \.plangraph\/plangraph\.sqlite$/m);
+  assert.match(r.stdout, /^note: the old index \.plangraph\/brain\.sqlite can be deleted: `plangraph build` writes \.plangraph\/plangraph\.sqlite$/m);
   assert.ok(r.stdout.includes(`the old folder ~/.config/${OLD_FOLDER} is left in place and is safe to delete`));
   // a real three-way merge through the new driver name: two branches edit different fields of T-1 and add a ticket each
   git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'migrate names'); git(w.repo, 'checkout', '-qb', 'feature');
@@ -102,7 +102,7 @@ test('a second run is a no-op that prints one line', () => {
 
 test('no old state at all: one line, nothing written, also outside a git repository', () => {
   const home = tmp('mn-home-'), cwd = tmp('mn-plain-');
-  const r = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'migrate-names', '--apply'], { cwd, env: { ...BASE_ENV, HOME: home, CLAUDE_PLUGIN_DATA: tmp('mn-data-') }, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'migrate-names', '--apply'], { cwd, env: { ...BASE_ENV, HOME: home, CLAUDE_PLUGIN_DATA: tmp('mn-data-') }, encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, 'migrate-names: no old names found, nothing to do\n');
   assert.deepEqual(fs.readdirSync(home), []);
@@ -162,7 +162,7 @@ test('a directory named by the rc file keeps its path; only the rc file, the dri
   assert.equal(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), 'docs/plan-graph/*.jsonl merge=plangraph-jsonl\n*.png binary\n');
   assert.equal(fs.readFileSync(path.join(w.repo, '.gitignore'), 'utf8'), 'node_modules/\ndocs/plan-graph/*.sqlite\ndocs/plan-graph/plangraph.sqlite-journal\n');
   // the CLI now finds the directory through .plangraphrc
-  const t = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'doctor'], { cwd: w.repo, env: w.env, encoding: 'utf8' });
+  const t = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'doctor'], { cwd: w.repo, env: w.env, encoding: 'utf8' });
   assert.match(t.stdout, /merge driver: ok|merge driver installed|data format/);
   assert.doesNotMatch(t.stdout + t.stderr, /lacks/);
 });

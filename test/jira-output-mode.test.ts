@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const BIN = path.resolve('bin/brain'), ISSUE = path.resolve('test/fixtures/jira-connector-issue.json');
+const BIN = path.resolve('bin/plangraph'), ISSUE = path.resolve('test/fixtures/jira-connector-issue.json');
 const run = (dir: string, args: string[]) => spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env: { PATH: process.env.PATH, HOME: dir }, encoding: 'utf8' });
 const modeOf = (f: string) => fs.statSync(f).mode & 0o777;
 

@@ -131,7 +131,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
   else if (dirOld) {
     if (dirOld.kind !== 'dir') plan.refused.push(`${OLD.dir} is not a directory (a symlink is refused): not moved`);
     else if (dirNew) plan.refused.push(`${NEW.dir} exists: ${OLD.dir} not moved`);
-    else { move(OLD.dir, NEW.dir, ''); moved = true; if (fs.lstat(at(path.join(OLD.dir, OLD.index)))) plan.notes.push(`the old index ${NEW.dir}/${OLD.index} can be deleted: \`brain build\` writes ${NEW.dir}/${NEW.index}`); }
+    else { move(OLD.dir, NEW.dir, ''); moved = true; if (fs.lstat(at(path.join(OLD.dir, OLD.index)))) plan.notes.push(`the old index ${NEW.dir}/${OLD.index} can be deleted: \`plangraph build\` writes ${NEW.dir}/${NEW.index}`); }
   }
   for (const [name, t] of [['.gitattributes', ga.text], ['.gitignore', gi.text]] as const) {
     if (t === null) continue;
@@ -172,7 +172,7 @@ export function report(plan: MigratePlan, { apply, home }: { apply: boolean; hom
   const lines = [...plan.steps.map((s) => `${apply ? 'done' : 'would'}: ${s.text}`), ...plan.refused.map((r) => `refused: ${r}`), ...plan.notes.map((n) => `note: ${n}`)];
   lines.push(`keychain: never read or written here; if a Jira token is stored under ${OLD.keychain}[:host], re-save it as ${NEW.keychain}[:host] (macOS: security add-generic-password -s ${NEW.keychain} -a "$JIRA_EMAIL" -w)`);
   if (plan.copied) lines.push(`the old folder ${tilde(plan.oldConfigDir, home)} is left in place and is safe to delete${apply ? '' : ' after --apply'}`);
-  lines.push(apply ? `applied ${plan.steps.length} change(s)` : `dry run: nothing changed; run \`brain migrate-names --apply\` to apply ${plan.steps.length} change(s)`);
+  lines.push(apply ? `applied ${plan.steps.length} change(s)` : `dry run: nothing changed; run \`plangraph migrate-names --apply\` to apply ${plan.steps.length} change(s)`);
   return lines;
 }
 

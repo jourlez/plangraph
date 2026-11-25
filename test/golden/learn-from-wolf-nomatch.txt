@@ -1,6 +1,6 @@
-$ brain learn --from-wolf no such rule
+$ plangraph learn --from-wolf no such rule
 exit: 2
 --- stdout
 --- stderr
-error: no repo rule has exactly that text (run `brain rules --repo`)
-try: brain explain learn
+error: no repo rule has exactly that text (run `plangraph rules --repo`)
+try: plangraph explain learn

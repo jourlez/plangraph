@@ -1,7 +1,7 @@
-// First-use nudge of the SessionStart hook (`card --if-present`): brain data with no index, or data in an older format than the tool's,
+// First-use nudge of the SessionStart hook (`card --if-present`): plan data with no index, or data in an older format than the tool's,
 // prints ONE fixed line (no data from the files in it), exit 0, writes nothing, builds nothing. Every refusal of the hook (escaping or
-// unsafe dir, symlink, FIFO, bad name, unreadable or huge file, newer format) stays silent with exit 0. No brain at all stays silent.
-// A manual `brain card` keeps its error. Real runs of bin/brain in mkdtemp repos (removed in `after`).
+// unsafe dir, symlink, FIFO, bad name, unreadable or huge file, newer format) stays silent with exit 0. No plangraph at all stays silent.
+// A manual `plangraph card` keeps its error. Real runs of bin/plangraph in mkdtemp repos (removed in `after`).
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,12 +10,12 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
-/** A git repo with `brain init` run (data, no index). */
+/** A git repo with `plangraph init` run (data, no index). */
 function repo() {
   const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
@@ -23,8 +23,8 @@ function repo() {
   return d;
 }
 const HOOK = ['card', '--if-present'], HEAL = ['card', '--if-present', '--heal'];
-const NO_INDEX = 'brain: plan data found in .plangraph but no index: run brain build\n';
-const LEGACY = (v: number) => `brain: plan data found in .plangraph but no index: run brain migrate --write (format v${v}) then brain build\n`;
+const NO_INDEX = 'plangraph: plan data found in .plangraph but no index: run plangraph build\n';
+const LEGACY = (v: number) => `plangraph: plan data found in .plangraph but no index: run plangraph migrate --write (format v${v}) then plangraph build\n`;
 const silent = (r: SpawnSyncReturns<string>, why: string) => assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], why);
 const snapshot = (d: string) => { const o: Record<string, string> = {}; const walk = (p: string): void => { for (const e of fs.readdirSync(p, { withFileTypes: true })) { const f = path.join(p, e.name); if (e.name === '.git') continue; if (e.isDirectory()) walk(f); else if (e.isFile()) o[path.relative(d, f)] = fs.readFileSync(f, 'utf8'); else o[path.relative(d, f)] = 'special'; } }; walk(d); return o; };
 
@@ -34,7 +34,7 @@ test('data in the current format and no index: one fixed line, exit 0, nothing w
     const r = run(d, args); assert.deepEqual([r.status, r.stdout, r.stderr], [0, NO_INDEX, ''], args.join(' '));
   }
   assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'plangraph.sqlite')), 'no index was built');
-  const after_ = snapshot(d); delete after_['.data']; assert.deepEqual(Object.keys(after_).sort(), Object.keys(before).sort()); // --heal may wire the driver: no brain file changes
+  const after_ = snapshot(d); delete after_['.data']; assert.deepEqual(Object.keys(after_).sort(), Object.keys(before).sort()); // --heal may wire the driver: no plangraph file changes
   for (const k of Object.keys(before)) if (k.startsWith('.plangraph/')) assert.equal(after_[k], before[k], k);
 });
 
@@ -44,10 +44,10 @@ test('legacy format v0 (no format.json) and no index: the migrate line, naming t
   assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'format.json')), 'the hook never migrates');
 });
 
-test('no brain at all, or a brain dir with no data files: silent', () => {
+test('no plangraph at all, or a plan dir with no data files: silent', () => {
   const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
-  silent(run(d, HOOK), 'no brain'); silent(run(d, HEAL), 'no brain heal');
-  fs.mkdirSync(path.join(d, '.plangraph')); silent(run(d, HOOK), 'empty brain dir');
+  silent(run(d, HOOK), 'no plangraph'); silent(run(d, HEAL), 'no plangraph heal');
+  fs.mkdirSync(path.join(d, '.plangraph')); silent(run(d, HOOK), 'empty plan dir');
   fs.writeFileSync(path.join(d, '.plangraph', 'notes.txt'), 'x'); silent(run(d, HOOK), 'unrelated file only');
 });
 
@@ -55,12 +55,12 @@ test('a stale index keeps today\'s behavior: the card with its last STALE line, 
   const d = repo(); assert.equal(run(d, ['build']).status, 0);
   fs.appendFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), JSON.stringify({ key: 'T-1', sp: 1 }) + '\n');
   const r = run(d, HOOK); assert.equal(r.status, 0); assert.equal(r.stderr, '');
-  assert.match(r.stdout, /^brain \S+ \| /); assert.match(r.stdout, /STALE: index older than text, run `brain build`\n$/); assert.doesNotMatch(r.stdout, /plan data found/);
+  assert.match(r.stdout, /^plangraph \S+ \| /); assert.match(r.stdout, /STALE: index older than text, run `plangraph build`\n$/); assert.doesNotMatch(r.stdout, /plan data found/);
 });
 
-test('a manual `brain card` keeps the error (exit 2, no index)', () => {
+test('a manual `plangraph card` keeps the error (exit 2, no index)', () => {
   const d = repo(); const r = run(d, ['card']);
-  assert.deepEqual([r.status, r.stdout], [2, '']); assert.match(r.stderr, /^error: no index: run `brain build`\ntry: brain build\n$/);
+  assert.deepEqual([r.status, r.stdout], [2, '']); assert.match(r.stderr, /^error: no index: run `plangraph build`\ntry: plangraph build\n$/);
 });
 
 test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --heal)', () => {
@@ -80,7 +80,7 @@ test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --he
     'format is newer than the tool': (d: string, b: string) => { fs.writeFileSync(path.join(b, 'format.json'), '{"format_version":99,"min_reader":99}\n'); },
     'the index path is a dangling symlink': (d: string, b: string) => { fs.symlinkSync(path.join(d, 'nope'), path.join(b, 'plangraph.sqlite')); },
     'the index path is a FIFO': (d: string, b: string) => { execFileSync('mkfifo', [path.join(b, 'plangraph.sqlite')]); },
-    'the brain dir is a symlink': (d: string, b: string) => { fs.renameSync(b, path.join(d, 'real')); fs.symlinkSync(path.join(d, 'real'), b); },
+    'the plan dir is a symlink': (d: string, b: string) => { fs.renameSync(b, path.join(d, 'real')); fs.symlinkSync(path.join(d, 'real'), b); },
     '.plangraphrc is not JSON': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{bad'); },
     '.plangraphrc dir escapes the repo': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"../x"}'); },
     '.plangraphrc dir has a bad name': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"a b"}'); },
@@ -100,5 +100,5 @@ test('card off silences the nudge too', () => {
 
 test('the nudge shows a configured dir relative and sanitized', () => {
   const d = repo(); fs.renameSync(path.join(d, '.plangraph'), path.join(d, 'plan-data')); fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"plan-data"}');
-  const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'brain: plan data found in plan-data but no index: run brain build\n', '']);
+  const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'plangraph: plan data found in plan-data but no index: run plangraph build\n', '']);
 });

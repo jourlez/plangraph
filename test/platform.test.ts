@@ -11,11 +11,11 @@ import { buildModel, loadModel } from '../lib/model.ts';
 import { verifyPlan } from '../lib/verify.ts';
 
 const root = path.join(import.meta.dirname, '..');
-const BRAIN = path.join(root, 'bin/brain');
+const BRAIN = path.join(root, 'bin/plangraph');
 const read = (f: string): string => fs.readFileSync(path.join(root, f), 'utf8');
 const walk = (d: string): string[] => fs.readdirSync(path.join(root, d), { withFileTypes: true }).flatMap((e): string[] => {
   const rel = `${d}/${e.name}`;
-  return e.isDirectory() ? walk(rel) : (e.isFile() && /\.(ts|js)$|^brain[\w-]*$/.test(e.name) ? [rel] : []);
+  return e.isDirectory() ? walk(rel) : (e.isFile() && /\.(ts|js)$|^plangraph[\w-]*$/.test(e.name) ? [rel] : []);
 });
 
 test('README and CONTRACT say Node 24 and never the old 22.13 floor', () => {

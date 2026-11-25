@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const BIN = path.resolve('bin/brain');
+const BIN = path.resolve('bin/plangraph');
 function run(dir: string, env: Record<string, string>, args: string[]) {
   const clean = { PATH: process.env.PATH, HOME: dir, ...env };
   return spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env: clean, encoding: 'utf8' });
@@ -40,7 +40,7 @@ test('doctor says an unknown auth mode makes the config invalid', () => {
   const dir = repo();
   setJira(dir, { auth: { mode: 'Site-Token' }, base_url: 'https://evil.atlassian.net', jql: 'project = ABC' });
   const line = jiraLine(run(dir, { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: 'tok-SECRET-123' }, ['doctor']));
-  assert.match(line, /^jira: invalid config: auth\.mode must be scoped, site-token or datacenter; `brain jira-pull` refuses it/);
+  assert.match(line, /^jira: invalid config: auth\.mode must be scoped, site-token or datacenter; `plangraph jira-pull` refuses it/);
 });
 
 test('doctor says a multi-host Data Center tenant needs a binding; one host may use generic credentials', () => {

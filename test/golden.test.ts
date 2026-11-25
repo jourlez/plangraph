@@ -1,5 +1,5 @@
-// Golden characterization tests: freeze the CURRENT stdout, stderr and exit code of every `brain` command (default and --json)
-// before bin/brain is restructured. Compare against test/golden/<name>.txt; UPDATE_GOLDEN=1 rewrites the files (review them by eye).
+// Golden characterization tests: freeze the CURRENT stdout, stderr and exit code of every `plangraph` command (default and --json)
+// before bin/plangraph is restructured. Compare against test/golden/<name>.txt; UPDATE_GOLDEN=1 rewrites the files (review them by eye).
 // Everything runs in throwaway temp dirs with a private HOME, CLAUDE_PLUGIN_DATA and GIT_CONFIG_GLOBAL=/dev/null; nothing touches the real
 // home or data dir, the network, or the clock (temp paths, shas and timestamps are normalized in the captured text).
 // Not covered: jira-pull (needs live Jira credentials and network; only its refusal without credentials is frozen), the
@@ -12,7 +12,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
 
-const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), GOLD = path.join(HERE, 'golden'), FX = path.join(HERE, 'fixtures');
+const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), GOLD = path.join(HERE, 'golden'), FX = path.join(HERE, 'fixtures');
 const UPDATE = process.env.UPDATE_GOLDEN === '1';
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
@@ -43,7 +43,7 @@ function makeFixture(root: string): void {
   put(root, B + 'history.jsonl', jl([30, 34, 28, 36].map((d, i) => ({ sprint: i + 1, planned: 40, done: d, added: 2, carried: 40 + 2 - d > 0 ? 42 - d : 0 }))));
   put(root, B + 'learnings.jsonl', fs.readFileSync(path.join(HERE, '../seed/learnings.seed.jsonl'), 'utf8'));
   put(root, '.wolf/cerebrum.md', fx('openwolf/cerebrum.template.md').replace('## Key Learnings\n', '## Key Learnings\n\n- Prices are computed on the server in minor units.\n').replace('## Do-Not-Repeat\n', '## Do-Not-Repeat\n\n[2026-01-02] Never confirm a checkout from the redirect; wait for the webhook.\n[2026-01-03] Do not hardcode a client brand in public copy.\n'));
-  put(root, '.wolf/STATUS.md', '---\ndescription: handoff\n---\n# STATUS\n\n## Done\n\n- T-1 shipped.\n\n## Next quest\n\n### Open decisions\n- Should T-12 move to sprint 4? (T-12)\n\n### Blockers\n- T-3 waits on T-1 (T-3 and ZZ-9)\n\n## Context\n\n- Branch main.\n<!-- brain:card:begin -->\nold line\n<!-- brain:card:end -->\n');
+  put(root, '.wolf/STATUS.md', '---\ndescription: handoff\n---\n# STATUS\n\n## Done\n\n- T-1 shipped.\n\n## Next quest\n\n### Open decisions\n- Should T-12 move to sprint 4? (T-12)\n\n### Blockers\n- T-3 waits on T-1 (T-3 and ZZ-9)\n\n## Context\n\n- Branch main.\n<!-- plangraph:card:begin -->\nold line\n<!-- plangraph:card:end -->\n');
   git(root, 'add', '-A'); git(root, 'commit', '-qm', 'base');
   const b = run(root, ['build']); assert.equal(b.status, 0, b.stderr);
   // one registered open item so open-items has a table and a closed list
@@ -76,7 +76,7 @@ function normalize(text: string, root: string): string {
   // an uncaught error prints a source excerpt and a stack with line numbers: keep only the error line and its code
   t = t.split('\n').filter((l) => !/^\s+at /.test(l) && !/^Node\.js v/.test(l)).join('\n');
   t = t.replace(/--- stderr\nfile:\/\/[^\n]*\n[^\n]*\n[^\n]*\n\n/, '--- stderr\n');
-  return t.replace(/\b[0-9a-f]{40}\b/g, '<SHA40>').replace(/"imported_at":"[^"]*"/g, '"imported_at":"<TS>"').replace(/built (<?\d+\w*|just now|moments?) ?\w* ago/g, 'built <AGE> ago').replace(/node v\d+\.\d+\.\d+/g, 'node v<NODE>').replace(/brain-golden-\w+/g, '<TMP>');
+  return t.replace(/\b[0-9a-f]{40}\b/g, '<SHA40>').replace(/"imported_at":"[^"]*"/g, '"imported_at":"<TS>"').replace(/built (<?\d+\w*|just now|moments?) ?\w* ago/g, 'built <AGE> ago').replace(/node v\d+\.\d+\.\d+/g, 'node v<NODE>').replace(/plangraph-golden-\w+/g, '<TMP>');
 }
 
 // Ana's capacity lowered in config.json (read at run time, not part of the source fingerprint): her sprint loads go over cap for relieve.
@@ -150,9 +150,9 @@ const CASES: Case[] = [
   // error paths: bad arguments, unknown command, missing data
   { name: 'err-nocommand', args: [] }, { name: 'err-unknown', args: ['frobnicate'] }, { name: 'err-badflag', args: ['ticket', 'T-5', '--bogus'] },
   { name: 'err-badflag-sprint', args: ['sprint', '--bogus'] }, { name: 'err-sprint-nan', args: ['sprint', 'abc'] }, { name: 'err-person-noarg', args: ['person'] },
-  { name: 'err-nobrain-ticket', args: ['ticket', 'T-1'], repo: 'empty' }, { name: 'err-nobrain-build', args: ['build'], repo: 'empty' },
-  { name: 'err-nobrain-check', args: ['check'], repo: 'empty' }, { name: 'err-nobrain-doctor', args: ['doctor'], repo: 'empty' },
-  { name: 'err-nobrain-learn', args: ['learn', '--from-wolf', 'x'], repo: 'empty' },
+  { name: 'err-noplangraph-ticket', args: ['ticket', 'T-1'], repo: 'empty' }, { name: 'err-noplangraph-build', args: ['build'], repo: 'empty' },
+  { name: 'err-noplangraph-check', args: ['check'], repo: 'empty' }, { name: 'err-noplangraph-doctor', args: ['doctor'], repo: 'empty' },
+  { name: 'err-noplangraph-learn', args: ['learn', '--from-wolf', 'x'], repo: 'empty' },
   { name: 'err-newer-format', args: ['ticket', 'T-5'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":99,"min_reader":99}\n') },
 ];
 
@@ -163,7 +163,7 @@ for (const c of CASES) {
     if (c.setup) c.setup(root);
     const r = run(root, c.args, c.stdin);
     assert.equal(r.error, undefined, String(r.error));
-    let body = `$ brain ${c.args.join(' ')}\nexit: ${r.status}\n--- stdout\n${r.stdout}--- stderr\n${r.stderr}`;
+    let body = `$ plangraph ${c.args.join(' ')}\nexit: ${r.status}\n--- stdout\n${r.stdout}--- stderr\n${r.stderr}`;
     for (const f of c.files || []) { const fp = path.join(root, f); body += `--- file ${f}\n${fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '(missing)\n'}`; }
     const got = normalize(body, root);
     const file = path.join(GOLD, c.name + '.txt');

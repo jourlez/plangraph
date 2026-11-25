@@ -1,4 +1,4 @@
-$ brain findings
+$ plangraph findings
 exit: 0
 --- stdout
 export_clash: 1

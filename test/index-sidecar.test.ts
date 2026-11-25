@@ -4,7 +4,7 @@
 // a valid hot journal whose records are every page of that forged copy, at `plangraph.sqlite-journal` (a tracked file if committed). The journal
 // is hand-written per the SQLite file format (header magic, record count, nonce, initial page count, sector size, page size; each record a
 // page number, the page and the nonce-seeded checksum), which is deterministic, unlike killing a child mid-commit.
-// Covered: replay never happens (openIndex refuses any sidecar before SQLite sees the file, read-only and read-write), `brain build` removes a
+// Covered: replay never happens (openIndex refuses any sidecar before SQLite sees the file, read-only and read-write), `plangraph build` removes a
 // regular sidecar and so cures the state, refuses a symlinked or non-file sidecar (exit 4, nothing followed), clears sidecars at its temp
 // name, never leaves a sidecar itself, and normal index writes leave none; init writes the sidecar ignore lines, doctor warns about sidecars.
 import test, { after } from 'node:test';
@@ -15,9 +15,9 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { buildIndex, openIndex, stampContent, IndexHandle, INDEX_FILE } from '../src/db.ts';
-import { BrainError } from '../src/errors.ts';
+import { PlangraphError } from '../src/errors.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sidecar-')); tmps.push(d); return d; };
@@ -58,10 +58,10 @@ function forgedJournal(file: string, dir: string): Buffer {
   { using h = new IndexHandle(new DatabaseSync(forged)); h.exec('BEGIN'); h.exec("UPDATE ticket SET summary='planted' WHERE key='T-1'"); stampContent(h); h.exec('COMMIT'); }
   const j = hotJournal(forged); fs.rmSync(forged); return j;
 }
-const SIDECAR_REFUSAL = (name: string) => (e: unknown) => e instanceof BrainError && e.code === 'DATA'
-  && e.message === `the index has a SQLite journal file beside it (${name}); it is never replayed` && e.hint === 'run `brain build` to rebuild it';
+const SIDECAR_REFUSAL = (name: string) => (e: unknown) => e instanceof PlangraphError && e.code === 'DATA'
+  && e.message === `the index has a SQLite journal file beside it (${name}); it is never replayed` && e.hint === 'run `plangraph build` to rebuild it';
 
-test('a planted hot journal is never replayed: every open refuses it (read-only and read-write), and `brain build` removes it and cures the state', () => {
+test('a planted hot journal is never replayed: every open refuses it (read-only and read-write), and `plangraph build` removes it and cures the state', () => {
   const { d, b, file } = repo();
   const outside = tmp(), journal = `${file}-journal`;
   fs.writeFileSync(journal, forgedJournal(file, outside));
@@ -69,19 +69,19 @@ test('a planted hot journal is never replayed: every open refuses it (read-only 
   for (const opts of [{ readOnly: false }, { dir: b }, {}]) {
     let replayed = null;
     try { using h = openIndex(file, opts); replayed = (h.get("SELECT summary FROM ticket WHERE key='T-1'") as { summary: unknown }).summary; } // T-1 is in the fixture
-    catch (e) { assert.ok(SIDECAR_REFUSAL(`${INDEX_FILE}-journal`)(e), `${JSON.stringify(opts)}: ${(e as Error).message}`); } // openIndex throws a BrainError
+    catch (e) { assert.ok(SIDECAR_REFUSAL(`${INDEX_FILE}-journal`)(e), `${JSON.stringify(opts)}: ${(e as Error).message}`); } // openIndex throws a PlangraphError
     assert.equal(replayed, null, `the planted journal was replayed (${JSON.stringify(opts)}): T-1 reads "${replayed}"`);
-    assert.ok(fs.existsSync(journal), 'the journal is left for `brain build`'); assert.deepEqual(fs.readFileSync(file), indexBytes, 'the index was not touched');
+    assert.ok(fs.existsSync(journal), 'the journal is left for `plangraph build`'); assert.deepEqual(fs.readFileSync(file), indexBytes, 'the index was not touched');
   }
   const r = run(d, ['ticket', 'T-1']);
-  assert.deepEqual([r.status, r.stdout, r.stderr], [2, '', `error: the index has a SQLite journal file beside it (${INDEX_FILE}-journal); it is never replayed\ntry: brain build\n`]);
+  assert.deepEqual([r.status, r.stdout, r.stderr], [2, '', `error: the index has a SQLite journal file beside it (${INDEX_FILE}-journal); it is never replayed\ntry: plangraph build\n`]);
   const hook = run(d, ['card', '--if-present']);
   assert.deepEqual([hook.status, hook.stdout, hook.stderr], [0, '', '']);
   // the read-write CLI writers refuse it too (they would replay it)
   fs.writeFileSync(path.join(d, 's.json'), JSON.stringify([{ item: 'T-1', owner: 'Ana', sprint: 1 }, { item: 'T-2', owner: 'Ana', sprint: 3 }]));
   assert.equal(run(d, ['schedule-load', 's.json', 'old']).status, 2);
   assert.ok(fs.existsSync(journal)); assert.deepEqual(fs.readFileSync(file), indexBytes);
-  // `brain build` removes the regular sidecar (it belongs to a prior or foreign index), and the planted row never appears afterwards
+  // `plangraph build` removes the regular sidecar (it belongs to a prior or foreign index), and the planted row never appears afterwards
   const bl = run(d, ['build']); assert.equal(bl.status, 0, bl.stderr);
   assert.deepEqual(sidecarsIn(b), []);
   const t = run(d, ['ticket', 'T-1']); assert.equal(t.status, 0, t.stderr);
@@ -90,7 +90,7 @@ test('a planted hot journal is never replayed: every open refuses it (read-only 
   assert.deepEqual(sidecarsIn(b), []);
 });
 
-test('a -wal or -shm file beside the index is refused on open too (DATA, brain build hint), and build removes it', () => {
+test('a -wal or -shm file beside the index is refused on open too (DATA, plangraph build hint), and build removes it', () => {
   for (const s of ['-wal', '-shm']) {
     const { d, b, file } = repo();
     fs.writeFileSync(`${file}${s}`, 'x');
@@ -112,7 +112,7 @@ test('build refuses (exit 4) a symlinked or non-file sidecar, follows nothing, r
     fs.appendFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-3', summary: 'three', sp: 1, v2_owner: 'Ana', v2_sprint: 1 }]));
     const r = run(d, ['build']);
     assert.equal(r.status, 4, r.stderr);
-    assert.equal(r.stderr, `error: refusing to build the index: ${INDEX_FILE}${s} is ${kind === 'symlink' ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`brain build\`\ntry: brain explain build\n`);
+    assert.equal(r.stderr, `error: refusing to build the index: ${INDEX_FILE}${s} is ${kind === 'symlink' ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`plangraph build\`\ntry: plangraph explain build\n`);
     assert.deepEqual(fs.readFileSync(file), before, 'the old index is kept');
     assert.equal(fs.readFileSync(victim, 'utf8'), 'outside');
     assert.equal(kind === 'symlink' ? fs.lstatSync(p).isSymbolicLink() : fs.lstatSync(p).isDirectory(), true, 'the sidecar is left alone');
@@ -130,8 +130,8 @@ test('build clears regular sidecars at its own temp name, refuses a symlinked on
   { using h = openIndex(file, { dir: b }); assert.equal(h.stale, false); assert.equal((h.get('PRAGMA journal_mode') as { journal_mode: unknown }).journal_mode, 'delete', 'never WAL'); } // the pragma returns one row
   const victim = path.join(tmp(), 'victim'); fs.writeFileSync(victim, 'outside');
   fs.symlinkSync(victim, `${tmpName}-wal`);
-  assert.throws(() => buildIndex({ dir: b }), (e) => e instanceof BrainError && e.code === 'REFUSED'
-    && e.message === `refusing to build the index: ${path.basename(tmpName)}-wal is a symlink; remove it by hand, then run \`brain build\``);
+  assert.throws(() => buildIndex({ dir: b }), (e) => e instanceof PlangraphError && e.code === 'REFUSED'
+    && e.message === `refusing to build the index: ${path.basename(tmpName)}-wal is a symlink; remove it by hand, then run \`plangraph build\``);
   assert.equal(fs.readFileSync(victim, 'utf8'), 'outside');
   assert.ok(!fs.existsSync(tmpName), 'the temp file this build created is removed');
   fs.rmSync(`${tmpName}-wal`);
@@ -171,11 +171,11 @@ test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and 
   fs.writeFileSync(`${file}-journal`, 'x');
   let r = run(d, ['doctor'], { HOME: home });
   assert.equal(r.status, 0, r.stdout);
-  assert.match(r.stdout, /^warning: \.plangraph\/plangraph\.sqlite-journal: a SQLite journal file beside the index; every index command refuses it until `brain build` removes it$/m);
+  assert.match(r.stdout, /^warning: \.plangraph\/plangraph\.sqlite-journal: a SQLite journal file beside the index; every index command refuses it until `plangraph build` removes it$/m);
   execFileSync('git', ['add', '-f', '.plangraph/plangraph.sqlite-journal'], { cwd: d });
   r = run(d, ['doctor'], { HOME: home });
   assert.match(r.stdout, /^warning: tracked journal: \.plangraph\/plangraph\.sqlite-journal is committed; untrack it with `git rm --cached \.plangraph\/plangraph\.sqlite-journal`$/m);
   fs.writeFileSync(path.join(b, '.gitignore'), '*.sqlite\n');
   r = run(d, ['doctor'], { HOME: home });
-  assert.match(r.stdout, /^warning: \.plangraph\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\): run `brain init` to add the missing lines$/m);
+  assert.match(r.stdout, /^warning: \.plangraph\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\): run `plangraph init` to add the missing lines$/m);
 });

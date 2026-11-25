@@ -1,6 +1,6 @@
-$ brain ticket T-5 --bogus
+$ plangraph ticket T-5 --bogus
 exit: 2
 --- stdout
 --- stderr
 error: unknown option --bogus
-try: brain explain ticket
+try: plangraph explain ticket

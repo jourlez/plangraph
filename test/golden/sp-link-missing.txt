@@ -1,6 +1,6 @@
-$ brain sp-link T-3 docs/none.md
+$ plangraph sp-link T-3 docs/none.md
 exit: 2
 --- stdout
 --- stderr
 error: none.md: no such file
-try: brain explain sp-link
+try: plangraph explain sp-link

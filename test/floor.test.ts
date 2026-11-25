@@ -1,5 +1,5 @@
 // The Node floor is one value (src/floor.js NODE_FLOOR) and every place that states it agrees: package.json engines, README,
-// CONTRIBUTING, docs/CONTRACT.md, CHANGELOG, the `brain doctor` line, the src/db.ts ENV error and the bin/brain guard. The guard is run for
+// CONTRIBUTING, docs/CONTRACT.md, CHANGELOG, the `plangraph doctor` line, the src/db.ts ENV error and the bin/plangraph guard. The guard is run for
 // real under a pretended old Node (process.versions overridden by an --import preload, since no old Node binary is assumed on the host).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { NODE_FLOOR, nodeSupported, floorMessage, floorTry } from '../src/floor.js';
 import { loadSqlite } from '../src/db.ts';
-import type { BrainError } from '../src/errors.ts';
+import type { PlangraphError } from '../src/errors.ts';
 
 const root = path.join(import.meta.dirname, '..');
 const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
@@ -35,27 +35,27 @@ test('doctor, the index loader and the entry point take the floor from src/floor
   const doctor = read('src/commands/plan.ts');
   assert.match(doctor, /too old \(needs >= \$\{NODE_FLOOR\}\)/);
   assert.match(doctor, /nodeSupported\(process\.versions\.node\)/);
-  assert.match(read('bin/brain'), /import \{ nodeSupported, floorMessage, floorTry \} from '\.\.\/src\/floor\.js';/);
+  assert.match(read('bin/plangraph'), /import \{ nodeSupported, floorMessage, floorTry \} from '\.\.\/src\/floor\.js';/);
   assert.match(read('src/db.ts'), /nodeSupported\(version\)/);
-  assert.throws(() => loadSqlite({ version: '24.1.0' }), (e: BrainError) => e.code === 'ENV' && e.exitCode === 3 && e.message === floorMessage('24.1.0'));
-  assert.equal(floorMessage('22.12.0'), `brain needs Node >= ${NODE_FLOOR} (found 22.12.0); it uses node:sqlite and current ES features`);
-  for (const f of ['src/cli.ts', 'src/db.ts', 'src/commands/plan.ts', 'bin/brain']) assert.ok(!/>=\s*24(?!\.2)\b|Node 24(?!\.2)\b/.test(read(f)), `${f} states another floor`);
+  assert.throws(() => loadSqlite({ version: '24.1.0' }), (e: PlangraphError) => e.code === 'ENV' && e.exitCode === 3 && e.message === floorMessage('24.1.0'));
+  assert.equal(floorMessage('22.12.0'), `plangraph needs Node >= ${NODE_FLOOR} (found 22.12.0); it uses node:sqlite and current ES features`);
+  for (const f of ['src/cli.ts', 'src/db.ts', 'src/commands/plan.ts', 'bin/plangraph']) assert.ok(!/>=\s*24(?!\.2)\b|Node 24(?!\.2)\b/.test(read(f)), `${f} states another floor`);
 });
 
 test('floorTry is a plain-text try line naming the floor', () => {
   assert.equal(floorTry, `try: install Node ${NODE_FLOOR} or newer`);
 });
 
-test('bin/brain on a pretended old Node: exit 3 with one line; silent exit 0 with --if-present (the session hook)', () => {
+test('bin/plangraph on a pretended old Node: exit 3 with one line; silent exit 0 with --if-present (the session hook)', () => {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-floor-'));
   try {
     const old = 'data:text/javascript,Object.defineProperty(process.versions,"node",{value:"24.1.0"});Object.defineProperty(process,"version",{value:"v24.1.0"})';
-    const run = (...a: string[]) => spawnSync(process.execPath, ['--import', old, path.join(root, 'bin/brain'), ...a], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '' } });
+    const run = (...a: string[]) => spawnSync(process.execPath, ['--import', old, path.join(root, 'bin/plangraph'), ...a], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '' } });
     let r = run('ticket', 'T-1');
     assert.equal(r.status, 3); assert.equal(r.stdout, ''); assert.equal(r.stderr, `${floorMessage('v24.1.0')}\n${floorTry}\n`);
     assert.equal(r.stderr.split('\n').length, 3, 'message and try line only');
     // 40: the floor guard plus the private compile-cache setup, which must stay inline (plain JavaScript) so no .ts file loads before the cache
-    assert.ok(read('bin/brain').split('\n').length <= 40, 'bin/brain stays a thin entry');
+    assert.ok(read('bin/plangraph').split('\n').length <= 40, 'bin/plangraph stays a thin entry');
     r = run('card', '--if-present', '--heal');
     assert.equal(r.status, 0); assert.equal(r.stdout, ''); assert.equal(r.stderr, '');
     assert.deepEqual(fs.readdirSync(cwd), [], 'nothing written');

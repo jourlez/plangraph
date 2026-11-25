@@ -1,5 +1,5 @@
-// Index content integrity: `brain build` stores a sha256 digest of every table of plangraph.sqlite (canonical row order) in index_meta, and
-// openIndex verifies it, so a row edited directly inside the sqlite file is refused (DATA, exit 2, hint `brain build`) instead of being
+// Index content integrity: `plangraph build` stores a sha256 digest of every table of plangraph.sqlite (canonical row order) in index_meta, and
+// openIndex verifies it, so a row edited directly inside the sqlite file is refused (DATA, exit 2, hint `plangraph build`) instead of being
 // served. The legitimate index writers (whatif --write, schedule-load, export's fingerprint stamp) re-stamp the digest.
 // NOT covered: a deliberate forger who recomputes the digest after editing (the digest is unkeyed; docs/CONTRACT.md says so).
 import test, { after } from 'node:test';
@@ -10,9 +10,9 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { buildIndex, openIndex, INDEX_FILE, CONTENT_KEY, TABLES } from '../src/db.ts';
-import { BrainError } from '../src/errors.ts';
+import { PlangraphError } from '../src/errors.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
@@ -55,18 +55,18 @@ test('every table has a direct-edit case', () => {
 });
 
 for (const [table, sql] of Object.entries(EDITS)) {
-  test(`a direct UPDATE of ${table} inside plangraph.sqlite is refused on open (DATA, brain build hint), by the CLI (exit 2) and the hook (silent)`, () => {
+  test(`a direct UPDATE of ${table} inside plangraph.sqlite is refused on open (DATA, plangraph build hint), by the CLI (exit 2) and the hook (silent)`, () => {
     const { d, b, file } = repo();
     { using h = openIndex(file, { dir: b }); assert.equal(h.stale, false); }
     edit(file, sql);
     for (const opts of [{ dir: b }, {}, { readOnly: false }]) {
-      assert.throws(() => openIndex(file, opts), (e) => e instanceof BrainError && e.code === 'DATA'
-        && e.message === 'the index content does not match its integrity digest (it was edited outside brain)' && e.hint === 'run `brain build` to rebuild it', JSON.stringify(opts));
+      assert.throws(() => openIndex(file, opts), (e) => e instanceof PlangraphError && e.code === 'DATA'
+        && e.message === 'the index content does not match its integrity digest (it was edited outside plangraph)' && e.hint === 'run `plangraph build` to rebuild it', JSON.stringify(opts));
     }
     const r = run(d, ['ticket', 'T-1']);
     assert.equal(r.status, 2, r.stdout);
     assert.equal(r.stdout, '');
-    assert.equal(r.stderr, 'error: the index content does not match its integrity digest (it was edited outside brain)\ntry: brain build\n');
+    assert.equal(r.stderr, 'error: the index content does not match its integrity digest (it was edited outside plangraph)\ntry: plangraph build\n');
     const hook = run(d, ['card', '--if-present']);
     assert.deepEqual([hook.status, hook.stdout], [0, '']);
     assert.equal(run(d, ['build']).status, 0); // the text is the truth: a rebuild repairs it
@@ -78,7 +78,7 @@ test('a deleted row, an inserted row and a changed INTEGER column are refused to
   for (const sql of ["DELETE FROM learning WHERE id='L-1'", "INSERT INTO finding(key,kind,text) VALUES('T-2','risk','planted')", "UPDATE ticket SET sp=4 WHERE key='T-1'", "UPDATE ticket SET sp='three' WHERE key='T-1'"]) {
     const { b, file } = repo();
     edit(file, sql);
-    assert.throws(() => openIndex(file, { dir: b }), (e) => e instanceof BrainError && e.code === 'DATA', sql);
+    assert.throws(() => openIndex(file, { dir: b }), (e) => e instanceof PlangraphError && e.code === 'DATA', sql);
   }
 });
 
@@ -98,7 +98,7 @@ test('an index without a digest (an older build) is flagged stale and query-only
   const { d, b, file } = repo();
   edit(file, `DELETE FROM index_meta WHERE k='${CONTENT_KEY}'`);
   { using h = openIndex(file, { dir: b }); assert.equal(h.stale, true); assert.equal((h.get('PRAGMA query_only') as { query_only: unknown }).query_only, 1); } // the pragma returns one row
-  assert.throws(() => openIndex(file, { readOnly: false }), (e) => e instanceof BrainError && e.code === 'DATA' && /no integrity digest/.test(e.message));
+  assert.throws(() => openIndex(file, { readOnly: false }), (e) => e instanceof PlangraphError && e.code === 'DATA' && /no integrity digest/.test(e.message));
   const r = run(d, ['ticket', 'T-1']);
   assert.equal(r.status, 0); assert.match(r.stderr, /STALE/);
 });

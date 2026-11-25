@@ -1,6 +1,6 @@
 // Context: the capabilities a command gets, instead of globals. Built once per run by the shell (src/cli.ts or a test).
-// Directory precedence matches bin/brain: --dir, else env PLANGRAPH_DIR (when non-empty), else {"dir": "..."} in <root>/.plangraphrc, else .plangraph.
-// Unlike bin/brain, the directory is confined to the repository (lib/fsafe.ts resolveBrainDir): absolute or escaping dirs are REFUSED.
+// Directory precedence matches bin/plangraph: --dir, else env PLANGRAPH_DIR (when non-empty), else {"dir": "..."} in <root>/.plangraphrc, else .plangraph.
+// Unlike bin/plangraph, the directory is confined to the repository (lib/fsafe.ts resolveBrainDir): absolute or escaping dirs are REFUSED.
 import fs from 'node:fs';
 import path from 'node:path';
 import { makeGit } from '../lib/gitsafe.ts';
@@ -8,7 +8,7 @@ import { readCapped, readStreamCapped } from '../lib/jsonl.ts';
 import { resolveBrainDir } from '../lib/fsafe.ts';
 import { readConfig } from '../lib/model.ts';
 import { sourceNow } from '../lib/clock.ts';
-import { BrainError } from './errors.ts';
+import { PlangraphError } from './errors.ts';
 import { openIndex, INDEX_FILE } from './db.ts';
 import type { IndexHandle } from './db.ts';
 import type { PlanConfig } from '../lib/model.ts';
@@ -40,12 +40,12 @@ function readJsonObject(file: string, label: string, max: number): Record<string
   try { text = readCapped(file, max); }
   catch (e) { // readCapped throws an Error with a code (an fs errno or its own refusal)
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return undefined; // fs and the readers throw errno-style errors with a code
-    if ((e as NodeJS.ErrnoException).code === 'TOO_LARGE' || (e as NodeJS.ErrnoException).code === 'NOT_A_FILE') throw new BrainError('DATA', `${label}: ${(e as Error).message}`, { cause: e }); // fs and the readers throw errno-style errors with a code
+    if ((e as NodeJS.ErrnoException).code === 'TOO_LARGE' || (e as NodeJS.ErrnoException).code === 'NOT_A_FILE') throw new PlangraphError('DATA', `${label}: ${(e as Error).message}`, { cause: e }); // fs and the readers throw errno-style errors with a code
     throw e;
   }
   let v: unknown;
-  try { v = JSON.parse(text.replace(/^﻿/, '')); } catch (e) { throw new BrainError('DATA', `${label}: not valid JSON`, { cause: e }); }
-  if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new BrainError('DATA', `${label}: must be a JSON object`);
+  try { v = JSON.parse(text.replace(/^﻿/, '')); } catch (e) { throw new PlangraphError('DATA', `${label}: not valid JSON`, { cause: e }); }
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new PlangraphError('DATA', `${label}: must be a JSON object`);
   return v as Record<string, unknown>; // a non-null, non-array object: checked on the line above
 }
 
@@ -53,7 +53,7 @@ function readJsonObject(file: string, label: string, max: number): Record<string
 // (exit 2) with the same fixed base-name message, so every command refuses a bad config the same way.
 function configOf(dir: string): PlanConfig {
   try { return readConfig(path.join(dir, 'config.json')); }
-  catch (e) { if ((e as Error | undefined)?.name === 'IngestError') throw new BrainError('DATA', (e as Error).message, { cause: e }); throw e; } // whatever was thrown: an IngestError is an Error
+  catch (e) { if ((e as Error | undefined)?.name === 'IngestError') throw new PlangraphError('DATA', (e as Error).message, { cause: e }); throw e; } // whatever was thrown: an IngestError is an Error
 }
 
 // The repository root: the nearest ancestor of cwd holding a `.git` entry (a directory, or the file of a linked worktree or submodule),
@@ -74,14 +74,14 @@ function brainDir(root: string, flags: Record<string, unknown>, env: Record<stri
   if (dir === undefined) {
     const rc = readJsonObject(path.join(root, '.plangraphrc'), '.plangraphrc', RC_MAX);
     if (rc && Object.hasOwn(rc, 'dir')) {
-      if (typeof rc.dir !== 'string' || !rc.dir) throw new BrainError('DATA', '.plangraphrc: "dir" must be a non-empty string');
+      if (typeof rc.dir !== 'string' || !rc.dir) throw new PlangraphError('DATA', '.plangraphrc: "dir" must be a non-empty string');
       dir = rc.dir;
     }
   }
   try { return resolveBrainDir(root, dir ?? '.plangraph'); }
   catch (e) { // lib/fsafe.ts throws an Error with a code
-    if ((e as NodeJS.ErrnoException).code === 'OUTSIDE_REPO') throw new BrainError('REFUSED', 'brain directory is outside the repository', { hint: 'use a relative --dir inside the repository', cause: e }); // fs and the readers throw errno-style errors with a code
-    if ((e as NodeJS.ErrnoException).code === 'BAD_DIR_NAME') throw new BrainError('REFUSED', (e as Error).message, { hint: 'use a plain relative --dir such as .plangraph', cause: e }); // fs and the readers throw errno-style errors with a code
+    if ((e as NodeJS.ErrnoException).code === 'OUTSIDE_REPO') throw new PlangraphError('REFUSED', 'plan directory is outside the repository', { hint: 'use a relative --dir inside the repository', cause: e }); // fs and the readers throw errno-style errors with a code
+    if ((e as NodeJS.ErrnoException).code === 'BAD_DIR_NAME') throw new PlangraphError('REFUSED', (e as Error).message, { hint: 'use a plain relative --dir such as .plangraph', cause: e }); // fs and the readers throw errno-style errors with a code
     throw e;
   }
 }
@@ -89,7 +89,7 @@ function brainDir(root: string, flags: Record<string, unknown>, env: Record<stri
 // The single staleness policy of every index-reading command (ctx.db()): an index whose source fingerprint no longer matches the
 // text is still answered from, and this one warning goes to stderr, unless the global --if-present is set (the session-start hook
 // must stay silent). The handle is query-only in that case.
-export const STALE_WARNING = 'STALE: the text files changed since the index was built; run `brain build`';
+export const STALE_WARNING = 'STALE: the text files changed since the index was built; run `plangraph build`';
 
 // An IO given without outBlock (a test sink) gets one that prints each line through out().
 const withBlock = (io: IO | undefined) => (io && !io.outBlock ? { ...io, outBlock: (ls: string[]) => { for (const l of ls) io.out(l); } } : io);

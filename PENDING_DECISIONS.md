@@ -1,3 +1,5 @@
+> Historical document: the owner's decision log, written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Pending decisions
 
 Decisions the owner has to make before or during the zero-gaps work (plan `docs/superpowers/plans/2026-11-24-zero-gaps-0.3.0.md`, graph plan `docs/superpowers/plans/2026-11-24-graph-model-v2.md`, design `docs/superpowers/specs/2026-11-24-zero-gaps-design.md` section 16). Each entry gives the question, the recommendation, the cost of overruling it and the tasks that depend on it.

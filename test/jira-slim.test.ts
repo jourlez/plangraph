@@ -1,4 +1,4 @@
-// `brain jira-import` on the SLIM connector shape documented in docs/JIRA.md (UNVERIFIED: the call was not made). The fixture is built from
+// `plangraph jira-import` on the SLIM connector shape documented in docs/JIRA.md (UNVERIFIED: the call was not made). The fixture is built from
 // the real payload shape verified once (custom fields under fields.customFields keyed by DISPLAY NAME as { id, value }; Sprint value an
 // array of { id, name, state, boardId, goal, startDate, endDate }) with only the requested fields kept. Invented keys and names.
 // A field the slim response leaves out keeps the value already in the snapshot (as issuelinks already did); a field present but empty

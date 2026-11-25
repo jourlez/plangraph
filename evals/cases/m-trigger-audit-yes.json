@@ -1,0 +1,87 @@
+{
+  "$schema": "plangraph-eval-case/2",
+  "id": "m-trigger-audit-yes",
+  "kind": "trigger",
+  "family": "trigger-audit",
+  "tags": [
+    "trigger",
+    "synthetic",
+    "size-m",
+    "should-trigger",
+    "audit"
+  ],
+  "fixture": {
+    "size": "M",
+    "seed": 7,
+    "plangraph": true,
+    "overlay": []
+  },
+  "prompt": "Somebody edited the plan document after the last readiness audit. Which tickets need a re-audit now? Do not re-audit them. Finish with one line: ANSWER: {\"stale\":[\"<key>\", ...],\"count\":<number>}",
+  "limits": {
+    "max_turns": 14,
+    "timeout_s": 300,
+    "max_usd": 0.6
+  },
+  "truth": {
+    "derive": "computeStale",
+    "args": {
+      "ref": "HEAD"
+    },
+    "value": {
+      "stale": [
+        "T-286",
+        "T-290",
+        "T-298",
+        "T-299",
+        "T-300"
+      ],
+      "count": 5
+    }
+  },
+  "graders": [
+    {
+      "id": "ans-stale",
+      "role": "outcome",
+      "type": "regex",
+      "target": "last_message",
+      "pattern": "(?:^|\\n)ANSWER:(?=[^\\n]*\"stale\"\\s*:\\s*\\[\\s*(?:\"[^\"\\n]*\"\\s*(?:,\\s*)?){5}\\])(?=[^\\n]*\"stale\"\\s*:\\s*\\[[^\\]\\n]*\"T-286\")(?=[^\\n]*\"stale\"\\s*:\\s*\\[[^\\]\\n]*\"T-290\")(?=[^\\n]*\"stale\"\\s*:\\s*\\[[^\\]\\n]*\"T-298\")(?=[^\\n]*\"stale\"\\s*:\\s*\\[[^\\]\\n]*\"T-299\")(?=[^\\n]*\"stale\"\\s*:\\s*\\[[^\\]\\n]*\"T-300\")",
+      "weight": 3,
+      "arm": "both"
+    },
+    {
+      "id": "ans-count",
+      "role": "outcome",
+      "type": "regex",
+      "target": "last_message",
+      "pattern": "(?:^|\\n)ANSWER:(?=[^\\n]*\"count\"\\s*:\\s*5(?![0-9.]))",
+      "weight": 3,
+      "arm": "both"
+    },
+    {
+      "id": "diag-used-plangraph",
+      "role": "diagnostic",
+      "type": "tool_used",
+      "tool": "Bash",
+      "input_match": "(?:^|[\\s;&|(])plangraph\\s",
+      "min": 1,
+      "weight": 1,
+      "arm": "with-only"
+    },
+    {
+      "id": "diag-skill-fired",
+      "role": "diagnostic",
+      "type": "tool_used",
+      "tool": "Skill",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit)\"",
+      "min": 1,
+      "weight": 1,
+      "arm": "with-only"
+    }
+  ],
+  "difficulty": "medium",
+  "expected": {
+    "trigger": true,
+    "skill": "audit",
+    "job": "replanning"
+  }
+}

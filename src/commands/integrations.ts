@@ -1,5 +1,5 @@
 // Companion tools: integrations (detection, files only), sp-ingest and sp-link (superpowers plans and ledgers: read-only on superpowers
-// files; writes only brain JSONL, canonical, atomic, confined to the repo), learn --from-wolf (one OpenWolf rule into learnings.jsonl).
+// files; writes only plangraph JSONL, canonical, atomic, confined to the repo), learn --from-wolf (one OpenWolf rule into learnings.jsonl).
 // Errors of sp-ingest, sp-link and learn print one `error: ...` line and exit 2 (a refused write target: symlink, not a regular file or
 // outside the repository, exits 4); nothing is written unless every file was computed, validated and pre-checked first.
 import fs from 'node:fs';
@@ -9,7 +9,7 @@ import { readJsonl, parseJsonl } from '../../lib/jsonl.ts';
 import { oneLine, fence } from '../../lib/sanitize.ts';
 import { assertInside } from '../../lib/fsafe.ts';
 import { checkRepoPath, makeGit } from '../../lib/gitsafe.ts';
-import { BrainError } from '../errors.ts';
+import { PlangraphError } from '../errors.ts';
 import { verbose, usage, needBrain, precheckTargets, writeState, refuseWrite } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
@@ -48,7 +48,7 @@ async function integrations(ctx: Ctx, args: Args): Promise<number> {
   if (v) {
     out('connector hints (connectors cannot be detected from a shell; match these against your own tool list):');
     for (const h of r.connectorHints) out(`  ${oneLine(h.name, 40)}: ${oneLine(h.glob, 100)} (${oneLine(h.purpose, 100)})`);
-    out(`always-on token budget, ${(r.budget.items[0] as BudgetItem).source}, not a live measurement:`); // detect always pushes the brain card item, so items is never empty
+    out(`always-on token budget, ${(r.budget.items[0] as BudgetItem).source}, not a live measurement:`); // detect always pushes the plangraph card item, so items is never empty
     for (const i of r.budget.items) out(`  ${i.name} ${i.tokens}`);
     out(`  total ${r.budget.total}`);
   }
@@ -57,19 +57,19 @@ async function integrations(ctx: Ctx, args: Args): Promise<number> {
 
 // ---- superpowers ----
 /** Any failure of these commands becomes one `error:` line (the first line of the message, plus `(+N more)` for aggregated errors),
- * exit 2, as before; a refused write target exits 4. A typed BrainError keeps its message and exit code. */
+ * exit 2, as before; a refused write target exits 4. A typed PlangraphError keeps its message and exit code. */
 export function spErrors(e: unknown): never {
-  if (e instanceof BrainError) throw e;
+  if (e instanceof PlangraphError) throw e;
   // A refused write target (symlink, not a regular file, outside the repository) is REFUSED (exit 4) per docs/CONTRACT.md.
   if ((e as ThrownLike | null | undefined)?.code === 'SYMLINK' || (e as ThrownLike | null | undefined)?.code === 'OUTSIDE_REPO') refuseWrite(e); // whatever was thrown: read with ?.
   const first = String((e as ThrownLike | null | undefined)?.message ?? e).split('\n')[0] as string; // whatever was thrown: read with ?.; split always returns at least one item
-  if (/^refusing to write\b/.test(first)) throw new BrainError('REFUSED', oneLine(first, 300), { cause: e });
-  throw new BrainError('DATA', oneLine(first, 300) + ((e as ThrownLike | null | undefined)?.total as number > 1 ? ` (+${(e as ThrownLike).total as number - 1} more)` : ''), { cause: e }); // unchecked: total of whatever was thrown is compared and subtracted as is (undefined > 1 is false), as before
+  if (/^refusing to write\b/.test(first)) throw new PlangraphError('REFUSED', oneLine(first, 300), { cause: e });
+  throw new PlangraphError('DATA', oneLine(first, 300) + ((e as ThrownLike | null | undefined)?.total as number > 1 ? ` (+${(e as ThrownLike).total as number - 1} more)` : ''), { cause: e }); // unchecked: total of whatever was thrown is compared and subtracted as is (undefined > 1 is false), as before
 }
 // A superpowers file to READ outside the repository is a data error (exit 2), not a refused write: it is typed here so spErrors can map
 // every remaining OUTSIDE_REPO (a write target) to REFUSED.
 function readInside(root: string, p: string): string {
-  try { return assertInside(root, p); } catch (e) { if ((e as ThrownLike | null | undefined)?.code === 'OUTSIDE_REPO') throw new BrainError('DATA', oneLine((e as Error).message, 300), { cause: e }); throw e; } // lib/fsafe.ts throws coded Errors
+  try { return assertInside(root, p); } catch (e) { if ((e as ThrownLike | null | undefined)?.code === 'OUTSIDE_REPO') throw new PlangraphError('DATA', oneLine((e as Error).message, 300), { cause: e }); throw e; } // lib/fsafe.ts throws coded Errors
 }
 function spFile(ctx: Ctx, arg: string | undefined, what: string): { real: string; rel: string } {
   if (!arg || arg.startsWith('--')) throw new Error(`${what} path missing`);
@@ -89,7 +89,7 @@ async function spWrite(ctx: Ctx, next: Array<[string, Rec[], Rec[]]>): Promise<n
     if (text !== S.canonFile(old, S.SCHEMAS[f])) out.push([f, text]);
   }
   // Pre-check every target before the first write, so a refusable target (symlink, directory, outside the repo) fails with nothing written.
-  // Refusals are REFUSED errors (exit 4); spErrors passes a BrainError through unchanged.
+  // Refusals are REFUSED errors (exit 4); spErrors passes a PlangraphError through unchanged.
   precheckTargets(ctx, out.map(([f]) => path.join(ctx.dir, f)));
   for (const [f, text] of out) writeState(ctx, path.join(ctx.dir, f), text);
   return out.length;
@@ -100,7 +100,7 @@ async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; 
   try {
     const SP = await import('../../lib/integrations/superpowers.ts');
     const [planArg] = args.positionals;
-    if (!planArg) throw usage('usage: brain sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]');
+    if (!planArg) throw usage('usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]');
     if ((v.owner !== undefined) !== (v.sprint !== undefined)) throw usage('--owner and --sprint go together (seeding a schedule needs both)');
     needBrain(ctx);
     const plan = spFile(ctx, planArg, 'plan');
@@ -145,7 +145,7 @@ async function spLink(ctx: Ctx, args: Args<{ tasks?: string }>): Promise<number>
   try {
     const SP = await import('../../lib/integrations/superpowers.ts'), { planSection, DEFAULT_HEADING } = await import('../../lib/stale.ts');
     const [key, planArg] = args.positionals;
-    if (!key || !planArg) throw usage('usage: brain sp-link TICKET PLAN [--tasks 1,3]');
+    if (!key || !planArg) throw usage('usage: plangraph sp-link TICKET PLAN [--tasks 1,3]');
     needBrain(ctx);
     if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/.test(key) || key.includes('..')) throw usage('invalid ticket key');
     if (!spRead(ctx, 'tickets.jsonl').some((t) => t.key === key)) throw usage(`unknown ticket ${key}: not in tickets.jsonl`);
@@ -162,13 +162,13 @@ async function spLink(ctx: Ctx, args: Args<{ tasks?: string }>): Promise<number>
     const have = (id: string) => ((prev.plans || []) as Array<{ plan?: unknown; task?: unknown }>).some((x) => x.plan === plan.rel && String(x.task) === id); // plansRule: plans is absent, null or a list of objects
     const rec = { ...prev, plans: [...((prev.plans || []) as unknown[]), ...want.filter((id) => !have(id)).map((id) => ({ plan: plan.rel, task: id }))] };
     await spWrite(ctx, [['refs.jsonl', [...refs.filter((r) => r.key !== key), rec], refs]]);
-    ctx.io.out(`linked ${oneLine(key, 120)} to ${oneLine(plan.rel, 200)}: ${want.length} task${want.length === 1 ? '' : 's'}${unmatched ? `; ${unmatched} not matched by ref_heading (brain stale cannot fingerprint them)` : ''}`);
+    ctx.io.out(`linked ${oneLine(key, 120)} to ${oneLine(plan.rel, 200)}: ${want.length} task${want.length === 1 ? '' : 's'}${unmatched ? `; ${unmatched} not matched by ref_heading (plangraph stale cannot fingerprint them)` : ''}`);
   } catch (e) { spErrors(e); }
   return 0;
 }
 
-// ---- OpenWolf: read-through only; the only write is one record into brain's own learnings.jsonl, printed fenced ----
-const LEARN_USAGE = 'usage: brain learn --from-wolf <handle|"text">';
+// ---- OpenWolf: read-through only; the only write is one record into plangraph's own learnings.jsonl, printed fenced ----
+const LEARN_USAGE = 'usage: plangraph learn --from-wolf <handle|"text">';
 async function learn(ctx: Ctx, args: Args<{ 'from-wolf'?: string }>): Promise<number> {
   const arg = args.values['from-wolf'];
   if (arg === undefined || !arg || arg.startsWith('--')) throw usage(LEARN_USAGE);
@@ -176,15 +176,15 @@ async function learn(ctx: Ctx, args: Args<{ 'from-wolf'?: string }>): Promise<nu
   try {
     const W = await import('../../lib/integrations/openwolf.ts'), r = W.readWolfFile(ctx.root, 'cerebrum.md'); if (!r.ok) throw usage((r.warning as string)); // a failed read carries its warning
     const list = W.repoRuleList(W.parseCerebrum(r.text), { all: true }); let entry: (typeof list)[number]; // every handle `rules --repo [--all]` can show
-    if (/^\d+$/.test(arg.trim())) throw usage('a position number is not accepted (positions shift): use the handle from `brain rules --repo` or the exact text');
+    if (/^\d+$/.test(arg.trim())) throw usage('a position number is not accepted (positions shift): use the handle from `plangraph rules --repo` or the exact text');
     if (/^w[0-9a-f]{6}$/.test(arg)) {
       const hits = list.filter((e) => e.handle === arg);
-      if (!hits.length) throw usage('no repo rule has that handle (run `brain rules --repo`)');
+      if (!hits.length) throw usage('no repo rule has that handle (run `plangraph rules --repo`)');
       if (hits.length > 1) throw usage('that handle matches more than one repo rule: promote by its exact text');
       entry = hits[0] as RepoRule; // hits.length is 1: both other cases threw above
     } else {
       const want = oneLine(arg, 2000), hits = list.filter((e) => oneLine(e.text, 2000) === want || (e.date && oneLine(`${e.date} ${e.text}`, 2000) === want));
-      if (!hits.length) throw usage('no repo rule has exactly that text (run `brain rules --repo`)');
+      if (!hits.length) throw usage('no repo rule has exactly that text (run `plangraph rules --repo`)');
       if (hits.length > 1) throw usage('that text matches more than one repo rule (nothing written)');
       entry = hits[0] as RepoRule; // hits.length is 1: both other cases threw above
     }
@@ -193,7 +193,7 @@ async function learn(ctx: Ctx, args: Args<{ 'from-wolf'?: string }>): Promise<nu
     let n = 0; for (const x of old) { const m = /^W-(\d{1,9})$/.exec(String(x.id)); if (m) n = Math.max(n, +(m[1] as string)); } // group 1 is not optional: it is set in every match
     const rec = { id: `W-${n + 1}`, kind: 'rule', topic: 'repo', text, why: '', source: 'openwolf:cerebrum' };
     await spWrite(ctx, [['learnings.jsonl', [...old, rec], old]]);
-    ctx.io.out(`copied repo rule ${oneLine(entry.handle, 20)} to learnings.jsonl as ${oneLine(rec.id, 20)} (kind rule, topic repo, source openwolf:cerebrum); run \`brain build\``);
+    ctx.io.out(`copied repo rule ${oneLine(entry.handle, 20)} to learnings.jsonl as ${oneLine(rec.id, 20)} (kind rule, topic repo, source openwolf:cerebrum); run \`plangraph build\``);
     ctx.io.outBlock(W.fenceWolf('wolf-cerebrum', text).split('\n'));
   } catch (e) { spErrors(e); }
   return 0;
@@ -206,7 +206,7 @@ export const commands: CommandMap = {
     run: spIngest, positionals: [0, 1], writes: 'text', summary: 'superpowers plan + ledger -> tickets, edges, findings, refs (read-only on superpowers files)',
     options: { ledger: { type: 'string', missing: '--ledger needs a file path or none' }, owner: { type: 'string', missing: '--owner needs a plain name (at most 80 characters)' }, sprint: { type: 'string', missing: '--sprint needs a whole number' } },
   },
-  'sp-link': { run: spLink, positionals: [0, 2], writes: 'text', options: { tasks: { type: 'string', missing: '--tasks needs a comma-separated list of task ids' } }, summary: 'point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `brain stale`)' },
+  'sp-link': { run: spLink, positionals: [0, 2], writes: 'text', options: { tasks: { type: 'string', missing: '--tasks needs a comma-separated list of task ids' } }, summary: 'point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`)' },
   learn: { run: learn, positionals: [0, 0], writes: 'text', guard: 'strict', options: { 'from-wolf': { type: 'string', missing: LEARN_USAGE } }, summary: 'copy ONE repo rule from .wolf/cerebrum.md into learnings.jsonl' },
 };
 

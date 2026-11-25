@@ -1,7 +1,7 @@
 // The real-project generator: real data stays in a temp directory. A stand-in "real project" is built at test time with a canary list
 // (invented full names, a ticket-key prefix and summary markers that occur nowhere else); the generator must carry them into its temp
 // suite (proving the check is sensitive) and NO file tracked under evals/ may contain any of them. The generator must refuse to write into
-// this repository or the source project, must leave the source byte-identical, and its truth must agree with the brain CLI.
+// this repository or the source project, must leave the source byte-identical, and its truth must agree with the plangraph CLI.
 // Optional: PLANGRAPH_REAL_PROJECT=<root> also checks that no tracked evals/ file contains a person name or ticket key of that project
 // (read-only; only counts are printed). No network, no model calls.
 import { test, before, after } from 'node:test';
@@ -59,7 +59,7 @@ before(() => {
 });
 after(() => { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }); });
 
-test('generateReal writes a self-contained suite into a temp directory, with truth that agrees with the brain CLI, leaving the source untouched', () => {
+test('generateReal writes a self-contained suite into a temp directory, with truth that agrees with the plangraph CLI, leaving the source untouched', () => {
   const h0 = hashTree(project);
   const out = path.join(tmp, 'out1');
   const r = generateReal({ from: project, out, runs: 1, verify: true });
@@ -67,7 +67,7 @@ test('generateReal writes a self-contained suite into a temp directory, with tru
   assert.ok(r.cases.length >= 25, `only ${r.cases.length} cases`);
   assert.deepEqual((r.truth as NonNullable<typeof r.truth>).mismatches, []); // verify: true makes generateReal run the truth check
   assert.ok((r.truth as NonNullable<typeof r.truth>).checked.length >= 20, `only ${(r.truth as NonNullable<typeof r.truth>).checked.length} cross-checked`); // verify: true makes generateReal run the truth check
-  for (const f of ['cases.json', 'manifest.json', 'plugin/evals/fixtures/R/tickets.jsonl', 'plugin/evals/r-lookup/scaffold.sh', 'plugin/bin/brain']) assert.ok(fs.existsSync(path.join(out, f)), f);
+  for (const f of ['cases.json', 'manifest.json', 'plugin/evals/fixtures/R/tickets.jsonl', 'plugin/evals/r-lookup/scaffold.sh', 'plugin/bin/plangraph']) assert.ok(fs.existsSync(path.join(out, f)), f);
   assert.ok(!fs.existsSync(path.join(out, 'plugin', 'evals', 'fixtures', 'R', 'evidence.jsonl')), 'evidence is not copied');
   const all = fs.readFileSync(path.join(out, 'cases.json'), 'utf8') + fs.readFileSync(path.join(out, 'plugin/evals/fixtures/R/tickets.jsonl'), 'utf8');
   assert.ok(canary.people.every((p) => all.includes(p)) && all.includes(canary.marker) && all.includes(`${canary.prefix}-`), 'the canaries reach the temp suite: the leak check below is sensitive');

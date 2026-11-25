@@ -17,7 +17,7 @@ import { writeAtomicSafe } from './fsafe.ts';
 // File contents are only ever expanded inside double quotes, so a hostile path cannot inject shell syntax.
 const SHIM = `#!/bin/sh
 d="$(dirname "$0")/.."
-u() { echo "plangraph: merge driver unavailable ($1): run 'brain doctor --fix'" >&2; exit 2; }
+u() { echo "plangraph: merge driver unavailable ($1): run 'plangraph doctor --fix'" >&2; exit 2; }
 [ -s "$d/driver.target" ] || u "driver.target missing or empty"
 [ -s "$d/driver.node" ] || u "driver.node missing or empty"
 t=$(cat "$d/driver.target" 2>/dev/null) || u "driver.target unreadable"

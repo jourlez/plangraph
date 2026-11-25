@@ -90,7 +90,7 @@
      "source": "measured 2026-11-22 on one machine"
     },
     {
-     "name": "brain card",
+     "name": "plangraph card",
      "tokens": 185,
      "source": "measured 2026-11-22 on one machine"
     }
@@ -189,7 +189,7 @@
      "source": "measured 2026-11-22 on one machine"
     },
     {
-     "name": "brain card",
+     "name": "plangraph card",
      "tokens": 185,
      "source": "measured 2026-11-22 on one machine"
     }
@@ -289,7 +289,7 @@
      "source": "measured 2026-11-22 on one machine"
     },
     {
-     "name": "brain card",
+     "name": "plangraph card",
      "tokens": 185,
      "source": "measured 2026-11-22 on one machine"
     }
@@ -438,7 +438,7 @@
      "source": "measured 2026-11-22 on one machine"
     },
     {
-     "name": "brain card",
+     "name": "plangraph card",
      "tokens": 185,
      "source": "measured 2026-11-22 on one machine"
     }
@@ -527,7 +527,7 @@
   "budget": {
    "items": [
     {
-     "name": "brain card",
+     "name": "plangraph card",
      "tokens": 185,
      "source": "measured 2026-11-22 on one machine"
     }

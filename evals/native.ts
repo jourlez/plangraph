@@ -12,7 +12,7 @@ export interface NativeOptions { runs: number; brainDir?: string | undefined; rc
 
 // Bash is granted by the operator (--allow-tools) for both arms; the case lists the same patterns so the CLI's "cannot pass with the
 // granted tools" check sees them. Edit and Write are never granted: a refused attempt still appears in the trace and fails the grader.
-export const BASH_TOOLS = ['Bash(brain *)', 'Bash(jq *)', 'Bash(grep *)', 'Bash(rg *)', 'Bash(node *)', 'Bash(cat *)', 'Bash(ls *)', 'Bash(wc *)', 'Bash(head *)', 'Bash(git *)'];
+export const BASH_TOOLS = ['Bash(plangraph *)', 'Bash(jq *)', 'Bash(grep *)', 'Bash(rg *)', 'Bash(node *)', 'Bash(cat *)', 'Bash(ls *)', 'Bash(wc *)', 'Bash(head *)', 'Bash(git *)'];
 const READ_TOOLS = ['Read', 'Glob', 'Grep', 'Skill'];
 const yq = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const shq = (s: unknown) => `'${String(s).replace(/'/g, `'\\''`)}'`;
@@ -29,13 +29,13 @@ export function nativeFiles(c: EvalCase, { runs, brainDir = '.plangraph', rcDir 
   const sh = ['#!/usr/bin/env bash', '# generated from a plangraph-eval-case/2 object; do not edit', 'set -euo pipefail',
     'case_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"', 'plugin_root="$(cd "$case_dir/../.." && pwd)"', `fx="$case_dir/../fixtures/${c.fixture.size}"`,
     'cp "$fx/plan.md" plan.md'];
-  if (c.fixture.brain) {
+  if (c.fixture.plangraph) {
     sh.push(`mkdir -p ${shq(dir)}`, `for f in "$fx"/*.jsonl "$fx"/config.json "$fx"/format.json; do cp "$f" ${shq(dir)}/; done`);
     if (rcDir) sh.push(`printf '%s\\n' ${shq(JSON.stringify({ dir: rcDir }))} > .plangraphrc`);
     if (ov) sh.push(`${node} "$plugin_root/evals/overlay.ts" "$case_dir/overlay.json" ${shq(dir)} .`);
   }
   sh.push('git init -q', 'git -c user.name=eval -c user.email=eval@example.invalid add -A', 'git -c user.name=eval -c user.email=eval@example.invalid commit -qm fixture');
-  if (c.fixture.brain) sh.push(`${node} "$plugin_root/bin/brain" build >/dev/null`);
+  if (c.fixture.plangraph) sh.push(`${node} "$plugin_root/bin/plangraph" build >/dev/null`);
   f.set(`${c.id}/scaffold.sh`, sh.join('\n') + '\n');
   for (const g of c.graders) {
     const y = ['type: ' + g.type];

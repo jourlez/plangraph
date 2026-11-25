@@ -31,7 +31,7 @@ test('the Python solver reads PLANGRAPH_DIR; the old variable is ignored', { ski
   const d = repo();
   const body = "import importlib.machinery, importlib.util, sys\nl = importlib.machinery.SourceFileLoader('s', sys.argv[1]); m = importlib.util.module_from_spec(importlib.util.spec_from_loader('s', l)); l.exec_module(m)\nprint(m.brain_dir())\n";
   const dirOf = (env: Record<string, string>) => {
-    const r = spawnSync('python3', ['-I', '-c', body, path.join(import.meta.dirname, '../bin/brain-solve')], { cwd: d, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ...env }, timeout: 15000 });
+    const r = spawnSync('python3', ['-I', '-c', body, path.join(import.meta.dirname, '../bin/plangraph-solve')], { cwd: d, encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ...env }, timeout: 15000 });
     assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
   };
   assert.equal(dirOf({ PLANGRAPH_DIR: 'custom' }), path.join(d, 'custom'));
@@ -69,7 +69,7 @@ test('PLANGRAPH_SOLVE_SCRIPT overrides the solver script of the launcher; the ol
   // a fake uv that records its argv, answers `uv python find` with an absolute executable and does nothing for `uv run`
   fs.writeFileSync(path.join(bin, 'uv'), `#!/bin/sh\necho "$@" >> '${log}'\n[ "$1 $2" = "python find" ] && echo /bin/sh\nexit 0\n`, { mode: 0o755 });
   for (const sh of ['dirname']) { const p = execFileSync('sh', ['-c', `command -v ${sh}`], { encoding: 'utf8' }).trim(); if (p) fs.symlinkSync(p, path.join(bin, sh)); }
-  const launch = (env: Record<string, string>) => { fs.rmSync(log, { force: true }); spawnSync(path.join(import.meta.dirname, '../bin/brain-solve-run'), ['--out', path.join(d, 'o.json')], { cwd: d, encoding: 'utf8', env: { PATH: bin, HOME: d, CLAUDE_PLUGIN_DATA: path.join(d, 'data'), PLANGRAPH_SOLVE_LAUNCH: 'uv-run', ...env }, timeout: 30000 }); return fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''; };
+  const launch = (env: Record<string, string>) => { fs.rmSync(log, { force: true }); spawnSync(path.join(import.meta.dirname, '../bin/plangraph-solve-run'), ['--out', path.join(d, 'o.json')], { cwd: d, encoding: 'utf8', env: { PATH: bin, HOME: d, CLAUDE_PLUGIN_DATA: path.join(d, 'data'), PLANGRAPH_SOLVE_LAUNCH: 'uv-run', ...env }, timeout: 30000 }); return fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''; };
   assert.match(launch({ PLANGRAPH_SOLVE_SCRIPT: stub }), /stub\.py/);
   assert.doesNotMatch(launch({ [OLD('SOLVE_SCRIPT')]: stub }), /stub\.py/);
 });

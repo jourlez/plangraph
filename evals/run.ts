@@ -5,7 +5,7 @@
 //   node evals/run.ts --emit-native [--real <root>] [--out DIR]  build the suite (DIR must be empty and outside this repository)
 //   node evals/run.ts --run --max-cost-usd 25 [--real <root>]    PAID: build, then run `claude plugin eval` under that hard cap
 // Without --real the committed synthetic suite (evals/cases, fixtures S/M/L) is used; with --real, evals/gen-real.ts generates the
-// cases and fixture from that project's brain directory (read-only) into the temp dir.
+// cases and fixture from that project's plan directory (read-only) into the temp dir.
 // Selection: --family F, --kind task|control|safety|trigger, --size S|M|L|R, --case ID. Tuning: --runs N (1..50, default 3),
 // --model M, --judge-model M, --concurrency N (1..8), --variants no-card,no-skills (extra single-arm ablation passes), --keep-temp.
 // Every `claude plugin eval` run passes --no-publish (the default publishes the HTML report with prompts and transcripts to claude.ai).

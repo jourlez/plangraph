@@ -1,4 +1,4 @@
-$ brain sprint 3 -v
+$ plangraph sprint 3 -v
 exit: 0
 --- stdout
 Ana: 14 SP / cap 1000 (5 tickets)

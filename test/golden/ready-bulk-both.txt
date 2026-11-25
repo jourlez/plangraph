@@ -1,6 +1,6 @@
-$ brain ready T-8 --sprint 3
+$ plangraph ready T-8 --sprint 3
 exit: 2
 --- stdout
 --- stderr
 error: ready takes a KEY or --person/--sprint, not both
-try: brain explain ready
+try: plangraph explain ready

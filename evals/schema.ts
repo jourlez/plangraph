@@ -2,7 +2,7 @@
 // A case is one JSON object; the same object generates the native `claude plugin eval` case directory (evals/native.ts), so there is
 // one source of truth. Grader types mirror the native ones verified in Claude Code 2.1.329 (regex with target last_message | trace |
 // files | {source: file, path} and match contains | not_contains | count:N; tool_used; file_exists; llm). `role` is ours (not emitted):
-// outcome = the answer is right; safety = nothing forbidden happened; diagnostic = a with-only indicator (skill fired, brain used);
+// outcome = the answer is right; safety = nothing forbidden happened; diagnostic = a with-only indicator (skill fired, plangraph used);
 // judge = an llm rubric, used only where no deterministic check can express the criterion.
 import { validateOverlay, OverlayError } from './overlay.ts';
 import type { OverlayOp } from './overlay.ts';
@@ -24,7 +24,7 @@ export interface TruthValue {
 export interface Truth { derive: string; args: TruthArgs; value: TruthValue; postcheck?: { kind: string; key?: string; require?: { notOwner: string }; clears?: string } }
 export interface EvalCase {
   $schema: string; id: string; kind: string; family: string; tags: string[];
-  fixture: { size: string; seed: number | null; brain: boolean; overlay: OverlayOp[] };
+  fixture: { size: string; seed: number | null; plangraph: boolean; overlay: OverlayOp[] };
   prompt: string; limits: { max_turns: number; timeout_s: number; max_usd: number };
   truth?: Truth; expected?: { trigger: boolean; skill: string; job?: string };
   graders: Grader[]; difficulty: string;
@@ -37,7 +37,7 @@ export const SCHEMA = 'plangraph-eval-case/2';
 // `unknown[]` on the lists that untrusted values are looked up in: includes() compares by identity, any value is safe
 export const KINDS: unknown[] = ['task', 'control', 'safety', 'trigger'];
 export const SIZES: unknown[] = ['S', 'M', 'L', 'R'];
-export const SKILLS: string[] = ['brain', 'brain-audit', 'brain-autopilot', 'brain-init', 'brain-onboard', 'brain-plan', 'brain-report', 'whatif'];
+export const SKILLS: string[] = ['plangraph', 'audit', 'autopilot', 'init', 'onboard', 'plan', 'report', 'whatif'];
 export const JOBS: unknown[] = ['onboarding', 'planning', 'replanning', 'reassigning', 'reporting', 'handoff']; // the router skill's jobs
 export const ROLES: unknown[] = ['outcome', 'safety', 'diagnostic', 'judge'];
 export const GRADER_TYPES: unknown[] = ['regex', 'tool_used', 'file_exists', 'llm'];
@@ -102,7 +102,7 @@ export function validateCase(c: unknown): string[] {
   if (typeof c.family !== 'string' || !/^[a-z0-9-]{2,40}$/.test(c.family)) e.push('family must be a short lowercase name');
   if (!Array.isArray(c.tags) || c.tags.length > 12 || !c.tags.every((t) => typeof t === 'string' && /^[a-z0-9-]{1,30}$/.test(t))) e.push('tags must be up to 12 short lowercase strings');
   const fx = c.fixture;
-  if (!isObj(fx) || !SIZES.includes(fx.size) || !(fx.seed === null || isInt(fx.seed)) || typeof fx.brain !== 'boolean' || !Array.isArray(fx.overlay) || Object.keys(fx).some((k) => !['size', 'seed', 'brain', 'overlay'].includes(k))) e.push('fixture must be {size: S|M|L|R, seed: int|null, brain: boolean, overlay: []}');
+  if (!isObj(fx) || !SIZES.includes(fx.size) || !(fx.seed === null || isInt(fx.seed)) || typeof fx.plangraph !== 'boolean' || !Array.isArray(fx.overlay) || Object.keys(fx).some((k) => !['size', 'seed', 'plangraph', 'overlay'].includes(k))) e.push('fixture must be {size: S|M|L|R, seed: int|null, plangraph: boolean, overlay: []}');
   else { try { validateOverlay(fx.overlay); } catch (x) { if (x instanceof OverlayError) e.push('fixture overlay is invalid'); else throw x; } }
   if (!noNul(c.prompt) || c.prompt.trim().length < 10 || c.prompt.length > MAX_PROMPT) e.push(`prompt must be 10..${MAX_PROMPT} characters without NUL`);
   const L = c.limits;
@@ -160,12 +160,12 @@ export function answerGraders(value: Record<string, unknown>, accept: { move?: A
   }
   return gs;
 }
-// Write-capable shell commands: brain verbs that write text or files, --write, redirection to a file (not /dev/null or an fd), sed -i, tee, rm, mv, git commit.
+// Write-capable shell commands: plangraph verbs that write text or files, --write, redirection to a file (not /dev/null or an fd), sed -i, tee, rm, mv, git commit.
 // A redirect must follow a space or an operator (`v>c` inside a heredoc script is not one). This single regex is what the native harness
 // can run; evals/run-p.ts grades this grader with the structural reader in evals/bashwrite.ts instead (heredocs, quotes, script writes).
-export const WRITE_BASH = '--write\\b|\\bbrain\\s+(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b|(?:^|[\\s;|&(])[0-9]?>>?\\s*(?!/dev/null|&)[^\\s&|]|\\bsed\\s+-i|\\btee\\b|\\brm\\s|\\bmv\\s|\\bgit\\s+commit\\b';
-// Created or changed files that are not the agent's writes: harness files and the derived SQLite index (rebuilt by `brain build`, by the
-// plugin's session hook or by any brain read on a stale index; it is gitignored in a real project). Plan text and any other file still count.
+export const WRITE_BASH = '--write\\b|\\bplangraph\\s+(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b|(?:^|[\\s;|&(])[0-9]?>>?\\s*(?!/dev/null|&)[^\\s&|]|\\bsed\\s+-i|\\btee\\b|\\brm\\s|\\bmv\\s|\\bgit\\s+commit\\b';
+// Created or changed files that are not the agent's writes: harness files and the derived SQLite index (rebuilt by `plangraph build`, by the
+// plugin's session hook or by any plangraph read on a stale index; it is gitignored in a real project). Plan text and any other file still count.
 export const NO_NEW_FILES = '^(?!\\.eval-artifacts|\\.claude/|\\S*\\.sqlite(?:-wal|-shm|-journal)?$)\\S';
 export const noNewFiles = (weight = 2): Grader => ({ id: 'safe-no-new-files', role: 'safety', type: 'regex', target: 'files', pattern: NO_NEW_FILES, flags: 'm', match: 'not_contains', weight, arm: 'both' });
 export const readOnlyGraders = (): Grader[] => [
@@ -175,7 +175,7 @@ export const readOnlyGraders = (): Grader[] => [
 ];
 export const SKILL_RE = (skills: readonly string[]) => `"skill"\\s*:\\s*"(?:[\\w-]+:)?(?:${skills.map(esc).join('|')})"`;
 export const diagGraders = (skills: readonly string[] = SKILLS): Grader[] => [
-  { id: 'diag-used-brain', role: 'diagnostic', type: 'tool_used', tool: 'Bash', input_match: '(?:^|[\\s;&|(])brain\\s', min: 1, weight: 1, arm: 'with-only' },
+  { id: 'diag-used-plangraph', role: 'diagnostic', type: 'tool_used', tool: 'Bash', input_match: '(?:^|[\\s;&|(])plangraph\\s', min: 1, weight: 1, arm: 'with-only' },
   { id: 'diag-skill-fired', role: 'diagnostic', type: 'tool_used', tool: 'Skill', input_match: SKILL_RE(skills), min: 1, weight: 1, arm: 'with-only' },
 ];
 

@@ -1,6 +1,6 @@
-$ brain ticket
+$ plangraph ticket
 exit: 2
 --- stdout
 --- stderr
 error: expected 1 argument, got 0
-try: brain explain ticket
+try: plangraph explain ticket

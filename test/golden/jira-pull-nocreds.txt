@@ -1,6 +1,6 @@
-$ brain jira-pull --out snap.jsonl
+$ plangraph jira-pull --out snap.jsonl
 exit: 3
 --- stdout
 --- stderr
 error: scoped mode needs a cloud_id (see docs/JIRA.md)
-try: brain doctor
+try: plangraph doctor

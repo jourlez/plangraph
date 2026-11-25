@@ -78,8 +78,8 @@ test('relieve: a cell over capacity only by frozen tickets needs no relief; free
   assert.deepEqual(r.moves.map((x) => `${x.key} ${x.to.owner} S${x.to.sprint}`), ['F-1 Ana S2']);
 });
 
-// CLI: `brain verify` and `brain check` read the same rule (check counts on its own, so it is tested on its own).
-const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain'), made: string[] = [];
+// CLI: `plangraph verify` and `plangraph check` read the same rule (check counts on its own, so it is tested on its own).
+const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph'), made: string[] = [];
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 function brainRepo(tickets: Ticket[], edges: Edge[], schedule: ScheduleRow[], config: PlanConfig) {
@@ -97,7 +97,7 @@ function brainRepo(tickets: Ticket[], edges: Edge[], schedule: ScheduleRow[], co
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
   return { run, repo };
 }
-test('CLI repro (a) and (b): brain verify and brain check pass on frozen history, and still fail on a free violation', () => {
+test('CLI repro (a) and (b): plangraph verify and plangraph check pass on frozen history, and still fail on a free violation', () => {
   const { run } = brainRepo([tk('API-1', 3, 'Done'), tk('UI-1', 2, 'Done'), tk('D-1', 6, 'Done'), tk('D-2', 6, 'Done'), tk('F-1', 1)], [need('UI-1', 'API-1')],
     [at('API-1', 'Ana', 1), at('UI-1', 'Ben', 1), at('D-1', 'Cleo', 1), at('D-2', 'Cleo', 1), at('F-1', 'Cleo', 2)], { first_sprint: 2, caps: { default: 10 } });
   let r = run('verify'); assert.deepEqual([r.status, r.stdout], [0, 'OK plan valid (5 tickets)\n']);

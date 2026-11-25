@@ -1,4 +1,4 @@
-// A plangraph.sqlite that is not a regular file (a FIFO, a directory) is refused on open (DATA, `brain build` hint) before SQLite opens it:
+// A plangraph.sqlite that is not a regular file (a FIFO, a directory) is refused on open (DATA, `plangraph build` hint) before SQLite opens it:
 // SQLite opens without O_NONBLOCK, so a FIFO with no writer used to block every index command forever and hang the SessionStart hook until
 // its 10 s kill (the hook contract: nothing printed, exit 0, on any failure). openIndex lstats the path, refuses a non-file, then opens it
 // O_RDONLY|O_NONBLOCK|O_NOFOLLOW, requires a regular file by fstat with the lstat's device and inode, closes it, and only then hands the path
@@ -11,9 +11,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { openIndex, INDEX_FILE } from '../src/db.ts';
-import { BrainError } from '../src/errors.ts';
+import { PlangraphError } from '../src/errors.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const HAVE_MKFIFO = process.platform !== 'win32' && spawnSync('mkfifo', ['--help'], { stdio: 'ignore' }).error === undefined;
@@ -33,7 +33,7 @@ function repo() {
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), `${JSON.stringify({ key: 'T-1', summary: 'one', sp: 1, v2_owner: 'Ana', v2_sprint: 1 })}\n`);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
-const NOT_FILE = (e: unknown) => e instanceof BrainError && e.code === 'DATA' && e.message === 'the index is not a regular file' && e.hint === 'run `brain build` to rebuild it';
+const NOT_FILE = (e: unknown) => e instanceof PlangraphError && e.code === 'DATA' && e.message === 'the index is not a regular file' && e.hint === 'run `plangraph build` to rebuild it';
 
 test('a FIFO at plangraph.sqlite: the hook (card --if-present --heal) is silent with exit 0 and the commands exit 2 (DATA), all in well under 5 s', { skip: SKIP }, () => {
   const { d, b, file } = repo();
@@ -44,11 +44,11 @@ test('a FIFO at plangraph.sqlite: the hook (card --if-present --heal) is silent 
   for (const args of [['ticket', 'T-1'], ['card'], ['whatif', 'T-1', '--sprint', '2', '--write', '--apply-plan']]) {
     const r = run(d, args);
     assert.ok(r.ms < 5000, `${args.join(' ')} took ${r.ms} ms (signal ${r.signal})`);
-    assert.deepEqual([r.status, r.stdout, r.stderr], [2, '', 'error: the index is not a regular file\ntry: brain build\n'], args.join(' '));
+    assert.deepEqual([r.status, r.stdout, r.stderr], [2, '', 'error: the index is not a regular file\ntry: plangraph build\n'], args.join(' '));
   }
   assert.throws(() => openIndex(file, { dir: b }), NOT_FILE);
   assert.throws(() => openIndex(file, { readOnly: false }), NOT_FILE);
-  // `brain build` replaces the FIFO with a real index (rename replaces the name, it never opens the FIFO)
+  // `plangraph build` replaces the FIFO with a real index (rename replaces the name, it never opens the FIFO)
   const bl = run(d, ['build']); assert.equal(bl.status, 0, bl.stderr); assert.ok(bl.ms < 5000);
   assert.equal(run(d, ['ticket', 'T-1']).status, 0);
 });
@@ -65,7 +65,7 @@ test('a FIFO sidecar beside the index is refused without opening it (sidecar ref
   execFileSync('mkfifo', [`${file}-journal`]);
   const r = run(d, ['ticket', 'T-1']);
   assert.ok(r.ms < 5000, `${r.ms} ms`);
-  assert.deepEqual([r.status, r.stderr], [2, `error: the index has a SQLite journal file beside it (${INDEX_FILE}-journal); it is never replayed\ntry: brain build\n`]);
+  assert.deepEqual([r.status, r.stderr], [2, `error: the index has a SQLite journal file beside it (${INDEX_FILE}-journal); it is never replayed\ntry: plangraph build\n`]);
   const hook = run(d, ['card', '--if-present', '--heal']);
   assert.deepEqual([hook.status, hook.stdout, hook.stderr], [0, '', '']);
 });

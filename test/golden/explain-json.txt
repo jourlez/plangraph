@@ -1,4 +1,4 @@
-$ brain explain ticket --json
+$ plangraph explain ticket --json
 exit: 0
 --- stdout
 {"v":2,"cmd":"explain","ok":true,"exit":0,"data":{"commands":[{"name":"ticket","summary":"one ticket: size, status, verdict, placement, needs, findings, evidence","positionals":[1,1],"options":[],"writes":"none"}],"exit":{"0":"ok","1":"negative answer","2":"usage or data error","3":"environment missing","4":"refused","5":"internal error"}},"fresh":null,"next":[]}

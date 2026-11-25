@@ -1,6 +1,17 @@
 # Changelog
 
+Entries below `[Unreleased]` are history: they name the tool and its files as they were called at the time (`brain`, `bin/brain`, `.brain/`, `BRAIN_*`) and are kept as written.
+
 ## [Unreleased]
+
+Breaking: the whole tool is renamed to plangraph. Every name changes at once and nothing falls back to an old name.
+- Command and files: `brain` is `plangraph` (`bin/plangraph`, `bin/plangraph-merge`, `bin/plangraph-solve`, `bin/plangraph-solve-run`, `mcp/plangraph-mcp.ts`); the `package.json` bin keys are `plangraph` and `plangraph-merge`. Every hint, `try:` line, error and usage line says `plangraph`; the error code `NO_BRAIN` is `NO_PLANGRAPH` in the JSON envelope.
+- Skills: `plangraph:brain` is `plangraph:plangraph`; `brain-audit`, `brain-autopilot`, `brain-init`, `brain-onboard`, `brain-plan` and `brain-report` are `plangraph:audit`, `:autopilot`, `:init`, `:onboard`, `:plan` and `:report`. `plangraph:whatif` is unchanged. Re-point any CLAUDE.md line or permission rule that names `Bash(brain` to `Bash(plangraph`.
+- State: the 30 `BRAIN_*` variables are `PLANGRAPH_*` and the old names are ignored; `~/.config/project-brain` and `~/.cache/project-brain` are `~/.config/plangraph` and `~/.cache/plangraph`; the default plan directory is `.plangraph/`, the repository config is `.plangraphrc`, the index is `plangraph.sqlite`; the merge driver is `plangraph-jsonl`; the eval schema ids are `plangraph-eval-case/2`, `plangraph-eval-p/1` and `plangraph-real-eval/1`. The config key `brain_rules_version` keeps its name until the format-2 migration (an old reader of a renamed key would silently default it).
+- New command `plangraph migrate-names`: dry run by default, `--apply` performs the changes, never run by a hook, `card` or any other command. It copies (never moves) `jira-sites.json` and `autopilot.json` to the new config folder with mode 0600, refuses symlinks and never overwrites; renames `.brainrc` and the default `.brain/` (a directory named by the rc file keeps its path); rewrites the `.gitattributes` and `.gitignore` lines; points `merge.plangraph-jsonl.*` at the stable shim and unsets `merge.brain-jsonl.*`. It refuses a repository with uncommitted changes to tracked files, and prints one line when there is nothing left to do.
+- Manual step, the keychain: `migrate-names` never reads or writes the credential store (writing the secret would put it on a process argument list). Save the Jira token again under the service `plangraph-jira` (the dry run and `--apply` print the macOS command), then delete the old `project-brain-jira` entry.
+- Merge driver: every contributor updates before the repository's `.gitattributes` line changes. An unwired teammate (still on the old name, or without `plangraph-merge` installed) text-merges the JSONL files instead of using the driver.
+- Tooling: `scripts/rename-check.ts` holds the command-word rules and proves that the goldens, eval cases and fixtures equal the old ones with the rules applied (the deliberate differences are listed with their reason); `scripts/baseline.ts` maps the old names on the old side of a compare only; `test/no-old-names.test.ts` fails on any old name outside the migration, its tests, the baseline tools and history.
 
 ## 0.2.4
 

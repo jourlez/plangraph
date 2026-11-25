@@ -112,12 +112,12 @@ test('merge driver: .gitattributes and git config in a temp repository, doctor f
   const r = tmp();
   execFileSync('git', ['init', '-q', r], { env: GIT_ENV });
   const scrub = (v: unknown) => JSON.parse(JSON.stringify(v).split(r).join('<repo>'));
-  G('driver-refusals', () => [outcome(() => S.installMergeDriver(r, { driverPath: '/x/plugins/cache/p/1/bin/brain-merge' })), outcome(() => S.installMergeDriver(r, { dir: 'a b' })), outcome(() => S.installMergeDriver(r, { dir: (5 as unknown as string) }))]); // deliberate misuse
+  G('driver-refusals', () => [outcome(() => S.installMergeDriver(r, { driverPath: '/x/plugins/cache/p/1/bin/plangraph-merge' })), outcome(() => S.installMergeDriver(r, { dir: 'a b' })), outcome(() => S.installMergeDriver(r, { dir: (5 as unknown as string) }))]); // deliberate misuse
   G('doctor-none', () => scrub(S.doctorMergeDriver(r)));
   put(r, '.gitattributes', '*.md text');
-  const quoted = path.join(r, "it's here", 'brain-merge'); fs.mkdirSync(path.dirname(quoted)); fs.writeFileSync(quoted, '#!/bin/sh\n'); fs.chmodSync(quoted, 0o755);
+  const quoted = path.join(r, "it's here", 'plangraph-merge'); fs.mkdirSync(path.dirname(quoted)); fs.writeFileSync(quoted, '#!/bin/sh\n'); fs.chmodSync(quoted, 0o755);
   G('install-quoted-doctor', () => scrub([S.installMergeDriver(r, { driverPath: quoted }), execFileSync('git', ['-C', r, 'config', '--get', 'merge.plangraph-jsonl.name'], { env: GIT_ENV, encoding: 'utf8' }), S.doctorMergeDriver(r)]));
-  G('install', () => scrub([S.installMergeDriver(r, { driverPath: "/opt/brain's tools/brain-merge" }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8'), S.installMergeDriver(r, { driverPath: 'no-such-brain-merge-on-path', dir: 'data/brain' }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8')]));
+  G('install', () => scrub([S.installMergeDriver(r, { driverPath: "/opt/plangraph's tools/plangraph-merge" }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8'), S.installMergeDriver(r, { driverPath: 'no-such-plangraph-merge-on-path', dir: 'data/plangraph' }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8')]));
   G('doctor-installed', () => scrub(S.doctorMergeDriver(r)));
   G('doctor-other-dir', () => scrub(S.doctorMergeDriver(r, { dir: 'elsewhere' })));
   const shimDir = path.join(r, 'data-dir'), bin = path.join(shimDir, 'bin'); fs.mkdirSync(bin, { recursive: true });
@@ -128,8 +128,8 @@ test('merge driver: .gitattributes and git config in a temp repository, doctor f
   G('doctor-shim-missing', () => scrub(S.doctorMergeDriver(r)));
   fs.writeFileSync(path.join(shimDir, 'driver.target'), path.join(bin, 'plangraph-merge')); fs.writeFileSync(path.join(shimDir, 'driver.node'), process.execPath);
   G('doctor-shim-ok', () => scrub(S.doctorMergeDriver(r)).problems);
-  S.installMergeDriver(r, { driverPath: '/home/u/.claude/plugins/cache/x/1/bin/brain-merge'.replace('plugins/cache', 'plugins/cache-not') });
-  execFileSync('git', ['-C', r, 'config', 'merge.plangraph-jsonl.driver', '/u/.claude/plugins/cache/x/1/bin/brain-merge %O %A %B %P'], { env: GIT_ENV });
+  S.installMergeDriver(r, { driverPath: '/home/u/.claude/plugins/cache/x/1/bin/plangraph-merge'.replace('plugins/cache', 'plugins/cache-not') });
+  execFileSync('git', ['-C', r, 'config', 'merge.plangraph-jsonl.driver', '/u/.claude/plugins/cache/x/1/bin/plangraph-merge %O %A %B %P'], { env: GIT_ENV });
   G('doctor-versioned', () => scrub(S.doctorMergeDriver(r)));
   fs.rmSync(path.join(r, '.gitattributes')); fs.symlinkSync(path.join(r, 'x'), path.join(r, '.gitattributes'));
   G('attr-symlink', () => [scrub(S.doctorMergeDriver(r)).problems, outcome(() => S.installMergeDriver(r))]);

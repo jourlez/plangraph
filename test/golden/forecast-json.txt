@@ -1,4 +1,4 @@
-$ brain forecast --json
+$ plangraph forecast --json
 exit: 0
 --- stdout
 {"v":2,"cmd":"forecast","ok":true,"exit":0,"data":{"lines":["FORECAST [REFUSED n=4] plan 120 pts: no probability: insufficient history"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}

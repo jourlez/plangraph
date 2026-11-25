@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Zero known issues, zero playbook gaps: design
 
 Date: 2026-11-24 (revised after the 0.2.1 release). Status: draft for the owner's review. Base: the 0.2.4 tree (private `abad83c`; public `main` `da30467`, same tree; CI run 45354992186 green on all 7 jobs), which is 0.2.3 (private `89193c9`; public `3790b69`, run 45311642500) plus the solver-fallback hotfix of section 7. The measurements below were taken on the 0.2.1 tree (`afeabeb`) and re-checked on 0.2.3 where 0.2.2 and 0.2.3 changed files (only tests, CI, `scripts/baseline.ts`, `scripts/mutate.ts`, version strings and docs changed; `lib/`, `src/` and `mcp/` code did not).

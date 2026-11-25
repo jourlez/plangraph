@@ -1,4 +1,4 @@
-$ brain integrations
+$ plangraph integrations
 exit: 0
 --- stdout
 superpowers: absent

@@ -47,15 +47,15 @@ test('claude plugin validate reports no error and only documented warnings', { s
 
 test('the declared network hosts match what lib/jira.ts can reach', () => {
   const man = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8'));
-  // jira: lib/jira.ts. solver first run: pypi.org (index) and files.pythonhosted.org (files) for uv and the pip fallback (bin/brain-solve.lock,
+  // jira: lib/jira.ts. solver first run: pypi.org (index) and files.pythonhosted.org (files) for uv and the pip fallback (bin/plangraph-solve.lock,
   // solver/solver-requirements.txt); github.com and release-assets.githubusercontent.com only when uv must download a Python (python-build-standalone,
   // docs/SOLVER.md "What the first run downloads").
   const hosts = ['api.atlassian.com', '*.atlassian.net', 'pypi.org', 'files.pythonhosted.org', 'github.com', 'release-assets.githubusercontent.com'];
   assert.deepEqual(man.network?.hosts, hosts);
   const solver = fs.readFileSync(path.join(root, 'docs/SOLVER.md'), 'utf8');
   for (const h of hosts.slice(2)) assert.ok(solver.includes(h), `docs/SOLVER.md does not explain ${h}`);
-  assert.ok(fs.readFileSync(path.join(root, 'bin/brain-solve.lock'), 'utf8').includes('registry = "https://pypi.org/simple"'), 'the lock no longer points at pypi.org: update network.hosts');
-  assert.ok(!/--index-url|--extra-index-url|-i https?:/.test(fs.readFileSync(path.join(root, 'bin/brain-solve-run'), 'utf8')), 'the launcher names another package index: update network.hosts');
+  assert.ok(fs.readFileSync(path.join(root, 'bin/plangraph-solve.lock'), 'utf8').includes('registry = "https://pypi.org/simple"'), 'the lock no longer points at pypi.org: update network.hosts');
+  assert.ok(!/--index-url|--extra-index-url|-i https?:/.test(fs.readFileSync(path.join(root, 'bin/plangraph-solve-run'), 'utf8')), 'the launcher names another package index: update network.hosts');
   const jira = fs.readFileSync(path.join(root, 'lib/jira.ts'), 'utf8');
   assert.ok(jira.includes("host === 'api.atlassian.com'") && /atlassian\\\.net\$\//.test(jira), 'jira.ts host rules changed: update network.hosts');
   const mk = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/marketplace.json'), 'utf8'));
@@ -65,5 +65,5 @@ test('the declared network hosts match what lib/jira.ts can reach', () => {
 test('the hash-pinned requirements file lives outside bin/ and is the one the launcher reads', () => {
   assert.ok(fs.existsSync(path.join(root, 'solver/solver-requirements.txt')));
   assert.ok(!fs.existsSync(path.join(root, 'bin/solver-requirements.txt')));
-  assert.ok(fs.readFileSync(path.join(root, 'bin/brain-solve-run'), 'utf8').includes('../solver/solver-requirements.txt'));
+  assert.ok(fs.readFileSync(path.join(root, 'bin/plangraph-solve-run'), 'utf8').includes('../solver/solver-requirements.txt'));
 });

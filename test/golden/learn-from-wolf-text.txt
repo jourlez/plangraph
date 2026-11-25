@@ -1,7 +1,7 @@
-$ brain learn --from-wolf Never confirm a checkout from the redirect; wait for the webhook.
+$ plangraph learn --from-wolf Never confirm a checkout from the redirect; wait for the webhook.
 exit: 0
 --- stdout
-copied repo rule w8fe9c3 to learnings.jsonl as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `brain build`
+copied repo rule w8fe9c3 to learnings.jsonl as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `plangraph build`
 <untrusted src="wolf-cerebrum" n="8fe9c3dd" len="65">
 Never confirm a checkout from the redirect; wait for the webhook.
 </untrusted>

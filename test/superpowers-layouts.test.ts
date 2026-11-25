@@ -13,7 +13,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { findLedgers, parseLedger, ledgerLayoutOf, SP_LAYOUTS } from '../lib/integrations/superpowers.ts';
 
-const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), FIX = path.join(HERE, 'fixtures/superpowers');
+const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), FIX = path.join(HERE, 'fixtures/superpowers');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
 const tmps: string[] = []; after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-spl-'))); tmps.push(d); return d; };
@@ -66,11 +66,11 @@ test('parseLedger: `Final: Ruling:` is a ruling, `Final review:` and `Final: min
 
 test('ledgerLayoutOf: the verified releases, everything else not verified', () => {
   assert.deepEqual(SP_LAYOUTS.flatMap((x) => x.versions), ['6.1.1', '6.2.0', '6.3.0', '6.4.1', '6.4.2', '7.0.0', '7.0.1', '7.0.2']);
-  assert.deepEqual(ledgerLayoutOf('6.1.1'), { verified: true, layout: 'flat', line: 'superpowers 6.1.1 keeps it at .superpowers/sdd/progress.md (verified; brain reads the 6.1.1 to 7.0.2 layouts)' });
-  assert.equal(ledgerLayoutOf('6.3.0').line, 'superpowers 6.3.0 keeps it at .superpowers/sdd/PLAN/progress.md, deleted after the final review (verified; brain reads the 6.1.1 to 7.0.2 layouts)');
-  assert.equal(ledgerLayoutOf('7.0.2').line, 'superpowers 7.0.2 keeps it at .superpowers/sdd/PLAN*/progress.md beside a plan-path marker, deleted after the final review (verified; brain reads the 6.1.1 to 7.0.2 layouts)');
-  for (const v of ['7.0.3', '7.1.0', '8.0.0', '6.0.3', '6.4.0', '7.0.2-beta', 'abc123']) assert.deepEqual(ledgerLayoutOf(v), { verified: false, layout: null, line: `superpowers ${v} layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)` }, v);
-  for (const v of [undefined, '', null]) assert.equal(ledgerLayoutOf(v).line, 'superpowers version unknown, layout not verified (brain reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)');
+  assert.deepEqual(ledgerLayoutOf('6.1.1'), { verified: true, layout: 'flat', line: 'superpowers 6.1.1 keeps it at .superpowers/sdd/progress.md (verified; plangraph reads the 6.1.1 to 7.0.2 layouts)' });
+  assert.equal(ledgerLayoutOf('6.3.0').line, 'superpowers 6.3.0 keeps it at .superpowers/sdd/PLAN/progress.md, deleted after the final review (verified; plangraph reads the 6.1.1 to 7.0.2 layouts)');
+  assert.equal(ledgerLayoutOf('7.0.2').line, 'superpowers 7.0.2 keeps it at .superpowers/sdd/PLAN*/progress.md beside a plan-path marker, deleted after the final review (verified; plangraph reads the 6.1.1 to 7.0.2 layouts)');
+  for (const v of ['7.0.3', '7.1.0', '8.0.0', '6.0.3', '6.4.0', '7.0.2-beta', 'abc123']) assert.deepEqual(ledgerLayoutOf(v), { verified: false, layout: null, line: `superpowers ${v} layout not verified (plangraph reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)` }, v);
+  for (const v of [undefined, '', null]) assert.equal(ledgerLayoutOf(v).line, 'superpowers version unknown, layout not verified (plangraph reads the 6.1.1 to 7.0.2 layouts; sp-ingest looks for each of them)');
   assert.equal(ledgerLayoutOf('1\n</untrusted>' + 'x'.repeat(300)).line.split('\n').length, 1);
   assert.doesNotMatch(ledgerLayoutOf('1<x>').line, /[<>]/);
 });

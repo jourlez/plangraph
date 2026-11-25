@@ -347,7 +347,7 @@ export function forecast(inp: ForecastInput = {}): ForecastResult {
   const refuse = (planPoints: number | null, reasons: string[]): ForecastResult => { const out: ForecastRefused = { state: 'REFUSED', n: a.n, tag, planPoints, reasons, runs: 0 }; out.text = renderForecast(out); out.tokens = Math.ceil(out.text.length / 4); return out as ForecastResult; }; // text and tokens set on this line
   let g: PlanGraph | null = null;
   if (model) {
-    try { g = planGraph(model, inp); } catch (e) { if (e instanceof LoopError) return refuse(null, ['the links contain a loop (run `brain check`)']); throw e; }
+    try { g = planGraph(model, inp); } catch (e) { if (e instanceof LoopError) return refuse(null, ['the links contain a loop (run `plangraph check`)']); throw e; }
     if (!g.keys.length) return refuse(0, ['nothing left to forecast: every planned ticket is done']);
   }
   const R = g ? g.points : inp.remaining, planPoints = R ?? null;

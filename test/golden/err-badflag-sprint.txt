@@ -1,6 +1,6 @@
-$ brain sprint --bogus
+$ plangraph sprint --bogus
 exit: 2
 --- stdout
 --- stderr
 error: unknown option --bogus
-try: brain explain sprint
+try: plangraph explain sprint

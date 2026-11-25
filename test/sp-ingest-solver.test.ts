@@ -1,6 +1,6 @@
 // sp-ingest gives the plan's EPIC ticket sp 0 (it only groups its tasks) so the solver does not refuse the ingested plan with
 // "every ticket needs an sp". Covered: the ingested records (epic sp 0, each task keeps its own Points) with no solver needed, and, when `uv` or a
-// python3 with ortools exists (decided as in test/solver.test.ts), `brain build` then bin/brain-solve-run --jsonl-dir not failing with that message.
+// python3 with ortools exists (decided as in test/solver.test.ts), `plangraph build` then bin/plangraph-solve-run --jsonl-dir not failing with that message.
 // NOT covered: the quality of the schedule (test/solver.test.ts).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const BRAIN = path.join(ROOT, 'bin', 'brain'), RUN = path.join(ROOT, 'bin', 'brain-solve-run');
+const BRAIN = path.join(ROOT, 'bin', 'plangraph'), RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
 const has = (cmd: string, args: string[]) => { try { return spawnSync(cmd, args, { stdio: 'ignore', timeout: 120000 }).status === 0; } catch { return false; } };
 const SKIP = has('uv', ['--version']) || has('python3', ['-c', 'import ortools']) ? false : 'skipped: neither uv nor a python3 with ortools is available';
 const POINTS = { 1: 2, 2: 3, 3: 5 };
@@ -24,11 +24,11 @@ function ingested() {
   const rel = 'docs/superpowers/plans/demo.md';
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), PLAN);
   // a private plugin data directory under the temp root: the compile cache and the merge-driver shim never go to the real HOME
-  const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'plangraph-data') } });
-  let r = brain('init'); assert.equal(r.status, 0, r.stderr);
-  r = brain('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
+  const plangraph = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'plangraph-data') } });
+  let r = plangraph('init'); assert.equal(r.status, 0, r.stderr);
+  r = plangraph('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
   const tickets = fs.readFileSync(path.join(root, '.plangraph', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-  return { root, brain, tickets };
+  return { root, plangraph, tickets };
 }
 
 test('sp-ingest: the epic ticket has sp 0 and each task keeps its own points', () => {
@@ -42,9 +42,9 @@ test('sp-ingest: the epic ticket has sp 0 and each task keeps its own points', (
   }
 });
 
-test('sp-ingest then brain build then brain-solve-run: the solver does not refuse the plan for a ticket without sp', { skip: SKIP, timeout: 900000 }, () => {
-  const { root, brain } = ingested();
-  const b = brain('build'); assert.equal(b.status, 0, b.stdout + b.stderr);
+test('sp-ingest then plangraph build then plangraph-solve-run: the solver does not refuse the plan for a ticket without sp', { skip: SKIP, timeout: 900000 }, () => {
+  const { root, plangraph } = ingested();
+  const b = plangraph('build'); assert.equal(b.status, 0, b.stdout + b.stderr);
   const dir = path.join(root, '.plangraph'), out = path.join(dir, 'solve-out.json');
   const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '10'], { cwd: root, encoding: 'utf8', timeout: 600000 });
   const text = `${r.stdout}\n${r.stderr}`;

@@ -156,22 +156,22 @@ test('a user projects entry with only base_url (scoped by default) gets a messag
   assert.deepEqual(r.calls, []); assert.deepEqual(r.hits, []);
 });
 
-test('brain jira-pull with no tenant configured runs no credential helper (a recording `op` and `security` on PATH stay unused)', () => {
+test('plangraph jira-pull with no tenant configured runs no credential helper (a recording `op` and `security` on PATH stay unused)', () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-iso-cli-'))), bin = path.join(root, 'fakebin'), log = path.join(root, 'helper.log');
   fs.mkdirSync(bin);
   for (const h of ['op', 'security', 'secret-tool']) { fs.writeFileSync(path.join(bin, h), `#!/bin/sh\necho "${h} $*" >> '${log}'\nexit 1\n`); fs.chmodSync(path.join(bin, h), 0o755); }
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: root, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.data'), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', JIRA_EMAIL: 'me@example.invalid', JIRA_OP_REF: 'op://Private/jira/generic', JIRA_API_TOKEN: '', ...cfgEnv() };
   try {
     execFileSync('git', ['init', '-q'], { cwd: root, env });
-    const brain = path.join(import.meta.dirname, '../bin/brain');
-    assert.equal(spawnSync(process.execPath, [brain, 'init'], { cwd: root, env, encoding: 'utf8' }).status, 0);
-    const r = spawnSync(process.execPath, [brain, 'jira-pull', '--out', path.join(root, 'snap.jsonl')], { cwd: root, env, encoding: 'utf8' });
+    const plangraph = path.join(import.meta.dirname, '../bin/plangraph');
+    assert.equal(spawnSync(process.execPath, [plangraph, 'init'], { cwd: root, env, encoding: 'utf8' }).status, 0);
+    const r = spawnSync(process.execPath, [plangraph, 'jira-pull', '--out', path.join(root, 'snap.jsonl')], { cwd: root, env, encoding: 'utf8' });
     assert.equal(r.status, 3, r.stderr); assert.match(r.stderr, /cloud_id|cloudId/); assert.match(r.stderr, /docs\/JIRA\.md/);
     assert.equal(fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '', '', 'no credential helper ran');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-test('an empty committed base_url (as `brain init` writes it) with a scoped cloud id uses the gateway, not bad_host "empty"', async () => {
+test('an empty committed base_url (as `plangraph init` writes it) with a scoped cloud id uses the gateway, not bad_host "empty"', async () => {
   const r = await attempt({ base_url: '', jql: '', cloud_id: 'acme-cloud-0003' }, { ...GEN, ...cfgEnv() });
   assert.equal(r.outcome, 'ok', r.message); assert.deepEqual(r.hits, ['https://api.atlassian.com/ex/jira/acme-cloud-0003/rest/api/3/myself']);
 });

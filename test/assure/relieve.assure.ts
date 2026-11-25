@@ -1,4 +1,4 @@
-// Property (i): lib/whatif.ts relieve (`brain whatif --relieve PERSON --sprint N`) against a clean-room brute force, on EVERY instance.
+// Property (i): lib/whatif.ts relieve (`plangraph whatif --relieve PERSON --sprint N`) against a clean-room brute force, on EVERY instance.
 //
 // The specified rule (docs/CONTRACT.md "Relieve"), stated here once, written from the contract and not from the library:
 //   cell = the tickets placed with owner PERSON in sprint N; load = their story points; cap = capFor(config, PERSON). load <= cap: nothing

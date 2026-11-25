@@ -1,4 +1,4 @@
-$ brain ticket T-999
+$ plangraph ticket T-999
 exit: 0
 --- stdout
 not in the plan

@@ -1,15 +1,15 @@
-$ brain init
+$ plangraph init
 exit: 0
 --- stdout
-initialised .plangraph: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`
+initialised .plangraph: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `plangraph build`
 suggested lines for this repo's CLAUDE.md (printed only, nothing written):
 ## Plan questions
-Use `brain` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.
-Run `brain explain` for the full command list.
+Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.
+Run `plangraph explain` for the full command list.
 --- stderr
 --- file .plangraph/config.json
 {
-  "_doc": "Constraints for brain-solve and brain check. Capacity is points per person per sprint.",
+  "_doc": "Constraints for plangraph-solve and plangraph check. Capacity is points per person per sprint.",
   "first_sprint": 1,
   "end_sprint": 12,
   "caps": {

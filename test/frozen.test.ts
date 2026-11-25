@@ -1,5 +1,5 @@
 // lib/frozen.ts is THE frozen predicate (review I2): verify, whatif (STARTED, proposeMove's pinned set), relieve and the solver read the
-// same rule. The solver's Python mirror (bin/brain-solve prepare: pr.closed, pr.frozen, pr.live) is compared with it on a grid of every
+// same rule. The solver's Python mirror (bin/plangraph-solve prepare: pr.closed, pr.frozen, pr.live) is compared with it on a grid of every
 // status x impl_status x config (closed_statuses, frozen_statuses, frozen_before_sprint) x current sprint x --freeze, sp: keys included.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,7 +10,7 @@ import type { Ticket } from '../lib/model.ts';
 import { isClosed, frozenTest, linkBinds } from '../lib/frozen.ts';
 import { whatif, proposeMove, relieve } from '../lib/whatif.ts';
 
-const SOLVE = path.join(import.meta.dirname, '..', 'bin', 'brain-solve');
+const SOLVE = path.join(import.meta.dirname, '..', 'bin', 'plangraph-solve');
 const HAVE_PY3 = spawnSync('python3', ['--version'], { stdio: 'ignore' }).status === 0;
 const PY = `
 import importlib.machinery, importlib.util, json, sys, types
@@ -24,7 +24,7 @@ for case in json.load(sys.stdin):
 print(json.dumps(out))
 `;
 
-test('the Python mirror (bin/brain-solve prepare) and lib/frozen.ts agree on closed, frozen and the links that bind, on a grid', { skip: HAVE_PY3 ? false : 'skipped: no python3' }, () => {
+test('the Python mirror (bin/plangraph-solve prepare) and lib/frozen.ts agree on closed, frozen and the links that bind, on a grid', { skip: HAVE_PY3 ? false : 'skipped: no python3' }, () => {
   const cases: Array<{ cfg: unknown; [k: string]: unknown }> = [], want: Array<[string[], string[], string[][]]> = [];
   for (const closed_statuses of [undefined, ['Closed']]) for (const frozen_statuses of [undefined, [], ['In Progress']]) for (const fb of [undefined, 2]) {
     const cfg = { first_sprint: 1, end_sprint: 9, caps: { default: 99 }, ...(closed_statuses ? { closed_statuses } : {}), ...(frozen_statuses ? { frozen_statuses } : {}), ...(fb !== undefined ? { frozen_before_sprint: fb } : {}) };
@@ -82,7 +82,7 @@ test('relieve and proposeMove pin the same tickets as verify: an sp: task with i
   assert.deepEqual(w.reasons.map((x) => [x.code, x.warn ?? false]), [['STARTED', false]]);
 });
 
-// Review M2: `brain init` writes frozen_statuses ["Done"]. In Progress always warns in whatif (STARTED, warn; a stop only under --strict),
+// Review M2: `plangraph init` writes frozen_statuses ["Done"]. In Progress always warns in whatif (STARTED, warn; a stop only under --strict),
 // whatever frozen_statuses says; verify, the solver, proposeMove and relieve freeze only what config lists.
 test('In Progress always gives the STARTED warning in whatif, whatever frozen_statuses says; only a listed status is frozen', () => {
   for (const fs of [undefined, [], ['Done'], ['In Progress']]) {

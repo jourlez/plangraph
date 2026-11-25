@@ -1,4 +1,4 @@
-// Task 30: `brain build` keeps unknown record fields (in the `extra` column) and never takes SQL identifiers from data.
+// Task 30: `plangraph build` keeps unknown record fields (in the `extra` column) and never takes SQL identifiers from data.
 // NOT covered: learnings/refs are never rewritten from the index (export writes only FILES), so their `extra` is checked in the index only.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,10 +10,10 @@ import { DatabaseSync } from 'node:sqlite';
 import * as S from '../lib/store.ts';
 import { budget } from './helpers/perf.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-// a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
+// a private plugin data directory: bin/plangraph keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-data-')); tmps.push(DATA);
 function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-'));
@@ -94,7 +94,7 @@ test('(d) a known text field with an object value is a data error (security revi
   const d = repo();
   put(d, 'tickets.jsonl', [tk('T-1', { summary: { not: 'a string' } })]);
   const bad = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: d, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
-  assert.equal(bad.status, 2); assert.equal(bad.stderr, 'error: tickets.jsonl:1: "summary" must be a string or a number\ntry: brain doctor\n');
+  assert.equal(bad.status, 2); assert.equal(bad.stderr, 'error: tickets.jsonl:1: "summary" must be a string or a number\ntry: plangraph doctor\n');
   put(d, 'tickets.jsonl', [tk('T-1')]);
   put(d, 'edges.jsonl', [{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need', note: '', weight: 2 }]);
   put(d, 'findings.jsonl', [{ key: 'T-1', kind: 'risk', text: 't', sev: { n: 1 } }]);
@@ -144,7 +144,7 @@ test('(e) 100k ticket records build quickly', () => {
 });
 
 test('(f) source scan: the INSERT column lists come from constants, never from record keys', () => {
-  // `brain build` is src/db.ts buildIndex (bin/brain only dispatches to src/cli.ts).
+  // `plangraph build` is src/db.ts buildIndex (bin/plangraph only dispatches to src/cli.ts).
   const code = fs.readFileSync(path.join(import.meta.dirname, '../src/db.ts'), 'utf8');
   assert.match(code, /const columns(?:: [^=]+)? = Object\.freeze\(\[\.\.\.(?:SCHEMAS\[file\]|\(SCHEMAS\[file\] as \w+\))\.order\]\)/, 'columns come from the frozen SCHEMAS lists');
   assert.ok(!/Object\.keys\(r(ec)?\)\s*\.(map|join)|\bcols\b/.test(code), 'no per-record column list');

@@ -11,7 +11,7 @@ import type { Dense } from './shared.ts';
 /** The columns each SELECT below names, as the index stores them. */
 interface PlaceRow { key: string; owner: string; sprint: number }
 
-// forecast's freshness keeps what bin/brain's forecast checked: besides the source fingerprint (ctx.db()), an open-items.jsonl newer
+// forecast's freshness keeps what bin/plangraph's forecast checked: besides the source fingerprint (ctx.db()), an open-items.jsonl newer
 // than the index (1 s slack) makes the answer STALE too. Only one warning is printed either way.
 const SLACK_MS = 1000;
 function openItemsNewer(ctx: Ctx): boolean {
@@ -38,9 +38,9 @@ function simulate(ctx: Ctx, args: Args<{ runs?: number; sigma?: number; limit?: 
   const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
   const sp = new Map((d.all('SELECT key,sp FROM ticket') as Array<{ key: string; sp: number | null }>).map((r) => [r.key, r.sp])); // the columns this SELECT names; sp may be NULL
-  // a schedule row naming a key with no ticket (UNKNOWN_TICKET in `brain check`) has no size: it is left out, with one warning line
+  // a schedule row naming a key with no ticket (UNKNOWN_TICKET in `plangraph check`) has no size: it is left out, with one warning line
   const placed = d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`) as PlaceRow[], ghosts = placed.filter((r) => !sp.has(r.key)).map((r) => r.key);
-  if (ghosts.length) ctx.io.err(`warning: simulate skips ${ghosts.length} schedule row(s) with no ticket: ${ghosts.slice(0, 10).map((k) => oneLine(k, 80)).join(', ')}${ghosts.length > 10 ? ', ...' : ''} (run \`brain check\`)`);
+  if (ghosts.length) ctx.io.err(`warning: simulate skips ${ghosts.length} schedule row(s) with no ticket: ${ghosts.slice(0, 10).map((k) => oneLine(k, 80)).join(', ')}${ghosts.length > 10 ? ', ...' : ''} (run \`plangraph check\`)`);
   const sch = new Map(placed.filter((r) => sp.has(r.key)).map((r) => [r.key, r])) as Dense<string, PlaceRow>; // read only with its own keys
   const prod = (new Map([...sch.keys()].map((k) => [k, []])) as Dense<string, string[]>); // one list per scheduled key
   for (const e of d.all('SELECT consumer,producer,kind FROM edge') as Array<{ consumer: string; producer: string; kind: string }>) if (!skip.has(e.kind) && sch.has(e.consumer) && sch.has(e.producer)) prod.get(e.consumer).push(e.producer); // the columns this SELECT names
@@ -49,7 +49,7 @@ function simulate(ctx: Ctx, args: Args<{ runs?: number; sigma?: number; limit?: 
   const bySprint = (a: string, b: string) => sch.get(a).sprint - sch.get(b).sprint || (a < b ? -1 : 1);
   const ready = [...sch.keys()].filter((k) => left.get(k) === 0).sort(bySprint);
   while (ready.length) { const k = ready.shift() as string; order.push(k); for (const c of cons.get(k)) { left.set(c, left.get(c) - 1); if (!left.get(c)) { ready.push(c); ready.sort(bySprint); } } } // ready is not empty inside the loop
-  if (order.length !== sch.size) throw dataError('links contain a loop', 'run `brain check`');
+  if (order.length !== sch.size) throw dataError('links contain a loop', 'run `plangraph check`');
   const planned = [...sch.values()].reduce((m, s) => Math.max(m, s.sprint), -Infinity), limit = v.limit ?? (cfg.end_sprint || planned) + 2;
   const once = (noise: boolean) => {
     const used = (new Map() as Map<string, number>), at = (new Map() as Dense<string, number>); let last = 0; // at: producers come first in order

@@ -1,11 +1,11 @@
 // Task 14: the agent-facing contract. (a) the session card is cache-stable: a pure function of the committed text (identity = first 8
 // hex of the source fingerprint), no clock, no relative age, no "?" placeholder, STALE only when the text changed since the build;
 // (b) `ticket KEY` is one line by default, `-v` adds needs and evidence; (c) every error prints `error: <what>` and a final
-// `try: <exact command>` line on stderr with the documented exit code, a mistyped command gets a did-you-mean; (d) `brain explain` is
+// `try: <exact command>` line on stderr with the documented exit code, a mistyped command gets a did-you-mean; (d) `plangraph explain` is
 // generated from the registry, bounded, and `--json` lists the same names; (e) `--json` of sprint, ready, whatif and verify is the v2
 // envelope with structured `data`, exact `next` commands (each one is run and must parse) and a real `fresh` {fp, built};
 // (f) the benchmark report labels bytes, estimated tokens and the tokenizer (estimate, calibration unverified).
-// Real runs of bin/brain in mkdtemp git repos (removed in `after`); no network, no real HOME.
+// Real runs of bin/plangraph in mkdtemp git repos (removed in `after`); no network, no real HOME.
 // NOT covered: the cache-hit effect itself on a real Claude session (docs/research/ai-engineering.md 1.4, UNVERIFIED experiment).
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { registry } from '../src/registry.ts';
-import { EXIT, ERRORS, errorLines, BrainError } from '../src/errors.ts';
+import { EXIT, ERRORS, errorLines, PlangraphError } from '../src/errors.ts';
 import { renderCard, estTokens } from '../lib/render.ts';
 import { buildModel } from '../lib/model.ts';
 import { fenceInline } from '../lib/sanitize.ts';
@@ -22,7 +22,7 @@ import type { Command } from '../src/registry.ts';
 /** The --json data fields the checks below read (each check reads its own command's; a missing one fails the assertion). */
 interface Data { sprint: number; rows: Array<{ owner: string }>; over: unknown; key: string; ready: boolean; ok: boolean; tickets: number; reasons: Array<{ code: unknown; key: unknown }>; violations: Array<{ code: unknown; key: unknown }> }
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-contract-'))); tmps.push(d); return d; };
@@ -62,12 +62,12 @@ test('card: byte-identical across runs a second apart and after touching mtimes;
   assert.equal(b.stdout, a.stdout, 'byte-identical');
   assert.doesNotMatch(a.stdout, /\bbuilt\b|\bago\b|\?|\d{4}-\d\d-\d\d|\d\d:\d\d/);
   const lines = a.stdout.trimEnd().split('\n');
-  assert.match(lines[0], /^brain [0-9a-f]{8} \| 5 tickets, 3 links, S1-S2, 2 people$/);
+  assert.match(lines[0], /^plangraph [0-9a-f]{8} \| 5 tickets, 3 links, S1-S2, 2 people$/);
   assert.ok(!lines.some((l) => l.startsWith('STALE')), 'no STALE line while the index matches the text');
-  assert.equal(lines.at(-1), 'plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl');
-  assert.ok(!/brain ready KEY|brain chain/.test(a.stdout), 'command menu lives in explain, not in the card');
+  assert.equal(lines.at(-1), 'plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl');
+  assert.ok(!/plangraph ready KEY|plangraph chain/.test(a.stdout), 'command menu lives in explain, not in the card');
   // the identity is the source fingerprint: --json of an index-reading command reports the same 8 hex
-  assert.equal(JSON.parse(run(R, ['sprint', '1', '--json']).stdout).fresh.fp, lines[0].slice(6, 14));
+  assert.equal(JSON.parse(run(R, ['sprint', '1', '--json']).stdout).fresh.fp, lines[0].slice('plangraph '.length, 'plangraph '.length + 8));
 });
 
 test('card: STALE appears only after the text changes, as the last line; the identity follows the text', () => {
@@ -76,7 +76,7 @@ test('card: STALE appears only after the text changes, as the last line; the ide
   const after_ = run(d, ['card', '--if-present']);
   assert.equal(after_.status, 0); assert.equal(after_.stderr, '');
   const l = after_.stdout.trimEnd().split('\n');
-  assert.equal(l.at(-1), 'STALE: index older than text, run `brain build`');
+  assert.equal(l.at(-1), 'STALE: index older than text, run `plangraph build`');
   assert.notEqual(l[0], before_.split('\n')[0], 'fp changes with the text');
   assert.equal(run(d, ['build']).status, 0);
   assert.ok(!run(d, ['card']).stdout.includes('STALE'));
@@ -86,11 +86,11 @@ test('renderCard is a pure function of the model and fp: no clock input changes 
   const m = buildModel({ tickets: [{ key: 'A-1', sp: 8, verdict: 'READY' }, { key: 'A-2', sp: 3, verdict: 'BLOCKED' }], schedule: [{ key: 'A-1', owner: 'Ana', sprint: 3 }, { key: 'A-2', owner: 'Ben', sprint: 5 }], config: { caps: { default: 5 } } });
   const x = renderCard(m, { fp: 'a1b2c3d4e5f6', now: 1 }), y = renderCard(m, { fp: 'a1b2c3d4e5f6', now: 9e12, builtAt: 5, sourceMtime: 9e12 });
   assert.equal(x, y);
-  assert.equal(x, `brain a1b2c3d4 | 2 tickets, 0 links, S3-S5, 2 people\nverdicts: ${fenceInline('1 BLOCKED, 1 READY')}\nover cap: ${fenceInline('Ana S3 +3')}\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl`);
-  assert.equal(renderCard(m, { fp: 'zz<>\n' + 'f'.repeat(500) }).split('\n')[0], 'brain ffffffff | 2 tickets, 0 links, S3-S5, 2 people');
-  assert.equal(renderCard(m, {}).split('\n')[0], 'brain unbuilt | 2 tickets, 0 links, S3-S5, 2 people');
+  assert.equal(x, `plangraph a1b2c3d4 | 2 tickets, 0 links, S3-S5, 2 people\nverdicts: ${fenceInline('1 BLOCKED, 1 READY')}\nover cap: ${fenceInline('Ana S3 +3')}\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl`);
+  assert.equal(renderCard(m, { fp: 'zz<>\n' + 'f'.repeat(500) }).split('\n')[0], 'plangraph ffffffff | 2 tickets, 0 links, S3-S5, 2 people');
+  assert.equal(renderCard(m, {}).split('\n')[0], 'plangraph unbuilt | 2 tickets, 0 links, S3-S5, 2 people');
   const s = renderCard(m, { fp: 'ab', stale: true }, { maxTokens: 25 });
-  assert.ok(estTokens(s + '\n') <= 25, s); assert.equal(s.split('\n').at(-1), 'STALE: index older than text, run `brain build`');
+  assert.ok(estTokens(s + '\n') <= 25, s); assert.equal(s.split('\n').at(-1), 'STALE: index older than text, run `plangraph build`');
 });
 
 // ---------- (b) ticket: one line by default, -v adds needs and evidence ----------
@@ -116,20 +116,20 @@ test('ticket: default is exactly one line with summary, owner/sprint and verdict
 // ---------- (c) errors ----------
 const lastTry = (stderr: string) => { const l = stderr.trimEnd().split('\n'); return l.at(-1); };
 const tryIsExact = (line: string) => {
-  const m = /^try: brain ([a-z][a-z0-9-]*)(?: |$)/.exec(line);
+  const m = /^try: plangraph ([a-z][a-z0-9-]*)(?: |$)/.exec(line);
   return Boolean(m) && registry.has((m as RegExpExecArray)[1]); // Boolean(m) is the check
 };
 test('errors: error: line, final try: line naming a registered command, documented exit code', () => {
   const empty = tmp(); execFileSync('git', ['init', '-q'], { cwd: empty, env: ENV }); assert.equal(run(empty, ['init']).status, 0);
   const cases: Array<[string, string[], number, string, string]> = [
-    [R, ['tikcet', 'T-5'], EXIT.USAGE, 'error: unknown command tikcet; did you mean ticket?', 'try: brain explain ticket'],
-    [R, ['frobnicate'], EXIT.USAGE, 'error: unknown command frobnicate', 'try: brain explain'],
-    [R, [], EXIT.USAGE, 'error: no command', 'try: brain explain'],
-    [R, ['sprint', '1', '--sprnt'], EXIT.USAGE, 'error: unknown option --sprnt', 'try: brain explain sprint'],
-    [R, ['ticket'], EXIT.USAGE, 'error: expected 1 argument, got 0', 'try: brain explain ticket'],
-    [empty, ['ticket', 'T-1'], EXIT.NO_INDEX, 'error: no index: run `brain build`', 'try: brain build'],
-    [R, ['ticket', 'T-1', '--dir', '/etc'], EXIT.REFUSED, 'error: brain directory is outside the repository', 'try: brain explain ticket'],
-    [R, ['explain', 'tikcet'], EXIT.USAGE, 'error: unknown command tikcet; did you mean ticket?', 'try: brain explain ticket'],
+    [R, ['tikcet', 'T-5'], EXIT.USAGE, 'error: unknown command tikcet; did you mean ticket?', 'try: plangraph explain ticket'],
+    [R, ['frobnicate'], EXIT.USAGE, 'error: unknown command frobnicate', 'try: plangraph explain'],
+    [R, [], EXIT.USAGE, 'error: no command', 'try: plangraph explain'],
+    [R, ['sprint', '1', '--sprnt'], EXIT.USAGE, 'error: unknown option --sprnt', 'try: plangraph explain sprint'],
+    [R, ['ticket'], EXIT.USAGE, 'error: expected 1 argument, got 0', 'try: plangraph explain ticket'],
+    [empty, ['ticket', 'T-1'], EXIT.NO_INDEX, 'error: no index: run `plangraph build`', 'try: plangraph build'],
+    [R, ['ticket', 'T-1', '--dir', '/etc'], EXIT.REFUSED, 'error: plan directory is outside the repository', 'try: plangraph explain ticket'],
+    [R, ['explain', 'tikcet'], EXIT.USAGE, 'error: unknown command tikcet; did you mean ticket?', 'try: plangraph explain ticket'],
   ];
   for (const [cwd, args, code, first, last] of cases) {
     const r = run(cwd, args);
@@ -146,12 +146,12 @@ test('errors: error: line, final try: line naming a registered command, document
 
 test('errors: the table maps every code to its exit and a try command; a hint with a command becomes the try line', () => {
   for (const [code, exit] of Object.entries(EXIT)) assert.equal(ERRORS.get(code)?.exit, exit, code);
-  assert.deepEqual(errorLines(new BrainError('DATA', 'bad', { hint: 'run `brain build` first (it reads the text), then export' }), { command: 'export' }), ['error: bad', 'try: brain build']);
-  assert.deepEqual(errorLines(new BrainError('DATA', 'bad', { hint: 'check the path' }), { command: 'verify' }), ['error: bad', 'hint: check the path', 'try: brain explain verify']);
-  assert.deepEqual(errorLines(new BrainError('ENV', 'no creds')), ['error: no creds', 'try: brain doctor']);
-  assert.deepEqual(errorLines(new Error('boom\nforged')), ['error: internal error: boom forged', 'try: brain doctor']);
+  assert.deepEqual(errorLines(new PlangraphError('DATA', 'bad', { hint: 'run `plangraph build` first (it reads the text), then export' }), { command: 'export' }), ['error: bad', 'try: plangraph build']);
+  assert.deepEqual(errorLines(new PlangraphError('DATA', 'bad', { hint: 'check the path' }), { command: 'verify' }), ['error: bad', 'hint: check the path', 'try: plangraph explain verify']);
+  assert.deepEqual(errorLines(new PlangraphError('ENV', 'no creds')), ['error: no creds', 'try: plangraph doctor']);
+  assert.deepEqual(errorLines(new Error('boom\nforged')), ['error: internal error: boom forged', 'try: plangraph doctor']);
   // a command name that is not registered never reaches the try line
-  assert.deepEqual(errorLines(new BrainError('USAGE', 'x'), { command: 'rm -rf' }), ['error: x', 'try: brain explain']);
+  assert.deepEqual(errorLines(new PlangraphError('USAGE', 'x'), { command: 'rm -rf' }), ['error: x', 'try: plangraph explain']);
 });
 
 // ---------- (d) explain ----------
@@ -173,7 +173,7 @@ test('explain: every registered command within 400 estimated tokens; --json list
   const one = run(R, ['explain', 'whatif']);
   assert.equal(one.status, 0);
   assert.match(one.stdout, /^whatif: dry run of one reassignment/m);
-  assert.match(one.stdout, /^usage: brain whatif \[ARG\] \[options\]$/m); // the KEY is optional: --relieve NAME --sprint N takes none
+  assert.match(one.stdout, /^usage: plangraph whatif \[ARG\] \[options\]$/m); // the KEY is optional: --relieve NAME --sprint N takes none
   assert.match(one.stdout, /--sprint N/);
   assert.match(one.stdout, /^writes: index$/m);
   assert.ok(estTokens(one.stdout) <= 200, `${estTokens(one.stdout)}`);
@@ -182,16 +182,16 @@ test('explain: every registered command within 400 estimated tokens; --json list
 // ---------- (e) --json v2 for sprint, ready, whatif, verify ----------
 const nextRuns = (cwd: string, cmd: string) => {
   // a next entry is an exact command: it runs without a usage error (exit 0 or 1, never 2)
-  assert.match(cmd, /^brain [a-z][a-z0-9-]*( |$)/, cmd);
-  const argv = (cmd.slice(6).match(/"[^"]*"|\S+/g) as RegExpMatchArray).map((a) => a.replace(/^"|"$/g, '')); // the command was matched above
+  assert.match(cmd, /^plangraph [a-z][a-z0-9-]*( |$)/, cmd);
+  const argv = (cmd.slice('plangraph '.length).match(/"[^"]*"|\S+/g) as RegExpMatchArray).map((a) => a.replace(/^"|"$/g, '')); // the command was matched above
   assert.ok(registry.has(argv[0]), cmd);
   const r = run(cwd, argv);
   assert.ok(r.status === 0 || r.status === 1, `${cmd}: exit ${r.status} ${r.stderr}`);
 };
 test('--json: v2 envelope with structured data, exact next commands and a real fresh object', () => {
   const cases: Array<[string[], number, (d: Data) => void, string[] | null]> = [
-    [['sprint', '2', '--json'], 0, (d) => { assert.equal(d.sprint, 2); assert.deepEqual(d.rows, [{ owner: 'Ana', sp: 10, cap: 6, tickets: 2 }, { owner: 'Ben', sp: 1, cap: 6, tickets: 1 }]); assert.deepEqual(d.over, ['Ana']); }, ['brain person Ana']],
-    [['ready', 'T-5', '--json'], 1, (d) => { assert.equal(d.key, 'T-5'); assert.equal(d.ready, false); assert.deepEqual(d.reasons.map((x) => x.code), ['OPEN_ITEM', 'WAITS']); assert.equal(d.reasons[1].key, 'T-2'); }, ['brain ready T-2', 'brain findings missing_ac']],
+    [['sprint', '2', '--json'], 0, (d) => { assert.equal(d.sprint, 2); assert.deepEqual(d.rows, [{ owner: 'Ana', sp: 10, cap: 6, tickets: 2 }, { owner: 'Ben', sp: 1, cap: 6, tickets: 1 }]); assert.deepEqual(d.over, ['Ana']); }, ['plangraph person Ana']],
+    [['ready', 'T-5', '--json'], 1, (d) => { assert.equal(d.key, 'T-5'); assert.equal(d.ready, false); assert.deepEqual(d.reasons.map((x) => x.code), ['OPEN_ITEM', 'WAITS']); assert.equal(d.reasons[1].key, 'T-2'); }, ['plangraph ready T-2', 'plangraph findings missing_ac']],
     [['whatif', 'T-3', '--sprint', '3', '--json'], 1, (d) => { assert.equal(d.key, 'T-3'); assert.equal(d.ok, false); assert.ok(d.reasons.length > 0 && d.reasons.every((x) => typeof x.code === 'string')); }, null],
     [['verify', '--json'], 1, (d) => { assert.equal(d.ok, false); assert.equal(d.tickets, 5); assert.ok(d.violations.length > 0 && d.violations.every((x) => typeof x.code === 'string' && typeof x.key === 'string')); }, null],
   ];
@@ -233,7 +233,7 @@ test('bench report: bytes, estimated tokens with the method, and a tokenizer not
   assert.equal(cal.factor, 1); assert.equal(cal.verified, false);
   const { reportBlock } = await import('./bench-tokens.ts');
   const rows = [{ id: 1, text: 'q', out: 'abcdefgh', grepOut: 'x'.repeat(40), fileOut: 'y'.repeat(400), ok: true }];
-  const block = reportBlock(rows, { calibration: cal, shape: 'tiny', fixed: [['card', 'brain 1 | x']] });
+  const block = reportBlock(rows, { calibration: cal, shape: 'tiny', fixed: [['card', 'plangraph 1 | x']] });
   assert.match(block, /\| # \| question \| cli bytes \| cli est tok \| grep bytes \| grep est tok \| file bytes \| file est tok \|/);
   assert.match(block, /\| 1 \| q \| 8 \| 2 \| 40 \| 10 \| 400 \| 100 \|/);
   assert.match(block, /^Tokenizer: .*estimate.*chars\/4.*factor 1.*unverified.*count_tokens/m);
@@ -246,7 +246,7 @@ test('hostile: 2 MiB values never reach a next command and are rejected fast; a 
   const big = (s: string) => s.repeat(Math.ceil((2 * 1024 * 1024) / s.length));
   const t0 = performance.now();
   for (const v of [big('a '), big('a'), big(' \t'), big('1.'), big('#`'), big('a\r'), 'Ana\u0000', '--write', '-v', 'Ana ', ' Ana', 'a  b', '１', '__proto__ x;y']) {
-    assert.equal(nextCommand(['person', [v]]), shellArg(v) === null ? null : `brain person ${shellArg(v)}`);
+    assert.equal(nextCommand(['person', [v]]), shellArg(v) === null ? null : `plangraph person ${shellArg(v)}`);
     if (v.length > 200 || /[\s\u0000;-]$|^[\s-]| {2}|１/.test(v)) assert.equal(shellArg(v), null, JSON.stringify(v.slice(0, 20)));
   }
   assert.ok(performance.now() - t0 < 2000, `${performance.now() - t0} ms`);
@@ -255,7 +255,7 @@ test('hostile: 2 MiB values never reach a next command and are rejected fast; a 
   assert.equal(didYouMean('ticketx', ['ticket']), 'ticket'); assert.equal(didYouMean('t'.repeat(61), ['t'.repeat(61)]), null, 'names over 60 characters are not compared');
   assert.equal(didYouMean('constructor', NAMES), null); assert.equal(didYouMean(undefined, NAMES), null);
   const r = run(R, ['z'.repeat(100000)]);
-  assert.equal(r.status, EXIT.USAGE); assert.ok(r.stderr.length < 200, `${r.stderr.length}`); assert.equal(lastTry(r.stderr), 'try: brain explain');
+  assert.equal(r.status, EXIT.USAGE); assert.ok(r.stderr.length < 200, `${r.stderr.length}`); assert.equal(lastTry(r.stderr), 'try: plangraph explain');
 });
 
 test('bench calibration: a factor that is not a finite number in (0, 10] is refused', async () => {
@@ -288,7 +288,7 @@ test('explain: per-flag writes of doctor --fix and card --heal (and init) are de
   assert.deepEqual((registry.get('init') as Command).also, WIRING); // a registered command
   const d = repo(), data = path.join(d, '.data');
   const state = () => {
-    // bin/brain's private compile cache in the data dir (bin/brain) is an optimization, not a declared write: left out
+    // bin/plangraph's private compile cache in the data dir (bin/plangraph) is an optimization, not a declared write: left out
     const shim = fs.existsSync(data) ? (fs.readdirSync(data, { recursive: true }) as string[]).filter((f) => f !== 'compile-cache' && !f.startsWith(`compile-cache${path.sep}`)).toSorted().join(',') : '';
     const cfg = spawnSync('git', ['config', '--get-regexp', '^merge\\.'], { cwd: d, encoding: 'utf8', env: ENV }).stdout;
     return { 'git-config': cfg, gitattributes: fs.existsSync(path.join(d, '.gitattributes')) ? fs.readFileSync(path.join(d, '.gitattributes'), 'utf8') : '', 'merge-shim': shim };
@@ -330,9 +330,9 @@ test('registry: a side-write list must be a non-empty list of known names, witho
   assert.ok(Object.isFrozen(c.also) && Object.isFrozen(c.options.f.writes));
 });
 
-// A repository with no brain directory: the first step is `brain init` (a `brain build` there fails with `try: brain init` itself), so
-// every command that needs the brain says so in its try line, and never sends the agent to `brain build` first.
-test('errors: with no brain directory every command that needs one exits 2 with `try: brain init` (never brain build)', () => {
+// A repository with no plan directory: the first step is `plangraph init` (a `plangraph build` there fails with `try: plangraph init` itself), so
+// every command that needs the plangraph says so in its try line, and never sends the agent to `plangraph build` first.
+test('errors: with no plan directory every command that needs one exits 2 with `try: plangraph init` (never plangraph build)', () => {
   const d = tmp();
   execFileSync('git', ['init', '-q'], { cwd: d, env: ENV });
   fs.writeFileSync(path.join(d, 'p.md'), '# Plan\n\n### Task 1: a\nx\n'); fs.writeFileSync(path.join(d, 'x.json'), '[]');
@@ -344,14 +344,14 @@ test('errors: with no brain directory every command that needs one exits 2 with 
   const bad = [];
   for (const args of cases) {
     const r = run(d, args), err = r.stderr.trimEnd().split('\n');
-    if (r.status !== 2 || err.at(-1) !== 'try: brain init' || /brain build/.test(r.stderr)) bad.push(`brain ${args.join(' ')} -> exit ${r.status}: ${JSON.stringify(r.stderr)}`);
+    if (r.status !== 2 || err.at(-1) !== 'try: plangraph init' || /plangraph build/.test(r.stderr)) bad.push(`plangraph ${args.join(' ')} -> exit ${r.status}: ${JSON.stringify(r.stderr)}`);
   }
   assert.deepEqual(bad, [], bad.join('\n'));
-  assert.ok(!fs.existsSync(path.join(d, '.plangraph')), 'nothing created the brain directory');
-  fs.mkdirSync(path.join(d, '.plangraph')); // a brain directory without an index: now the step is build
+  assert.ok(!fs.existsSync(path.join(d, '.plangraph')), 'nothing created the plan directory');
+  fs.mkdirSync(path.join(d, '.plangraph')); // a plan directory without an index: now the step is build
   const r = run(d, ['ticket', 'T-1']);
   assert.equal(r.status, 2);
-  assert.ok(r.stderr.endsWith('error: no index: run `brain build`\ntry: brain build\n'), r.stderr);
+  assert.ok(r.stderr.endsWith('error: no index: run `plangraph build`\ntry: plangraph build\n'), r.stderr);
 });
 
 // The default ticket line: the data fields (Jira status, verdict and its source, impl status, plan owner) sit inside one inline fence, the

@@ -221,8 +221,8 @@ export interface FormatCheck { version: number; min_reader: number; legacy: bool
 export function checkFormat(dir: string, supported: { version: number; min: number } = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {
   const f = readFormat(dir);
   const tooNew = mode === 'read' ? f.min_reader > supported.version : f.format_version > supported.version;
-  if (tooNew) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} (needs reader >= ${f.min_reader}) is newer than this tool supports (${supported.version}): upgrade the brain tool`);
-  if (f.format_version < supported.min) throw new FormatError('NEEDS_MIGRATION', `${dir}: data format ${f.format_version} is older than ${supported.min}: run \`brain migrate --write\``);
+  if (tooNew) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} (needs reader >= ${f.min_reader}) is newer than this tool supports (${supported.version}): upgrade the plangraph tool`);
+  if (f.format_version < supported.min) throw new FormatError('NEEDS_MIGRATION', `${dir}: data format ${f.format_version} is older than ${supported.min}: run \`plangraph migrate --write\``);
   return { version: f.format_version, min_reader: f.min_reader, legacy: f.legacy, status: f.format_version > supported.version ? 'newer-readable' : 'ok' };
 }
 
@@ -263,7 +263,7 @@ function readDataFile(dir: string, name: string): string | null {
 }
 function planSteps(dir: string, { migrations: ms = migrations }: { migrations?: readonly Migration[] } = {}) {
   const f = readFormat(dir), top = Math.max(...ms.map((m) => m.to), 0);
-  if (f.format_version > top) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} is newer than this tool supports (${top}): upgrade the brain tool`);
+  if (f.format_version > top) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} is newer than this tool supports (${top}): upgrade the plangraph tool`);
   const overlay = new Map<string, string>();
   const read = (name: string): string | null => (overlay.has(name) ? overlay.get(name) as string : readDataFile(dir, name)); // has() was just tested
   const steps = chain(f.format_version, top, ms).map((m) => {
@@ -304,7 +304,7 @@ const shq = (s: string): string => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.repla
 export function installMergeDriver(repoRoot: string, { dir = '.plangraph', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
   if (String(driverPath).includes(VERSIONED)) throw new TypeError(`refusing a versioned plugin-cache driver path (${VERSIONED} is deleted after a plugin update); pass the stable shim from ensureStableDriver`);
   // The dir becomes a gitattributes pattern line: only a plain name can go there (no newline, space, glob, comment or quote character).
-  if (typeof dir !== 'string' || !SAFE_ATTR_DIR.test(dir)) throw new TypeError('refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -');
+  if (typeof dir !== 'string' || !SAFE_ATTR_DIR.test(dir)) throw new TypeError('refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -');
   const line = `${dir}/*.jsonl merge=${DRIVER}`;
   const ga = path.join(repoRoot, '.gitattributes');
   const cur = readGitattributes(ga);
@@ -340,17 +340,17 @@ const readLine = (f: string, nofollow = false): string => { // reads at most 409
 };
 // Same file by real path (a symlinked install path to the same plugin is not "another install"); false when either cannot be resolved.
 const sameFile = (a: string, b: string): boolean => { try { return fs.realpathSync.native(a) === fs.realpathSync.native(b); } catch { return false; } };
-// expected: the brain-merge of the RUNNING plugin. After a plugin update the old versioned install may still exist, so a readable
+// expected: the plangraph-merge of the RUNNING plugin. After a plugin update the old versioned install may still exist, so a readable
 // driver.target is not enough: one that resolves to a different file is reported, and `doctor --fix` / `card --heal` repoint it.
 function shimProblems(dataDir: string, problems: string[], expected: string | undefined): void {
   const t = readLine(path.join(dataDir, 'driver.target'), true), n = readLine(path.join(dataDir, 'driver.node'), true);
-  if (!t) problems.push(`merge driver shim has an unreadable or empty driver.target in ${dataDir}: run \`brain doctor --fix\``);
-  else if (!fs.existsSync(t)) problems.push(`merge driver.target points to a missing file: ${t}: run \`brain doctor --fix\``);
-  else if (expected && !sameFile(t, expected)) problems.push(`merge driver.target points to another plugin install, not the running one: ${t}: run \`brain doctor --fix\``);
-  if (!n) problems.push(`merge driver shim has an unreadable or empty driver.node in ${dataDir}: run \`brain doctor --fix\``);
-  else if (!fs.existsSync(n)) problems.push(`merge driver.node points to a missing file: ${n}: run \`brain doctor --fix\``);
+  if (!t) problems.push(`merge driver shim has an unreadable or empty driver.target in ${dataDir}: run \`plangraph doctor --fix\``);
+  else if (!fs.existsSync(t)) problems.push(`merge driver.target points to a missing file: ${t}: run \`plangraph doctor --fix\``);
+  else if (expected && !sameFile(t, expected)) problems.push(`merge driver.target points to another plugin install, not the running one: ${t}: run \`plangraph doctor --fix\``);
+  if (!n) problems.push(`merge driver shim has an unreadable or empty driver.node in ${dataDir}: run \`plangraph doctor --fix\``);
+  else if (!fs.existsSync(n)) problems.push(`merge driver.node points to a missing file: ${n}: run \`plangraph doctor --fix\``);
 }
-// target (optional): the brain-merge the running plugin would install; when given, a shim whose driver.target is another file is a problem.
+// target (optional): the plangraph-merge the running plugin would install; when given, a shim whose driver.target is another file is a problem.
 export interface MergeDriverDoctor { installed: boolean; attributes: boolean; config: boolean; executable: boolean; driver: string; problems: string[] }
 export function doctorMergeDriver(repoRoot: string, { dir = '.plangraph', target }: { dir?: string; target?: string } = {}): MergeDriverDoctor {
   const problems: string[] = [];
@@ -361,13 +361,13 @@ export function doctorMergeDriver(repoRoot: string, { dir = '.plangraph', target
   else if (!attrs) problems.push(`.gitattributes lacks "${dir}/*.jsonl merge=${DRIVER}"`);
   const cfg = tryGit(repoRoot, ['config', '--get', `merge.${DRIVER}.driver`]);
   const driver = cfg.ok ? cfg.out.trim() : '';
-  if (!driver) problems.push(`git config merge.${DRIVER}.driver is not set (it is not versioned: run \`brain init\` or \`brain doctor --fix\` in every clone)`);
+  if (!driver) problems.push(`git config merge.${DRIVER}.driver is not set (it is not versioned: run \`plangraph init\` or \`plangraph doctor --fix\` in every clone)`);
   let executable = false;
   if (driver) {
     const exe = (driver.match(/^'((?:[^']|'\\'')*)'|^(\S+)/) || []).slice(1).find(Boolean)?.replace(/'\\''/g, "'");
     executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || '').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));
     if (!executable) problems.push(`merge driver executable not found: ${exe}`);
-    if (exe?.includes(VERSIONED)) problems.push(`merge driver path is the versioned plugin cache (orphaned after a plugin update): run \`brain doctor --fix\``);
+    if (exe?.includes(VERSIONED)) problems.push(`merge driver path is the versioned plugin cache (orphaned after a plugin update): run \`plangraph doctor --fix\``);
     else if (exe && path.isAbsolute(exe) && executable && readLine(exe).includes('driver.target')) shimProblems(path.join(path.dirname(exe), '..'), problems, target);
   }
   return { installed: attrs && !!driver && executable, attributes: !!attrs, config: !!driver, executable, driver, problems };

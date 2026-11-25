@@ -1,12 +1,12 @@
 // Read-only queries over the index: ticket neighbors chain sprint person blockers findings rules check verify ready card.
-// Output and exit codes are those of the old bin/brain (frozen by test/golden.test.ts); errors are typed (src/errors.ts).
+// Output and exit codes are those of the old bin/plangraph (frozen by test/golden.test.ts); errors are typed (src/errors.ts).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { readDataCapped, presentDataFile } from '../../lib/jsonl.ts';
 import { oneLine, fenceInline } from '../../lib/sanitize.ts';
 import { makeGit } from '../../lib/gitsafe.ts';
-import { BrainError } from '../errors.ts';
+import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
 import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
@@ -96,7 +96,7 @@ function chain(ctx: Ctx, args: Args): number {
     const top = stack[stack.length - 1] as [string, number], v = top[0], ps = prods.get(v) || []; // the loop runs only while stack is not empty
     if (top[1] < ps.length) {
       const p = ps[top[1]++] as string, st = state.get(p); // top[1] < ps.length was checked just above
-      if (st === 1) throw dataError(`dependency cycle: ${oneLine(p, 120)} is needed by ${oneLine(v, 120)} and also needs it`, 'run `brain check`');
+      if (st === 1) throw dataError(`dependency cycle: ${oneLine(p, 120)} is needed by ${oneLine(v, 120)} and also needs it`, 'run `plangraph check`');
       if (!st) { state.set(p, 1); stack.push([p, 0]); }
       continue;
     }
@@ -144,7 +144,7 @@ function person(ctx: Ctx, args: Args): number {
 }
 
 function blockers(ctx: Ctx, args: Args): number {
-  // the verdict list as stored (a closed ticket with a non-READY verdict is listed too: `brain ready` says DONE for it)
+  // the verdict list as stored (a closed ticket with a non-READY verdict is listed too: `plangraph ready` says DONE for it)
   const d = ctx.db(), rows = d.all("SELECT key,verdict FROM ticket WHERE verdict<>'READY' AND verdict<>'' ORDER BY verdict,key") as Array<{ key: string; verdict: string }>, by = new Map<string, string[]>(); // the columns this SELECT names
   for (const r of rows) { if (!by.has(r.verdict)) by.set(r.verdict, []); (by.get(r.verdict) as string[]).push(r.key); } // set just before
   ctx.io.out(`${rows.length} tickets not READY`); const lim = verbose(args) ? Infinity : 150;
@@ -160,7 +160,7 @@ function findings(ctx: Ctx, args: Args): number {
   return 0;
 }
 
-// ---- rules: brain learnings (index) or, with --repo, OpenWolf's .wolf/cerebrum.md read through and fenced ----
+// ---- rules: plangraph learnings (index) or, with --repo, OpenWolf's .wolf/cerebrum.md read through and fenced ----
 const TOPIC_USAGE = '--topic needs a word of 1 to 60 characters on one line';
 async function rulesRepo(ctx: Ctx, args: Args<RulesValues>): Promise<number> {
   const W = await import('../../lib/integrations/openwolf.ts'), v = verbose(args); let max = v ? 200 : 12;
@@ -179,7 +179,7 @@ async function rulesRepo(ctx: Ctx, args: Args<RulesValues>): Promise<number> {
 }
 function rules(ctx: Ctx, args: Args<RulesValues>): Promise<number> | number {
   if (args.values.repo) return rulesRepo(ctx, args);
-  if (args.values.topic !== undefined || args.values.all) throw usage('--topic and --all need --repo (a brain topic is the positional argument)');
+  if (args.values.topic !== undefined || args.values.all) throw usage('--topic and --all need --repo (a plangraph topic is the positional argument)');
   const d = ctx.db(), [topic] = args.positionals;
   if (!topic) { for (const r of d.all('SELECT topic, COUNT(*) c FROM learning GROUP BY topic ORDER BY topic') as Array<{ topic: unknown; c: number }>) ctx.io.out(`${w(r.topic, 80)}: ${r.c}`); return 0; } // the columns this SELECT names
   // learning text is free text from the repo: one fence, one sanitized line per field, bounded
@@ -210,8 +210,8 @@ async function check(ctx: Ctx): Promise<number> {
   // the count comes from verify's own predicate (an sp: task is exempt there), never a second copy of the rule.
   const unplaced = (await import('../../lib/verify.ts')).verifyPlan(model).filter((x) => x.code === 'UNPLACED').length;
   const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree ? 1 : 0;
-  ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (brain verify lists them)` : ''}`);
-  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced }, { next: unplaced ? ['brain verify'] : [] });
+  ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (plangraph verify lists them)` : ''}`);
+  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced }, { next: unplaced ? ['plangraph verify'] : [] });
   return code; // CI fails on any violation, and on any unplaced ticket (verify exits 1 on UNPLACED too)
 }
 
@@ -228,14 +228,14 @@ async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean }>): Promis
   const frozen = file === undefined ? undefined : (await import('../../lib/frozen.ts')).frozenSlots(model);
   const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
   ctx.io.data?.({ ok: !v.length, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
-    { next: v.length ? nextList([nextCommand(['ticket', [(v[0] as (typeof v)[number]).key], '-v']), file === undefined ? 'brain check' : null]) : [] }); // v.length was checked
+    { next: v.length ? nextList([nextCommand(['ticket', [(v[0] as (typeof v)[number]).key], '-v']), file === undefined ? 'plangraph check' : null]) : [] }); // v.length was checked
   if (!v.length) { ctx.io.out(`OK plan valid (${model.tickets.size} tickets)`); return 0; } // every ticket (unplaced sp: tasks included)
   for (const l of R.bound(v.map((x) => `${w(x.code)} ${w(x.key, 120)} ${dataText(x.detail, 1000)}`), { limit })) ctx.io.out(l);
   return 1;
 }
 
 // ---- definition of ready: may this ticket be started now? (the rules: lib/ready.ts, shared with blockers and report) ----
-// Bulk form: `brain ready --person NAME --sprint N` (either filter alone or both, no KEY). The same rules (lib/ready.ts readyScope over
+// Bulk form: `plangraph ready --person NAME --sprint N` (either filter alone or both, no KEY). The same rules (lib/ready.ts readyScope over
 // readySet), one answer: counts first, the ready keys (capped, -v more), each not-ready reason with a few example keys, the freshness note.
 // Exit 0 when at least one ticket may start, 1 when none (also when nothing is placed there). --json: every list (capped at 2000) and counts.
 const BULK = { ready: 25, readyV: 500, ex: 5, exV: 50, json: 2000 };
@@ -245,7 +245,7 @@ async function readyBulk(ctx: Ctx, args: Args<ReadyValues>, R: typeof import('..
   if (v.person !== undefined) {
     const W = await import('../../lib/whatif.ts');
     owner = W.resolvePerson(model, v.person);
-    if (owner === null) throw new BrainError('USAGE', '--person matches no single person in the plan (exact, case-insensitive or a unique first name)', sprintN === undefined ? {} : { hint: `\`brain sprint ${sprintN}\` lists its owners` });
+    if (owner === null) throw new PlangraphError('USAGE', '--person matches no single person in the plan (exact, case-insensitive or a unique first name)', sprintN === undefined ? {} : { hint: `\`plangraph sprint ${sprintN}\` lists its owners` });
   }
   const snap = v.jira !== undefined ? await loadJiraSnap((v.jira as string)) : null; // a string option
   const { items } = await readItems(ctx), s = R.readyScope(model, { owner, sprint: sprintN } as { owner?: string; sprint?: number }, items, snap); // a null owner threw above; readyScope destructures owner and sprint without defaults, so undefined reads as absent
@@ -315,19 +315,19 @@ async function ready(ctx: Ctx, args: Args<ReadyValues>): Promise<number> {
 }
 
 // ---- session card ----
-// Session-hook repair (`card --heal`): silent, never throws, never prompts. Only when the brain dir exists inside a git work tree,
+// Session-hook repair (`card --heal`): silent, never throws, never prompts. Only when the plan dir exists inside a git work tree,
 // and only when doctor sees a problem (including a driver.target left at an older plugin install), so a healthy setup is not rewritten.
 async function healMergeDriver(ctx: Ctx): Promise<void> {
   try {
     if (!fs.existsSync(ctx.dir)) return;
     if (makeGit(ctx.dir)('rev-parse', '--is-inside-work-tree').trim() !== 'true') return;
     const S = await import('../../lib/store.ts');
-    if (S.doctorMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), target: path.join(BIN, 'brain-merge') }).problems.length) await wireMergeDriver(ctx);
+    if (S.doctorMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), target: path.join(BIN, 'plangraph-merge') }).problems.length) await wireMergeDriver(ctx);
   } catch { /* the hook must never fail or print */ }
 }
 
-// One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Brain data only.
-/** The card line text (also compared by `brain doctor` with the line in OpenWolf's STATUS.md). */
+// One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Plan data only.
+/** The card line text (also compared by `plangraph doctor` with the line in OpenWolf's STATUS.md). */
 export async function cardLineText(ctx: Ctx): Promise<string> {
   needBrain(ctx);
   const { loadModel, CONFIG_MAX } = await import('../../lib/model.ts'), V = await import('../../lib/verify.ts');
@@ -339,13 +339,13 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && (s.sprint as number) > last) last = (s.sprint as number); // Number.isInteger is the check
-  return `brain: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`;
+  return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`;
 }
 async function cardLine(ctx: Ctx): Promise<number> { ctx.io.out(await cardLineText(ctx)); return 0; }
 
-// First-use nudge (hook only, no index): brain data is there but the card cannot be built, so ONE fixed line says what to run. Pure
+// First-use nudge (hook only, no index): plan data is there but the card cannot be built, so ONE fixed line says what to run. Pure
 // lstat/size checks (nothing is opened or read except format.json through readFormat's capped reader), no git, no write, no build, no
-// text from the data files (only the brain dir, which resolveBrainDir already confined and which is one sanitized line). Anything
+// text from the data files (only the plan dir, which resolveBrainDir already confined and which is one sanitized line). Anything
 // unsafe or odd (symlink, FIFO, directory, huge or unreadable file, bad or newer format.json, anything at the index path) returns null.
 async function firstUseLine(ctx: Ctx): Promise<string | null> {
   const { FormatError, FORMAT_FILE, checkFormat, readFormat } = await import('../../lib/store.ts'), { CONFIG_MAX } = await import('../../lib/model.ts');
@@ -362,17 +362,17 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
     if (f === 'config.json' || f === 'tickets.jsonl') data = true;
   }
   if (!data) return null;
-  const where = oneLine(rel(ctx, ctx.dir), 80), head = `brain: plan data found in ${where} but no index: run`;
-  try { checkFormat(ctx.dir); return `${head} brain build`; } catch (e) {
+  const where = oneLine(rel(ctx, ctx.dir), 80), head = `plangraph: plan data found in ${where} but no index: run`;
+  try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch (e) {
     if (!(e instanceof FormatError) || e.code !== 'NEEDS_MIGRATION') return null;
-    return `${head} brain migrate --write (format v${readFormat(ctx.dir).format_version}) then brain build`;
+    return `${head} plangraph migrate --write (format v${readFormat(ctx.dir).format_version}) then plangraph build`;
   }
 }
 
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values.heal) await healMergeDriver(ctx);
   // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card.
-  // Healing above still ran; a manual `brain card` is never affected.
+  // Healing above still ran; a manual `plangraph card` is never affected.
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
   if (args.values.line) return cardLine(ctx);
   const file = dbFile(ctx);

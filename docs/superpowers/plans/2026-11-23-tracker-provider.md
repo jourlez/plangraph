@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Tracker Provider and Tenant Alias Implementation Plan
 
 > **Superseded (2026-11-24):** executed as Tasks 17 to 19 of `docs/superpowers/plans/2026-11-24-zero-gaps-0.3.0.md`, which refresh this plan against 0.2.1 (module table, `Trust` brand, real type names, the hand-built-trust test replaced by a `bad_config` test). Where the two differ, the zero-gaps plan wins. Kept for history.

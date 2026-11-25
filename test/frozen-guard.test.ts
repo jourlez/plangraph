@@ -1,4 +1,4 @@
-// Review I1: `brain verify FILE` checks the file against the frozen tickets of the CURRENT schedule (FROZEN_MOVED), and `brain schedule-load`
+// Review I1: `plangraph verify FILE` checks the file against the frozen tickets of the CURRENT schedule (FROZEN_MOVED), and `plangraph schedule-load`
 // refuses (exit 4, nothing written) a schedule that moves or drops a frozen ticket: closed (Done, closed_statuses), frozen_statuses,
 // frozen_before_sprint. There is no override flag (docs/CONTRACT.md has none): unfreeze the ticket in the data first.
 import test, { before, after } from 'node:test';
@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 
-const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain');
+const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 let BASE = '', REPO = '';
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, ...GIT });
@@ -39,7 +39,7 @@ before(() => {
 });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });
 
-test('brain verify FILE reports FROZEN_MOVED for each frozen ticket the file moves or drops (closed, frozen_statuses, frozen_before_sprint)', () => {
+test('plangraph verify FILE reports FROZEN_MOVED for each frozen ticket the file moves or drops (closed, frozen_statuses, frozen_before_sprint)', () => {
   let r = run('verify', file({ 'F-1': ['Ana', 3] }));
   assert.deepEqual([r.status, r.stdout], [0, 'OK plan valid (4 tickets)\n']);
   r = run('verify', file({ 'D-1': ['Ben', 2], 'P-1': ['Ben', 4], 'O-1': null }));
@@ -47,7 +47,7 @@ test('brain verify FILE reports FROZEN_MOVED for each frozen ticket the file mov
   assert.equal(r.stdout, ['UNPLACED O-1 no valid owner/sprint', 'FROZEN_MOVED D-1 was Ana S2, now Ben S2', 'FROZEN_MOVED O-1 was Ana S1, now unplaced', 'FROZEN_MOVED P-1 was Ben S3, now Ben S4', ''].join('\n'));
 });
 
-test('brain schedule-load refuses a schedule that moves a frozen ticket: exit 4, fixed message, nothing written', () => {
+test('plangraph schedule-load refuses a schedule that moves a frozen ticket: exit 4, fixed message, nothing written', () => {
   for (const [over, want] of ([
     [{ 'D-1': ['Ben', 2] }, 'D-1'], [{ 'P-1': ['Ben', 4] }, 'P-1'], [{ 'O-1': null }, 'O-1'], [{ 'D-1': ['Ana', 3], 'O-1': ['Ana', 2] }, 'D-1 O-1'],
   ] as Array<[Record<string, [string, number] | null>, string]>)) {

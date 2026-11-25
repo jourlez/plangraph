@@ -1,6 +1,6 @@
 // evals/run-p.ts, evals/trace.ts and the prompt styles, offline (no model call). Trace fixtures in test/fixtures/evals-p/ are pilot #1
 // traces of `claude plugin eval` reduced to their event structure, with every ticket key, person, path and output replaced by invented
-// text: pilot-a-brain-127 (plugin arm: the whatif skill fired, every brain call exited 127, generic Bash denied), pilot-a-overload-heredoc
+// text: pilot-a-plangraph-127 (plugin arm: the whatif skill fired, every plangraph call exited 127, generic Bash denied), pilot-a-overload-heredoc
 // (plugin arm: a read-only python heredoc in a subagent that the native write regex flagged), pilot-b-lookup (bare arm lookup).
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,30 +28,30 @@ const tmps: string[] = [];
 const tmp = (p = 'evals-runp-'): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); tmps.push(d); return d; };
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 
-test('parseTrace: plugin arm of pilot #1 = skill fired, brain exited 127, a denied Bash; not counted as plugin use', () => {
-  const t = parseTrace(fx('pilot-a-brain-127.jsonl'));
+test('parseTrace: plugin arm of pilot #1 = skill fired, plangraph exited 127, a denied Bash; not counted as plugin use', () => {
+  const t = parseTrace(fx('pilot-a-plangraph-127.jsonl'));
   assert.equal(t.plugin.brainCalls, 1);
   assert.equal(t.plugin.brainRan, 0);
   assert.equal(t.plugin.brainNotFound, 1);
   assert.deepEqual(t.plugin.skills, ['plangraph:whatif']);
-  assert.equal(pluginUsed(t.plugin), false, 'a skill without a working brain is not plugin evidence');
+  assert.equal(pluginUsed(t.plugin), false, 'a skill without a working plangraph is not plugin evidence');
   assert.equal(t.denials, 1);
   assert.ok(t.init && t.init.plugins.length > 0);
   assert.equal((t.result as { turns: number }).turns, 11); // the pilot trace ends with a result event
   assert.ok((t.result as { cost: number }).cost > 0 && (t.result as { tokens: number }).tokens > 0); // same result event, with cost and tokens
   assert.match(t.message, /^ANSWER: \{"ok":false/m);
   assert.ok(t.calls.every((c) => typeof c.input === 'string'));
-  assert.equal((t.calls.find((c) => c.tool === 'Bash') as { input: string }).input.startsWith('brain ticket ZED-'), true, 'Bash input is the command (what input_match is written against)'); // the pilot trace has a Bash call
+  assert.equal((t.calls.find((c) => c.tool === 'Bash') as { input: string }).input.startsWith('plangraph ticket ZED-'), true, 'Bash input is the command (what input_match is written against)'); // the pilot trace has a Bash call
 });
 
-test('parseTrace: a brain call that ran counts as plugin use; denied and 127 calls do not; bad lines are skipped', () => {
+test('parseTrace: a plangraph call that ran counts as plugin use; denied and 127 calls do not; bad lines are skipped', () => {
   const ev = (o: unknown) => JSON.stringify(o);
   const lines = [
     'not json', '{"broken":', ev({ type: 'system', subtype: 'init', plugins: [{ name: 'plangraph' }], skills: [], tools: ['Bash'] }),
-    ev({ type: 'system', subtype: 'hook_response', hook_event: 'SessionStart', exit_code: 0, stdout: 'brain 1a2b | 60 tickets' }),
-    ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Bash', input: { command: 'cd plan && brain ready ZED-1' } }] } }),
+    ev({ type: 'system', subtype: 'hook_response', hook_event: 'SessionStart', exit_code: 0, stdout: 'plangraph 1a2b | 60 tickets' }),
+    ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'Bash', input: { command: 'cd plan && plangraph ready ZED-1' } }] } }),
     ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'a', content: [{ type: 'text', text: 'ZED-1 not ready: waits ZED-2' }], is_error: true }] } }),
-    ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'b', name: 'Bash', input: { command: 'brain chain ZED-1' } }] } }),
+    ev({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'b', name: 'Bash', input: { command: 'plangraph chain ZED-1' } }] } }),
     ev({ type: 'system', subtype: 'permission_denied', tool_use_id: 'b' }),
     ev({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'b', content: 'Tool use rejected', is_error: true }] } }), // only the permission_denied event says it was a denial
     ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'ANSWER: {"blockers":["ZED-2"]}' }] } }),
@@ -60,7 +60,7 @@ test('parseTrace: a brain call that ran counts as plugin use; denied and 127 cal
   assert.deepEqual([t.plugin.brainCalls, t.plugin.brainRan, t.plugin.loaded, t.denials], [2, 1, true, 1]);
   assert.deepEqual([t.plugin.card, t.plugin.toolCalls], [true, 2]);
   assert.equal(parseTrace(fx('pilot-b-lookup.jsonl')).plugin.card, false);
-  assert.equal(pluginUsed(t.plugin), true, 'exit 1 from brain (a verdict) still means brain ran');
+  assert.equal(pluginUsed(t.plugin), true, 'exit 1 from plangraph (a verdict) still means plangraph ran');
   assert.equal(t.result, null);
   assert.equal(t.message, 'ANSWER: {"blockers":["ZED-2"]}', 'without a result event the last assistant text is the message');
   assert.equal(callInput('Skill', { skill: 'whatif' }), '{"skill":"whatif"}');
@@ -88,7 +88,7 @@ test('gradeRun: bare-arm lookup trace scores the answer; with-only diagnostics a
   assert.equal(g.passed, true);
   assert.ok(!g.graders.some((x) => x.name.startsWith('diag-')));
   const a = gradeRun(c, t, { arm: 'with', files: [], fileTexts: {} });
-  assert.ok(a.graders.some((x) => x.name === 'diag-used-brain' && !x.scored), 'diagnostics are reported, not scored, in arm A');
+  assert.ok(a.graders.some((x) => x.name === 'diag-used-plangraph' && !x.scored), 'diagnostics are reported, not scored, in arm A');
   const wrong = gradeRun({ graders: answerGraders({ owner: 'Mira Holt', sprint: 5 }) }, t, { arm: 'without', files: [], fileTexts: {} });
   assert.ok(wrong.score < 1 && !wrong.passed);
 });
@@ -123,7 +123,7 @@ test('integrity: the hash diff sees edits, creations and deletions, ignores the 
   assert.ok(!grade(c, { message: '', files: ['plan/graph/plangraph.sqlite'] }).failed.includes('safe-no-new-files'));
 });
 
-test('claude command line: both arms identical except --plugin-dir; isolation flags present; brain is granted', () => {
+test('claude command line: both arms identical except --plugin-dir; isolation flags present; plangraph is granted', () => {
   const a = claudeArgs({ arm: 'with', model: 'claude-sonnet-5-5', budget: 0.8, pluginDir: '/tmp/p' }), b = claudeArgs({ arm: 'without', model: 'claude-sonnet-5-5', budget: 0.8, pluginDir: '/tmp/p' });
   assert.deepEqual(a.slice(0, b.length), b);
   assert.deepEqual(a.slice(b.length), ['--plugin-dir', '/tmp/p']);
@@ -134,11 +134,11 @@ test('claude command line: both arms identical except --plugin-dir; isolation fl
   assert.equal(v('--output-format'), 'stream-json');
   assert.equal(v('--max-budget-usd'), '0.80');
   assert.equal(v('--tools'), 'Read,Grep,Glob,Bash,Skill,Edit,Write');
-  assert.ok(v('--allowedTools').split(',').includes('Bash(brain:*)'));
+  assert.ok(v('--allowedTools').split(',').includes('Bash(plangraph:*)'));
   assert.ok(!ALLOWED.includes('Edit') && !ALLOWED.includes('Write'), 'Edit and Write are visible but never granted');
 });
 
-test('child environment: parent-session Claude variables and brain settings are dropped, auth kept, PATH entries with a brain binary removed', () => {
+test('child environment: parent-session Claude variables and plangraph settings are dropped, auth kept, PATH entries with a plangraph binary removed', () => {
   const e = childEnv({ PATH: '/usr/bin:/opt/brainbin:/bin', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 'x', CLAUDE_PLUGIN_ROOT: '/p', CLAUDE_CONFIG_DIR: '/c', CLAUDE_CODE_OAUTH_TOKEN: 't', ANTHROPIC_API_KEY: 'k', PLANGRAPH_CARD: 'off', HOME: '/h' }, { hasBrain: (d) => d === '/opt/brainbin' });
   assert.equal(e.PATH, '/usr/bin:/bin');
   for (const k of ['CLAUDECODE', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_PLUGIN_ROOT', 'PLANGRAPH_CARD']) assert.equal(e[k], undefined, k);
@@ -191,14 +191,14 @@ test('natural prompts: no file layout or rule text, same ANSWER contract and tru
     if (/"codes"/.test(c.prompt) && c.prompt.includes('Rules: a consumer')) assert.match(p, /PRODUCER_LATE, CONSUMER_EARLY, CAPACITY, OUT_OF_RANGE, STARTED/);
   }
   assert.throws(() => styledPrompt(cases[0], 'other', '.plangraph'));
-  // a real project's brain dir (any path) is stripped the same way
+  // a real project's plan dir (any path) is stripped the same way
   const files = Object.fromEntries(fs.readdirSync(path.join(root, 'evals/fixtures/M')).filter((n) => /\.jsonl$|config\.json$/.test(n)).map((n) => [n, fs.readFileSync(path.join(root, 'evals/fixtures/M', n), 'utf8')]));
   const built = buildFamilies({ prefix: 'x', size: 'R', seed: null, dir: 'docs/plan/graph', files, stale: null }, ['lookup', 'forecast-thin', 'whatif-yes', 'ready-no']).cases;
   assert.ok(built.length >= 3);
   for (const c of built) { const p = styledPrompt(c, 'natural', 'docs/plan/graph'); assert.ok(!p.includes('docs/plan/graph') && !/\.jsonl/.test(p), c.id); }
 });
 
-test('report over run-p results: natural is the headline block, plugin use is shown, a plugin arm that never ran brain is visible, a B leak is flagged', () => {
+test('report over run-p results: natural is the headline block, plugin use is shown, a plugin arm that never ran plangraph is visible, a B leak is flagged', () => {
   const suite = tmp('evals-runp-report-');
   const pick = [byId('m-lookup'), byId('m-reassign-safe')];
   fs.writeFileSync(path.join(suite, 'cases.json'), JSON.stringify(pick));
@@ -221,7 +221,7 @@ test('report over run-p results: natural is the headline block, plugin use is sh
   assert.deepEqual([s.postcheck.A.k, s.postcheck.A.n], [1, 1], 'post-checks read the stored message and suite/fixtures');
   const txt = render(s);
   assert.match(txt, /== prompt style: natural \(headline\) ==/);
-  assert.match(txt, /plugin used in arm A \(a brain call ran\): 1\/2 50%/);
+  assert.match(txt, /plugin used in arm A \(a plangraph call ran\): 1\/2 50%/);
   assert.match(txt, /not plugin evidence/);
   assert.match(txt, /LEAK/);
   assert.match(txt, /^family +n .* A used$/m);
@@ -239,7 +239,7 @@ test('scaffold: a git workspace with the plan, the merge driver wired and commit
   const st = spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' });
   assert.equal(st.stdout, '', 'the workspace is clean after the scaffold (index ignored, everything committed)');
   assert.match(fs.readFileSync(path.join(ws, '.gitattributes'), 'utf8'), /\.plangraph\/\*\.jsonl merge=/);
-  const card = spawnSync(process.execPath, [path.join(suite, 'plugin', 'bin', 'brain'), 'card', '--if-present', '--heal'], { cwd: ws, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data') } });
+  const card = spawnSync(process.execPath, [path.join(suite, 'plugin', 'bin', 'plangraph'), 'card', '--if-present', '--heal'], { cwd: ws, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data') } });
   assert.equal(card.status, 0);
   assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' }).stdout, '', 'the session hook finds nothing to heal: no file changes in arm A from the hook');
 });
@@ -256,6 +256,6 @@ test('CLI: paid modes need a cap; --out inside the repository is refused; --dry-
   assert.ok(!suite.startsWith(root));
   assert.match(r.stdout, /1 cases x 2 style\(s\) \[natural, layout-told\] x 2 arms x 1 runs = 4 runs/);
   assert.match(r.stdout, /--plugin-dir/);
-  assert.ok(fs.existsSync(path.join(suite, 'plugin', 'bin', 'brain')) && fs.existsSync(path.join(suite, 'fixtures', 'M', 'tickets.jsonl')));
+  assert.ok(fs.existsSync(path.join(suite, 'plugin', 'bin', 'plangraph')) && fs.existsSync(path.join(suite, 'fixtures', 'M', 'tickets.jsonl')));
   assert.equal(WRITE_BASH.length > 0, true);
 });

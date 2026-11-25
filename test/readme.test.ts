@@ -1,8 +1,8 @@
 // README truth checks: every claim here is compared with the code, the manifests or the CLI itself, so the README cannot drift silently.
-// Covered: every `brain X` the README names (inline or in a code block) is a registered command; every relative link target exists; every
+// Covered: every `plangraph X` the README names (inline or in a code block) is a registered command; every relative link target exists; every
 // in-page anchor matches a heading; the table of contents lists every section; the CI badge is exactly this repository's ci.yml badge;
 // the install commands use the names in plugin.json and marketplace.json; the Node and Claude Code minimums equal package.json and
-// plugin.json; the exit-code line is the one `brain explain` prints; every skill has a row in the Skills table; the userConfig option and
+// plugin.json; the exit-code line is the one `plangraph explain` prints; every skill has a row in the Skills table; the userConfig option and
 // its values are documented.
 // NOT covered: that the copied command output still matches what the commands print today (it was copied from a synthetic fixture), the
 // measured evaluation numbers (owner-run, data not in the repository), or how GitHub renders the page.
@@ -24,15 +24,15 @@ const pkg = JSON.parse(read('package.json'));
 /** GitHub's heading anchor: lowercase, punctuation dropped (hyphens and spaces kept), spaces to hyphens. */
 export const slug = (h: string): string => h.trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
 
-/** The command names after `brain ` in inline code and in code-block lines. */
+/** The command names after `plangraph ` in inline code and in code-block lines. */
 export function brainCommands(text: string): string[] {
   const out: string[] = [];
-  for (const m of text.matchAll(/`brain ([a-z][a-z-]*)/g)) out.push(m[1]);
+  for (const m of text.matchAll(/`plangraph ([a-z][a-z-]*)/g)) out.push(m[1]);
   let inBlock = false;
   for (const line of text.split('\n')) {
     if (/^\s*```/.test(line)) { inBlock = !inBlock; continue; }
     if (!inBlock) continue;
-    const m = /^\s*(?:\$\s+)?brain ([a-z][a-z-]*)/.exec(line);
+    const m = /^\s*(?:\$\s+)?plangraph ([a-z][a-z-]*)/.exec(line);
     if (m) out.push(m[1]);
   }
   return out;
@@ -40,12 +40,12 @@ export function brainCommands(text: string): string[] {
 
 const headings = () => [...readme.matchAll(/^(#{2,4}) (.+)$/gm)].map((m) => ({ level: m[1].length, text: m[2] }));
 
-test('every brain command the README names is a registered command, and the scan is not vacuous', () => {
+test('every plangraph command the README names is a registered command, and the scan is not vacuous', () => {
   const cmds = brainCommands(readme);
-  assert.ok(cmds.length > 50, `only ${cmds.length} brain commands found: the scan is broken`);
-  for (const c of cmds) assert.ok(registry.has(c), `README names brain ${c}, which is not a registered command`);
+  assert.ok(cmds.length > 50, `only ${cmds.length} plangraph commands found: the scan is broken`);
+  for (const c of cmds) assert.ok(registry.has(c), `README names plangraph ${c}, which is not a registered command`);
   // the scanner itself: a planted unknown command in a block and inline is found
-  assert.deepEqual(brainCommands('`brain nope x`\n```console\n$ brain zap\nbrain zip --y\n```\nbrain outside'), ['nope', 'zap', 'zip']);
+  assert.deepEqual(brainCommands('`plangraph nope x`\n```console\n$ plangraph zap\nplangraph zip --y\n```\nplangraph outside'), ['nope', 'zap', 'zip']);
 });
 
 test('every relative link target exists', () => {
@@ -64,7 +64,7 @@ test('every in-page anchor matches a heading, and the table of contents lists ev
     assert.ok(toc.includes(`(#${slug(h.text)})`), `the table of contents lacks ${h.text}`);
   }
   assert.equal(slug('What it does, and what it does not do'), 'what-it-does-and-what-it-does-not-do');
-  assert.equal(slug('`brain` and git'), 'brain-and-git');
+  assert.equal(slug('`plangraph` and git'), 'plangraph-and-git');
 });
 
 test('the CI badge is exactly this repository\'s ci.yml badge, linked to the workflow page', () => {
@@ -99,9 +99,9 @@ test('the Node and Claude Code minimums equal package.json and plugin.json', () 
   assert.ok(readme.includes(`Node older than ${node}`));
 });
 
-test('the exit-code line is the one brain explain prints, and the table has one row per code', () => {
+test('the exit-code line is the one plangraph explain prints, and the table has one row per code', () => {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-readme-data-')); // private data dir: the compile cache never goes to the real HOME
-  const r = spawnSync(process.execPath, [path.join(root, 'bin/brain'), 'explain'], { encoding: 'utf8', cwd: root, env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
+  const r = spawnSync(process.execPath, [path.join(root, 'bin/plangraph'), 'explain'], { encoding: 'utf8', cwd: root, env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
   fs.rmSync(data, { recursive: true, force: true });
   assert.equal(r.status, 0, r.stderr);
   const line = r.stdout.split('\n').find((l) => l.startsWith('exit: '));

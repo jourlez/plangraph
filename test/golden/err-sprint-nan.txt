@@ -1,6 +1,6 @@
-$ brain sprint abc
+$ plangraph sprint abc
 exit: 2
 --- stdout
 --- stderr
 error: sprint needs a whole number, got "abc"
-try: brain explain sprint
+try: plangraph explain sprint

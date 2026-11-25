@@ -1,5 +1,5 @@
 // In-process CLI runs for the stratified CLI properties: a throwaway repository (mkdtemp, a `.git` directory, `.plangraph/*.jsonl`) and
-// src/cli.ts main() with a captured io, which is the whole CLI except the bin/brain Node-floor shim (spawned separately on a few cases).
+// src/cli.ts main() with a captured io, which is the whole CLI except the bin/plangraph Node-floor shim (spawned separately on a few cases).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

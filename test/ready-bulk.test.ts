@@ -1,6 +1,6 @@
-// Bulk ready: `brain ready --person NAME --sprint N` (either filter alone or both, no KEY) answers "which of these tickets can start now"
+// Bulk ready: `plangraph ready --person NAME --sprint N` (either filter alone or both, no KEY) answers "which of these tickets can start now"
 // in ONE call, from the SHARED lib/ready.ts readySet (keys option), never a second implementation. Exact text, caps, -v, --json data,
-// exit codes, usage errors and the agreement with `brain ready KEY` on every ticket of the fixture are asserted here.
+// exit codes, usage errors and the agreement with `plangraph ready KEY` on every ticket of the fixture are asserted here.
 // Not covered here: the exhaustive small-scope agreement with the clean-room oracle (test/assure/ready.assure.ts, bulk family), hostile
 // names (test/hostile-fuzz.test.ts), the -v cap of 500 ready keys and the 2000-key cap of the --json lists (no fixture that large).
 import test, { before, after } from 'node:test';
@@ -12,7 +12,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { buildModel } from '../lib/model.ts';
 import { readySet, readyScope } from '../lib/ready.ts';
 
-const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/brain');
+const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE = '', REPO = '';
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
@@ -70,7 +70,7 @@ test('readyScope: placed tickets of the owner and/or sprint; every ticket counte
   assert.throws(() => readyScope(model(), {}), /owner or a sprint/);
 });
 
-test('brain ready --person --sprint: counts first, the ready keys, each not-ready reason with example keys, freshness; exit 0', () => {
+test('plangraph ready --person --sprint: counts first, the ready keys, each not-ready reason with example keys, freshness; exit 0', () => {
   const r = run('ready', '--person', 'Ana Diaz', '--sprint', '1');
   assert.equal(r.stderr, '');
   assert.equal(r.stdout, [
@@ -122,13 +122,13 @@ test('--json: the v2 envelope with the full structured lists and counts; next is
     ready: ['A-2'], done: ['A-1'], notReady: ['A-3', 'A-4', 'A-5', 'A-6'], waiting: ['A-3', 'A-6'],
     openItems: [{ key: 'A-5', kinds: ['gap'] }], verdict: [{ key: 'A-4', verdict: 'BLOCKED' }, { key: 'A-6', verdict: 'NEEDS_INFO' }], statuses: 'last build',
   });
-  assert.deepEqual(e.next, ['brain ticket A-2', 'brain ready A-3']);
+  assert.deepEqual(e.next, ['plangraph ticket A-2', 'plangraph ready A-3']);
   const all = JSON.parse(run('ready', '--sprint', '3', '--json').stdout);
   assert.equal(all.data.ready.length, 30, '--json is not capped like the text');
   assert.equal(all.data.person, null);
 });
 
-test('the bulk answer agrees with `brain ready KEY` on every placed ticket of the fixture', () => {
+test('the bulk answer agrees with `plangraph ready KEY` on every placed ticket of the fixture', () => {
   const bulk = new Set();
   for (const s of [1, 2, 3]) for (const k of JSON.parse(run('ready', '--sprint', String(s), '--json').stdout).data.ready) bulk.add(k);
   for (const { key } of SCHEDULE) assert.equal(run('ready', key).status === 0, bulk.has(key), key);
@@ -136,12 +136,12 @@ test('the bulk answer agrees with `brain ready KEY` on every placed ticket of th
 
 test('usage errors: KEY with a filter, no KEY and no filter, an unknown person, a bad sprint: exit 2 with a fixed message and a try line', () => {
   const cases: Array<[string[], string, string]> = [
-    [['ready', 'A-2', '--person', 'Ana'], 'error: ready takes a KEY or --person/--sprint, not both', 'try: brain explain ready'],
-    [['ready', 'A-2', '--sprint', '1'], 'error: ready takes a KEY or --person/--sprint, not both', 'try: brain explain ready'],
-    [['ready'], 'error: ready needs a KEY, or --person NAME and/or --sprint N', 'try: brain explain ready'],
-    [['ready', '--person', 'Zed\nINJECTED'], 'error: --person matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: brain explain ready'],
-    [['ready', '--person', 'Zed', '--sprint', '2'], 'error: --person matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: brain sprint 2'],
-    [['ready', '--person', 'Ana', '--sprint', 'x'], 'error: --sprint: expected an integer', 'try: brain explain ready'],
+    [['ready', 'A-2', '--person', 'Ana'], 'error: ready takes a KEY or --person/--sprint, not both', 'try: plangraph explain ready'],
+    [['ready', 'A-2', '--sprint', '1'], 'error: ready takes a KEY or --person/--sprint, not both', 'try: plangraph explain ready'],
+    [['ready'], 'error: ready needs a KEY, or --person NAME and/or --sprint N', 'try: plangraph explain ready'],
+    [['ready', '--person', 'Zed\nINJECTED'], 'error: --person matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: plangraph explain ready'],
+    [['ready', '--person', 'Zed', '--sprint', '2'], 'error: --person matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: plangraph sprint 2'],
+    [['ready', '--person', 'Ana', '--sprint', 'x'], 'error: --sprint: expected an integer', 'try: plangraph explain ready'],
   ];
   for (const [args, err, tryLine] of cases) {
     const r = run(...args);
@@ -149,7 +149,7 @@ test('usage errors: KEY with a filter, no KEY and no filter, an unknown person, 
   }
 });
 
-test('brain ready KEY is unchanged by the bulk options', () => {
+test('plangraph ready KEY is unchanged by the bulk options', () => {
   assert.equal(run('ready', 'A-2').stdout, `READY TO START A-2\n${FRESH}\n`);
   assert.equal(run('ready', 'A-3').status, 1);
 });

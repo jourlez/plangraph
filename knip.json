@@ -1,10 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6.48.0/schema.json",
   "entry": [
-    "bin/brain",
-    "bin/brain-merge",
+    "bin/plangraph",
+    "bin/plangraph-merge",
     "src/cli.ts",
-    "mcp/brain-mcp.ts",
+    "mcp/plangraph-mcp.ts",
     "scripts/*.ts",
     "evals/*.ts",
     "test/**/*.test.{mjs,ts}",
@@ -16,7 +16,7 @@
     "workflows/audit.workflow.js"
   ],
   "ignoreBinaries": [
-    // optional runtime for the Python solver: `brain doctor` probes for it and brain-solve-run falls back to a venv without it
+    // optional runtime for the Python solver: `plangraph doctor` probes for it and plangraph-solve-run falls back to a venv without it
     "uv"
   ]
 }

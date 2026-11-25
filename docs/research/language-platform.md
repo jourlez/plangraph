@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # plangraph: language and platform research and code audit
 
 Date: 2026-11-22. Machine: Node v24.18.0 (V8 13.6, ICU 78.3, undici 7.28, SQLite 3.53.1), macOS.

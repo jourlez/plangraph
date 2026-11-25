@@ -1,4 +1,4 @@
-$ brain open-items --reopen T-20 decision --write
+$ plangraph open-items --reopen T-20 decision --write
 exit: 0
 --- stdout
 open-items.jsonl and OPEN-ITEMS.md written (7 open)

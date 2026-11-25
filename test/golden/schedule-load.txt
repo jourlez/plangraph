@@ -1,7 +1,7 @@
-$ brain schedule-load new-schedule.json archive-a
+$ plangraph schedule-load new-schedule.json archive-a
 exit: 0
 --- stdout
-loaded as current; previous plan kept as archive-a; run `brain export` to save it as text
+loaded as current; previous plan kept as archive-a; run `plangraph export` to save it as text
 --- stderr
 --- file .plangraph/schedule.jsonl
 {"version":"current","key":"T-1","owner":"Ana","sprint":1}

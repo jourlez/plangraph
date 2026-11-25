@@ -32,141 +32,141 @@
   [
    [
     "error: bad <x> thing",
-    "try: brain explain"
+    "try: plangraph explain"
    ],
    [
     "error: bad <x> thing",
-    "try: brain explain stale"
+    "try: plangraph explain stale"
    ]
   ],
   [
    [
     "error: broken",
-    "try: brain build"
+    "try: plangraph build"
    ],
    [
     "error: broken",
-    "try: brain build"
+    "try: plangraph build"
    ]
   ],
   [
    [
     "error: no index",
-    "try: brain build"
+    "try: plangraph build"
    ],
    [
     "error: no index",
-    "try: brain build"
+    "try: plangraph build"
    ]
   ],
   [
    [
     "error: no node",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: no node",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: outside",
-    "try: brain explain"
+    "try: plangraph explain"
    ],
    [
     "error: outside",
-    "try: brain explain stale"
+    "try: plangraph explain stale"
    ]
   ],
   [
    [
     "error: odd",
-    "try: brain explain"
+    "try: plangraph explain"
    ],
    [
     "error: odd",
-    "try: brain explain stale"
+    "try: plangraph explain stale"
    ]
   ],
   [
    [
     "error: internal error: x",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: x",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: y",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: y",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: z",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: z",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: t",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: t",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: string error",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: string error",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: null",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: null",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: internal error: fmt",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: internal error: fmt",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ],
   [
    [
     "error: i",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ],
    [
     "error: i",
-    "try: brain doctor"
+    "try: plangraph doctor"
    ]
   ]
  ],
@@ -177,7 +177,7 @@
    "USAGE": 2,
    "DATA": 2,
    "NO_INDEX": 2,
-   "NO_BRAIN": 2,
+   "NO_PLANGRAPH": 2,
    "STALE": 2,
    "ENV": 3,
    "REFUSED": 4,
@@ -231,7 +231,7 @@
  "floor": [
   "24.2",
   "try: install Node 24.2 or newer",
-  "brain needs Node >= 24.2 (found v1.2.3v1.2.3v1.2.3v1); it uses node:sqlite and current ES features",
+  "plangraph needs Node >= 24.2 (found v1.2.3v1.2.3v1.2.3v1); it uses node:sqlite and current ES features",
   [
    true,
    false,
@@ -367,7 +367,7 @@
       {
        "name": "ready",
        "title": "May this ticket start now?",
-       "description": "Definition of ready for one ticket: READY TO START, DONE (its own status is closed), or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `brain ready KEY`.",
+       "description": "Definition of ready for one ticket: READY TO START, DONE (its own status is closed), or NOT READY with reasons (verdict, open items, unfinished producers). Same text as `plangraph ready KEY`.",
        "inputSchema": {
         "type": "object",
         "properties": {
@@ -395,7 +395,7 @@
       {
        "name": "whatif",
        "title": "Dry run of a move",
-       "description": "Dry run of reassigning a ticket (to) or moving it to a sprint: OK, or NO with the broken rules and a repair. Never changes anything. Same text as `brain whatif KEY`.",
+       "description": "Dry run of reassigning a ticket (to) or moving it to a sprint: OK, or NO with the broken rules and a repair. Never changes anything. Same text as `plangraph whatif KEY`.",
        "inputSchema": {
         "type": "object",
         "properties": {
@@ -445,7 +445,7 @@
       {
        "name": "ticket",
        "title": "One ticket",
-       "description": "One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `brain ticket KEY`.",
+       "description": "One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `plangraph ticket KEY`.",
        "inputSchema": {
         "type": "object",
         "properties": {
@@ -659,7 +659,7 @@
   [
    "",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "expected at least 1 argument, got 0",
     "code": "USAGE"
    }
@@ -667,7 +667,7 @@
   [
    "a b c",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "expected at most 2 arguments, got 3",
     "code": "USAGE"
    }
@@ -686,7 +686,7 @@
   [
    "a --n 0",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--n: must be between 1 and 9",
     "code": "USAGE"
    }
@@ -694,7 +694,7 @@
   [
    "a --n 10",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--n: must be between 1 and 9",
     "code": "USAGE"
    }
@@ -702,7 +702,7 @@
   [
    "a --n 1.5",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--n: expected an integer",
     "code": "USAGE"
    }
@@ -710,7 +710,7 @@
   [
    "a --n -0",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "Option '--n' argument is ambiguous. Did you forget to specify the option argument for '--n'? To specify an option argument starting with a dash use '--n=-XYZ'.",
     "code": "USAGE"
    }
@@ -718,7 +718,7 @@
   [
    "a --x -2.5",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "Option '--x' argument is ambiguous. Did you forget to specify the option argument for '--x'? To specify an option argument starting with a dash use '--x=-XYZ'.",
     "code": "USAGE"
    }
@@ -726,7 +726,7 @@
   [
    "a --x 1e3",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--x: expected a number",
     "code": "USAGE"
    }
@@ -734,7 +734,7 @@
   [
    "a --x  1",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--x: expected a number",
     "code": "USAGE"
    }
@@ -742,7 +742,7 @@
   [
    "a --x +1",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--x: expected a number",
     "code": "USAGE"
    }
@@ -750,7 +750,7 @@
   [
    "a --x 11111111111111111111111111111111111111111",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--x: expected a number",
     "code": "USAGE"
    }
@@ -758,7 +758,7 @@
   [
    "a --x 9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--x: expected a number",
     "code": "USAGE"
    }
@@ -766,7 +766,7 @@
   [
    "a --n 99999999999999999",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--n: expected an integer",
     "code": "USAGE"
    }
@@ -807,7 +807,7 @@
   [
    "a --b=yes",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "Option '--b' does not take an argument",
     "code": "USAGE"
    }
@@ -815,7 +815,7 @@
   [
    "a --s",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "Option '-s, --s ?value?' argument missing",
     "code": "USAGE"
    }
@@ -837,7 +837,7 @@
   [
    "a --many 1 --many z",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "--many: expected an integer",
     "code": "USAGE"
    }
@@ -845,7 +845,7 @@
   [
    "a --req",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "needs a value for --req",
     "code": "USAGE"
    }
@@ -853,7 +853,7 @@
   [
    "a --req -x",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "needs a value for --req",
     "code": "USAGE"
    }
@@ -883,7 +883,7 @@
   [
    "a --nn 3",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "unknown option --nn; did you mean --n?",
     "code": "USAGE"
    }
@@ -891,7 +891,7 @@
   [
    "a --zzz",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "unknown option --zzz",
     "code": "USAGE"
    }
@@ -899,7 +899,7 @@
   [
    "a --qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "unknown option --qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq…[+22 chars]",
     "code": "USAGE"
    }
@@ -907,7 +907,7 @@
   [
    "a -z",
    {
-    "(error)": "BrainError",
+    "(error)": "PlangraphError",
     "message": "unknown option -z",
     "code": "USAGE"
    }
@@ -973,17 +973,17 @@
    "positionals": []
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 0 arguments, got 1",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 0 arguments, got 3",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 1 argument, got 0",
    "code": "USAGE"
   },
@@ -994,22 +994,22 @@
    ]
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 1 argument, got 3",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 2 arguments, got 0",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 2 arguments, got 1",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected 2 arguments, got 3",
    "code": "USAGE"
   },
@@ -1024,17 +1024,17 @@
    ]
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected at most 1 argument, got 3",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected at least 2 arguments, got 0",
    "code": "USAGE"
   },
   {
-   "(error)": "BrainError",
+   "(error)": "PlangraphError",
    "message": "expected at least 2 arguments, got 1",
    "code": "USAGE"
   },
@@ -1201,60 +1201,60 @@
  ],
  "try-of": [
   [
-   "brain explain",
-   "brain explain ready"
+   "plangraph explain",
+   "plangraph explain ready"
   ],
   [
-   "brain build",
-   "brain build"
+   "plangraph build",
+   "plangraph build"
   ],
   [
-   "brain build",
-   "brain build"
+   "plangraph build",
+   "plangraph build"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain explain",
-   "brain explain ready"
+   "plangraph explain",
+   "plangraph explain ready"
   ],
   [
-   "brain explain",
-   "brain explain ready"
+   "plangraph explain",
+   "plangraph explain ready"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ],
   [
-   "brain doctor",
-   "brain doctor"
+   "plangraph doctor",
+   "plangraph doctor"
   ]
  ]
 }

@@ -79,7 +79,7 @@ test('worked: STARTED (Done hard stop, In Progress warns unless strict)', () => 
   const w = whatif(m, { key: 'W1', sprint: 4 });
   assert.equal(w.ok, true); assert.equal(w.started, true); assert.equal(w.reasons[0].code, 'STARTED'); assert.equal(w.reasons[0].warn, true);
   assert.equal(whatif(m, { key: 'W1', sprint: 4 }, { strict: true }).ok, false);
-  // review M2: `brain init` writes frozen_statuses ["Done"]; In Progress still warns (it was silenced before)
+  // review M2: `plangraph init` writes frozen_statuses ["Done"]; In Progress still warns (it was silenced before)
   const m2 = world({ frozen_statuses: ['Done'] }), w2 = whatif(m2, { key: 'W1', sprint: 4 });
   assert.deepEqual([w2.ok, w2.started, w2.reasons[0].code, w2.reasons[0].warn], [true, true, 'STARTED', true]);
 });
@@ -373,7 +373,7 @@ test('person names: a unique first name resolves, an ambiguous one is not guesse
   assert.equal(whatif(uniq, { key: 'P-2', to: 'Zed', sprint: 2 }).reasons.some((r) => r.code === 'UNKNOWN_PERSON'), true);
 });
 
-// Review I1: `frozen_statuses: []` (what `brain init` wrote) pinned nothing, so a repair shifted a Done consumer. Done and config.closed_statuses
+// Review I1: `frozen_statuses: []` (what `plangraph init` wrote) pinned nothing, so a repair shifted a Done consumer. Done and config.closed_statuses
 // are always pinned, whatever frozen_statuses says; a requested ticket in a closed status is a hard STARTED stop like Done.
 test('regression: Done and closed_statuses tickets are always pinned, even with frozen_statuses []', () => {
   const mk = (st: string, extra: PlanConfig = {}) => buildModel({

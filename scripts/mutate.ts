@@ -65,7 +65,7 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ['lib/store.ts', 'if (stealStale(lockPath, staleMs, onStealDecision)) continue;', 'if (!stealStale(lockPath, staleMs, onStealDecision)) continue;', ['test/lock-bound.test.ts']],
   ['lib/store.ts', '      if (i >= retries) throw locked();\n      sleepMs(waitMs);', '      sleepMs(waitMs);', ['test/lock-bound.test.ts']],
   // limitations wave: index content digest, swap races, 0-SP capacity, stale driver target
-  ['src/db.ts', 'if (got !== want) throw new BrainError', 'if (got !== want && false) throw new BrainError', ['test/index-integrity.test.ts']],
+  ['src/db.ts', 'if (got !== want) throw new PlangraphError', 'if (got !== want && false) throw new PlangraphError', ['test/index-integrity.test.ts']],
   ['lib/jsonl.ts', 'if (pre && (st.dev !== pre.dev || st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'if (false) throw', ['test/toctou-race.test.ts']],
   ['lib/jsonl.ts', 'st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'st.ino !== pre.ino)) throw', ['test/toctou-race.test.ts']],
   ['src/db.ts', 'mine = fs.fstatSync(tfd); }', 'mine = fs.fstatSync(tfd); fs.closeSync(tfd); }', ['test/toctou-race.test.ts']],
@@ -81,7 +81,7 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ['lib/report.ts', 'over: c.sp > capOf(model.config, c.owner)', 'over: c.sp >= capOf(model.config, c.owner)', ['test/report.test.ts']],
   ['lib/report.ts', '(d === depth.get(v) && cmp(u, prev.get(v)) < 0)', '(d === depth.get(v) && cmp(u, prev.get(v)) > 0)', ['test/report.test.ts']],
   ['lib/ready.ts', '  if (done) return { found: true, ready: false, done, reasons: [] };', '', ['test/ready.test.ts', 'test/report.test.ts']],
-  // bulk ready (`brain ready --person/--sprint`): the scope filter, the verdict group, the cap marker and the exit code
+  // bulk ready (`plangraph ready --person/--sprint`): the scope filter, the verdict group, the cap marker and the exit code
   ['lib/ready.ts', '(owner === undefined || s.owner === owner)', '(owner === undefined || s.owner !== undefined)', ['test/ready-bulk.test.ts', 'test/assure.test.ts']],
   ['lib/ready.ts', "    if (r.reasons.some((x) => x.code === 'VERDICT')) verdict.push(key);", '', ['test/ready-bulk.test.ts', 'test/assure.test.ts']],
   ['src/commands/queries.ts', '`${ks.slice(0, n).map(', '`${ks.slice(0).map(', ['test/ready-bulk.test.ts']],

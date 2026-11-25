@@ -1,0 +1,1209 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10,<3.15"
+# dependencies = ["ortools==9.15.6755"]
+# ///
+"""Sprint-assignment solver (OR-Tools CP-SAT) for the plangraph plan store. No Jira access, no model calls.
+
+  plangraph-solve-run --out schedule.json [--end 14] [--time 400] [--workers 10] [--seed 1] [--deterministic]
+                  [--baseline current|v2|<archive>] [--freeze K1,K2] [--freeze-file f.json] [--jsonl-dir DIR] [--lns] [--decompose]
+  plangraph schedule-load schedule.json <archive-name>
+
+Strict handoff rule: sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0).
+Stages (lexicographic, each later stage keeps the optimum of the earlier ones as a constraint):
+  1 end sprint, 2 shortfall below min_per_sprint, 3 load of minimize_load_of (or peak load with --balance), 4 owner changes vs baseline;
+  config stage_order reorders them (e.g. owner_changes before load_of). --out holds the best verified schedule while the solver runs.
+Status is honest: OPTIMAL only when every stage was proved; FEASIBLE otherwise (gap and bound reported); INFEASIBLE; UNKNOWN; MODEL_INVALID.
+Exit codes: 0 ok (proved, or feasible within the target end sprint), 1 infeasible, 2 usage / invalid model, 3 solver not installed,
+4 target end sprint missed (schedule still written), 5 unknown (no schedule found), 6 independent verifier rejected the result (nothing written).
+Output: --out is the JSON array [{item, owner, sprint}] that `plangraph schedule-load` reads; metadata goes to <out>.meta.json
+(or into {"schedule":..., "meta":...} with --format object).
+"""
+import argparse, copy, errno, hashlib, heapq, io, json, math, os, random, re, sqlite3, stat, subprocess, sys, tempfile, threading, time, urllib.parse
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
+
+EXIT = {'ok': 0, 'infeasible': 1, 'usage': 2, 'no_solver': 3, 'target': 4, 'unknown': 5, 'verify': 6}
+PIN = 'ortools==9.15.6755'
+STAGES = ('end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes')   # default lexicographic order (stages that do not apply are dropped)
+LNS_FREE = 0.2          # --lns frees 20% of the free tickets per round and fixes the rest to the incumbent
+LNS_ROUND_S = 5.0       # time (or deterministic time) per --lns round
+DECOMPOSE_GROUP = 50    # --decompose: consecutive small components are merged until a group has at least this many tickets
+MAX_PLACES = 4          # story points, caps and min_per_sprint: at most this many decimal places (scaled to exact integers)
+MAX_UNITS = 10 ** 9     # story points, caps and min_per_sprint: at most this after scaling (CP-SAT gets small exact integers, sums stay in int64)
+MAX_SPRINT = 10 ** 6    # first_sprint, end_sprint (--end), frozen_before_sprint: whole numbers within +-this (as lib/verify.ts bounds first_sprint)
+SCALED = ('shortfall', 'load_of', 'peak_load')   # stage values in story points (reported unscaled)
+SNAP_CAP = 64 << 20     # an existing --out larger than this is not snapshotted, and anytime writes are then off
+
+
+class Fail(Exception):
+    def __init__(self, status, msg, code):
+        super().__init__(msg); self.status, self.msg, self.code = status, msg, code
+
+
+def invalid(msg): return Fail('MODEL_INVALID', msg, EXIT['usage'])
+
+
+# ----------------------------------------------------------------------------------------------------------------- input
+def repo_root():
+    try: root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], stderr=subprocess.DEVNULL).decode().strip()
+    except Exception: root = os.getcwd()
+    return os.path.realpath(root)
+
+
+def inside(root, path):
+    try: return os.path.commonpath([root, path]) == root
+    except ValueError: return False
+
+
+def confine(path):
+    """Resolve a directory and require it to sit inside the repository root (cwd's git toplevel, else cwd)."""
+    real = os.path.realpath(path)
+    if not inside(repo_root(), real): raise Fail('MODEL_INVALID', 'directory outside the repository', EXIT['usage'])
+    return real
+
+
+def brain_dir():
+    root = repo_root()
+    if os.environ.get('PLANGRAPH_DIR'): return confine(os.path.join(root, os.environ['PLANGRAPH_DIR']))
+    rc = os.path.join(root, '.plangraphrc')
+    if os.path.exists(rc): return confine(os.path.join(root, json.load(open(rc))['dir']))
+    return confine(os.path.join(root, '.plangraph'))
+
+
+def check_out(path):
+    """--out must not be a symlink and its parent directory must resolve inside the repository root."""
+    if os.path.islink(path): raise Fail('MODEL_INVALID', 'refusing to write through a symlink', EXIT['usage'])
+    if not inside(repo_root(), os.path.realpath(os.path.dirname(os.path.abspath(path)))):
+        raise Fail('MODEL_INVALID', 'directory outside the repository', EXIT['usage'])
+
+
+def shown(v):
+    """A config/CLI value as it may be echoed in an error: at most 40 characters, control characters replaced by `?`."""
+    return ''.join('?' if (ord(c) < 32 or 127 <= ord(c) < 160) else c for c in str(v)[:40])
+
+
+def clamp_limits(a, cfg, clamped):
+    """Workers to [1, 32] and time to [0, 3600] s (0 stays a real value; -0 becomes 0.0); record each change in `clamped`.
+    NaN, non-numbers, booleans and fractional workers exit 2; +-inf and integers too large for a float clamp to the bounds."""
+    def num(v, label, whole=False):
+        if isinstance(v, bool): raise Fail('MODEL_INVALID', f"{label} must be a number, got '{shown(v)}'", EXIT['usage'])
+        try: f = float(v)
+        except OverflowError:
+            if not isinstance(v, int): raise Fail('MODEL_INVALID', f"{label} must be a number, got '{shown(v)}'", EXIT['usage'])
+            f = math.inf if v > 0 else -math.inf  # an absurdly large integer is just "beyond the bound"
+        except (TypeError, ValueError): raise Fail('MODEL_INVALID', f"{label} must be a number, got '{shown(v)}'", EXIT['usage'])
+        if math.isnan(f): raise Fail('MODEL_INVALID', f'{label} must be a finite number', EXIT['usage'])
+        if whole and math.isfinite(f) and f != math.floor(f): raise Fail('MODEL_INVALID', f'{label} must be a whole number', EXIT['usage'])
+        return f
+    w = num(a.workers, '--workers', True) if a.workers is not None else num(cfg.get('workers', 8), 'workers', True)
+    t = num(a.time, '--time') if a.time is not None else num(cfg.get('time_limit_seconds', 60), 'time_limit_seconds')
+    w2, t2 = min(max(w, 1.0), 32.0), min(max(t, 0.0), 3600.0)
+    if t2 == 0: t2 = 0.0  # max(-0.0, 0.0) keeps -0.0, which would be written as "-0.0"
+    if w2 != w: clamped.append('workers')
+    if t2 != t: clamped.append('time')
+    return int(w2), t2
+
+
+DATA_CAP = 64 << 20     # a JSONL or config file larger than this is refused (as lib/jsonl.ts readDataCapped caps the plan data files)
+
+
+def read_capped(path, follow=False, cap=None):
+    """A data file's text, or None when it is missing. As lib/jsonl.ts readCapped: lstat (follow=False refuses a symlink), open with
+    O_NONBLOCK (a FIFO never blocks) and O_NOFOLLOW, fstat must be a regular file (with follow=False: the lstat's device, inode and ctime),
+    read at most `cap` (default DATA_CAP) bytes. Errors name the file by its base name only."""
+    cap = DATA_CAP if cap is None else cap
+    base = os.path.basename(path)
+    try: pre = os.stat(path) if follow else os.lstat(path)
+    except FileNotFoundError: return None
+    if stat.S_ISLNK(pre.st_mode): raise invalid(f'{base}: is a symlink, not a regular file')
+    flags = os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | (0 if follow else getattr(os, 'O_NOFOLLOW', 0))
+    try: fd = os.open(path, flags)
+    except OSError as e:
+        if e.errno == errno.ELOOP: raise invalid(f'{base}: is a symlink, not a regular file')
+        raise
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode): raise invalid(f'{base}: not a regular file')
+        if not follow and (st.st_dev, st.st_ino, st.st_ctime_ns) != (pre.st_dev, pre.st_ino, pre.st_ctime_ns):
+            raise invalid(f'{base}: file was replaced while it was opened')
+        chunks, total = [], 0
+        while True:
+            b = os.read(fd, 65536)
+            if not b: break
+            total += len(b)
+            if total > cap: raise invalid(f'{base}: file too large (limit {cap} bytes)')
+            chunks.append(b)
+    finally: os.close(fd)
+    return b''.join(chunks).decode('utf8')
+
+
+def read_jsonl(path):
+    text = read_capped(path)
+    if text is None: return []
+    out = []
+    for n, line in enumerate(io.StringIO(text, newline=None), 1):   # the same line splitting as open() in text mode
+        if line.strip():
+            try: out.append(json.loads(line))
+            except ValueError as e: raise invalid(f'{os.path.basename(path)}:{n}: {e}')
+    return out
+
+
+# ---- the index: the same guards as src/db.ts openIndex (kept in sync by test/plangraph-solve-input.test.ts) ----
+# [table, columns, primary key] in src/db.ts TABLES order (the columns are lib/store.ts SCHEMAS[file].order; `extra` is appended).
+INDEX_TABLES = {
+    'ticket': (('key', 'summary', 'epic', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'verdict', 'verdict_source', 'first_verdict', 'impl_status'), ('key',)),
+    'schedule': (('version', 'key', 'owner', 'sprint'), ('version', 'key')),
+    'edge': (('consumer', 'producer', 'kind', 'note'), ('consumer', 'producer')),
+    'evidence': (('key', 'source', 'verdict', 'resolution', 'needs'), ()),
+    'finding': (('key', 'kind', 'text'), ()),
+    'meta': (('k', 'v'), ('k',)),
+    'learning': (('id', 'kind', 'topic', 'text', 'why', 'source'), ('id',)),
+    'ref': (('key', 'plans', 'files', 'fp_files', 'jira_updated', 'audited_at'), ('key',)),
+}
+EXPECTED_COLUMNS = {**{t: ','.join(cols + ('extra',)) for t, (cols, _) in INDEX_TABLES.items()}, 'index_meta': 'k,v'}
+EXPECTED_INDEXES = {'edge_p': 'edge', 'ev_k': 'evidence'}
+SIDECARS = ('-journal', '-wal', '-shm')
+CONTENT_KEY = 'content_digest'
+
+
+def index_order(t):
+    """Canonical digest order of a table, as src/db.ts: the primary key, then every other column (extra included)."""
+    cols, pk = INDEX_TABLES[t]
+    return ','.join(pk + tuple(c for c in cols + ('extra',) if c not in pk))
+
+
+def schema_ok(db):
+    """src/db.ts schemaOk: only the tables, columns and indexes `plangraph build` writes; no view, trigger, virtual table or hidden column."""
+    tables = set()
+    for typ, name, tbl, sql in db.execute('SELECT type, name, tbl_name, sql FROM sqlite_master'):
+        if typ == 'table':
+            if name not in EXPECTED_COLUMNS or name != tbl or not isinstance(sql, str) or VIRTUAL_RE.match(sql): return False
+            tables.add(name)
+        elif typ == 'index':
+            auto = isinstance(name, str) and name.startswith(f'sqlite_autoindex_{tbl}_') and sql is None
+            if not (tbl in EXPECTED_COLUMNS if auto else EXPECTED_INDEXES.get(name) == tbl): return False
+        else: return False   # view, trigger, anything else
+    if any(t not in tables for t in INDEX_TABLES): return False
+    for t in tables:
+        info = list(db.execute('SELECT name, hidden FROM pragma_table_xinfo(?)', (t,)))
+        if any(h != 0 for _, h in info) or ','.join(n for n, _ in info) != EXPECTED_COLUMNS[t]: return False
+    return True
+
+
+VIRTUAL_RE = re.compile(r'\s*CREATE\s+VIRTUAL\b', re.I)
+
+
+def content_digest(db):
+    """src/db.ts contentDigest: sha256 over each table's name and its rows as SQLite json_array text in canonical order, then index_meta
+    without the digest row. The JSON text comes from SQLite itself, so it is the same bytes the CLI hashed."""
+    h = hashlib.sha256()
+    def feed(name, sql, args):
+        h.update(name.encode() + b'\0')
+        for (row,) in db.execute(sql, args): h.update(row.encode('utf8') + b'\n')
+    for t, (cols, _) in INDEX_TABLES.items():
+        feed(t, f"SELECT json_array({','.join(cols + ('extra',))}) FROM {t} ORDER BY {index_order(t)}", ())
+    feed('index_meta', 'SELECT json_array(k, v) FROM index_meta WHERE k <> ? ORDER BY k, v', (CONTENT_KEY,))
+    return h.hexdigest()
+
+
+def open_index(dbp):
+    """Open the index READ-ONLY with src/db.ts openIndex's guards: a regular file (never a symlink or FIFO; checked by our own non-blocking,
+    non-following open), no SQLite sidecar beside it (a hot journal would be replayed by a read-write open), the schema allowlist, and the
+    content digest. Residual, as in openIndex: SQLite opens the path again after the check."""
+    def refuse(what): return invalid(f'{what}: run `plangraph build`')
+    try: pre = os.lstat(dbp)
+    except FileNotFoundError: raise invalid('index not found (run `plangraph build`)')
+    if stat.S_ISLNK(pre.st_mode): raise refuse('the index is a symlink, not a regular file')
+    if not stat.S_ISREG(pre.st_mode): raise refuse('the index is not a regular file')
+    try: fd = os.open(dbp, os.O_RDONLY | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0))
+    except OSError as e: raise refuse('the index is a symlink, not a regular file' if e.errno == errno.ELOOP else 'the index is not a readable SQLite database')
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or (st.st_dev, st.st_ino) != (pre.st_dev, pre.st_ino): raise refuse('the index is not a regular file')
+    finally: os.close(fd)
+    for s in SIDECARS:
+        if os.path.lexists(dbp + s): raise refuse(f'the index has a SQLite journal file beside it ({os.path.basename(dbp) + s}); it is never replayed')
+    try:
+        db = sqlite3.connect(f'file:{urllib.parse.quote(os.path.abspath(dbp))}?mode=ro', uri=True)
+        db.execute('PRAGMA query_only = ON'); db.execute('SELECT COUNT(*) FROM sqlite_master').fetchone()
+    except sqlite3.Error: raise refuse('the index is not a readable SQLite database')
+    try:
+        try: good = schema_ok(db)
+        except sqlite3.Error: good = False
+        if not good: raise refuse('the index has an unexpected schema (not built by plangraph build)')
+        row = db.execute('SELECT v FROM index_meta WHERE k = ?', (CONTENT_KEY,)).fetchone() if 'index_meta' in {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")} else None
+        if row is None: raise refuse('the index has no integrity digest (built by an older plangraph)')
+        try: got = content_digest(db)
+        except (sqlite3.Error, AttributeError): got = None
+        if got != row[0]: raise refuse('the index content does not match its integrity digest (it was edited outside plangraph)')
+    except BaseException:
+        db.close(); raise
+    return db
+
+
+def load_raw(a):
+    """-> (tickets: list of dict, edges: list of (consumer, producer, kind), sched: {version: {key: (owner, sprint)}}, cfg)"""
+    if a.jsonl_dir:
+        d = confine(a.jsonl_dir)
+        cfgp = a.config or os.path.join(d, 'config.json')
+        tickets = read_jsonl(os.path.join(d, 'tickets.jsonl'))
+        edges = [(e['consumer'], e['producer'], e.get('kind', '')) for e in read_jsonl(os.path.join(d, 'edges.jsonl'))]
+        sched = {}
+        for r in read_jsonl(os.path.join(d, 'schedule.jsonl')):
+            sched.setdefault(r.get('version', 'current'), {})[r['key']] = (r['owner'], r['sprint'])
+    else:
+        bd = None if (a.db and a.config) else brain_dir()
+        dbp = a.db or os.path.join(bd, 'plangraph.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
+        db = open_index(dbp)
+        try:
+            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status'), r)) for r in
+                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint, impl_status FROM ticket ORDER BY key')]
+            edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
+            sched = {}
+            for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
+        finally: db.close()
+    # a --config named on the command line may be a symlink (as other files a person names); the plan dir's own config.json may not
+    text = read_capped(cfgp, follow=bool(a.config))
+    if text is None: raise invalid(f'config not found: {cfgp}')
+    return tickets, edges, sched, json.loads(text)
+
+
+class Problem: pass
+
+
+NUM_MSG = f'story points, caps and min_per_sprint must be numbers with at most {MAX_PLACES} decimal places'
+
+
+def dec(v):
+    """An exact Decimal for a story-point-like value (int, float as written in JSON, numeric string); booleans, NaN, inf and other types fail."""
+    if isinstance(v, bool) or not isinstance(v, (int, float, str)): raise invalid(NUM_MSG)
+    try: d = Decimal(repr(v)) if isinstance(v, float) else Decimal(v)
+    except (InvalidOperation, ValueError): raise invalid(NUM_MSG)
+    if not d.is_finite(): raise invalid(NUM_MSG)
+    return d
+
+
+def scale_of(ds):
+    """Smallest power of ten F such that every Decimal in ds times F is a whole number; more than MAX_PLACES places is invalid."""
+    places = 0
+    for d in ds:
+        e = d.normalize().as_tuple().exponent
+        if isinstance(e, int) and e < 0: places = max(places, -e)
+    if places > MAX_PLACES: raise invalid(NUM_MSG)
+    return 10 ** places
+
+
+UNITS_MSG = f'story points, caps and min_per_sprint must be at most {MAX_UNITS} after scaling to whole numbers'
+
+
+def sprint_num(v, name):
+    """A sprint number from config or --end: a whole number (an int, not a boolean or a float or a string) within +-MAX_SPRINT."""
+    if isinstance(v, bool) or not isinstance(v, int) or abs(v) > MAX_SPRINT:
+        raise invalid(f'{name} must be a whole number from -{MAX_SPRINT} to {MAX_SPRINT}')
+    return v
+
+
+def us(pr, v):
+    """A scaled story-point value back in story points: unchanged (an int) when nothing was scaled."""
+    return v if v is None or pr.F == 1 else float(Fraction(v, pr.F))
+
+
+def over(load, cap, nd):
+    """Capacity rule on scaled integers. `plangraph verify` sums story points as binary floats, so a cell holding a story point that is not
+    exactly a binary float (0.1, 2.6) may round above an exact tie (0.1 + 0.2 > 0.3): such a cell must stay strictly below its capacity."""
+    return load > cap or (nd and load == cap)
+
+
+def prepare(a, tickets, edges_raw, sched, cfg):
+    pr = Problem(); pr.cfg = cfg
+    tickets = sorted(tickets, key=lambda t: t['key'])
+    pr.T = [t['key'] for t in tickets]; n = pr.n = len(pr.T)
+    if n == 0: raise invalid('no tickets in the plan')
+    if len(set(pr.T)) != n: raise invalid('duplicate ticket keys')
+    ix = {k: i for i, k in enumerate(pr.T)}; pr.ix = ix
+    if any('sp' not in t or t['sp'] is None for t in tickets): raise invalid('every ticket needs an sp (story points)')
+    spd = [dec(t['sp']) for t in tickets]
+    if any(d < 0 for d in spd): raise invalid('negative story points')
+    caps = cfg.get('caps', {})
+    if not isinstance(caps, dict): raise invalid('caps must be an object of person: capacity')
+    capd = {k: dec(v) for k, v in caps.items()}; mind = {k: dec(v) for k, v in (cfg.get('min_per_sprint') or {}).items()}
+    pr.F = F = scale_of(spd + list(capd.values()) + list(mind.values()))   # exact integer model: every SP figure times F
+    pr.sp = [int(d * F) for d in spd]
+    if any(abs(d * F) > MAX_UNITS for d in spd + list(capd.values()) + list(mind.values())): raise invalid(UNITS_MSG)
+    pr.nd = {i for i, d in enumerate(spd) if Fraction(float(d)) != Fraction(d)}   # not exactly a binary float (see over())
+    pr.status = [t.get('jira_status') or '' for t in tickets]
+    pr.v2 = [t.get('v2_owner') or None for t in tickets]; pr.v2s = [t.get('v2_sprint') for t in tickets]
+    skip = set(cfg.get('ignore_link_kinds', []))
+    pr.dropped = 0; es = set()
+    for c, p, k in edges_raw:
+        if k in skip: continue
+        if c not in ix or p not in ix or c == p: pr.dropped += 1; continue
+        es.add((ix[c], ix[p]))
+    pr.edges = sorted(es)                                   # all links, never reduced (the verifier uses these)
+    pr.prods = [[] for _ in range(n)]; pr.cons = [[] for _ in range(n)]
+    for c, p in pr.edges: pr.prods[c].append(p); pr.cons[p].append(c)
+    cur = sched.get('current', {})
+    pr.cur = {ix[k]: v for k, v in cur.items() if k in ix}
+    people = {o for o in pr.v2 if o} | {o for o, _ in pr.cur.values() if o}
+    pr.P = sorted(people); pr.Pi = {p: i for i, p in enumerate(pr.P)}
+    if not pr.P: raise invalid('the plan has no people (no v2_owner and no current schedule owner)')
+    capi = {k: int(d * F) for k, d in capd.items()}
+    pr.capf = lambda p: capi.get(p, capi.get('default', 140 * F))
+    nm_all = [k for k in caps if k != 'default'] + list(cfg.get('min_per_sprint', {})) + ([cfg['minimize_load_of']] if cfg.get('minimize_load_of') else [])
+    for nm in nm_all:
+        if nm not in pr.Pi: raise invalid(f'config names {nm!r}, who owns no ticket in the plan: fix config.json or the plan')
+    big = max(pr.capf(p) for p in pr.P)
+    for i in range(n):
+        if pr.sp[i] > big: raise invalid(f'ticket {pr.T[i]} has {us(pr, pr.sp[i])} SP, more than every person capacity ({us(pr, big)})')
+    pr.order = topo(n, pr.prods, pr.cons)
+    if len(pr.order) != n:
+        placed = set(pr.order); left = sorted(pr.T[i] for i in range(n) if i not in placed)
+        raise invalid(f'link set has a loop ({len(left)} tickets in loops, e.g. {", ".join(left[:8])}); resolve it before solving')
+    pr.baseline_name = a.baseline
+    if a.baseline == 'current': base = pr.cur
+    elif a.baseline == 'v2': base = {i: (pr.v2[i], pr.v2s[i]) for i in range(n) if pr.v2[i]}
+    elif a.baseline in sched: base = {ix[k]: v for k, v in sched[a.baseline].items() if k in ix}
+    else: raise invalid(f'baseline {a.baseline!r} not found; available: current, v2' + ''.join(', ' + v for v in sorted(sched) if v != 'current'))
+    pr.base_owner = [(base[i][0] if i in base else pr.v2[i]) for i in range(n)]
+    pr.base_sprint = [(base[i][1] if i in base and isinstance(base[i][1], int) else None) for i in range(n)]
+    fz = set()
+    for tok in (a.freeze or '').split(','):
+        if tok.strip(): fz.add(tok.strip())
+    if a.freeze_file:
+        try: data = json.load(open(a.freeze_file))
+        except (OSError, ValueError) as e: raise invalid(f'--freeze-file: {e}')
+        if isinstance(data, dict): data = data.get('keys', data.get('freeze', []))
+        for x in data: fz.add(x if isinstance(x, str) else x.get('key', x.get('item')))
+    bad = sorted(k for k in fz if k not in ix)
+    if bad: raise invalid(f'--freeze names unknown tickets: {", ".join(bad[:8])}')
+    frozen = {ix[k] for k in fz}
+    fst = set(cfg.get('frozen_statuses') or [])
+    cst = {'Done'} | {x for x in (cfg.get('closed_statuses') if isinstance(cfg.get('closed_statuses'), list) else []) if isinstance(x, str)}
+    # Frozen history, mirroring lib/frozen.ts (test/frozen.test.ts compares the two): CLOSED = an sp: task with impl_status done, or a
+    # jira_status Done / in closed_statuses; closed tickets with a current slot are always frozen, whatever frozen_statuses says.
+    pr.closed = {i for i, t in enumerate(tickets) if pr.status[i] in cst or (pr.T[i].startswith('sp:') and t.get('impl_status') == 'done')}
+    fb = cfg.get('frozen_before_sprint')
+    if fb is not None: sprint_num(fb, 'frozen_before_sprint')
+    for i in range(n):
+        if fst and pr.status[i] in fst: frozen.add(i)
+        if i in pr.closed and i in pr.cur: frozen.add(i)
+        if fb is not None and i in pr.cur and pr.cur[i][1] < fb: frozen.add(i)
+    for i in sorted(frozen):
+        if i not in pr.cur: raise invalid(f'frozen ticket {pr.T[i]} has no current schedule slot')
+    pr.frozen = {i: (pr.Pi[pr.cur[i][0]], pr.cur[i][1]) for i in sorted(frozen)}
+    # The links that constrain: a constraint exists only where at least one side is free. A link whose producer is closed is satisfied (a
+    # finished producer cannot be late), and a link between two frozen tickets is a fixed fact of history (lib/frozen.ts).
+    pr.live = [(c, p) for c, p in pr.edges if p not in pr.closed and not (c in pr.frozen and p in pr.frozen)]
+    pr.S0 = sprint_num(cfg.get('first_sprint', 1), 'first_sprint')   # free (not frozen) tickets go to sprint S0 or later: no new work lands in a past sprint
+    pr.lo = min([pr.S0] + [s for _, s in pr.frozen.values()])   # lowest sprint index in the model: frozen tickets keep their own slot, even below S0
+    tgt = a.end if a.end is not None else cfg.get('end_sprint')
+    if tgt is None: raise invalid('no target end sprint: pass --end or set end_sprint in config.json')
+    pr.target = sprint_num(tgt, 'end_sprint')
+    pr.minimum = {pr.Pi[k]: int(d * F) for k, d in mind.items()}
+    pr.load_of = pr.Pi[cfg['minimize_load_of']] if cfg.get('minimize_load_of') else None
+    pr.balance = bool(a.balance or cfg.get('balance_load'))
+    so = cfg.get('stage_order')
+    if so is not None:
+        if not isinstance(so, list) or not all(isinstance(x, str) for x in so): raise invalid('stage_order must be a list of stage names')
+        if any(x not in STAGES for x in so): raise invalid('stage_order names an unknown stage (known: ' + ', '.join(STAGES) + ')')
+        if len(set(so)) != len(so): raise invalid('stage_order lists a stage twice')
+    pr.stage_order = (so or []) + [x for x in STAGES if x not in (so or [])]   # listed stages first, the rest in the default order
+    h = json.dumps({'tickets': [[pr.T[i], pr.sp[i], pr.status[i], pr.v2[i], pr.v2s[i]] for i in range(n)],
+                    'edges': [[pr.T[c], pr.T[p]] for c, p in pr.edges], 'cur': sorted([pr.T[i], v[0], v[1]] for i, v in pr.cur.items()),
+                    'base': [pr.baseline_name, sorted([pr.T[i], v[0], v[1]] for i, v in base.items())], 'frozen': sorted(pr.T[i] for i in frozen),
+                    'cfg': [pr.S0, pr.target, caps, cfg.get('min_per_sprint', {}), cfg.get('minimize_load_of'), pr.balance]}
+                   | ({'stage_order': so} if so is not None else {}) | ({'scale': F} if F != 1 else {}),   # only when set: existing hashes stay
+                   sort_keys=True, separators=(',', ':'))
+    pr.input_hash = hashlib.sha256(h.encode()).hexdigest()
+    return pr
+
+
+def topo(n, prods, cons):
+    ind = [len(prods[i]) for i in range(n)]; h = [i for i in range(n) if ind[i] == 0]; heapq.heapify(h); order = []
+    while h:
+        u = heapq.heappop(h); order.append(u)
+        for v in cons[u]:
+            ind[v] -= 1
+            if ind[v] == 0: heapq.heappush(h, v)
+    return order
+
+
+def reduce_links(pr):
+    """Transitive reduction of the live links (pr.live: the ones that constrain; reducing all links first could drop c>p as implied by
+    c>m>p and then drop c>m because m is closed). Safe for the strict handoff rule: [o_c != o_p] <= [o_c != o_m] + [o_m != o_p] (triangle
+    inequality), so c>=m+[c!=m] and m>=p+[m!=p] already imply c>=p+[c!=p]. Checked by property test (same optimum with --no-reduce)."""
+    prods = [[] for _ in range(pr.n)]
+    for c, p in pr.live: prods[c].append(p)
+    reach = [0] * pr.n; keep = []
+    for c in pr.order:
+        under = 0
+        for p in prods[c]: under |= reach[p]
+        for p in prods[c]:
+            if not (under >> p) & 1: keep.append((c, p))
+        reach[c] = under
+        for p in prods[c]: reach[c] |= 1 << p
+    return sorted(keep)
+
+
+# ------------------------------------------------------------------------------------------------- independent verifier
+def verify(pr, assign):
+    """Written independently of the model: works on plain names/numbers and the original (unreduced) links. Returns a list of problems."""
+    bad = []; place = {}
+    for key, (owner, sprint) in assign.items():
+        if key in place: bad.append(f'{key} placed twice')
+        place[key] = (owner, sprint)
+    for key in pr.T:
+        if key not in place: bad.append(f'{key} not placed')
+    for key in place:
+        if key not in pr.ix: bad.append(f'{key} is not a ticket')
+    load = {}; nd = set(); free = set()
+    for key, (owner, sprint) in place.items():
+        if key not in pr.ix: continue
+        if owner not in pr.P: bad.append(f'{key} owner {owner!r} not a plan person')
+        if not isinstance(sprint, int) or isinstance(sprint, bool): bad.append(f'{key} sprint {sprint!r} is not a whole number'); continue
+        if pr.ix[key] not in pr.frozen and sprint < pr.S0: bad.append(f'{key} sprint {sprint} before the first sprint {pr.S0}'); continue
+        load[(owner, sprint)] = load.get((owner, sprint), 0) + pr.sp[pr.ix[key]]
+        if pr.ix[key] in pr.nd: nd.add((owner, sprint))
+        if pr.ix[key] not in pr.frozen and pr.sp[pr.ix[key]] > 0: free.add((owner, sprint))   # a 0-SP free ticket adds nothing to the float sum
+    for (owner, sprint), l in sorted(load.items()):   # capacity binds only free load: a cell without a free story point is history
+        if (owner, sprint) in free and over(l, pr.capf(owner), (owner, sprint) in nd and (owner, sprint) in free):
+            bad.append(f'capacity {owner} sprint {sprint}: {us(pr, l)} > {us(pr, pr.capf(owner))}' if l > pr.capf(owner) else
+                       f'capacity {owner} sprint {sprint}: {us(pr, l)} reaches {us(pr, pr.capf(owner))} with a story point that is not a binary float')
+    for c, p in pr.edges:
+        kc, kp = pr.T[c], pr.T[p]
+        if p in pr.closed or (c in pr.frozen and p in pr.frozen): continue   # a closed producer, or two frozen tickets: history, no constraint
+        if kc in place and kp in place:
+            (oc, sc), (op, sp_) = place[kc], place[kp]
+            if sc < sp_ + (0 if oc == op else 1): bad.append(f'handoff {kc}>{kp}: S{sc}/{oc} vs S{sp_}/{op}')
+    for i, (pi, s) in pr.frozen.items():
+        if place.get(pr.T[i]) != (pr.P[pi], s): bad.append(f'frozen {pr.T[i]} moved')
+    return bad
+
+
+# ---------------------------------------------------------------------------------------------------------- constructive
+def construct(pr):
+    """Greedy list scheduling in dependency order, baseline owners kept, capacity and frozen slots respected. Returns {i: (pi, sprint)}."""
+    load = {}; place = {}; ndc = set()
+    for i, (pi, s) in pr.frozen.items():
+        place[i] = (pi, s); load[(pi, s)] = load.get((pi, s), 0) + pr.sp[i]
+        if i in pr.nd: ndc.add((pi, s))
+    for i in pr.order:
+        if i in place: continue
+        o = pr.Pi.get(pr.base_owner[i])
+        if o is None or pr.sp[i] > pr.capf(pr.P[o]): o = next(q for q in range(len(pr.P)) if pr.sp[i] <= pr.capf(pr.P[q]))
+        s = max(pr.S0, pr.base_sprint[i] if pr.base_sprint[i] is not None else pr.S0)
+        for p in pr.prods[i]:
+            if p in place: po, ps = place[p]; s = max(s, ps if po == o else ps + 1)
+        while over(load.get((o, s), 0) + pr.sp[i], pr.capf(pr.P[o]), i in pr.nd or ((o, s) in ndc and pr.sp[i] > 0)): s += 1
+        place[i] = (o, s); load[(o, s)] = load.get((o, s), 0) + pr.sp[i]
+        if i in pr.nd: ndc.add((o, s))
+    return place
+
+
+def construct_free(pr):
+    """Second constructive pass: owners are free. Tickets in dependency order, longest remaining chain first; each goes to the person and
+    sprint that finishes it earliest (ties: baseline owner, then lowest index). Gives a much tighter horizon than keeping owners."""
+    n = pr.n; tail = [0] * n
+    for i in reversed(pr.order):
+        for c in pr.cons[i]: tail[i] = max(tail[i], tail[c] + 1)
+    load = {}; place = {}; ndc = set()
+    for i, (pi, s) in pr.frozen.items():
+        place[i] = (pi, s); load[(pi, s)] = load.get((pi, s), 0) + pr.sp[i]
+        if i in pr.nd: ndc.add((pi, s))
+    left = [len(pr.prods[i]) for i in range(n)]
+    h = [(-tail[i], i) for i in range(n) if left[i] == 0]; heapq.heapify(h)
+    while h:
+        _, i = heapq.heappop(h)
+        if i not in place:
+            bo = pr.Pi.get(pr.base_owner[i]); best = None
+            for q in range(len(pr.P)):
+                if pr.sp[i] > pr.capf(pr.P[q]): continue
+                s = pr.S0
+                for p in pr.prods[i]:
+                    if p in place: po, ps = place[p]; s = max(s, ps if po == q else ps + 1)
+                while over(load.get((q, s), 0) + pr.sp[i], pr.capf(pr.P[q]), i in pr.nd or ((q, s) in ndc and pr.sp[i] > 0)): s += 1
+                key = (s, 0 if q == bo else 1, q)
+                if best is None or key < best: best = key
+            s, _, q = best; place[i] = (q, s); load[(q, s)] = load.get((q, s), 0) + pr.sp[i]
+            if i in pr.nd: ndc.add((q, s))
+        for c in pr.cons[i]:
+            left[c] -= 1
+            if left[c] == 0: heapq.heappush(h, (-tail[c], c))
+    return place
+
+
+def names(pr, assign): return {pr.T[i]: (pr.P[pi], s) for i, (pi, s) in assign.items()}
+
+
+def current_plan(pr):
+    """The current schedule as {i: (pi, sprint)} when it places every ticket and passes verify(); else None."""
+    if len(pr.cur) != pr.n or any(o not in pr.Pi for o, _ in pr.cur.values()): return None
+    g = {i: (pr.Pi[o], s) for i, (o, s) in pr.cur.items()}
+    return None if verify(pr, names(pr, g)) else g
+
+
+def global_lower_bounds(pr):
+    """Per stage, a value no schedule can beat whatever sprint it ends in (stage_value terms: free tickets only for load_of and
+    owner_changes). owner_changes: tickets larger than their baseline owner's capacity; load_of: tickets nobody else can hold;
+    peak_load: the largest ticket or frozen cell load; shortfall: 0."""
+    free = [i for i in range(pr.n) if i not in pr.frozen]
+    ch = sum(1 for i in free if pr.base_owner[i] in pr.Pi and pr.sp[i] > pr.capf(pr.base_owner[i]))
+    lo = sum(pr.sp[i] for i in free if pr.load_of is not None and
+             all(pr.sp[i] > pr.capf(pr.P[q]) for q in range(len(pr.P)) if q != pr.load_of))
+    cell = {}
+    for i, (pi, s) in pr.frozen.items(): cell[(pi, s)] = cell.get((pi, s), 0) + pr.sp[i]
+    pk = max([pr.sp[i] for i in free] + list(cell.values()) + [0])
+    return {'owner_changes': ch, 'load_of': lo, 'peak_load': pk, 'shortfall': 0}
+
+
+def metrics(pr, assign):
+    end = max(s for _, s in assign.values())
+    ld = {}
+    for i, (pi, s) in assign.items(): ld[(pi, s)] = ld.get((pi, s), 0) + pr.sp[i]
+    short = sum(max(0, mn - ld.get((p, s), 0)) for p, mn in pr.minimum.items() for s in range(pr.S0, end + 1))
+    load_of = sum(pr.sp[i] for i, (pi, _) in assign.items() if pi == pr.load_of) if pr.load_of is not None else None
+    changes = sum(1 for i, (pi, _) in assign.items() if pr.base_owner[i] and pr.P[pi] != pr.base_owner[i])
+    return {'end_sprint': end, 'shortfall': short, 'load_of': load_of, 'peak_load': max(ld.values()), 'owner_changes': changes}
+
+
+def public_metrics(pr, assign):
+    """metrics() with the story-point figures in story points (scaled back when the plan has fractional story points)."""
+    mt = metrics(pr, assign)
+    return {k: (us(pr, v) if k in SCALED else v) for k, v in mt.items()}
+
+
+def unscale_stages(pr, stages, pol):
+    """Stage records and polish figures back in story points (in place; nothing to do for an all-integer plan)."""
+    if pr.F == 1: return
+    for rec in stages:
+        if rec['name'] in SCALED and 'objective' in rec: rec['objective'] = us(pr, rec['objective']); rec['bound'] = round(rec['bound'] / pr.F, 6)
+    for k in ('before', 'after'):
+        if pol and isinstance(pol.get(k), dict): pol[k] = {n: (us(pr, v) if n in SCALED else v) for n, v in pol[k].items()}
+
+
+def stage_value(pr, name, assign):
+    """The value a stage objective takes on a full assignment, exactly as the model counts it (load_of and owner_changes over free tickets
+    only; frozen tickets add the same constant to every schedule). Used to compare schedules lexicographically and to report objectives."""
+    if name in ('end_sprint', 'shortfall', 'peak_load'): return metrics(pr, assign)[name]
+    if name == 'load_of': return sum(pr.sp[i] for i, (pi, _) in assign.items() if i not in pr.frozen and pi == pr.load_of)
+    return sum(1 for i, (pi, _) in assign.items() if i not in pr.frozen and pr.base_owner[i] in pr.Pi and pi != pr.Pi[pr.base_owner[i]])
+
+
+# --------------------------------------------------------------------------------------------------------------- model
+class Ctx: pass
+
+
+def build(pr, cp, horizon, links, soft=False):
+    """CP-SAT model. Free tickets: exactly one (person, sprint) boolean. Link: spr[c] >= spr[p] + diff, diff may be 0 only if owners are equal.
+    soft=True makes every link droppable at a cost (used only to explain infeasibility)."""
+    m = cp.CpModel(); nP = len(pr.P); lo = pr.lo; K = horizon - lo + 1
+    cx = Ctx(); cx.m = m; cx.horizon = horizon
+    cx.x = {}; cx.spr = [None] * pr.n; cx.oi = [None] * pr.n; cx.aux = []; cx.slack = []; cx.static_bad = []
+    terms = [[[] for _ in range(K)] for _ in range(nP)]; tix = [[[] for _ in range(K)] for _ in range(nP)]; const = [[0] * K for _ in range(nP)]; cnd = set()
+    for i in range(pr.n):
+        if i in pr.frozen:
+            pi, s = pr.frozen[i]; cx.spr[i] = s; cx.oi[i] = pi
+            if lo <= s <= horizon:
+                const[pi][s - lo] += pr.sp[i]
+                if i in pr.nd: cnd.add((pi, s - lo))
+            continue
+        xi = [[m.NewBoolVar('') for _ in range(K)] for _ in range(nP)]; cx.x[i] = xi
+        flat = [v for row in xi for v in row]
+        m.AddExactlyOne(flat)
+        cx.spr[i] = m.NewIntVar(lo, horizon, '')
+        m.Add(cx.spr[i] == cp.LinearExpr.WeightedSum(flat, [lo + k for _ in range(nP) for k in range(K)]))
+        if pr.S0 > lo: m.Add(cx.spr[i] >= pr.S0)   # sprints before first_sprint exist in the model only for frozen tickets
+        if nP > 1:
+            cx.oi[i] = m.NewIntVar(0, nP - 1, '')
+            m.Add(cx.oi[i] == cp.LinearExpr.WeightedSum(flat, [p for p in range(nP) for _ in range(K)]))
+        else: cx.oi[i] = 0
+        for p in range(nP):
+            for k in range(K): terms[p][k].append((xi[p][k], pr.sp[i])); tix[p][k].append(i)
+    cx.load = {}
+    for p in range(nP):
+        for k in range(K):
+            e = cp.LinearExpr.WeightedSum([v for v, _ in terms[p][k]], [w for _, w in terms[p][k]]) if terms[p][k] else 0
+            cx.load[(p, lo + k)] = e + const[p][k]; cap = pr.capf(pr.P[p])
+            # tickets whose presence makes the cell a float-tie risk (see over()): a story point that is not a binary float, or any free ticket with
+            # load joining frozen ones that hold such a story point (a 0-SP ticket leaves the float sum exactly as it was). None in an all-integer
+            # plan, so its model is unchanged.
+            ndt = [(v, i) for (v, _), i in zip(terms[p][k], tix[p][k]) if i in pr.nd or ((p, k) in cnd and pr.sp[i] > 0)]
+            if const[p][k] >= cap:   # frozen load already fills the cell: free load must fit in max(0, cap - frozen) = 0 (a 0-SP ticket may join)
+                if terms[p][k]: m.Add(e == 0)
+                continue
+            if ndt and const[p][k] + sum(w for _, w in terms[p][k]) >= cap:
+                y = m.NewBoolVar('')
+                for v, _ in ndt: m.AddImplication(v, y)
+                m.Add(e + const[p][k] <= cap - y)
+                cx.aux.append((y, lambda f, p=p, s=lo + k, ids=tuple(i for _, i in ndt): int(any(f[i] == (p, s) for i in ids))))
+                continue
+            if const[p][k] + sum(w for _, w in terms[p][k]) > pr.capf(pr.P[p]): m.Add(e + const[p][k] <= pr.capf(pr.P[p]))
+    cx.d = []
+    big = horizon - lo + 2
+    for c, p in links:
+        if (c in pr.frozen and p in pr.frozen) or p in pr.closed: continue   # history (lib/frozen.ts): never a constraint, never infeasible
+        relax = 0
+        if soft: sl = m.NewBoolVar(''); cx.slack.append((c, p, sl)); relax = big * sl
+        if nP > 1:
+            d = m.NewBoolVar(''); cx.d.append((c, p, d))
+            m.Add(cx.oi[c] == cx.oi[p]).OnlyEnforceIf(d.Not())
+            m.Add(cx.spr[c] >= cx.spr[p] + d - relax)
+        else:
+            m.Add(cx.spr[c] >= cx.spr[p] - relax)
+    return cx
+
+
+def set_hint(pr, cx, assign):
+    """Hint every variable consistently from a full assignment {i: (pi, sprint)}. Sprints are clamped into the model horizon (the old
+    solver hinted a ticket sitting in the last sprint with all zeros after shrinking the horizon)."""
+    m = cx.m; m.ClearHints(); K = cx.horizon - pr.lo + 1; nP = len(pr.P)
+    fixed = {}
+    for i in range(pr.n):
+        pi, s = assign[i]; s = min(max(s, pr.lo if i in pr.frozen else pr.S0), cx.horizon); fixed[i] = (pi, s)
+        if i in cx.x:
+            for p in range(nP):
+                for k in range(K): m.AddHint(cx.x[i][p][k], 1 if (p == pi and pr.lo + k == s) else 0)
+            m.AddHint(cx.spr[i], s)
+            if nP > 1: m.AddHint(cx.oi[i], pi)
+    for c, p, d in cx.d: m.AddHint(d, int(fixed[c][0] != fixed[p][0]))
+    for var, f in cx.aux: m.AddHint(var, f(fixed))
+    return fixed
+
+
+GAP_NA = 'n/a (bound 0)'
+
+
+def gap_pct(obj, bound):
+    """Relative gap of a minimisation stage. A value at or below the bound shows 0 (never a positive gap); solve_all marks below_bound.
+    None when the bound is 0 (or below) and the value is above it: the relative gap would be 100% whatever the value, which says nothing
+    (the owner-changes LP bound is often 0); the record then carries gap_note GAP_NA instead (note_gaps)."""
+    if bound <= 0 < obj: return None
+    return round(100.0 * max(0.0, obj - bound) / max(1.0, abs(obj)), 4)
+
+
+def note_gaps(stages):
+    """Mark every stage record whose gap is not meaningful (gap_pct None) with gap_note GAP_NA (in place)."""
+    for rec in stages:
+        if 'objective' in rec:
+            if rec.get('gap_pct') is None: rec['gap_note'] = GAP_NA
+            else: rec.pop('gap_note', None)
+
+
+def gap_summary(stages, proved):
+    """The meta gap: the largest gap of the FEASIBLE stages; null with gap_note naming them when any of those has no meaningful gap."""
+    gaps = [rec for rec in stages if rec.get('status') == 'FEASIBLE']
+    na = [rec['name'] for rec in gaps if rec.get('gap_pct') is None]
+    if na: return {'gap_pct': None, 'gap_note': f"{GAP_NA}: {','.join(na)}"}
+    return {'gap_pct': max([rec['gap_pct'] for rec in gaps], default=(0.0 if proved else None))}
+
+
+def gap_lead(g):
+    """The status-line part for the first unproved stage."""
+    if g.get('gap_pct') is None: return f" (gap={GAP_NA}, stage {g['name']})"
+    return f" (gap={g['gap_pct']}%, bound={g['bound']}, stage {g['name']})"
+
+
+class Clock:
+    def __init__(s, total, det, t0): s.total, s.det, s.t0, s.dt = total, det, t0, 0.0
+    def spent(s): return s.dt if s.det else time.time() - s.t0
+    def left(s, frac=1.0): return s.total * frac - s.spent()
+
+
+def new_solver(cp, a, budget):
+    sv = cp.CpSolver(); p = sv.parameters
+    p.num_workers = 1 if a.deterministic else a.workers; p.random_seed = a.seed
+    if a.deterministic: p.max_deterministic_time = max(budget, 0.0)
+    else: p.max_time_in_seconds = max(budget, 0.0)
+    return sv
+
+
+# ------------------------------------------------------------------------------------------------------------ explain
+def explain(pr, cp, a, clock, end, budget):
+    """Relaxed model: every link may be violated at a cost; capacity, frozen slots and the end sprint stay hard."""
+    out = {'end': end}
+    late = [pr.T[i] for i, (_, s) in sorted(pr.frozen.items()) if s > end]
+    if late: out.update(note='frozen tickets already sit after sprint %d: %s' % (end, ', '.join(late[:8])), links=[], n_links=0); return out
+    if end < pr.S0 and len(pr.frozen) < pr.n: out['note'] = f'end sprint {end} is before the first sprint {pr.S0}'; return out
+    if budget <= 0: out['note'] = 'explanation skipped: no time left'; return out
+    tb = time.time(); cx = build(pr, cp, end, pr.live, soft=True); budget -= (time.time() - tb) if not a.deterministic else 0
+    if budget <= 0.2: out['note'] = 'explanation skipped: no time left'; return out
+    bad = [f'{pr.T[c]}>{pr.T[p]}' for c, p in cx.static_bad]
+    cx.m.Minimize(sum(s for _, _, s in cx.slack) if cx.slack else 0)
+    sv = new_solver(cp, a, budget); st = sv.Solve(cx.m)
+    if a.deterministic: clock.dt += sv.deterministic_time
+    if st not in (cp.OPTIMAL, cp.FEASIBLE):
+        if st != cp.INFEASIBLE: out['note'] = f'explanation inconclusive ({sv.StatusName(st)}) within the time budget'; return out
+        out.update(note=f'infeasible even with every link dropped: the capacity left beside the frozen tickets cannot hold the free tickets by sprint {end}', links=bad, n_links=len(bad)); return out
+    pinned = 0
+    for c, p, s in cx.slack:
+        if sv.Value(s): bad.append(f'{pr.T[c]}>{pr.T[p]}'); pinned += c in pr.frozen
+    if pinned: out.update(pinned=pinned, first=pr.S0)   # links ending at a frozen consumer: a later end sprint does not help them
+    bad = sorted(bad); out.update(n_links=len(bad), links=bad[:8], more=max(0, len(bad) - 8), proved_minimal=(st == cp.OPTIMAL))
+    if not bad: out['note'] = 'no link blocks it: the capacity left beside the frozen tickets does'
+    return out
+
+
+def explain_text(ex):
+    if 'n_links' not in ex or (not ex.get('links') and ex.get('note')): return ex.get('note', '')
+    s = f"{ex['n_links']} links cannot hold with end sprint {ex['end']}: " + ', '.join(ex['links'])
+    if ex.get('more'): s += f" ... {ex['more']} more"
+    if ex.get('pinned'):   # never blame the end sprint for frozen history: the frozen consumer's slot is fixed, the free producer starts at first_sprint
+        s += (f"; {ex['pinned']} of them need a free producer before a frozen consumer, which no later end sprint fixes "
+              f"(free tickets start at sprint {ex['first']}: unfreeze the consumer or move first_sprint)")
+    return s + ('' if ex.get('proved_minimal', True) else ' (not proved minimal)')
+
+
+# -------------------------------------------------------------------------------------------------------------- solve
+def objectives(pr, cx, E, end_fixed):
+    """Stage objective builders on model cx. E is the end-sprint variable (None in a sub-model, whose horizon is the fixed end sprint).
+    end_fixed() returns the end sprint once a stage has fixed it, else None: shortfall then counts only sprints up to E (reified booleans),
+    so it means the same thing whichever position it has in stage_order."""
+    m = cx.m; act = {}
+
+    def ld_of(f):
+        ld = {}
+        for i, (pi, s) in f.items(): ld[(pi, s)] = ld.get((pi, s), 0) + pr.sp[i]
+        return ld
+
+    def active(s):                                   # bool: E >= s
+        if s not in act:
+            b = m.NewBoolVar(''); m.Add(E >= s).OnlyEnforceIf(b); m.Add(E <= s - 1).OnlyEnforceIf(b.Not()); act[s] = b
+            cx.aux.append((b, lambda f, s=s: int(max(v for _, v in f.values()) >= s)))
+        return act[s]
+
+    def short_expr():
+        ds = []; end = end_fixed()
+        for p, mn in sorted(pr.minimum.items()):
+            for s in range(pr.S0, (end if end is not None else cx.horizon) + 1):
+                d = m.NewIntVar(0, mn, '')
+                if end is not None:
+                    m.Add(d >= mn - cx.load[(p, s)])
+                    cx.aux.append((d, lambda f, p=p, s=s, mn=mn: max(0, mn - ld_of(f).get((p, s), 0))))
+                else:
+                    on = active(s); m.Add(d >= mn - cx.load[(p, s)]).OnlyEnforceIf(on); m.Add(d == 0).OnlyEnforceIf(on.Not())
+                    cx.aux.append((d, lambda f, p=p, s=s, mn=mn: max(0, mn - ld_of(f).get((p, s), 0)) if max(v for _, v in f.values()) >= s else 0))
+                ds.append(d)
+        return sum(ds)
+
+    def peak_expr():
+        pk = m.NewIntVar(0, max(pr.capf(p) for p in pr.P), '')
+        for e in cx.load.values(): m.Add(pk >= e)
+        cx.aux.append((pk, lambda f: max(ld_of(f).values())))
+        return pk
+
+    return {'end_sprint': lambda: E, 'shortfall': short_expr, 'peak_load': peak_expr,
+            'load_of': lambda: sum(pr.sp[i] * sum(cx.x[i][pr.load_of]) for i in cx.x),
+            'owner_changes': lambda: sum(1 - sum(cx.x[i][pr.Pi[pr.base_owner[i]]]) for i in cx.x if pr.base_owner[i] in pr.Pi)}
+
+
+def solve_with(cp, a, m, budget, on_solution, anytime):
+    """One CP-SAT solve; on_solution(value_fn) runs for every improving solution (anytime output)."""
+    sv = new_solver(cp, a, budget)
+    if on_solution is None: return sv, sv.Solve(m)
+
+    class CB(cp.CpSolverSolutionCallback):
+        def __init__(s): cp.CpSolverSolutionCallback.__init__(s)
+
+        def on_solution_callback(s):
+            try: on_solution(s.Value)
+            except Exception: anytime.errors += 1   # never let an output problem kill the search; the stage result is offered again
+    return sv, sv.Solve(m, CB())
+
+
+def components(pr, free):
+    """Connected components of the link graph over free tickets (links through frozen tickets do not couple: those are constants).
+    Largest first, ties by lowest ticket index; each component is a sorted list."""
+    par = {i: i for i in free}
+
+    def find(x):
+        while par[x] != x: par[x] = par[par[x]]; x = par[x]
+        return x
+    for c, p in pr.edges:
+        if c in par and p in par: par[find(c)] = find(p)
+    groups = {}
+    for i in sorted(free): groups.setdefault(find(i), []).append(i)
+    return sorted(groups.values(), key=lambda g: (-len(g), g[0]))
+
+
+def resolve_subset(pr, cp, a, clock, links, plan, inc, subset, budget, anytime, tag):
+    """Re-solve the tickets in `subset` with every other ticket fixed to the incumbent `inc` and the end sprint capped at inc's.
+    Runs the stages of `plan` (except end_sprint, which the cap holds) lexicographically on the small model. Returns a full assignment
+    (never lexicographically worse in the sub-model's terms; the caller compares with stage_value) or None."""
+    sub = copy.copy(pr); fz = dict(pr.frozen)
+    for i in range(pr.n):
+        if i not in fz and i not in subset: fz[i] = inc[i]
+    sub.frozen = fz
+    end = max(s for _, s in inc.values())
+    cx = build(sub, cp, end, links)
+    if cx.static_bad or not cx.x: return None
+    ex = objectives(sub, cx, None, lambda: end); nP = len(pr.P)
+
+    def full(val):
+        g = dict(inc)
+        for i in cx.x: g[i] = (val(cx.oi[i]) if nP > 1 else 0, val(cx.spr[i]))
+        return g
+    stages = [n for n in plan if n != 'end_sprint']; cur = inc; t0 = clock.spent()
+    for si, name in enumerate(stages):
+        b = (budget - (clock.spent() - t0)) / (len(stages) - si)
+        if b <= 0.05: break
+        expr = ex[name](); cx.m.Minimize(expr); set_hint(sub, cx, cur)
+        sv, st = solve_with(cp, a, cx.m, b, lambda val, name=name: anytime.offer(lambda: full(val), 'cp-sat', f'{tag}:{name}'), anytime)
+        if a.deterministic: clock.dt += max(sv.deterministic_time, 0.1)   # a floor: model building is not counted in deterministic time
+        if st not in (cp.OPTIMAL, cp.FEASIBLE): break
+        cur = full(sv.Value); cx.m.Add(expr <= int(round(sv.ObjectiveValue())))
+    return cur
+
+
+def polish(pr, cp, a, clock, links, plan, cur, anytime, comps):
+    """--decompose (one pass over the connected components, largest first, small ones grouped) then --lns rounds (a seeded random 20%
+    of the free tickets re-solved, the rest fixed to the incumbent) until the stage budget is spent. Keeps only lexicographic improvements."""
+    key = lambda g: tuple(stage_value(pr, n, g) for n in plan)
+    free = [i for i in range(pr.n) if i not in pr.frozen]
+    info = {'method': '+'.join(x for x, on in (('decompose', a.decompose), ('lns', a.lns)) if on), 'rounds': 0, 'improved': 0,
+            'before': {n: stage_value(pr, n, cur) for n in plan}}
+    queue = []
+    if a.decompose:
+        info['components'] = len(comps)
+        if len(comps) > 1:
+            grp = []
+            for c in comps:
+                grp = grp + c
+                if len(grp) >= DECOMPOSE_GROUP: queue.append(set(grp)); grp = []
+            if grp: queue.append(set(grp))
+    rng = random.Random(a.seed); k = max(1, math.ceil(LNS_FREE * len(free)))
+    while info['rounds'] < 1000:
+        left = clock.left(0.85)
+        if left <= 0.2: break
+        if queue: subset, tag, budget = queue.pop(0), 'decompose', left / (len(queue) + 1)
+        elif a.lns and free: subset, tag, budget = set(rng.sample(free, k)), 'lns', min(left, LNS_ROUND_S)
+        else: break
+        new = resolve_subset(pr, cp, a, clock, links, plan, cur, subset, budget, anytime, tag)
+        info['rounds'] += 1
+        if new is not None and not verify(pr, names(pr, new)) and key(new) < key(cur): cur = new; info['improved'] += 1
+    info['after'] = {n: stage_value(pr, n, cur) for n in plan}
+    return cur, info
+
+
+def solve_all(pr, cp, a, clock, anytime):
+    stages_meta = []
+    links = pr.live if a.no_reduce else reduce_links(pr)
+    applies = {'end_sprint': True, 'shortfall': bool(pr.minimum), 'load_of': pr.load_of is not None, 'peak_load': pr.load_of is None and pr.balance,
+               'owner_changes': any(pr.base_owner[i] in pr.Pi for i in range(pr.n) if i not in pr.frozen)}
+    plan = [nm for nm in pr.stage_order if applies[nm]]
+    lex = lambda g: tuple(stage_value(pr, nm, g) for nm in plan)
+    cands = [(max(s for _, s in g.values()), k, g) for k, g in enumerate((construct(pr), construct_free(pr)))]
+    cands = [c for c in cands if not verify(pr, names(pr, c[2]))]
+    gok = bool(cands)
+    greedy = min(cands, key=lambda c: c[:2])[2] if gok else construct(pr)
+    gend = max(s for _, s in greedy.values())
+    fmax = max([s for _, s in pr.frozen.values()] or [pr.lo])
+    H = max(pr.lo, gend, fmax) if gok else max(pr.target, pr.lo, gend, fmax)   # a valid construction bounds the optimum end sprint from above
+    current = current_plan(pr)   # the current plan, when it is complete and passes verify(): always a candidate, never worse than the result
+    early = plan[:plan.index('end_sprint')]   # stages ranked above the end sprint: the schedules they prefer may end after every construction
+    if early:   # contain every valid schedule we know of, and the target: none of them may be cut off by the model
+        known = [c[0] for c in cands] + ([max(s for _, s in current.values())] if current else [])
+        H = max([H] + known + [min(pr.target, max([H] + known) + 2 * pr.n)])   # the target, at most 2n sprints past the known ones (model size)
+    if current: cands.append((max(s for _, s in current.values()), 2, current))
+    if gok or current:   # start from the lexicographically best valid candidate in stage order
+        greedy = min((c[2] for c in cands), key=lex); gok = True
+    anytime.order = plan
+    if gok: anytime.offer(lambda: greedy, 'current' if greedy is current else 'constructive', 'start', force=True)
+    free = [i for i in range(pr.n) if i not in pr.frozen]
+    comps = components(pr, set(free)) if a.decompose else []
+    polishing = a.lns or (a.decompose and len(comps) > 1)
+    sfrac = 0.85 * (0.5 if polishing else 1.0)    # with a polish phase, the stages get half of the 85% stage budget
+    cx = build(pr, cp, H, links); m = cx.m
+    E = m.NewIntVar(pr.lo, H, '')
+    for i in cx.x: m.Add(cx.spr[i] <= E)
+    for _, s in pr.frozen.values(): m.Add(E >= s)
+    if cx.x:   # capacity lower bound on the end sprint: the work that must sit in sprints S0..E (free tickets, and frozen ones from S0 on;
+        #        frozen tickets before S0 use no capacity there, and with no free ticket E is just the last frozen sprint)
+        #        a frozen cell counts at most its owner's capacity: a frozen cell above cap holds no free work, so it frees no other room)
+        fcell = {}
+        for i, (pi, s) in pr.frozen.items():
+            if s >= pr.S0: fcell[(pi, s)] = fcell.get((pi, s), 0) + pr.sp[i]
+        work = sum(pr.sp[i] for i in range(pr.n) if i not in pr.frozen) + sum(min(v, pr.capf(pr.P[pi])) for (pi, _), v in fcell.items())
+        m.Add(E >= pr.S0 + max(0, -(-work // sum(pr.capf(p) for p in pr.P)) - 1))
+    cx.aux.append((E, lambda f: max(s for _, s in f.values())))
+    info = {'links_total': len(pr.edges), 'links_modeled': len(links), 'horizon': H, 'horizon_from_valid_construction': gok, 'dropped_links': pr.dropped,
+            'current_valid': current is not None}
+    if a.decompose: info['components'] = len(comps)
+    best = greedy if gok else None; src = ('current' if greedy is current else 'constructive') if gok else None
+    state = {'fix_end': None}
+    exprs = objectives(pr, cx, E, lambda: state['fix_end'])
+    nP = len(pr.P)
+
+    def full(val): return {i: (pr.frozen[i] if i in pr.frozen else (val(cx.oi[i]) if nP > 1 else 0, val(cx.spr[i]))) for i in range(pr.n)}
+    conflicts = 0; cur = best; status1 = None
+    for si, name in enumerate(plan):
+        left_stages = len(plan) - si
+        avail = clock.left(sfrac)
+        budget = avail * (0.6 if left_stages > 1 else 1.0) if si == 0 else avail / left_stages
+        if budget <= 0:
+            stages_meta.append({'name': name, 'status': 'SKIPPED'})
+            if si == 0: status1 = 'UNKNOWN'
+            continue
+        expr = exprs[name](); m.Minimize(expr)
+        if cur is not None: set_hint(pr, cx, cur)
+        else: m.ClearHints()
+        t = time.time()
+        sv, st = solve_with(cp, a, m, budget, lambda val, name=name: anytime.offer(lambda: full(val), 'cp-sat', name), anytime)
+        if a.deterministic: clock.dt += sv.deterministic_time
+        conflicts += int(sv.NumConflicts())
+        rec = {'name': name, 'status': sv.StatusName(st), 'conflicts': int(sv.NumConflicts()), 'budget': round(budget, 3)}
+        if a.deterministic: rec['det_time'] = round(sv.deterministic_time, 3)
+        else: rec['wall_s'] = round(time.time() - t, 3)
+        stages_meta.append(rec)
+        if st in (cp.OPTIMAL, cp.FEASIBLE):
+            obj = int(round(sv.ObjectiveValue())); bound = sv.BestObjectiveBound()
+            rec.update({'objective': obj, 'bound': round(bound, 6), 'gap_pct': gap_pct(obj, bound)})
+            cur = best = full(sv.Value)
+            src = 'cp-sat'
+            anytime.offer(lambda: cur, 'cp-sat', name + ':done', force=True)
+            if name == 'end_sprint':
+                state['fix_end'] = max(s for _, s in cur.values()); m.Add(E <= state['fix_end'])
+                for i in cx.x: m.Add(cx.spr[i] <= state['fix_end'])
+            else: m.Add(expr <= obj)
+        else:
+            if si == 0: status1 = rec['status']
+            if rec['status'] == 'INFEASIBLE' and si > 0: rec['note'] = 'unexpected: the earlier solution satisfies this stage'
+            stages_meta.extend({'name': later, 'status': 'SKIPPED'} for later in plan[si + 1:])
+            break
+    proved = len(stages_meta) == len(plan) and all(s['status'] == 'OPTIMAL' for s in stages_meta)
+    if best is not None:   # never return a schedule lexicographically worse than a valid candidate (the current plan, a construction)
+        alt = min((c[2] for c in cands), key=lex, default=None)
+        if alt is not None and lex(alt) < lex(best): best = cur = alt; src = 'current' if alt is current else 'constructive'
+    pol = None
+    if polishing and best is not None and not proved and status1 in (None, 'UNKNOWN'):   # UNKNOWN stage 1: polish the constructive schedule
+        best, pol = polish(pr, cp, a, clock, links, plan, best, anytime, comps)
+        if pol['improved']: src = 'cp-sat'
+    elif a.decompose and not polishing: pol = {'method': 'decompose', 'components': len(comps), 'rounds': 0, 'skipped': 'one component'}
+    scope = 'global'
+    if proved and early and best is not None:
+        # The model holds only schedules ending by H. A stage ranked above end_sprint is proved globally only when its value equals a lower
+        # bound that holds for every schedule, whatever its end; then the end-sprint stage and the stages after it are global too.
+        lbs = global_lower_bounds(pr)
+        if any(stage_value(pr, nm, best) != lbs[nm] for nm in early): scope = 'horizon'; proved = False
+    info['proof_scope'] = scope
+    if best is not None:
+        for rec in stages_meta:   # report each stage objective as the final schedule has it (a later stage or the polish may have lowered it)
+            if 'objective' in rec:
+                v = stage_value(pr, rec['name'], best)
+                if v != rec['objective']: rec['objective'] = v; rec['gap_pct'] = gap_pct(v, rec['bound'])
+                if v < rec['bound'] - 1e-6: rec['below_bound'] = True   # an earlier stage improved later (polish): the bound assumed its old value
+    return {'best': best, 'src': src, 'stages': stages_meta, 'proved_all': proved, 'conflicts': conflicts, 'info': info, 'plan': plan, 'polish': pol,
+            'status1': status1 or (stages_meta[0]['status'] if stages_meta else 'UNKNOWN')}
+
+
+class Anytime:
+    """Keeps --out at the best verified schedule found so far (lexicographic in stage order), written atomically, so a kill at any moment
+    leaves a valid file. Writes at most once per INTERVAL seconds from the solver callback; the end of every stage is always offered.
+    The file that existed before the run is snapshotted and put back when the run ends without a schedule."""
+    INTERVAL = 1.0
+
+    def __init__(s, pr, a, meta):
+        s.pr, s.a, s.meta = pr, a, meta; s.order = []; s.key = None; s.last = 0.0; s.wrote = False; s.errors = 0
+        s.meta_path = None if (a.format == 'object' or a.meta == 'none') else (a.meta or a.out + '.meta.json')
+        # --meta none with the array format: nothing beside --out could say a mid-run file is partial, so anytime writes are off
+        s.no_meta = a.format != 'object' and a.meta == 'none'
+        s.snap = None if s.no_meta else snapshot(a.out); s.off = s.no_meta or s.snap is False
+
+    def offer(s, get, src, stage, force=False):
+        if s.off: return
+        now = time.time()
+        if not force and s.wrote and now - s.last < s.INTERVAL: return
+        assign = get(); k = tuple(stage_value(s.pr, n, assign) for n in s.order)
+        if s.key is not None and k >= s.key: return
+        if verify(s.pr, names(s.pr, assign)): return
+        mt = public_metrics(s.pr, assign); pr = s.pr
+        sched = [{'item': pr.T[i], 'owner': pr.P[pi], 'sprint': sp} for i, (pi, sp) in sorted(assign.items())]
+        pm = dict(s.meta, status='FEASIBLE', proved=False, partial=True, verified=True, source=src, **mt)
+        try:
+            if s.a.format == 'object': atomic_write(s.a.out, dump({'schedule': sched, 'meta': pm}))
+            else:   # partial meta first: a kill between the two renames leaves a partial meta beside the previous schedule, never a
+                #     new partial schedule beside an earlier run's final meta
+                with WRITE_LOCK: atomic_write(s.meta_path, dump(pm)); atomic_write(s.a.out, dump(sched))
+        except (Fail, OSError):   # e.g. --out turned into a symlink mid-run: stop anytime writes; the final write re-checks and reports
+            s.errors += 1; s.off = True; s.wrote = True; return
+        s.key, s.last, s.wrote = k, now, True
+        if s.a.verbose:
+            print('anytime ' + json.dumps({'source': src, 'stage': stage, 'end_sprint': mt['end_sprint'], 'owner_changes': mt['owner_changes'], 'key': list(k)},
+                                          separators=(',', ':')), file=sys.stderr, flush=True)
+
+    def restore(s):
+        """Put --out back as it was before the run (or remove it if the run created it)."""
+        if not s.wrote: return
+        if s.snap is None:
+            check_out(s.a.out)
+            if os.path.isfile(s.a.out): os.unlink(s.a.out)
+        else: atomic_write(s.a.out, s.snap)
+
+
+def snapshot(path):
+    """Bytes of an existing --out, None when there is none, False when it cannot be snapshotted (not a regular file, or over SNAP_CAP)."""
+    try: fd = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
+    except FileNotFoundError: return None
+    except OSError: return False
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > SNAP_CAP: return False
+        parts, n = [], 0
+        while n <= SNAP_CAP:
+            c = os.read(fd, 1 << 20)
+            if not c: break
+            parts.append(c); n += len(c)
+        return b''.join(parts) if n <= SNAP_CAP else False
+    finally: os.close(fd)
+
+
+WRITE_LOCK = threading.RLock()  # held for every write of --out / meta (and across a meta + schedule pair): the parent watchdog never exits inside one
+
+
+def watch_parent(poll=0.2):
+    """PLANGRAPH_SOLVE_WATCH_PARENT=1 (set by bin/plangraph-solve-run only on its fallback path, where `uv run` stays this process's parent): a daemon
+    thread polls os.getppid(); once it changes (the parent died and this process was re-parented), it takes WRITE_LOCK, so no atomic write is
+    cut short, and exits at once with no further write. --out then keeps the last verified anytime schedule with its partial meta."""
+    if os.environ.get('PLANGRAPH_SOLVE_WATCH_PARENT') != '1': return
+    ppid = os.getppid()
+
+    def run():
+        while True:
+            time.sleep(poll)
+            if os.getppid() != ppid:
+                WRITE_LOCK.acquire()
+                os._exit(EXIT['unknown'])
+    threading.Thread(target=run, name='plangraph-solve-parent-watch', daemon=True).start()
+
+
+def atomic_write(path, text):
+    with WRITE_LOCK: _atomic_write(path, text)
+
+
+def _atomic_write(path, text):
+    check_out(path)  # re-validate at write time: the parent may have been swapped for a symlink, or --out turned into one, since the first check
+    d = os.path.dirname(os.path.abspath(path)) or '.'
+    fd, tmp = tempfile.mkstemp(dir=d, prefix='.plangraph-solve-', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'wb') as f: f.write(text if isinstance(text, bytes) else text.encode('utf8')); f.flush(); os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try: os.unlink(tmp)
+        except OSError: pass
+        raise
+    try: dfd = os.open(d, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    except OSError: return   # a platform that cannot open a directory: the rename is done, only its durability is not forced
+    try: os.fsync(dfd)
+    except OSError: pass
+    finally: os.close(dfd)
+
+
+def dump(o): return json.dumps(o, sort_keys=True, separators=(',', ':')) + '\n'
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog='plangraph-solve', description='Sprint-assignment solver (CP-SAT). See docs/SOLVER.md.')
+    ap.add_argument('--db'); ap.add_argument('--config'); ap.add_argument('--jsonl-dir', help='load tickets.jsonl, edges.jsonl, schedule.jsonl, config.json directly')
+    ap.add_argument('--out', required=True); ap.add_argument('--meta', help='metadata file (default <out>.meta.json; "none" to skip)')
+    ap.add_argument('--format', choices=['array', 'object'], default='array')
+    ap.add_argument('--end', type=int); ap.add_argument('--time', type=float); ap.add_argument('--workers', type=float)
+    ap.add_argument('--seed', type=int, default=1); ap.add_argument('--deterministic', action='store_true')
+    ap.add_argument('--baseline', default='current'); ap.add_argument('--freeze'); ap.add_argument('--freeze-file')
+    ap.add_argument('--no-reduce', action='store_true', help='keep every link in the model (default: transitive reduction)')
+    ap.add_argument('--balance', action='store_true', help='when minimize_load_of is unset, minimise the peak person-sprint load')
+    ap.add_argument('--lns', action='store_true', help='after the stages, re-solve a seeded random 20%% of the tickets with the rest fixed, in rounds')
+    ap.add_argument('--decompose', action='store_true', help='after the stages, re-solve each connected component of the link graph with the rest fixed')
+    ap.add_argument('--verbose', action='store_true', help='print stage records and every anytime write to stderr')
+    a = ap.parse_args(argv)
+    t_start = time.time()
+    watch_parent()
+    try:
+        from ortools.sat.python import cp_model as cp
+        import ortools
+    except ImportError:
+        print(f'plangraph-solve: OR-Tools is not installed. Run bin/plangraph-solve-run (needs uv), or: uv run --python 3.14 --with {PIN} python bin/plangraph-solve ...', file=sys.stderr)
+        return EXIT['no_solver']
+    try:
+        check_out(a.out)
+        if a.meta != 'none': check_out(a.meta or a.out + '.meta.json')
+        tickets, edges, sched, cfg = load_raw(a)
+        clamped = []
+        a.workers, total = clamp_limits(a, cfg, clamped)
+        pr = prepare(a, tickets, edges, sched, cfg)
+    except Fail as f:
+        print(f'MODEL_INVALID: {f.msg}'); return f.code
+    except (KeyError, TypeError, ValueError, OSError) as e:
+        print(f'MODEL_INVALID: bad input ({type(e).__name__}: {e})'); return EXIT['usage']
+    clock = Clock(total, a.deterministic, t_start)
+    meta = {'ortools_version': ortools.__version__, 'seed': a.seed, 'workers': 1 if a.deterministic else a.workers, 'deterministic': a.deterministic, 'time_limit': total,
+            'input_hash': pr.input_hash, 'baseline': pr.baseline_name, 'target_end': pr.target, 'time_budget': total, 'frozen': len(pr.frozen),
+            'tickets': pr.n, 'people': pr.P}
+    if clamped: meta['clamped'] = clamped
+    if a.lns: meta['lns'] = True
+    if a.decompose: meta['decompose'] = True
+    anytime = Anytime(pr, a, dict(meta))
+    res = solve_all(pr, cp, a, clock, anytime)
+    unscale_stages(pr, res['stages'], res['polish'])
+    note_gaps(res['stages'])
+    meta.update(res['info']); meta['stages'] = res['stages']; meta['conflicts'] = res['conflicts']; meta['stage_order'] = res['plan']
+    if res['polish'] is not None: meta['polish'] = res['polish']
+    if anytime.snap is False: meta['anytime'] = 'off: the existing --out is not a regular file of at most 64 MiB'
+    if anytime.errors: meta['anytime_errors'] = anytime.errors
+    if a.verbose:
+        for s in res['stages']: print('stage', json.dumps(s, sort_keys=True), file=sys.stderr)
+    best = res['best']; explanation = None
+    if res['status1'] == 'INFEASIBLE':
+        meta['status'] = 'INFEASIBLE'; meta['proved'] = True
+        explanation = explain(pr, cp, a, clock, res['info']['horizon'], clock.left())
+        code = EXIT['infeasible']; line = f"INFEASIBLE (within sprints up to {res['info']['horizon']}): {explain_text(explanation)}"; best = None
+    elif res['status1'] == 'MODEL_INVALID':
+        meta['status'] = 'MODEL_INVALID'; meta['proved'] = False; code = EXIT['usage']; line = 'MODEL_INVALID: the solver rejected the model'; best = None
+    elif best is None:
+        meta['status'] = 'UNKNOWN'; meta['proved'] = False; code = EXIT['unknown']
+        line = f"UNKNOWN: no schedule found within the budget ({total}s); raise --time"
+    else:
+        bad = verify(pr, names(pr, best))
+        if bad:
+            meta['status'] = 'VERIFY_FAILED'; meta['proved'] = False; meta['verifier'] = bad[:8]; code = EXIT['verify']
+            line = f"VERIFY_FAILED: refusing to write; {bad[0]} (+{len(bad) - 1} more)"; best = None
+        else:
+            mt = public_metrics(pr, best); meta.update(mt); meta['verified'] = True; meta['source'] = res['src']
+            proved = res['proved_all'] and res['src'] == 'cp-sat'
+            meta['proved'] = proved; meta['status'] = 'OPTIMAL' if proved else 'FEASIBLE'
+            st1 = res['stages'][0] if res['stages'] and res['stages'][0]['name'] == 'end_sprint' else {}   # minimal only when minimised first
+            meta['end_sprint_proved'] = st1.get('status') == 'OPTIMAL'
+            meta['end_sprint_bound'] = st1['bound'] if 'bound' in st1 else pr.lo
+            gaps = [s for s in res['stages'] if s.get('status') == 'FEASIBLE']
+            meta['objective'] = {s['name']: s['objective'] for s in res['stages'] if 'objective' in s}
+            meta['bound'] = {s['name']: s['bound'] for s in res['stages'] if 'bound' in s}
+            meta.update(gap_summary(res['stages'], proved))
+            meta['target_met'] = mt['end_sprint'] <= pr.target
+            code = EXIT['ok'] if meta['target_met'] else EXIT['target']
+            if not meta['target_met']: explanation = explain(pr, cp, a, clock, pr.target, clock.left())
+            lead = 'OPTIMAL' if proved else 'FEASIBLE'
+            if not proved:
+                g = gaps[0] if gaps else None
+                if g: lead += gap_lead(g)
+                elif res['info'].get('proof_scope') == 'horizon':
+                    lead += f" (optimal only among schedules ending by sprint {res['info']['horizon']}: a stage before end_sprint is not proved globally)"
+                else: lead += f" ({'constructive only; ' if res['src'] == 'constructive' else ''}not proved: " + ','.join(f"{s['name']}={s['status']}" for s in res['stages']) + ')'
+            line = f"{lead}: ends sprint {mt['end_sprint']} (target {pr.target}{'' if meta['target_met'] else ', MISSED'}), owner changes {mt['owner_changes']} vs {pr.baseline_name}, shortfall {mt['shortfall']} SP"
+            if explanation and not meta['target_met']: line += f"; to end by {pr.target}: {explain_text(explanation)}"
+    meta['explanation'] = explanation
+    if not a.deterministic: meta['wall_s'] = round(time.time() - t_start, 3)
+    with WRITE_LOCK:   # the final schedule and its meta as one unit for the parent watchdog
+        if best is None:
+            try: anytime.restore()
+            except (Fail, OSError): meta['anytime'] = 'could not restore the previous --out; it holds the last verified schedule'
+        else:
+            sched_out = [{'item': pr.T[i], 'owner': pr.P[pi], 'sprint': s} for i, (pi, s) in sorted(best.items())]
+            atomic_write(a.out, dump({'schedule': sched_out, 'meta': meta}) if a.format == 'object' else dump(sched_out))
+            line += f"; wrote {a.out}"
+        if not (a.format == 'object' and best is not None) and a.meta != 'none':
+            atomic_write(a.meta or a.out + '.meta.json', dump(meta))
+    print(line)
+    return code
+
+
+if __name__ == '__main__':
+    sys.exit(main())

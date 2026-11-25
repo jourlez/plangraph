@@ -1,6 +1,6 @@
-$ brain sp-ingest
+$ plangraph sp-ingest
 exit: 2
 --- stdout
 --- stderr
-error: usage: brain sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]
-try: brain explain sp-ingest
+error: usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]
+try: plangraph explain sp-ingest

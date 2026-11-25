@@ -1,4 +1,4 @@
-$ brain jira-text DEMO-1 --out jt --from-json issue.json
+$ plangraph jira-text DEMO-1 --out jt --from-json issue.json
 exit: 0
 --- stdout
 wrote 1 files

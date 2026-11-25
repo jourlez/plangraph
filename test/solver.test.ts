@@ -1,9 +1,9 @@
-// Tests for bin/brain-solve (CP-SAT sprint assignment), run through the launcher bin/brain-solve-run with --jsonl-dir (no Node SQLite needed).
+// Tests for bin/plangraph-solve (CP-SAT sprint assignment), run through the launcher bin/plangraph-solve-run with --jsonl-dir (no Node SQLite needed).
 // What is covered: property tests on genPlan instances checked by a Node-side verifier written in this file (handoff, capacity, frozen, placed once);
 // a brute-force oracle on tiny instances (optimal end sprint, optimal load_of, minimum owner changes: the lexicographic optimum); infeasible instance
 // with a known culprit link; determinism (byte-identical output); frozen assignments (four ways); baselines; status honesty under a tiny budget;
 // transitive reduction keeps the optimum; exit codes; atomic/refused writes; stage_order (meta order, brute force for owner-first and
-// shortfall-first, invalid values, the `brain init` default); anytime output (SIGTERM leaves a verified file, restore on verifier rejection);
+// shortfall-first, invalid values, the `plangraph init` default); anytime output (SIGTERM leaves a verified file, restore on verifier rejection);
 // --lns/--decompose polish (verified, never worse, deterministic); the first_sprint window (free tickets never before first_sprint, frozen ones
 // exempt, no contradictory end-sprint bound); the anytime verifier gate and the LNS acceptance check (mutants); partial meta written before the
 // schedule, --meta none turning anytime writes off, gap_pct clamping and the directory fsync (Python unit checks, stdlib only); the `uv run`
@@ -27,8 +27,8 @@ import type { Slot } from '../lib/whatif.ts';
 import { verifyPlan } from '../lib/verify.ts';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RUN = path.join(ROOT, 'bin', 'brain-solve-run');
-const SOLVE = path.join(ROOT, 'bin', 'brain-solve');
+const RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
+const SOLVE = path.join(ROOT, 'bin', 'plangraph-solve');
 /** A plan as these tests build it (genPlan output, then edited): records plus the free-form config the solver reads. */
 type Cfg = { [k: string]: unknown; caps: Record<string, number>; first_sprint?: number; end_sprint: number; min_per_sprint?: Record<string, number>; ignore_link_kinds?: string[]; frozen_statuses?: string[]; frozen_before_sprint?: number };
 type Plan = { tickets: Array<Ticket & { sp: number }>; edges: Edge[]; schedule: Array<ScheduleRow & { owner: string; sprint: number }>; config: Cfg };
@@ -185,9 +185,9 @@ test('stage_order: config order is honored in the meta stages; the default keeps
   assert.equal(part.meta.end_sprint_proved, false, 'an end sprint minimised after another stage is not the global minimum');
 });
 
-test('stage_order: the default written by `brain init` keeps today\'s order (peak_load before owner_changes with balance_load)', { skip: SKIP, timeout: T_MEDIUM }, () => {
+test('stage_order: the default written by `plangraph init` keeps today\'s order (peak_load before owner_changes with balance_load)', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'init-')); spawnSync('git', ['init', '-q'], { cwd: repo });
-  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'plangraph-data') } }); // private data dir: never the real HOME
+  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'plangraph'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'plangraph-data') } }); // private data dir: never the real HOME
   assert.equal(ir.status, 0, ir.stderr);
   const so = JSON.parse(fs.readFileSync(path.join(repo, '.plangraph', 'config.json'), 'utf8')).stage_order;
   assert.deepEqual(so, ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes']);
@@ -350,7 +350,7 @@ test('anytime: SIGTERM after the first CP-SAT callback solution leaves a verifie
 test('anytime: a verifier rejection restores the --out that existed before the run, byte for byte', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const src = fs.readFileSync(SOLVE, 'utf8');
   const mut = src.replace("if const[p][k] + sum(w for _, w in terms[p][k]) > pr.capf(pr.P[p]): m.Add(e + const[p][k] <= pr.capf(pr.P[p]))", 'pass');
-  assert.notEqual(mut, src); const script = path.join(tmpRoot, 'brain-solve-mutant2'); fs.writeFileSync(script, mut, { mode: 0o755 });
+  assert.notEqual(mut, src); const script = path.join(tmpRoot, 'plangraph-solve-mutant2'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 }); const dir = writePlan(p), out = path.join(dir, 'out.json');
   fs.writeFileSync(out, 'precious\n');
   const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { encoding: 'utf8', cwd: tmpRoot, timeout: 300000, env: { ...process.env, PLANGRAPH_SOLVE_SCRIPT: script } });
@@ -393,7 +393,7 @@ test('window: a three-ticket chain is never started in a past sprint to end earl
   stagesConsistent(r); assert.equal(r.meta.status, 'OPTIMAL'); assert.equal(r.meta.end_sprint, 5, 'three sprints of 10 SP each, from sprint 3');
 });
 
-// Review I1: frozen_statuses [] (the `brain init` value) froze nothing, so the solver moved a Done producer into first_sprint.
+// Review I1: frozen_statuses [] (the `plangraph init` value) froze nothing, so the solver moved a Done producer into first_sprint.
 test('frozen: Done and closed_statuses tickets stay frozen with frozen_statuses []', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const p = { tickets: [tk('T-1', 'Ana', 3, 'Done'), tk('T-2', 'Ana', 2), tk('T-3', 'Ben', 2, 'Closed')],
     edges: [{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need', note: '' }],
@@ -406,7 +406,7 @@ test('frozen: Done and closed_statuses tickets stay frozen with frozen_statuses 
   assert.deepEqual(check(p, r.schedule, new Map([['T-1', { owner: 'Ana', sprint: 1 }], ['T-3', { owner: 'Ben', sprint: 1 }]])), []);
 });
 
-// Review I2: the solver truncated fractional story points (int(sp)), so two 2.6 SP tickets shared a 5 SP cell that `brain verify` rejects.
+// Review I2: the solver truncated fractional story points (int(sp)), so two 2.6 SP tickets shared a 5 SP cell that `plangraph verify` rejects.
 const brainVerify = (p: Plan, schedule: readonly Row[]) => verifyPlan(buildModel({ tickets: p.tickets, edges: p.edges, config: p.config,
   schedule: schedule.map((r) => ({ key: r.item, owner: r.owner, sprint: r.sprint })) })).map((v) => `${v.code} ${v.key} ${v.detail}`);
 // Review C1 (frozen history): a closed producer satisfies its links, links between two frozen tickets and cells of frozen load are fixed
@@ -450,7 +450,7 @@ test('frozen history: an INFEASIBLE caused by a frozen consumer says no later en
 
 // Brute force with random frozen sets: every (owner, sprint) of every free ticket in first_sprint..7, frozen tickets fixed; the rule written
 // here from the CONTRACT text (a constraint exists only where at least one side is free), not from lib/frozen.ts. Lexicographic optimum
-// [end sprint, owner changes of free tickets]; the solver must reach it, keep every frozen ticket in place and pass brain verify.
+// [end sprint, owner changes of free tickets]; the solver must reach it, keep every frozen ticket in place and pass plangraph verify.
 function frozenBrute(p: Plan) {
   const cfg = p.config, first = cfg.first_sprint ?? 1, keys = p.tickets.map((t) => t.key), cur = curOf(p), P = ['Ana', 'Ben'];
   const st = new Map(p.tickets.map((t): [string, unknown] => [t.key, t.jira_status]));
@@ -478,7 +478,7 @@ function frozenBrute(p: Plan) {
   })(0);
   return { best, frozenKeys: keys.filter(frozen) };
 }
-test('property: random frozen sets: the solver reaches the brute-force optimum, never moves a frozen ticket, and passes brain verify', { skip: SKIP, timeout: T_HEAVY }, () => {
+test('property: random frozen sets: the solver reaches the brute-force optimum, never moves a frozen ticket, and passes plangraph verify', { skip: SKIP, timeout: T_HEAVY }, () => {
   let solved = 0, infeasible = 0;
   for (let seed = 1; seed <= 24; seed++) {
     const r0 = rng(seed + 900), n = 3 + (seed % 2), keys = Array.from({ length: n }, (_, i) => `T-${i + 1}`);
@@ -499,12 +499,12 @@ test('property: random frozen sets: the solver reaches the brute-force optimum, 
   assert.ok(solved >= 12, `solved ${solved}, infeasible ${infeasible}`);
 });
 
-test('fractional story points: the solver models them exactly and its output passes brain verify (repro: 2 x 2.6 SP, cap 5)', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
+test('fractional story points: the solver models them exactly and its output passes plangraph verify (repro: 2 x 2.6 SP, cap 5)', { skip: SKIP, timeout: T_LIGHT * 2 }, () => {
   const p = { tickets: [tk('T-1', 'Ana', 2.6), tk('T-2', 'Ana', 2.6)], edges: [], schedule: [{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 2 }],
     config: { first_sprint: 1, end_sprint: 6, caps: { default: 5 }, ignore_link_kinds: [] } };
   const r = solve(p, ['--deterministic'], { time: 5 }); assert.equal(r.code, 0, r.stdout + r.stderr);
   assert.deepEqual(brainVerify(p, r.schedule), []); assert.equal(r.meta.end_sprint, 2); assert.equal(r.meta.status, 'OPTIMAL');
-  // a float tie (0.1 + 0.2 > 0.3 in binary floating point, as brain verify sums) is never packed into one cell
+  // a float tie (0.1 + 0.2 > 0.3 in binary floating point, as plangraph verify sums) is never packed into one cell
   const q = { tickets: [tk('A', 'Ana', 0.1), tk('B', 'Ana', 0.2)], edges: [], schedule: [{ key: 'A', owner: 'Ana', sprint: 1 }, { key: 'B', owner: 'Ana', sprint: 2 }],
     config: { first_sprint: 1, end_sprint: 6, caps: { default: 0.3 }, ignore_link_kinds: [] } };
   const t = solve(q, ['--deterministic'], { time: 5 }); assert.equal(t.code, 0, t.stdout + t.stderr); assert.deepEqual(brainVerify(q, t.schedule), []);
@@ -512,7 +512,7 @@ test('fractional story points: the solver models them exactly and its output pas
   const z = solve({ ...p, tickets: [tk('T-1', 'Ana', 0.30000000000000004), tk('T-2', 'Ana', 1)] }, [], { time: 5 });
   assert.equal(z.code, 2); assert.equal(z.stdout, 'MODEL_INVALID: story points, caps and min_per_sprint must be numbers with at most 4 decimal places\n'); assert.equal(z.raw, null);
 });
-test('property: fractional story points and caps give schedules that pass brain verify, with load figures in story points', { skip: SKIP, timeout: T_HEAVY }, () => {
+test('property: fractional story points and caps give schedules that pass plangraph verify, with load figures in story points', { skip: SKIP, timeout: T_HEAVY }, () => {
   for (let seed = 1; seed <= 10; seed++) {
     const p = plan({ n: 8 + seed, people: 2 + (seed % 2), density: 0.2, seed: seed + 60 }), r0 = rng(seed);
     const steps = [0.1, 0.25, 0.5, 0.3, 0.7];
@@ -527,7 +527,7 @@ test('property: fractional story points and caps give schedules that pass brain 
   }
 });
 
-// Python unit checks on bin/brain-solve itself (stdlib only: prepare, verify, Anytime, atomic_write and gap_pct need no OR-Tools).
+// Python unit checks on bin/plangraph-solve itself (stdlib only: prepare, verify, Anytime, atomic_write and gap_pct need no OR-Tools).
 const HAVE_PY3 = has('python3', ['--version']);
 const PY_HEAD = `
 import importlib.machinery, importlib.util, json, os, stat, sys, types
@@ -576,7 +576,7 @@ test('anytime: a CP-SAT callback solution the verifier rejects never reaches --o
   // capacity constraints dropped, so CP-SAT reports schedules that break capacity; restore disabled, so --out keeps whatever anytime wrote last
   const mut = src.replace(CAP_ANCHOR, 'pass').replace('        if not s.wrote: return\n', '        return\n');
   assert.equal(mut.split('\n').length, src.split('\n').length); assert.ok(!mut.includes('if not s.wrote: return') && !mut.includes(CAP_ANCHOR), 'both mutation anchors exist');
-  const script = path.join(tmpRoot, 'brain-solve-mutant-gate'); fs.writeFileSync(script, mut, { mode: 0o755 });
+  const script = path.join(tmpRoot, 'plangraph-solve-mutant-gate'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 }); const dir = writePlan(p), out = path.join(dir, 'out.json');
   const child = spawn(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { cwd: tmpRoot, detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PLANGRAPH_SOLVE_SCRIPT: script } });
   let err = '', all = '', stdout = '', killed = false;
@@ -599,7 +599,7 @@ test('polish: the LNS acceptance check keeps only lexicographic improvements (su
   const src = fs.readFileSync(SOLVE, 'utf8'); const anchor = '    sub = copy.copy(pr); fz = dict(pr.frozen)\n';
   // every free ticket one sprint later: handoffs and capacity still hold (no frozen tickets in this plan), the end sprint is one worse
   const mut = src.replace(anchor, '    return {i: (o, s + (0 if i in pr.frozen else 1)) for i, (o, s) in inc.items()}\n' + anchor);
-  assert.notEqual(mut, src, 'mutation anchor must exist'); const script = path.join(tmpRoot, 'brain-solve-mutant-lns'); fs.writeFileSync(script, mut, { mode: 0o755 });
+  assert.notEqual(mut, src, 'mutation anchor must exist'); const script = path.join(tmpRoot, 'plangraph-solve-mutant-lns'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = twoPlans();
   const r = solve(p, ['--lns', '--deterministic'], { time: 10, env: { PLANGRAPH_SOLVE_SCRIPT: script } }); assert.ok([0, 4].includes(r.code as number), r.stdout + r.stderr); // null (a signal) is not in the list
   const pol = r.meta.polish; assert.ok(pol && pol.rounds >= 1, JSON.stringify(pol));
@@ -654,7 +654,7 @@ test('infeasible: a frozen consumer needs a free producer before first_sprint; t
   // frozen history (lib/frozen.ts): both ends frozen is a fixed fact, not a contradiction: feasible, both kept in place
   const both = solve(p, ['--freeze', 'PRD-1,CON-1']);
   assert.equal(both.code, 0, both.stdout); assert.equal(placedAt(both, 'PRD-1'), 'Ana S3'); assert.equal(placedAt(both, 'CON-1'), 'Ana S2');
-  assert.equal(both.meta.verified, true); // the solver's own verifier, which knows the --freeze set (brain verify does not read --freeze)
+  assert.equal(both.meta.verified, true); // the solver's own verifier, which knows the --freeze set (plangraph verify does not read --freeze)
   const ok = solve(p); // not frozen: feasible, so the explanation above is about the freeze, not a solver artefact
   assert.equal(ok.code, 0, ok.stdout); assert.deepEqual(check(p, ok.schedule), []);
 });
@@ -788,7 +788,7 @@ test('refuses to write when the independent verifier rejects (mutated model is c
   const src = fs.readFileSync(SOLVE, 'utf8');
   const mut = src.replace("if const[p][k] + sum(w for _, w in terms[p][k]) > pr.capf(pr.P[p]): m.Add(e + const[p][k] <= pr.capf(pr.P[p]))", 'pass');
   assert.notEqual(mut, src, 'mutation anchor must exist');
-  const script = path.join(tmpRoot, 'brain-solve-mutant'); fs.writeFileSync(script, mut, { mode: 0o755 });
+  const script = path.join(tmpRoot, 'plangraph-solve-mutant'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 });
   const r = solve(p, [], { env: { PLANGRAPH_SOLVE_SCRIPT: script } });
   assert.equal(r.code, 6, r.stdout + r.stderr); assert.match(r.stdout, /^VERIFY_FAILED.*capacity/); assert.equal(r.raw, null); assert.equal(r.meta.status, 'VERIFY_FAILED');
@@ -942,7 +942,7 @@ test('docs: SOLVER.md discloses the first-use download (pypi.org, --locked)', ()
 
 // ---- limitations wave: solver edge cases ----
 // (a) a 0-SP free ticket adds nothing to a cell's float sum, so it may join frozen tickets whose story points are not binary floats and that
-// sit exactly at capacity (the float-tie rule keeps only tickets WITH load strictly below capacity there). Oracle: brain verify (lib/verify.ts)
+// sit exactly at capacity (the float-tie rule keeps only tickets WITH load strictly below capacity there). Oracle: plangraph verify (lib/verify.ts)
 // reports the same violations for the result as for the frozen tickets alone (their float sum 0.1 + 0.2 > 0.3 is pre-existing).
 test('(a) a 0-SP ticket may join frozen non-binary story points at an exact capacity tie; verify sees no new violation', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const p = { tickets: [{ key: 'F-1', sp: 0.1, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'F-2', sp: 0.2, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'Z-1', sp: 0, v2_owner: 'Ana', v2_sprint: 1 }],
@@ -1015,7 +1015,7 @@ print(json.dumps(res, sort_keys=True))`);
   });
 });
 
-// (b) SIGKILL on the launcher. bin/brain-solve-run now execs the solver's Python itself (uv only prepares the locked environment), so the
+// (b) SIGKILL on the launcher. bin/plangraph-solve-run now execs the solver's Python itself (uv only prepares the locked environment), so the
 // launcher's pid IS the solver and a SIGKILL leaves no process behind. On the fallback path where `uv run` stays the parent
 // (PLANGRAPH_SOLVE_LAUNCH=uv-run forces it), the solver watches its parent and exits without another write once uv is gone. Either way --out
 // keeps the last verified anytime schedule with its partial meta, and nothing writes it after the kill.
@@ -1043,7 +1043,7 @@ async function killTest(env: Record<string, string>, { exec = false }: { exec?: 
     const end = await done;
     assert.ok(killed, `no anytime cp-sat line before exit (${end.code}/${end.signal}): ${err.slice(-400)}`);
     assert.equal(end.signal, 'SIGKILL');
-    // exec path: the launcher's pid runs the solver script itself (one process): its command is `<interpreter> <bin/brain-solve> ...`. The
+    // exec path: the launcher's pid runs the solver script itself (one process): its command is `<interpreter> <bin/plangraph-solve> ...`. The
     // interpreter's image name is not always lower-case `python`: a macOS framework build (Homebrew, python.org) has bin/python3.x exec (same
     // pid) Python.framework/.../Resources/Python.app/Contents/MacOS/Python. Fallback: the pid is uv.
     if (exec) {

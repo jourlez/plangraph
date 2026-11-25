@@ -12,8 +12,8 @@
     "node": ">=24.2"
   },
   "bin": {
-    "brain": "bin/brain",
-    "brain-merge": "bin/brain-merge"
+    "plangraph": "bin/plangraph",
+    "plangraph-merge": "bin/plangraph-merge"
   },
   "scripts": {
     "test": "node --test \"test/*.test.{mjs,ts}\"",

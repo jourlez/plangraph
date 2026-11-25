@@ -1,4 +1,4 @@
-// Tests for lib/report.ts and `brain report`: determinism, the ready oracle (the set `brain ready` accepts), sprint load against caps,
+// Tests for lib/report.ts and `plangraph report`: determinism, the ready oracle (the set `plangraph ready` accepts), sprint load against caps,
 // provenance labels, hostile text in markdown and HTML, an HTML with no script, handler or external resource, and the command's writes.
 // NOT covered: a browser rendering of the HTML (checked by string rules only), publishing (a separate skill step).
 import test, { before, after } from 'node:test';
@@ -18,7 +18,7 @@ import type { OpenItem } from '../lib/openitems.ts';
 /** The raw records the oracle reads (JSON lines written by these tests). */
 type RawPlan = { tickets: Ticket[]; edges: Edge[]; findings: Array<{ key: string; kind: string }>; config: PlanConfig };
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
 
@@ -51,7 +51,7 @@ test('sprint load against cap is exact and flags only the cell over its cap', ()
 
 test('can-start-today, blockers, chain, per person on a hand-built plan', () => {
   const { data } = buildReport(world(), OPTS);
-  assert.deepEqual(data.ready.keys, ['A-2']);   // A-1 is Done (not something to start: `brain ready` says DONE); A-2's producer is Done
+  assert.deepEqual(data.ready.keys, ['A-2']);   // A-1 is Done (not something to start: `plangraph ready` says DONE); A-2's producer is Done
   assert.deepEqual(data.blocked_by_open_item.rows, [{ key: 'A-5', kinds: ['external'] }]);
   assert.deepEqual(data.critical_chain.keys, ['A-1', 'A-2', 'A-3', 'A-5']); assert.equal(data.critical_chain.hops, 3);
   assert.deepEqual(data.people.map((p) => [p.owner, p.tickets, p.sp, p.ready]), [['Ana', 3, 12, 1], ['Ben', 2, 10, 0]]);
@@ -109,17 +109,17 @@ test('long lists are bounded with a visible counter', () => {
   assert.equal(data.ready.count, 200); assert.match(markdown, /\+150 more/);
 });
 
-// ---- the oracle: the report's ready set equals what `brain ready` says for every ticket ----
+// ---- the oracle: the report's ready set equals what `plangraph ready` says for every ticket ----
 let BASE: string, ROOT: string;
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' });
-const brain = (cwd: string, ...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: env(), encoding: 'utf8', timeout: 60000 });
+const plangraph = (cwd: string, ...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: env(), encoding: 'utf8', timeout: 60000 });
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-report-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-report-')));
   fs.mkdirSync(path.join(BASE, 'home')); fs.mkdirSync(path.join(BASE, 'data'));
   ROOT = path.join(BASE, 'repo'); fs.mkdirSync(ROOT);
   execFileSync('git', ['init', '-q'], { cwd: ROOT, env: env() });
-  assert.equal(brain(ROOT, 'init').status, 0);
+  assert.equal(plangraph(ROOT, 'init').status, 0);
   const p = genPlan({ n: 30, people: 3, density: 0.15, seed: 11 });
   const status = (i: number) => (i % 5 === 0 ? 'Done' : i % 7 === 0 ? 'In Progress' : 'To Do');
   const tickets: object[] = p.tickets.map((t, i) => ({ ...t, jira_status: status(i), verdict: i % 6 === 3 ? 'BLOCKED' : 'READY' }));
@@ -130,10 +130,10 @@ before(() => {
   put(ROOT, '.plangraph/config.json', JSON.stringify({ ...p.config, ignore_link_kinds: ['soft'], caps: { default: 10, Ben: 6 }, closed_statuses: ['Done'] }, null, 2) + '\n');
   put(ROOT, '.plangraph/findings.jsonl', jl([{ key: 'T-4', kind: 'external', text: 'x' }, { key: 'T-6', kind: 'plan_text', text: 'y' }, { key: 'T-8', kind: 'note', text: 'z' }, { key: 'T-11', kind: 'note', text: 'w' }, { key: 'V-2', kind: 'note', text: 'closed later' }, { key: 'V-3', kind: 'note', text: 'stays open' }]));
   put(ROOT, 'snap.json', JSON.stringify(Object.fromEntries(p.tickets.map((t, i) => [t.key, { status: i % 3 === 0 ? 'Done' : 'To Do' }]))));
-  let r = brain(ROOT, 'build'); assert.equal(r.status, 0, r.stderr);
-  for (const a of [['--register', 'T-13', 'decision', '--owner', 'Ana', '--due', '3', '--text', 'pick'], ['--register', 'T-15', 'followup', '--owner', 'Ben', '--due', '4', '--text', 'ask']]) { r = brain(ROOT, 'open-items', ...a, '--write'); assert.equal(r.status, 0, r.stderr); }
-  r = brain(ROOT, 'open-items', '--close', 'T-8', 'note', '--note', 'ok', '--write'); assert.equal(r.status, 0, r.stderr);
-  r = brain(ROOT, 'open-items', '--close', 'V-2', 'note', '--note', 'ok', '--write'); assert.equal(r.status, 0, r.stderr);
+  let r = plangraph(ROOT, 'build'); assert.equal(r.status, 0, r.stderr);
+  for (const a of [['--register', 'T-13', 'decision', '--owner', 'Ana', '--due', '3', '--text', 'pick'], ['--register', 'T-15', 'followup', '--owner', 'Ben', '--due', '4', '--text', 'ask']]) { r = plangraph(ROOT, 'open-items', ...a, '--write'); assert.equal(r.status, 0, r.stderr); }
+  r = plangraph(ROOT, 'open-items', '--close', 'T-8', 'note', '--note', 'ok', '--write'); assert.equal(r.status, 0, r.stderr);
+  r = plangraph(ROOT, 'open-items', '--close', 'V-2', 'note', '--note', 'ok', '--write'); assert.equal(r.status, 0, r.stderr);
 });
 after(() => { try { fs.rmSync(BASE, { recursive: true, force: true }); } catch { /* best effort */ } });
 
@@ -166,17 +166,17 @@ const readRaw = (dir: string): RawPlan => {
   return { tickets: rows('tickets.jsonl'), edges: rows('edges.jsonl'), findings: rows('findings.jsonl'), config: JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')) };
 };
 
-test('oracle: the can-start set equals the tickets `brain ready` accepts and an independent brute-force rule, with and without a Jira snapshot', () => {
+test('oracle: the can-start set equals the tickets `plangraph ready` accepts and an independent brute-force rule, with and without a Jira snapshot', () => {
   const model = loadModel(path.join(ROOT, '.plangraph')), items = parseItems(fs.readFileSync(path.join(ROOT, '.plangraph/open-items.jsonl'), 'utf8')) as OpenItem[], // parseItems rows are open items
     raw = readRaw(path.join(ROOT, '.plangraph'));
   for (const snap of [null, 'snap.json']) {
-    const viaCli = [...model.tickets.keys()].sort().filter((k) => { const r = brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])); return r.status === 0 && r.stdout.startsWith('READY TO START'); });
-    const doneCli = [...model.tickets.keys()].sort().filter((k) => brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])).stdout.startsWith('DONE '));
+    const viaCli = [...model.tickets.keys()].sort().filter((k) => { const r = plangraph(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])); return r.status === 0 && r.stdout.startsWith('READY TO START'); });
+    const doneCli = [...model.tickets.keys()].sort().filter((k) => plangraph(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])).stdout.startsWith('DONE '));
     const statuses = snap ? JSON.parse(fs.readFileSync(path.join(ROOT, snap), 'utf8')) : null;
     const got = readySet(model, items, statuses);
-    assert.deepEqual(got.ready, viaCli, 'readySet vs brain ready');
+    assert.deepEqual(got.ready, viaCli, 'readySet vs plangraph ready');
     assert.deepEqual(got.ready, bruteReady(raw, items, statuses), 'readySet vs the brute-force oracle');
-    assert.deepEqual(got.done, doneCli, 'done: readySet vs brain ready DONE');
+    assert.deepEqual(got.done, doneCli, 'done: readySet vs plangraph ready DONE');
     assert.ok(got.done.length >= 3, `the plan has done tickets (${got.done.length})`);
     assert.ok(got.ready.length > 3 && got.ready.length < model.tickets.size - 3, `oracle must be non-trivial (${got.ready.length}/${model.tickets.size})`);
     assert.deepEqual(buildReport(model, { items, statuses, jira: snap ? { date: '2026-11-20' } : null }).data.ready.keys, viaCli);
@@ -218,26 +218,26 @@ test('stale section: the label names the ref when computed (sanitized, escaped),
   assert.match(buildReport(m, {}).markdown, /## Stale plan text\n\nSource: not computed\n/);
 });
 
-test('brain report writes exactly report.md and report.html, twice with equal bytes', () => {
+test('plangraph report writes exactly report.md and report.html, twice with equal bytes', () => {
   const dir = path.join(ROOT, '.plangraph');
-  const r = brain(ROOT, 'report'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /^wrote \.plangraph\/report\.md and \.plangraph\/report\.html /);
+  const r = plangraph(ROOT, 'report'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /^wrote \.plangraph\/report\.md and \.plangraph\/report\.html /);
   const md1 = fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), html1 = fs.readFileSync(path.join(dir, 'report.html'), 'utf8');
-  assert.equal(brain(ROOT, 'report').status, 0);
+  assert.equal(plangraph(ROOT, 'report').status, 0);
   assert.equal(fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), md1); assert.equal(fs.readFileSync(path.join(dir, 'report.html'), 'utf8'), html1);
   assert.match(md1, /Source: from history|Source: not computed/); assert.doesNotMatch(html1, /<script/i);
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.includes('.tmp-')), []);
-  const js = brain(ROOT, 'report', '--jira', 'snap.json', '--as-of', '2026-11-20'); assert.equal(js.status, 0, js.stderr);
+  const js = plangraph(ROOT, 'report', '--jira', 'snap.json', '--as-of', '2026-11-20'); assert.equal(js.status, 0, js.stderr);
   assert.match(fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), /Source: from jira snapshot dated 2026-11-20/);
 });
 
-test('brain report failures have fixed messages and write nothing', () => {
+test('plangraph report failures have fixed messages and write nothing', () => {
   const dir = path.join(ROOT, '.plangraph'), before = fs.readFileSync(path.join(dir, 'report.md'), 'utf8');
-  let r = brain(ROOT, 'report', '--jira', 'snap.json'); assert.equal(r.status, 2); assert.match(r.stderr, /--jira and --as-of go together/);
-  r = brain(ROOT, 'report', '--jira', 'snap.json', '--as-of', 'yesterday'); assert.equal(r.status, 2); assert.match(r.stderr, /--as-of must be a date/);
-  r = brain(ROOT, 'report', '--out', 'nope'); assert.equal(r.status, 2); assert.match(r.stderr, /output directory does not exist/);
+  let r = plangraph(ROOT, 'report', '--jira', 'snap.json'); assert.equal(r.status, 2); assert.match(r.stderr, /--jira and --as-of go together/);
+  r = plangraph(ROOT, 'report', '--jira', 'snap.json', '--as-of', 'yesterday'); assert.equal(r.status, 2); assert.match(r.stderr, /--as-of must be a date/);
+  r = plangraph(ROOT, 'report', '--out', 'nope'); assert.equal(r.status, 2); assert.match(r.stderr, /output directory does not exist/);
   fs.mkdirSync(path.join(ROOT, 'lnk')); fs.symlinkSync(path.join(BASE, 'home'), path.join(ROOT, 'lnk/report.md')); put(ROOT, 'lnk/keep.txt', 'x');
-  r = brain(ROOT, 'report', '--out', 'lnk'); assert.equal(r.status, 4); assert.match(r.stderr, /refusing to write report\.md: it is a symlink \(nothing was written\)/);
+  r = plangraph(ROOT, 'report', '--out', 'lnk'); assert.equal(r.status, 4); assert.match(r.stderr, /refusing to write report\.md: it is a symlink \(nothing was written\)/);
   assert.equal(fs.existsSync(path.join(ROOT, 'lnk/report.html')), false);
-  r = brain(ROOT, 'report', '--out', '..'); assert.notEqual(r.status, 0); assert.equal(fs.existsSync(path.join(BASE, 'report.md')), false);
+  r = plangraph(ROOT, 'report', '--out', '..'); assert.notEqual(r.status, 0); assert.equal(fs.existsSync(path.join(BASE, 'report.md')), false);
   assert.equal(fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), before); // the failed runs left the earlier report untouched
 });

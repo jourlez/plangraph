@@ -29,7 +29,7 @@ test('bound: limit, marker and exact omitted count', () => {
 });
 
 test('envelope v2: stable short keys in a fixed order, compact JSON, snapshot', () => {
-  assert.equal(envelope('ticket', { k: 'T-1', sp: 3 }, { fresh: { fp: 'abcd1234', built: 'abcd1234' }, next: ['brain ticket T-1 -v'] }), '{"v":2,"cmd":"ticket","ok":true,"exit":0,"data":{"k":"T-1","sp":3},"fresh":{"fp":"abcd1234","built":"abcd1234"},"next":["brain ticket T-1 -v"]}');
+  assert.equal(envelope('ticket', { k: 'T-1', sp: 3 }, { fresh: { fp: 'abcd1234', built: 'abcd1234' }, next: ['plangraph ticket T-1 -v'] }), '{"v":2,"cmd":"ticket","ok":true,"exit":0,"data":{"k":"T-1","sp":3},"fresh":{"fp":"abcd1234","built":"abcd1234"},"next":["plangraph ticket T-1 -v"]}');
   assert.equal(envelope('x', [], { ok: false, exit: 1 }), '{"v":2,"cmd":"x","ok":false,"exit":1,"data":[],"fresh":null,"next":[]}');
   assert.deepEqual(Object.keys(JSON.parse(envelope('x', 1))), ['v', 'cmd', 'ok', 'exit', 'data', 'fresh', 'next']);
   assert.ok(!/\s(?=[:,{}"\[])|: |, /.test(envelope('x', { a: 1, b: [1, 2] })), 'no pretty-printing whitespace');
@@ -85,7 +85,7 @@ test('renderCard: small plan content', () => {
   const m = buildModel({ ...p, findings: [{ key: 'T-1', kind: 'missing_ac', text: 'x' }, { key: 'T-2', kind: 'missing_ac', text: 'y' }, { key: 'T-3', kind: 'owner', text: 'z' }] });
   const out = renderCard(m, meta);
   assert.ok(tok(out) <= CARD_BUDGET);
-  assert.ok(out.startsWith('brain a1b2c3d4 | '));
+  assert.ok(out.startsWith('plangraph a1b2c3d4 | '));
   assert.ok(!out.includes('STALE:'));
   assert.ok(/30 tickets/.test(out));
   assert.ok(new RegExp(`${p.edges.length} links`).test(out));
@@ -93,7 +93,7 @@ test('renderCard: small plan content', () => {
   assert.ok(/last sprint \d+/i.test(out) || /S\d+/.test(out));
   assert.ok(/missing_ac 2/.test(out));
   assert.ok(!/stale|\?|built|ago/.test(out), 'no stale count placeholder, no age');
-  assert.equal(out.split('\n').at(-1), 'plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl', 'the command menu lives in brain explain; the card steers to brain');
+  assert.equal(out.split('\n').at(-1), 'plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl', 'the command menu lives in plangraph explain; the card steers to plangraph');
   assert.ok(!/ $/m.test(out) && !/\u001b/.test(out));
   assert.equal(renderCard(m, meta), out, 'deterministic');
 });
@@ -123,12 +123,12 @@ test('renderCard: hard budget on 1400-ticket plans and adversarial names', () =>
     const m = buildModel({ ...p, findings });
     const out = renderCard(m, meta);
     assert.ok(tok(out) <= CARD_BUDGET, `n=${n}: ${tok(out)}`);
-    assert.ok(out.includes('brain a1b2c3d4'));
+    assert.ok(out.includes('plangraph a1b2c3d4'));
   }
   const evil = buildModel({ tickets: Array.from({ length: 50 }, (_, i) => ({ key: `K-${i}`, sp: 99, verdict: 'V'.repeat(300) + i })), schedule: Array.from({ length: 50 }, (_, i) => ({ key: `K-${i}`, owner: 'P'.repeat(300) + i, sprint: i + 1 })), findings: Array.from({ length: 50 }, (_, i) => ({ key: 'K-1', kind: 'k'.repeat(300) + i, text: '' })), config: { caps: { default: 1 } } });
   const out = renderCard(evil, { fp: 'f'.repeat(500) });
   assert.ok(tok(out) <= CARD_BUDGET, `${tok(out)}`);
-  assert.ok(/^brain ffffffff \| /.test(out));
+  assert.ok(/^plangraph ffffffff \| /.test(out));
 });
 
 test('renderCard: custom budget drops lowest priority first, keeps freshness and counts', () => {
@@ -136,13 +136,13 @@ test('renderCard: custom budget drops lowest priority first, keeps freshness and
   p.tickets.forEach((t, i) => { t.verdict = i % 3 ? 'READY' : 'NEEDS_A'; });
   const m = buildModel({ ...p, findings: [{ key: 'T-1', kind: 'low_prio_kind', text: '' }] });
   const full = renderCard(m, meta, { maxTokens: 250 });
-  assert.ok(/low_prio_kind/.test(full) && full.includes('plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl'));
+  assert.ok(/low_prio_kind/.test(full) && full.includes('plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl'));
   const lines = (s: string) => s.split('\n');
   let prev = full;
   for (const max of [120, 80, 55, 40, 30, 22]) {
     const out = renderCard(m, meta, { maxTokens: max });
     assert.ok(tok(out) <= max, `${max}: ${tok(out)}`);
-    assert.ok(out.includes('brain a1b2c3d4'), 'identity always kept');
+    assert.ok(out.includes('plangraph a1b2c3d4'), 'identity always kept');
     assert.ok(/200 tickets/.test(out), 'counts always kept');
     // monotone: whatever survives at a smaller budget also survived at the larger one
     for (const l of lines(out)) if (!/more lines omitted|^\.\.\./.test(l)) assert.ok(lines(prev).includes(l), `${max}: ${l}`);

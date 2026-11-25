@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # TypeScript migration of plangraph: design
 
 Date: 2026-11-23. Status: approved by the owner in conversation, to be executed after the Wednesday token reset.

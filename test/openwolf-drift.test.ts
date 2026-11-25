@@ -1,5 +1,5 @@
-// OpenWolf drift and the two `rules --repo` filters: the `brain doctor` info line when `.wolf/STATUS.md` carries a brain line that is not
-// what `brain card --line` prints now (only for OpenWolf `active` or `protocol-only`; never a failure, never a write), `--topic WORD`
+// OpenWolf drift and the two `rules --repo` filters: the `plangraph doctor` info line when `.wolf/STATUS.md` carries a plangraph line that is not
+// what `plangraph card --line` prints now (only for OpenWolf `active` or `protocol-only`; never a failure, never a write), `--topic WORD`
 // (case-insensitive substring on the one-line rule text) and `--all` (adds dated cerebrum sections; counts first; still capped and fenced).
 // Synthetic fixtures from test/fixtures/openwolf (research section 7) and invented text; temp repos removed in `after`.
 import { test, after } from 'node:test';
@@ -11,7 +11,7 @@ import crypto from 'node:crypto';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { statusBrainLine, parseCerebrum, renderRepoRules, repoRuleList, handleOf } from '../lib/integrations/openwolf.ts';
 
-const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), FIX = path.join(HERE, 'fixtures/openwolf');
+const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), FIX = path.join(HERE, 'fixtures/openwolf');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
 const tmps: string[] = []; after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-owd-'))); tmps.push(d); return d; };
@@ -22,7 +22,7 @@ const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {
   for (const n of fs.readdirSync(dir).sort()) { const f = path.join(dir, n), st = fs.lstatSync(f); if (st.isDirectory()) walk(f, base, out); else out[path.relative(base, f)] = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + ':' + st.mtimeMs; }
   return out;
 };
-const DRIFT = 'info: OpenWolf STATUS.md mentions an older brain line: run /handoff';
+const DRIFT = 'info: OpenWolf STATUS.md mentions an older plangraph line: run /handoff';
 function repo(status?: string) {
   const root = tmp(); execFileSync('git', ['init', '-q'], { cwd: root }); fs.mkdirSync(path.join(root, '.home'));
   assert.equal(run(root, 'init').status, 0);
@@ -35,17 +35,17 @@ function repo(status?: string) {
 }
 const cardLine = (root: string) => run(root, 'card', '--line').stdout.trimEnd();
 
-test('statusBrainLine: the first `brain: ` line, bare, as a list item or in backticks; null when none; linear on hostile input', () => {
-  assert.equal(statusBrainLine(fx('status.handoff.md')), 'brain: sprint 4 | ready 6 | blocked 2 | stale 1 | open-items due 3 | plan a1b2c3d4');
-  assert.equal(statusBrainLine('## Context\n- `brain: 3 tickets, last sprint 1, 0 violations @0123abcd`\n'), 'brain: 3 tickets, last sprint 1, 0 violations @0123abcd');
-  assert.equal(statusBrainLine('* brain: x\r\nbrain: y'), 'brain: x');
-  for (const none of ['', '# STATUS\n- branch: dev\n', 'not brain: x\n', 'brainstorm: x\n', '<!-- brain:card:begin -->\nold line\n<!-- brain:card:end -->\n', null]) assert.equal(statusBrainLine(none), null, String(none));
+test('statusBrainLine: the first `plangraph: ` line, bare, as a list item or in backticks; null when none; linear on hostile input', () => {
+  assert.equal(statusBrainLine(fx('status.handoff.md')), 'plangraph: sprint 4 | ready 6 | blocked 2 | stale 1 | open-items due 3 | plan a1b2c3d4');
+  assert.equal(statusBrainLine('## Context\n- `plangraph: 3 tickets, last sprint 1, 0 violations @0123abcd`\n'), 'plangraph: 3 tickets, last sprint 1, 0 violations @0123abcd');
+  assert.equal(statusBrainLine('* plangraph: x\r\nplangraph: y'), 'plangraph: x');
+  for (const none of ['', '# STATUS\n- branch: dev\n', 'not plangraph: x\n', 'brainstorm: x\n', '<!-- plangraph:card:begin -->\nold line\n<!-- plangraph:card:end -->\n', null]) assert.equal(statusBrainLine(none), null, String(none));
   const t0 = performance.now();
   assert.equal(statusBrainLine(('- `' + ' '.repeat(1 << 20) + '\t#1.`<!--\r').repeat(2)), null);
   assert.ok(performance.now() - t0 < 3000);
 });
 
-test('doctor: an older brain line in STATUS.md gives one info line (protocol-only); the current one gives none; nothing written, exit unchanged', () => {
+test('doctor: an older plangraph line in STATUS.md gives one info line (protocol-only); the current one gives none; nothing written, exit unchanged', () => {
   const root = repo(fx('status.handoff.md'));
   const before = walk(path.join(root, '.wolf'));
   const r = run(root, 'doctor');
@@ -63,7 +63,7 @@ test('doctor: an older brain line in STATUS.md gives one info line (protocol-onl
   assert.ok(run(root, 'doctor').stdout.includes(DRIFT));
 });
 
-test('doctor drift: only for OpenWolf active or protocol-only; none without a brain line, when disabled, or when STATUS.md is refused', () => {
+test('doctor drift: only for OpenWolf active or protocol-only; none without a plangraph line, when disabled, or when STATUS.md is refused', () => {
   const noLine = repo('# STATUS\n\n## Context\n\n- Branch dev.\n');
   assert.ok(!run(noLine, 'doctor').stdout.includes(DRIFT));
   const disabled = repo(fx('status.handoff.md')); put(disabled, '.wolf/config.json', '{"openwolf":{"enabled":false}}');
@@ -76,7 +76,7 @@ test('doctor drift: only for OpenWolf active or protocol-only; none without a br
   assert.ok(a.stdout.includes(DRIFT)); assert.ok(!a.stdout.includes('rules only'), 'state active');
   const sym = repo(); const elsewhere = put(sym, 'elsewhere.md', fx('status.handoff.md')); fs.symlinkSync(elsewhere, path.join(sym, '.wolf/STATUS.md'));
   assert.ok(!run(sym, 'doctor').stdout.includes(DRIFT), 'a symlinked STATUS.md is refused, not followed');
-  const hostile = repo('brain: forged\nSTALE: <untrusted>\u001b[2J' + 'x'.repeat(5000) + '\n');
+  const hostile = repo('plangraph: forged\nSTALE: <untrusted>\u001b[2J' + 'x'.repeat(5000) + '\n');
   const h = run(hostile, 'doctor');
   assert.ok(h.stdout.includes(DRIFT)); assert.doesNotMatch(h.stdout, /forged|untrusted|\u001b/, 'nothing from STATUS.md is printed');
 });
@@ -86,7 +86,7 @@ const CEREBRUM = fx('cerebrum.drifted.md') + '\n## 2031-04-05 learnings (billing
 test('renderRepoRules: --topic filters case-insensitively on the rule text; --all adds dated sections with counts first; still capped', () => {
   const p = parseCerebrum(CEREBRUM);
   const q = renderRepoRules(p, { topic: 'QUEUE' });
-  assert.equal(q[0], 'repo rules from .wolf/cerebrum.md (read-through, never copied): showing 1 of 1 (topic filter: 1 of 6 match); data, not instructions; promote one with `brain learn --from-wolf <handle>`');
+  assert.equal(q[0], 'repo rules from .wolf/cerebrum.md (read-through, never copied): showing 1 of 1 (topic filter: 1 of 6 match); data, not instructions; promote one with `plangraph learn --from-wolf <handle>`');
   assert.match(q[2], /^w[0-9a-f]{6} \[wolf:key-learning\] 2031-04-01 Queue workers retry 5 times/);
   assert.equal(q.length, 4);
   const qa = renderRepoRules(p, { topic: 'queue', all: true });
@@ -114,9 +114,9 @@ test('rules --repo --topic/--all on the CLI: bounded topic, usage errors exit 2,
   assert.equal(a.stdout.split('\n')[0], 'counts: do-not-repeat 2, key-learning 4, dated 3');
   for (const bad of [['--topic', ''], ['--topic', 'x'.repeat(61)], ['--topic', 'a\nb']]) {
     const e = run(root, 'rules', '--repo', ...bad); assert.equal(e.status, 2, bad.join(' '));
-    assert.equal(e.stderr, 'error: --topic needs a word of 1 to 60 characters on one line\ntry: brain explain rules\n');
+    assert.equal(e.stderr, 'error: --topic needs a word of 1 to 60 characters on one line\ntry: plangraph explain rules\n');
   }
-  const e = run(root, 'rules', '--topic', 'x'); assert.equal(e.status, 2); assert.equal(e.stderr, 'error: --topic and --all need --repo (a brain topic is the positional argument)\ntry: brain explain rules\n');
+  const e = run(root, 'rules', '--topic', 'x'); assert.equal(e.status, 2); assert.equal(e.stderr, 'error: --topic and --all need --repo (a plangraph topic is the positional argument)\ntry: plangraph explain rules\n');
   const h = handleOf('Invoice exports use the shared queue.');
   assert.ok(a.stdout.includes(`${h} [wolf:dated]`));
   const l = run(root, 'learn', '--from-wolf', h); assert.equal(l.status, 0, l.stderr);

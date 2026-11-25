@@ -15,7 +15,7 @@ import { ensureStableDriver, defaultDataDir } from '../lib/driver.ts';
 import * as S from '../lib/store.ts';
 
 const test = (name: string, fn: (t: TestContext) => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
-const REAL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/brain-merge');
+const REAL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/plangraph-merge');
 const made: string[] = [];
 const tmp = (p = 'drv-') => { const d = fs.mkdtempSync(path.join(os.tmpdir(), p)); made.push(d); return d; };
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
@@ -57,7 +57,7 @@ test('shim passes arguments through unchanged', () => {
   const setup = () => { const root = tmp(), dataDir = path.join(root, 'd'), t = echoer(root, 't.mjs', 'T'); return { root, dataDir, t, shim: ensureStableDriver({ dataDir, target: t }) }; };
   const unavailable = (r: SpawnSyncReturns<string>) => {
     assert.equal(r.status, 2, `status ${r.status} stderr ${r.stderr}`); assert.equal(r.stdout, '');
-    assert.match(r.stderr, /^plangraph: merge driver unavailable \([^)]+\): run 'brain doctor --fix'\n$/);
+    assert.match(r.stderr, /^plangraph: merge driver unavailable \([^)]+\): run 'plangraph doctor --fix'\n$/);
   };
   test('shim contract: driver.target missing or empty -> one stderr line, exit 2', () => {
     const { dataDir, shim } = setup(); const f = path.join(dataDir, 'driver.target');
@@ -118,7 +118,7 @@ test('defaultDataDir', () => {
 const gitRepo = () => { const d = tmp('drv-repo-'); execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d }); return d; };
 test('installMergeDriver refuses a versioned plugin-cache path', () => {
   const d = gitRepo();
-  assert.throws(() => S.installMergeDriver(d, { driverPath: '/home/u/.claude/plugins/cache/mkt/plangraph/1.2.3/bin/brain-merge' }), (e) => e instanceof TypeError && /plugins\/cache/.test(e.message));
+  assert.throws(() => S.installMergeDriver(d, { driverPath: '/home/u/.claude/plugins/cache/mkt/plangraph/1.2.3/bin/plangraph-merge' }), (e) => e instanceof TypeError && /plugins\/cache/.test(e.message));
 });
 test('doctorMergeDriver reports each stale-shim problem', () => {
   const root = tmp(), dataDir = path.join(root, 'd'); fs.mkdirSync(dataDir);
@@ -132,7 +132,7 @@ test('doctorMergeDriver reports each stale-shim problem', () => {
   fs.rmSync(path.join(dataDir, 'driver.target')); assert.ok(has(/driver\.target/), 'driver.target missing');
   ensureStableDriver({ dataDir, target: t }); fs.writeFileSync(path.join(dataDir, 'driver.node'), path.join(root, 'no-node') + '\n'); assert.ok(has(/driver\.node/), 'node missing');
   ensureStableDriver({ dataDir, target: t }); assert.deepEqual(probs(), []);
-  execFileSync('git', ['config', 'merge.plangraph-jsonl.driver', '/x/plugins/cache/p/1/bin/brain-merge %O %A %B %P'], { cwd: d });
+  execFileSync('git', ['config', 'merge.plangraph-jsonl.driver', '/x/plugins/cache/p/1/bin/plangraph-merge %O %A %B %P'], { cwd: d });
   assert.ok(has(/plugins\/cache/), 'versioned path configured');
 });
 
@@ -153,12 +153,12 @@ test('real git merge via the shim keeps working after the target moves (same git
   const root = tmp(), dataDir = path.join(root, 'data dir'); fs.mkdirSync(dataDir);
   const v1 = path.join(root, 'v1'), v2 = path.join(root, 'v2');
   for (const v of [v1, v2]) { fs.mkdirSync(path.join(v, 'bin'), { recursive: true }); fs.symlinkSync(path.resolve(REAL, '..', '..', 'lib'), path.join(v, 'lib')); }
-  fs.copyFileSync(REAL, path.join(v1, 'bin/brain-merge')); fs.copyFileSync(REAL, path.join(v2, 'bin/brain-merge'));
-  const shim = ensureStableDriver({ dataDir, target: path.join(v1, 'bin/brain-merge') });
+  fs.copyFileSync(REAL, path.join(v1, 'bin/plangraph-merge')); fs.copyFileSync(REAL, path.join(v2, 'bin/plangraph-merge'));
+  const shim = ensureStableDriver({ dataDir, target: path.join(v1, 'bin/plangraph-merge') });
   const want = (tag: string) => S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31' + tag), tk('T-32' + tag)], T);
   let d = scenario(shim, 'a'); git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8'), want('a'));
   const cfg = git(d, 'config', '--get', 'merge.plangraph-jsonl.driver');
-  fs.rmSync(v1, { recursive: true }); ensureStableDriver({ dataDir, target: path.join(v2, 'bin/brain-merge') });
+  fs.rmSync(v1, { recursive: true }); ensureStableDriver({ dataDir, target: path.join(v2, 'bin/plangraph-merge') });
   d = scenario(shim, 'b'); assert.equal(git(d, 'config', '--get', 'merge.plangraph-jsonl.driver'), cfg);
   git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8'), want('b'));
 });

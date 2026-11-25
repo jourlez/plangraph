@@ -1,6 +1,6 @@
-$ brain explain nope
+$ plangraph explain nope
 exit: 2
 --- stdout
 --- stderr
 error: unknown command nope
-try: brain explain
+try: plangraph explain

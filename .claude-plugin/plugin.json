@@ -14,7 +14,7 @@
     "card": {
       "type": "string",
       "title": "Session-start card",
-      "description": "Inject the short plan card at session start. Set to off to disable; the brain command and skills still work.",
+      "description": "Inject the short plan card at session start. Set to off to disable; the plangraph command and skills still work.",
       "options": ["auto", "off"],
       "default": "auto"
     }

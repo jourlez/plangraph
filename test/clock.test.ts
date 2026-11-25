@@ -8,23 +8,23 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { sourceNow, isoDay } from '../lib/clock.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const D1 = 1795305600; // 2026-11-22T00:00:00Z
 const D2 = D1 + 86400;
 const ENV = (epoch?: number) => ({ PATH: process.env.PATH, HOME: os.tmpdir(), LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', ...(epoch === undefined ? {} : { SOURCE_DATE_EPOCH: String(epoch) }) });
-const brain = (cwd: string, epoch: number | undefined, ...a: string[]) => { const r = spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: ENV(epoch), encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
+const plangraph = (cwd: string, epoch: number | undefined, ...a: string[]) => { const r = spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: ENV(epoch), encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
 
 function repo(epoch: number) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-clock-')));
   execFileSync('git', ['init', '-q'], { cwd: root, env: ENV() });
-  brain(root, epoch, 'init'); brain(root, epoch, 'build');
-  brain(root, epoch, 'open-items', '--register', 'T-1', 'followup', '--owner', 'Ana', '--text', 'x', '--write');
-  brain(root, epoch, 'build');
-  brain(root, epoch, 'open-items', '--close', 'T-1', 'followup', '--write');
-  brain(root, epoch, 'build');
+  plangraph(root, epoch, 'init'); plangraph(root, epoch, 'build');
+  plangraph(root, epoch, 'open-items', '--register', 'T-1', 'followup', '--owner', 'Ana', '--text', 'x', '--write');
+  plangraph(root, epoch, 'build');
+  plangraph(root, epoch, 'open-items', '--close', 'T-1', 'followup', '--write');
+  plangraph(root, epoch, 'build');
   return root;
 }
-const observe = (epoch: number) => { const root = repo(epoch); return { items: fs.readFileSync(path.join(root, '.plangraph/open-items.jsonl'), 'utf8'), line: brain(root, epoch, 'card', '--line') }; };
+const observe = (epoch: number) => { const root = repo(epoch); return { items: fs.readFileSync(path.join(root, '.plangraph/open-items.jsonl'), 'utf8'), line: plangraph(root, epoch, 'card', '--line') }; };
 
 test('sourceNow: honors a valid SOURCE_DATE_EPOCH, ignores everything else', () => {
   const clock = () => new Date(5000);

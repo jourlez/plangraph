@@ -1,4 +1,4 @@
-$ brain open-items --findings - --write
+$ plangraph open-items --findings - --write
 exit: 0
 --- stdout
 open-items.jsonl and OPEN-ITEMS.md written (7 open)

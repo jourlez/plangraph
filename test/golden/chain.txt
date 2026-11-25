@@ -1,4 +1,4 @@
-$ brain chain T-30
+$ plangraph chain T-30
 exit: 0
 --- stdout
 longest chain behind T-30: 3 hops, 2 handoffs, 1 critical path

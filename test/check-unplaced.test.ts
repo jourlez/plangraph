@@ -1,6 +1,6 @@
-// `brain check` and `brain verify` agree on unplaced tickets: a ticket with no schedule row (an `sp:` task is exempt, lib/verify.ts)
+// `plangraph check` and `plangraph verify` agree on unplaced tickets: a ticket with no schedule row (an `sp:` task is exempt, lib/verify.ts)
 // is an UNPLACED violation for verify and the card, so check prints the count in its one line, exits 1, and --json carries `unplaced`.
-// The unplaced predicate is verify's own (check calls verifyPlan), not a second copy. Real runs of bin/brain in mkdtemp repos.
+// The unplaced predicate is verify's own (check calls verifyPlan), not a second copy. Real runs of bin/plangraph in mkdtemp repos.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 
-const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain'), made: string[] = [];
+const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph'), made: string[] = [];
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
@@ -26,14 +26,14 @@ function plan(tickets: object[], schedule: object[]) {
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
   return run;
 }
-const TAIL = / \| unplaced (\d+) \(brain verify lists them\)$/m;
+const TAIL = / \| unplaced (\d+) \(plangraph verify lists them\)$/m;
 
 test('the repro: two tickets with no schedule row: check says so and exits 1, as verify and the card do', () => {
   const run = plan([tk('A-1'), tk('A-2'), tk('A-3')], [at('A-1', 'Ana', 1)]);
   const v = run('verify'); assert.equal(v.status, 1);
   assert.deepEqual(v.stdout.trim().split('\n').map((l) => l.split(' ').slice(0, 2).join(' ')), ['UNPLACED A-2', 'UNPLACED A-3']);
   const c = run('check'); assert.equal(c.status, 1, c.stdout);
-  assert.equal(c.stdout, 'tickets 1 | links 0 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 1 | unplaced 2 (brain verify lists them)\n');
+  assert.equal(c.stdout, 'tickets 1 | links 0 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 1 | unplaced 2 (plangraph verify lists them)\n');
   assert.match(run('card', '--line').stdout, /, 2 violations @/, 'the card counts the same two');
 });
 
@@ -42,7 +42,7 @@ test('check --json carries the structured counts, with `unplaced`', () => {
   const j = JSON.parse(run('check', '--json').stdout);
   assert.equal(j.ok, false); assert.equal(j.exit, 1);
   assert.deepEqual(j.data, { tickets: 1, links: 0, violations: 0, overCap: 0, loopFree: true, lastSprint: 1, unplaced: 2 });
-  assert.deepEqual(j.next, ['brain verify']);
+  assert.deepEqual(j.next, ['plangraph verify']);
   const ok = JSON.parse(plan([tk('A-1')], [at('A-1', 'Ana', 1)])('check', '--json').stdout);
   assert.deepEqual([ok.ok, ok.data.unplaced, ok.next], [true, 0, []]);
 });

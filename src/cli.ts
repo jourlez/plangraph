@@ -6,13 +6,13 @@
 // the collected lines (the text output is unchanged).
 // Only the entry point at the bottom touches the process, and only to set process.exitCode.
 // ctx.io.raw(text) is the one exception to collection: card and bundle print their prepared text as is (no bound), in order, exactly as
-// bin/brain always did; with --json those lines go into the envelope as { lines } instead, so --json always prints JSON.
+// bin/plangraph always did; with --json those lines go into the envelope as { lines } instead, so --json always prints JSON.
 import fs from 'node:fs';
 import path from 'node:path';
 import { clean, envelope } from '../lib/render.ts';
 import { oneLine, guardOutput, sanitizeText } from '../lib/sanitize.ts';
 import { FormatError, checkFormat } from '../lib/store.ts';
-import { BrainError, EXIT, exitCodeOf, errorLines, didYouMean } from './errors.ts';
+import { PlangraphError, EXIT, exitCodeOf, errorLines, didYouMean } from './errors.ts';
 import { registry as defaultRegistry, lookup } from './registry.ts';
 import { parse } from './args.ts';
 import { makeContext as defaultMakeContext } from './context.ts';
@@ -72,19 +72,19 @@ export function render(col: ReturnType<typeof makeCollector>, { name, code, json
 }
 
 const processIo = (): IO => ({ out: (s) => process.stdout.write(`${s}\n`), err: (s) => process.stderr.write(`${s}\n`) });
-const FORMAT_HINTS = new Map([['TOO_NEW', 'upgrade the brain plugin, then retry'], ['NEEDS_MIGRATION', 'run `brain migrate --write`']]);
+const FORMAT_HINTS = new Map([['TOO_NEW', 'upgrade the plangraph plugin, then retry'], ['NEEDS_MIGRATION', 'run `plangraph migrate --write`']]);
 
-/** A format message names the brain dir by its absolute path (lib/store.ts); printed, it names it relative to the repository root. */
+/** A format message names the plan dir by its absolute path (lib/store.ts); printed, it names it relative to the repository root. */
 export const relDir = (ctx: { dir?: string; root?: string } | null | undefined, msg: unknown): string => (ctx?.dir && ctx?.root ? String(msg).split(ctx.dir).join(path.relative(ctx.root, ctx.dir) || '.') : String(msg));
 
-/** The data-format guard of one command (see GUARDS in src/registry.ts). Runs only when the brain dir exists. */
+/** The data-format guard of one command (see GUARDS in src/registry.ts). Runs only when the plan dir exists. */
 export function formatGuard(ctx: Ctx, cmd: Pick<Command, 'guard'>, values: Record<string, unknown>): void {
   const mode = typeof cmd.guard === 'function' ? cmd.guard(values) : cmd.guard;
   if (mode === 'none' || !fs.existsSync(ctx.dir)) return;
   try { checkFormat(ctx.dir); } catch (e) {
     if (!(e instanceof FormatError)) throw e;
     if (e.code === 'NEEDS_MIGRATION' && mode === 'soft') { ctx.io.err(`note: ${oneLine(relDir(ctx, e.message), 300)}`); return; }
-    throw new BrainError('DATA', relDir(ctx, e.message), { hint: FORMAT_HINTS.get(e.code), cause: e });
+    throw new PlangraphError('DATA', relDir(ctx, e.message), { hint: FORMAT_HINTS.get(e.code), cause: e });
   }
 }
 // The envelope's fresh object, read after the run (the handle's fingerprints outlive its close).
@@ -100,7 +100,7 @@ export async function main(argv: string[], { registry = defaultRegistry, makeCon
   { registry?: Map<string, Command>; makeContext?: (opts: ContextOptions) => ShellCtx; io?: IO; env?: Record<string, string | undefined>; cwd?: string } = {}): Promise<number> {
   const [name, ...rest] = argv;
   // The SessionStart hook runs `card --if-present [--heal]`: it must never print and never exit non-zero. Any failure there (a bad
-  // .plangraphrc, a refused brain dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
+  // .plangraphrc, a refused plan dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
   const hook = name === 'card' && rest.includes('--if-present');
   const col = makeCollector({ strict: strictOutput(env) });
   let values: Record<string, unknown> = Object.create(null), code: number, shown: ShellCtx | undefined, command: string | undefined;
@@ -109,10 +109,10 @@ export async function main(argv: string[], { registry = defaultRegistry, makeCon
   try {
     const cmd = lookup(registry, name);
     if (!cmd) {
-      // No command list here (that is `brain explain`): a near name is suggested, and the try line explains it.
+      // No command list here (that is `plangraph explain`): a near name is suggested, and the try line explains it.
       const near = didYouMean(name, registry.keys());
       command = near ?? undefined;
-      throw new BrainError('USAGE', name === undefined ? 'no command' : `unknown command ${oneLine(String(name), 40)}${near ? `; did you mean ${near}?` : ''}`);
+      throw new PlangraphError('USAGE', name === undefined ? 'no command' : `unknown command ${oneLine(String(name), 40)}${near ? `; did you mean ${near}?` : ''}`);
     }
     command = name;
     const args = parse({ options: { ...GLOBAL_OPTIONS, ...cmd.options }, positionals: cmd.positionals }, rest);

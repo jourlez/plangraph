@@ -11,7 +11,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { loadModel, readConfig, CONFIG_MAX } from '../lib/model.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE: string, HOME: string, DATA: string, REPO: string, OUTSIDE: string;
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
 const env = () => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
@@ -72,13 +72,13 @@ for (const kind of Object.keys(MESSAGE)) {
   test(`a ${kind} config.json: every reader exits 2 with the fixed base-name message (never internal error)`, () => {
     withBad(kind, () => {
       for (const args of COMMANDS) {
-        const r = run(REPO, ...args), what = `${kind}: brain ${args.join(' ')}`;
+        const r = run(REPO, ...args), what = `${kind}: plangraph ${args.join(' ')}`;
         assert.equal(r.status, 2, `${what}\n${r.stdout}\n${r.stderr}`);
         const err = r.stderr.split('\n');
         assert.ok(err.includes(`error: ${MESSAGE[kind]}`), `${what}\n${r.stderr}`);
         assert.doesNotMatch(r.stderr, /internal error|s3cr3t|SECRET|outside/, what);
         assert.ok(!r.stderr.includes(BASE), what);
-        assert.equal(err.at(-2), `try: brain explain ${args[0]}`, what); // one mapping: a DATA error of the command, not a lib error
+        assert.equal(err.at(-2), `try: plangraph explain ${args[0]}`, what); // one mapping: a DATA error of the command, not a lib error
       }
       // the session hook stays silent whatever the config is
       const h = run(REPO, 'card', '--if-present');

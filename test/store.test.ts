@@ -11,7 +11,7 @@ import { rng } from './fixtures/gen.ts';
 import { genPlan } from './fixtures/gen.ts';
 import * as S from '../lib/store.ts';
 
-const BIN_MERGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/brain-merge');
+const BIN_MERGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/plangraph-merge');
 const tmp = (p = 'store-') => fs.mkdtempSync(path.join(os.tmpdir(), p));
 type Rng = () => number;
 const sh = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
@@ -102,7 +102,7 @@ const snapshot = (d: string) => Object.fromEntries(fs.readdirSync(d).sort().map(
 test('format: legacy dir is v0; checkFormat asks to migrate; too-new is a hard error; read mode honours min_reader', () => {
   const d = legacyDir();
   assert.equal(S.readFormat(d).format_version, 0);
-  assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'NEEDS_MIGRATION' && /brain migrate/.test(e.message));
+  assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'NEEDS_MIGRATION' && /plangraph migrate/.test(e.message));
   fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":3,"min_reader":3}\n');
   assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'TOO_NEW' && /upgrade/.test(e.message));
   assert.throws(() => S.checkFormat(d, undefined, { mode: 'read' }), (e: Error & { code?: string }) => e.code === 'TOO_NEW');
@@ -203,7 +203,7 @@ test('doctorMergeDriver reports problems; installMergeDriver is idempotent and q
   S.installMergeDriver(root, { driverPath: BIN_MERGE }); S.installMergeDriver(root, { driverPath: BIN_MERGE });
   assert.equal(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'), '*.png binary\n.plangraph/*.jsonl merge=plangraph-jsonl\n');
   assert.equal(S.doctorMergeDriver(root).installed, true);
-  S.installMergeDriver(root, { driverPath: '/no such dir/brain-merge' });
+  S.installMergeDriver(root, { driverPath: '/no such dir/plangraph-merge' });
   const d1 = S.doctorMergeDriver(root); assert.equal(d1.installed, false); assert.equal(d1.executable, false); assert.match(d1.problems.join(), /not found/);
   S.installMergeDriver(root, { dir: 'x/y', driverPath: BIN_MERGE }); assert.equal(S.doctorMergeDriver(root, { dir: 'x/y' }).attributes, true);
 });

@@ -1,4 +1,4 @@
-// brain migrate-names [--apply]: the one explicit bridge from the names used before the rename to plangraph (lib/migrate-names.ts has the
+// plangraph migrate-names [--apply]: the one explicit bridge from the names used before the rename to plangraph (lib/migrate-names.ts has the
 // rules). Dry run unless --apply. Never run by a hook or by any other command. Exit 4 when anything was refused, else 0.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -40,7 +40,7 @@ async function migrateNames(ctx: Ctx, args: Args<{ apply?: boolean }>): Promise<
   const plan = M.planMigration({
     home, oldConfigDir: M.oldConfigDir(ctx.env, home), newConfigDir: configDir(ctx.env), root: isRepo ? ctx.root : null,
     fs: realFs(isRepo ? ctx.root : null), git: realGit(ctx.root),
-    driverCommand: () => S.mergeDriverCommand(D.ensureStableDriver({ dataDir: D.defaultDataDir(ctx.env), target: path.join(BIN, 'brain-merge'), nodePath: process.execPath })),
+    driverCommand: () => S.mergeDriverCommand(D.ensureStableDriver({ dataDir: D.defaultDataDir(ctx.env), target: path.join(BIN, 'plangraph-merge'), nodePath: process.execPath })),
   });
   if (apply) M.applyMigration(plan);
   ctx.io.outBlock(M.report(plan, { apply, home }).map((l) => oneLine(l, 400)));

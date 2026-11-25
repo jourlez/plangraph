@@ -7,8 +7,8 @@ import { readCapped, readDataCapped, presentDataFile } from '../../lib/jsonl.ts'
 import { oneLine, fence } from '../../lib/sanitize.ts';
 import { buildModel } from '../../lib/model.ts';
 import { assertInside, writeAtomicSafe } from '../../lib/fsafe.ts';
-import { BrainError, errText } from '../errors.ts';
-import { INDEX_FILE, NO_BRAIN_MESSAGE } from '../db.ts';
+import { PlangraphError, errText } from '../errors.ts';
+import { INDEX_FILE, NO_PLANGRAPH_MESSAGE } from '../db.ts';
 import { hasSteer } from '../../lib/steer.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { Model, Ticket, Edge, ScheduleRow, PlanRecord } from '../../lib/model.ts';
@@ -54,11 +54,11 @@ export function fencedList<T>(src: string, items: T[], max: number, line: (item:
 // with single spaces, which is double-quoted. Anything else drops the whole command (no escaping games with untrusted text).
 const BARE = /^[A-Za-z0-9][A-Za-z0-9:._\/-]{0,119}$/, SPACED = /^[A-Za-z0-9][A-Za-z0-9._-]*(?: [A-Za-z0-9._-]+){1,5}$/;
 export const shellArg = (s: unknown): string | null => { const t = typeof s === 'string' || typeof s === 'number' ? String(s) : ''; return BARE.test(t) ? t : t.length <= 60 && SPACED.test(t) ? `"${t}"` : null; };
-/** `brain <words>`: a plain string word is our own literal; a word given as [value] is data and must pass shellArg. null when unsafe. */
+/** `plangraph <words>`: a plain string word is our own literal; a word given as [value] is data and must pass shellArg. null when unsafe. */
 export function nextCommand(words: Array<string | unknown[]>): string | null {
   const out: string[] = [];
   for (const x of words) { const a = Array.isArray(x) ? shellArg(x[0]) : x; if (a === null) return null; out.push(a); }
-  return `brain ${out.join(' ')}`;
+  return `plangraph ${out.join(' ')}`;
 }
 /** A string our own library composed (a rule detail, a fix) for --json data: one sanitized line, capped, `<untrusted` neutralized,
  * other characters (such as `<=`) kept. Names that came straight from data use oneLine instead. */
@@ -66,12 +66,12 @@ export const dataText = (s: unknown, max = 200): string => errText(String(s ?? '
 /** The first `max` distinct non-null commands. */
 export const nextList = (cmds: Array<string | null | undefined>, max = 3): string[] => [...new Set((cmds.filter(Boolean) as string[]))].slice(0, max); // filter(Boolean) dropped null and undefined
 
-/** No brain directory: exit 2 with `try: brain init` (src/errors.ts NO_BRAIN). Throws when ctx.dir is not a directory. */
+/** No plan directory: exit 2 with `try: plangraph init` (src/errors.ts NO_PLANGRAPH). Throws when ctx.dir is not a directory. */
 export function needBrain(ctx: Ctx): void {
   let ok = false; try { ok = fs.statSync(ctx.dir).isDirectory(); } catch { /* missing */ }
-  if (!ok) throw new BrainError('NO_BRAIN', NO_BRAIN_MESSAGE);
+  if (!ok) throw new PlangraphError('NO_PLANGRAPH', NO_PLANGRAPH_MESSAGE);
 }
-// The repo's own CLAUDE.md files (root and .claude/): read only (brain never writes them), through readCapped (regular file, 1 MiB), and
+// The repo's own CLAUDE.md files (root and .claude/): read only (plangraph never writes them), through readCapped (regular file, 1 MiB), and
 // only when the real path stays inside the repository (a symlink leaving it, a directory, an oversized or unreadable file are skipped).
 // Nothing from the text is printed: the result is two booleans. A file swapped between the realpath check and the open could be read once.
 export function claudeSteer(ctx: Ctx): { exists: boolean; steered: boolean } {
@@ -83,8 +83,8 @@ export function claudeSteer(ctx: Ctx): { exists: boolean; steered: boolean } {
   return { exists, steered };
 }
 /** A usage or data error with a long-standing message and no hint (the message already says what to do). */
-export const usage = (message: string): BrainError => new BrainError('USAGE', message);
-export const dataError = (message: string, hint?: string): BrainError => new BrainError('DATA', message, hint ? { hint } : {});
+export const usage = (message: string): PlangraphError => new PlangraphError('USAGE', message);
+export const dataError = (message: string, hint?: string): PlangraphError => new PlangraphError('DATA', message, hint ? { hint } : {});
 
 /** A small JSON input file named by the user (schedule.json, issue JSON): capped read, short fixed messages that never echo content. */
 export function readJsonInput(file: string, what: string, max: number = MAX_DATA): unknown {
@@ -120,29 +120,29 @@ export async function loadJiraSnap(file: string): Promise<Record<string, LegacyI
     try { text = readCapped(file, MAX_DATA); } catch { throw dataError(`cannot read the Jira snapshot ${oneLine(path.basename(file), 80)}`, 'check the --jira path'); }
     return J.toLegacyMap(J.parseSnapshotJsonl(text));
   }
-  return readJsonInput(file, 'Jira snapshot') as Record<string, LegacyIssue>; // the legacy JSON map: unchecked (pre-existing), as bin/brain read it
+  return readJsonInput(file, 'Jira snapshot') as Record<string, LegacyIssue>; // the legacy JSON map: unchecked (pre-existing), as bin/plangraph read it
 }
 
-/** A library error with a fixed vocabulary (JiraError) becomes a typed BrainError: credentials, config and network are ENV (3),
+/** A library error with a fixed vocabulary (JiraError) becomes a typed PlangraphError: credentials, config and network are ENV (3),
  * bad input data is DATA (2). Anything else is rethrown unchanged. */
 const JIRA_DATA = new Set(['bad_input', 'bad_snapshot', 'bad_key', 'bad_json', 'bad_jql', 'unbounded_jql', 'bad_fields', 'too_large']);
 export function jiraErrors(e: unknown): never {
-  if (e instanceof Error && e.name === 'JiraError') throw new BrainError(JIRA_DATA.has((e as Error & { code: string }).code) ? 'DATA' : 'ENV', e.message, { cause: e }); // a JiraError has a code
+  if (e instanceof Error && e.name === 'JiraError') throw new PlangraphError(JIRA_DATA.has((e as Error & { code: string }).code) ? 'DATA' : 'ENV', e.message, { cause: e }); // a JiraError has a code
   throw e;
 }
 
 /** Install the merge driver through the stable shim in the data dir (see lib/driver.ts for the trust model). The target is the
- * brain-merge next to bin/brain, so a plugin update that moves the install is repaired by the next run. Throws on failure. */
+ * plangraph-merge next to bin/plangraph, so a plugin update that moves the install is repaired by the next run. Throws on failure. */
 export async function wireMergeDriver(ctx: Ctx) {
   const [S, D] = await Promise.all([import('../../lib/store.ts'), import('../../lib/driver.ts')]);
-  const shim = D.ensureStableDriver({ dataDir: D.defaultDataDir(ctx.env), target: path.join(BIN, 'brain-merge'), nodePath: process.execPath });
+  const shim = D.ensureStableDriver({ dataDir: D.defaultDataDir(ctx.env), target: path.join(BIN, 'plangraph-merge'), nodePath: process.execPath });
   return S.installMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), driverPath: shim });
 }
 
 // ---------- confined state writes ----------
 /** A refused write target (symlink, outside the repository) is a REFUSED error (exit 4); anything else is rethrown. */
 export function refuseWrite(e: unknown): never {
-  if ((e as NodeJS.ErrnoException | undefined)?.code === 'SYMLINK' || (e as NodeJS.ErrnoException | undefined)?.code === 'OUTSIDE_REPO') throw new BrainError('REFUSED', `refusing to write: ${oneLine((e as Error).message, 200)} (nothing was written)`, { cause: e }); // lib/fsafe.ts throws coded Errors
+  if ((e as NodeJS.ErrnoException | undefined)?.code === 'SYMLINK' || (e as NodeJS.ErrnoException | undefined)?.code === 'OUTSIDE_REPO') throw new PlangraphError('REFUSED', `refusing to write: ${oneLine((e as Error).message, 200)} (nothing was written)`, { cause: e }); // lib/fsafe.ts throws coded Errors
   throw e;
 }
 /** Check every target before the first write, so a refusable one (symlink, directory, outside the repository) fails with nothing written. */
@@ -150,7 +150,7 @@ export function precheckTargets(ctx: Ctx, files: string[]): void {
   for (const f of files) {
     let st = null;
     try { st = fs.lstatSync(f); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
-    if (st && !st.isFile()) throw new BrainError('REFUSED', `refusing to write ${oneLine(path.basename(f), 80)}: ${st.isSymbolicLink() ? 'it is a symlink' : 'not a regular file'} (nothing was written)`);
+    if (st && !st.isFile()) throw new PlangraphError('REFUSED', `refusing to write ${oneLine(path.basename(f), 80)}: ${st.isSymbolicLink() ? 'it is a symlink' : 'not a regular file'} (nothing was written)`);
     try { assertInside(ctx.root, f); } catch (e) { refuseWrite(e); }
   }
 }

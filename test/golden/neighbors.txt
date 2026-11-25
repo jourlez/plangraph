@@ -1,4 +1,4 @@
-$ brain neighbors T-12 2
+$ plangraph neighbors T-12 2
 exit: 0
 --- stdout
 T-12 needs (0):

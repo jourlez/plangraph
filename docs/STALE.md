@@ -1,6 +1,6 @@
 # Incremental re-audit (lib/stale.ts)
 
-Goal: `brain stale` lists exactly the tickets whose verdict no longer matches its inputs, provably equal to a full re-derivation (`test/stale.test.ts`, differential test against an independent oracle).
+Goal: `plangraph stale` lists exactly the tickets whose verdict no longer matches its inputs, provably equal to a full re-derivation (`test/stale.test.ts`, differential test against an independent oracle).
 
 ## What counts as an input (declared = read)
 Per audited ticket (a `refs` row): (1) plan: normalized text of each `{plan, task}` section at the ref, mixed with the heading regex; (2) files: blob ids of `files` at the ref (absent is a value); (3) jira: the `updated` stamp; (4) links: sorted, deduplicated Jira link set (`deps.linkSet`), covers link edits that may not bump `updated` (unverified in Jira); (5) rules: `brain_rules_version` (`opts.rulesVersion`); plus the plan-graph structure (producer list).
@@ -19,10 +19,10 @@ CRLF/CR to LF, BOM dropped, trailing spaces/tabs per line removed, trailing blan
 - `resolveRef(config, flag)`: flag, else `config.default_ref`, else `HEAD`. `formatStale(res, {list,json,limit,commit,jiraChecked,linksChecked})` always prints the ref. `staleKeys(res, exclude)`: ONE set for `stale` and `units --stale` (exclude e.g. Done tickets after propagation).
 - `gitDeps(repoRoot, ref, {jira})`: `git show`/`ls-tree` with per-instance caches (create a fresh instance per command; a moving ref like HEAD is read once per instance). Jira snapshot `{KEY:{updated, links|blockedBy, status}}`.
 
-## CLI wiring (bin/brain, integrator)
+## CLI wiring (bin/plangraph, integrator)
 ```
 const ref = resolveRef(config(), opt('ref')); const deps = gitDeps(ROOT, ref, { jira: opt('jira') && rj(opt('jira')) });
 const res = computeStale(model, model.refs, deps, { ref, heading: config().ref_heading, rulesVersion: config().brain_rules_version, full: has('full') });
 process.stdout.write(formatStale(res, { list: has('list'), json: has('json'), commit: deps.commit(ref), jiraChecked: !!opt('jira') }));
 ```
-`brain refs-update [KEY...] [--ref R] [--jira f]`: `refsUpdate(model, model.refs, deps, {ref, ..., commit: deps.commit(ref)}, keys.length ? keys : null).rows` written as JSONL. `units --stale`: `keys = staleKeys(res, doneSet)` from the same `computeStale` call (no second implementation). Example (about 25 tokens): `stale vs origin/dev (a1b2c3d): 3 of 120 need re-audit {"plan":1,"producer_changed":2}`.
+`plangraph refs-update [KEY...] [--ref R] [--jira f]`: `refsUpdate(model, model.refs, deps, {ref, ..., commit: deps.commit(ref)}, keys.length ? keys : null).rows` written as JSONL. `units --stale`: `keys = staleKeys(res, doneSet)` from the same `computeStale` call (no second implementation). Example (about 25 tokens): `stale vs origin/dev (a1b2c3d): 3 of 120 need re-audit {"plan":1,"producer_changed":2}`.

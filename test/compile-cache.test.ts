@@ -1,11 +1,11 @@
-// bin/brain turns on Node's module compile cache after the floor check and before it loads src/cli.ts, in a PRIVATE per-user directory:
+// bin/plangraph turns on Node's module compile cache after the floor check and before it loads src/cli.ts, in a PRIVATE per-user directory:
 // <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA when absolute, else ~/.cache/plangraph (the rule of lib/driver.ts
 // defaultDataDir). It is used only when it is a real directory (not a symlink) owned by the current user with no group or world bits:
 // Node accepts a cache directory of any owner and mode and checks entries by CRC32 only, so a shared or foreign directory would let
 // another local user plant code that runs as this user. When NODE_COMPILE_CACHE is set, Node's own behavior is left untouched.
 // The cache is an optimization only: whatever the cache directory is (missing, read-only, refused), the CLI must print the
 // same bytes, exit the same way and write NOTHING to stderr, because the SessionStart hook (`card --if-present`) must stay silent.
-// Real processes: the cache is per process, so it is only observable across spawns. A temp git repository with a small built brain.
+// Real processes: the cache is per process, so it is only observable across spawns. A temp git repository with a small built plangraph.
 // "Owned by someone else" is simulated by an --import preload that makes process.getuid report another uid (chown needs root).
 import baseTest, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,7 +18,7 @@ import { genPlan } from './fixtures/gen.ts';
 // mode 0500 does not stop root, and Windows has no POSIX modes: there the unwritable case cannot be built
 const posixUser = process.platform !== 'win32' && process.getuid?.() !== 0;
 const test = (name: string, fn: () => void | Promise<void>) => baseTest(name, { skip: !posixUser }, fn);
-const BRAIN = path.resolve(import.meta.dirname, '../bin/brain');
+const BRAIN = path.resolve(import.meta.dirname, '../bin/plangraph');
 const made: string[] = [];
 const tmp = (p: string) => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); made.push(d); return d; };
 after(() => { for (const d of made) { try { fs.chmodSync(d, 0o700); } catch { /* gone */ } fs.rmSync(d, { recursive: true, force: true }); } });
@@ -27,20 +27,20 @@ const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null'
 const BASE_ENV: Record<string, string | undefined> = { PATH: process.env.PATH, HOME: tmp('cc-home-'), LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 
-/** A git repository with an initialised, built brain over a small generated plan. */
+/** A git repository with an initialised, built plangraph over a small generated plan. */
 function repo(): string {
   const d = tmp('cc-repo-');
   execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d, env: { ...process.env, ...GIT_ENV }, stdio: 'ignore' });
-  const brain = (args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd: d, env: { ...BASE_ENV, CLAUDE_PLUGIN_DATA: tmp('cc-data-') }, encoding: 'utf8' });
-  assert.equal(brain(['init']).status, 0);
+  const plangraph = (args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd: d, env: { ...BASE_ENV, CLAUDE_PLUGIN_DATA: tmp('cc-data-') }, encoding: 'utf8' });
+  assert.equal(plangraph(['init']).status, 0);
   const p = genPlan({ n: 12, people: 3, seed: 4, cap: 40 });
   fs.writeFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), jl(p.tickets));
   fs.writeFileSync(path.join(d, '.plangraph', 'edges.jsonl'), jl(p.edges));
   fs.writeFileSync(path.join(d, '.plangraph', 'schedule.jsonl'), jl(p.schedule));
-  assert.equal(brain(['build']).status, 0);
+  assert.equal(plangraph(['build']).status, 0);
   return d;
 }
-/** `brain card --if-present` (the hook's command) as a child process with the given extra environment. */
+/** `plangraph card --if-present` (the hook's command) as a child process with the given extra environment. */
 const card = (cwd: string, extra: Record<string, string>) => spawnSync(process.execPath, [BRAIN, 'card', '--if-present'], { cwd, env: { ...BASE_ENV, ...extra }, encoding: 'utf8' });
 const unwritableDir = (p: string) => { const d = tmp(p); fs.chmodSync(d, 0o500); return d; };
 
@@ -48,12 +48,12 @@ test('an unwritable NODE_COMPILE_CACHE directory: exit 0, empty stderr and ident
   const d = repo(), cache = unwritableDir('cc-ro-');
   const runs = [1, 2, 3].map(() => card(d, { NODE_COMPILE_CACHE: cache }));
   for (const r of runs) assert.deepEqual([r.status, r.stderr], [0, ''], `status ${r.status}, stderr: ${r.stderr}`);
-  assert.ok(runs[0]?.stdout.startsWith('brain'), `the card is printed: ${runs[0]?.stdout.slice(0, 80)}`);
+  assert.ok(runs[0]?.stdout.startsWith('plangraph'), `the card is printed: ${runs[0]?.stdout.slice(0, 80)}`);
   assert.deepEqual(runs.map((r) => r.stdout), [runs[0]?.stdout, runs[0]?.stdout, runs[0]?.stdout]);
   assert.deepEqual(fs.readdirSync(cache), [], 'nothing was written into the read-only directory');
 });
 
-/** The same command with Node preload arguments (an --import module that runs before bin/brain). */
+/** The same command with Node preload arguments (an --import module that runs before bin/plangraph). */
 const cardWith = (nodeArgs: string[], cwd: string, extra: Record<string, string>) => spawnSync(process.execPath, [...nodeArgs, BRAIN, 'card', '--if-present'], { cwd, env: { ...BASE_ENV, ...extra }, encoding: 'utf8' });
 const entries = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 /** A preload that makes process.getuid report `delta` added to the real uid (0: the real one, a control run). */
@@ -140,14 +140,14 @@ test('NODE_COMPILE_CACHE set: Node\'s own behavior is untouched (its directory h
   const r = card(d, { NODE_COMPILE_CACHE: cache, CLAUDE_PLUGIN_DATA: data });
   assert.deepEqual([r.status, r.stderr], [0, '']);
   assert.ok(entries(cache).length > 0, 'Node used NODE_COMPILE_CACHE');
-  assert.equal(fs.existsSync(path.join(data, 'compile-cache')), false, 'bin/brain did not create its own directory');
+  assert.equal(fs.existsSync(path.join(data, 'compile-cache')), false, 'bin/plangraph did not create its own directory');
 });
 
 test('an unwritable default directory (TMPDIR read-only): exit 0, empty stderr and identical stdout on every run', () => {
   const d = repo(), ro = unwritableDir('cc-rotmp-');
   const runs = [1, 2, 3].map(() => card(d, { TMPDIR: ro }));
   for (const r of runs) assert.deepEqual([r.status, r.stderr], [0, ''], `status ${r.status}, stderr: ${r.stderr}`);
-  assert.ok(runs[0]?.stdout.startsWith('brain'));
+  assert.ok(runs[0]?.stdout.startsWith('plangraph'));
   assert.deepEqual(runs.map((r) => r.stdout), [runs[0]?.stdout, runs[0]?.stdout, runs[0]?.stdout]);
 });
 
@@ -155,7 +155,7 @@ test('an unwritable data directory (CLAUDE_PLUGIN_DATA read-only, no compile-cac
   const d = repo(), ro = unwritableDir('cc-rodata-');
   const runs = [1, 2, 3].map(() => card(d, { CLAUDE_PLUGIN_DATA: ro }));
   for (const r of runs) assert.deepEqual([r.status, r.stderr], [0, ''], `status ${r.status}, stderr: ${r.stderr}`);
-  assert.ok(runs[0]?.stdout.startsWith('brain'));
+  assert.ok(runs[0]?.stdout.startsWith('plangraph'));
   assert.deepEqual(runs.map((r) => r.stdout), [runs[0]?.stdout, runs[0]?.stdout, runs[0]?.stdout]);
   assert.deepEqual(entries(ro), [], 'nothing was created in the read-only data directory');
 });

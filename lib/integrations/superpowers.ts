@@ -1,4 +1,4 @@
-// lib/integrations/superpowers.ts: ingest superpowers implementation plans and SDD ledgers into brain records.
+// lib/integrations/superpowers.ts: ingest superpowers implementation plans and SDD ledgers into plangraph records.
 // See docs/INTEGRATIONS.md ("Ingesting superpowers plans") and docs/research/integrations/superpowers.md sections 2, 5 and 7.
 // parsePlan, parseLedger and ingestPlan are pure. findLedgers and readSpFile read through the fs object they are handed (read-only:
 // superpowers' files are never written, and nothing found in a plan or ledger is ever executed). No printing, no process.exit.
@@ -595,7 +595,7 @@ export const SP_LAYOUTS = Object.freeze([
   { versions: ['6.2.0', '6.3.0'], layout: 'per-plan', where: '.superpowers/sdd/PLAN/progress.md, deleted after the final review' },
   { versions: ['6.4.1', '6.4.2', '7.0.0', '7.0.1', '7.0.2'], layout: 'per-plan', where: '.superpowers/sdd/PLAN*/progress.md beside a plan-path marker, deleted after the final review' },
 ]);
-const READS = 'brain reads the 6.1.1 to 7.0.2 layouts';
+const READS = 'plangraph reads the 6.1.1 to 7.0.2 layouts';
 /** One printed line, sanitized. */
 export function ledgerLayoutOf(version: unknown): { verified: boolean; layout: string | null; line: string } {
   const v = typeof version === 'string' ? oneLine(version, 64) : '';

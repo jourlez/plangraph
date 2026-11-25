@@ -6,7 +6,7 @@
 // NOT covered: commands themselves (test/mutation-kills-cli.test.ts and the command tests).
 import { test } from 'node:test';
 import { parse } from '../src/args.ts';
-import { BrainError, EXIT, EXIT_MEANING, exitCodeOf, errText, didYouMean, tryOf, errorLines } from '../src/errors.ts';
+import { PlangraphError, EXIT, EXIT_MEANING, exitCodeOf, errText, didYouMean, tryOf, errorLines } from '../src/errors.ts';
 import { nodeSupported, floorMessage, floorTry, NODE_FLOOR } from '../src/floor.js';
 import { createRegistry, defineCommand, lookup } from '../src/registry.ts';
 import { makeCollector, render, strictOutput, relDir } from '../src/cli.ts';
@@ -27,7 +27,7 @@ test('argument parsing over a grid of specs and argv', () => {
 });
 
 test('errors: classification, text, suggestions, try lines, full lines', () => {
-  const errs = [new BrainError('USAGE', 'bad <x>\nthing'), new BrainError('DATA', 'broken', { hint: 'run `brain build` now' }), new BrainError('NO_INDEX', 'no index'), new BrainError('ENV', 'no node'), new BrainError('REFUSED', 'outside'), new BrainError('NOPE', 'odd'),
+  const errs = [new PlangraphError('USAGE', 'bad <x>\nthing'), new PlangraphError('DATA', 'broken', { hint: 'run `plangraph build` now' }), new PlangraphError('NO_INDEX', 'no index'), new PlangraphError('ENV', 'no node'), new PlangraphError('REFUSED', 'outside'), new PlangraphError('NOPE', 'odd'),
     Object.assign(new Error('x'), { code: 'OUTSIDE_REPO' }), Object.assign(new Error('y'), { code: 'SYMLINK' }), Object.assign(new Error('z'), { code: 'BAD_DIR_NAME' }), new TypeError('t'), 'string error', null, Object.assign(new Error('fmt'), { name: 'FormatError', code: 'TOO_NEW' }), Object.assign(new Error('i'), { name: 'IngestError' })];
   G('exit-codes', () => [EXIT, EXIT_MEANING, errs.map((e) => exitCodeOf(e))]);
   G('err-text', () => [errText('a\n b\t<untrusted>c', 100), errText('x'.repeat(50), 10), errText(null, 5)]);

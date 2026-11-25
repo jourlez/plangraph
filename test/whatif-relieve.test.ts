@@ -1,7 +1,7 @@
-// Relieve: `brain whatif --relieve PERSON --sprint N` (dry run, read-only) lists the smallest valid set of single-ticket moves of that
+// Relieve: `plangraph whatif --relieve PERSON --sprint N` (dry run, read-only) lists the smallest valid set of single-ticket moves of that
 // cell's tickets that brings the person's load in sprint N to <= cap without any new violation, chosen by the documented rule (fewest
 // tickets moved, then least total sprint slip, then fewest owner changes, then key order), each set verified with verifyPlan, printed
-// with the exact `brain whatif` dry-run command of each move in an order where each one passes `brain whatif` alone.
+// with the exact `plangraph whatif` dry-run command of each move in an order where each one passes `plangraph whatif` alone.
 // Asserted here: exact text and --json of relief / nothing to relieve / no relief (with reasons), the flags, the apply order, the budget
 // message, determinism, usage errors with their try lines, and that the index and the text files are byte-identical after every run.
 // Not covered here: minimality and validity on every small instance against a clean-room brute force (test/assure/relieve.assure.ts),
@@ -16,7 +16,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { buildModel } from '../lib/model.ts';
 import { relieve, renderRelieve } from '../lib/whatif.ts';
 
-const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/brain');
+const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE = '', REPO = '';
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
@@ -34,9 +34,9 @@ const SCHEDULE = Object.entries(PLACE).map(([key, [owner, sprint]]) => ({ versio
 const EDGES = [{ consumer: 'K-5', producer: 'K-2', kind: 'code' }, { consumer: 'D-2', producer: 'D-1', kind: 'code' }, { consumer: 'C-3', producer: 'C-2', kind: 'code' }];
 const CONFIG = { first_sprint: 1, end_sprint: 4, caps: { default: 10, Ana: 5, Cleo: 2, Dan: 1 }, frozen_statuses: ['Done', 'In Progress'] };
 const model = () => buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHEDULE, config: CONFIG });
-const DRY = '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then brain export)';
+const DRY = '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then plangraph export)';
 
-/** sha256 of every file under the brain directory (the index included). */
+/** sha256 of every file under the plan directory (the index included). */
 const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
 
 before(() => {
@@ -91,15 +91,15 @@ test('lib relieve: deterministic, and the budget is reported when it is hit (nev
   assert.equal(renderRelieve(r, { cmd: () => null })[0], 'NO RELIEF: Dan S1 2/1: no relief found within the search budget (1 steps); not proven impossible');
 });
 
-test('brain whatif --relieve: the moves with their exact whatif commands, then the dry-run note; exit 0; nothing written', () => {
+test('plangraph whatif --relieve: the moves with their exact whatif commands, then the dry-run note; exit 0; nothing written', () => {
   const before = digest();
   let r = run('whatif', '--relieve', 'Ana', '--sprint', '2');
   assert.deepEqual([r.status, r.stderr], [0, '']);
-  assert.equal(r.stdout, ['RELIEF: Ana S2 8/5 -> 5/5 with 1 move (slip 2, 0 owner changes)', 'K-1 3 SP: Ana S2 > Ana S4 | brain whatif K-1 --sprint 4', DRY, ''].join('\n'));
+  assert.equal(r.stdout, ['RELIEF: Ana S2 8/5 -> 5/5 with 1 move (slip 2, 0 owner changes)', 'K-1 3 SP: Ana S2 > Ana S4 | plangraph whatif K-1 --sprint 4', DRY, ''].join('\n'));
   r = run('whatif', '--relieve', 'ana', '--sprint', '2', '--owner-change');
-  assert.equal(r.stdout, ['RELIEF: Ana S2 8/5 -> 5/5 with 1 move (slip 0, 1 owner change)', 'K-1 3 SP: Ana S2 > Ben S2 | brain whatif K-1 --to Ben --sprint 2', DRY, ''].join('\n'));
+  assert.equal(r.stdout, ['RELIEF: Ana S2 8/5 -> 5/5 with 1 move (slip 0, 1 owner change)', 'K-1 3 SP: Ana S2 > Ben S2 | plangraph whatif K-1 --to Ben --sprint 2', DRY, ''].join('\n'));
   r = run('whatif', '--relieve', 'Dan', '--sprint', '1');
-  assert.equal(r.stdout, ['RELIEF: Dan S1 2/1 -> 1/1 with 2 moves (slip 2, 0 owner changes)', 'D-2 0 SP: Dan S1 > Dan S2 | brain whatif D-2 --sprint 2', 'D-1 1 SP: Dan S1 > Dan S2 | brain whatif D-1 --sprint 2', DRY, ''].join('\n'));
+  assert.equal(r.stdout, ['RELIEF: Dan S1 2/1 -> 1/1 with 2 moves (slip 2, 0 owner changes)', 'D-2 0 SP: Dan S1 > Dan S2 | plangraph whatif D-2 --sprint 2', 'D-1 1 SP: Dan S1 > Dan S2 | plangraph whatif D-1 --sprint 2', DRY, ''].join('\n'));
   assert.equal(digest(), before, 'relieve never writes');
 });
 
@@ -125,7 +125,7 @@ test('nothing to relieve (exit 0) and no relief (exit 1) with the reasons and th
   assert.equal(r.stdout, [
     'NO RELIEF: Cleo S1 4/2: no relief found within the allowed moves (this cell\'s tickets, later sprints, same owner)',
     '- frozen (started or closed) 1: C-1', '- every target breaks a link 1: C-2', '- the tickets that can move free 0 SP of the 1 needed',
-    'try: --owner-change, or brain whatif KEY --sprint M --slip --apply-plan to shift other tickets too', ''].join('\n')); // S1 is first_sprint: no --earlier
+    'try: --owner-change, or plangraph whatif KEY --sprint M --slip --apply-plan to shift other tickets too', ''].join('\n')); // S1 is first_sprint: no --earlier
 });
 
 test('--json: the v2 envelope with every move, its command, the rule results, and next = the commands', () => {
@@ -134,26 +134,26 @@ test('--json: the v2 envelope with every move, its command, the rule results, an
   assert.deepEqual(e.data, {
     relieve: { person: 'Dan', sprint: 1 }, status: 'relief', load: 2, cap: 1, after: 1, slip: 2, ownerChanges: 0, order: 'sequential', searchComplete: true, budget: 1000000, nodes: 11,
     allowed: ['later'], moves: [
-      { key: 'D-2', sp: 0, from: { owner: 'Dan', sprint: 1 }, to: { owner: 'Dan', sprint: 2 }, command: 'brain whatif D-2 --sprint 2' },
-      { key: 'D-1', sp: 1, from: { owner: 'Dan', sprint: 1 }, to: { owner: 'Dan', sprint: 2 }, command: 'brain whatif D-1 --sprint 2' }],
+      { key: 'D-2', sp: 0, from: { owner: 'Dan', sprint: 1 }, to: { owner: 'Dan', sprint: 2 }, command: 'plangraph whatif D-2 --sprint 2' },
+      { key: 'D-1', sp: 1, from: { owner: 'Dan', sprint: 1 }, to: { owner: 'Dan', sprint: 2 }, command: 'plangraph whatif D-1 --sprint 2' }],
     reasons: [],
   });
-  assert.deepEqual(e.next, ['brain whatif D-2 --sprint 2', 'brain whatif D-1 --sprint 2']);
+  assert.deepEqual(e.next, ['plangraph whatif D-2 --sprint 2', 'plangraph whatif D-1 --sprint 2']);
   const no = JSON.parse(run('whatif', '--relieve', 'Cleo', '--sprint', '1', '--json').stdout);
   assert.deepEqual([no.exit, no.data.status, no.data.reasons], [1, 'no_relief', [{ code: 'FROZEN', keys: ['C-1'] }, { code: 'LINKS', keys: ['C-2'] }, { code: 'NOT_ENOUGH', keys: [], freeable: 0, needed: 1 }]]);
-  assert.deepEqual(no.next, ['brain whatif --relieve Cleo --sprint 1 --owner-change']);
+  assert.deepEqual(no.next, ['plangraph whatif --relieve Cleo --sprint 1 --owner-change']);
 });
 
 test('usage errors: KEY with --relieve, no --sprint, a write or apply flag, --to, an unknown person, no KEY at all: exit 2, fixed message', () => {
   const NOT = 'error: --relieve is a dry run: --to, --apply-plan and --write are not supported (it prints the whatif command of each move)';
   const cases: Array<[string[], string, string]> = [
-    [['whatif', 'K-1', '--relieve', 'Ana', '--sprint', '2'], 'error: whatif takes a KEY or --relieve NAME, not both', 'try: brain explain whatif'],
-    [['whatif', '--relieve', 'Ana'], 'error: --relieve needs --sprint N', 'try: brain explain whatif'],
-    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--write'], NOT, 'try: brain explain whatif'],
-    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--apply-plan'], NOT, 'try: brain explain whatif'],
-    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--to', 'Ben'], NOT, 'try: brain explain whatif'],
-    [['whatif', '--relieve', 'Zed\nINJECTED', '--sprint', '2'], 'error: --relieve matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: brain sprint 2'],
-    [['whatif'], 'error: whatif needs a KEY, or --relieve NAME --sprint N', 'try: brain explain whatif'],
+    [['whatif', 'K-1', '--relieve', 'Ana', '--sprint', '2'], 'error: whatif takes a KEY or --relieve NAME, not both', 'try: plangraph explain whatif'],
+    [['whatif', '--relieve', 'Ana'], 'error: --relieve needs --sprint N', 'try: plangraph explain whatif'],
+    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--write'], NOT, 'try: plangraph explain whatif'],
+    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--apply-plan'], NOT, 'try: plangraph explain whatif'],
+    [['whatif', '--relieve', 'Ana', '--sprint', '2', '--to', 'Ben'], NOT, 'try: plangraph explain whatif'],
+    [['whatif', '--relieve', 'Zed\nINJECTED', '--sprint', '2'], 'error: --relieve matches no single person in the plan (exact, case-insensitive or a unique first name)', 'try: plangraph sprint 2'],
+    [['whatif'], 'error: whatif needs a KEY, or --relieve NAME --sprint N', 'try: plangraph explain whatif'],
   ];
   const before = digest();
   for (const [args, err, tryLine] of cases) {
@@ -163,7 +163,7 @@ test('usage errors: KEY with --relieve, no --sprint, a write or apply flag, --to
   assert.equal(digest(), before);
 });
 
-test('brain whatif KEY is unchanged', () => {
+test('plangraph whatif KEY is unchanged', () => {
   assert.equal(run('whatif', 'K-4', '--sprint', '3').stdout, 'OK: K-4 -> Ana S3. Ana S3 4/5. Frees 1 on Ana S2.\n');
 });
 

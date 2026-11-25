@@ -1,6 +1,6 @@
 // Pick the tests worth running for a set of staged files: every test whose import closure (transitive, through lib, src, mcp,
 // scripts and bin files) contains a staged file, a staged test itself, and the always-on smoke tests (golden and cli-core).
-// Used by the lefthook pre-commit hook. Tests that reach code by path (spawning bin/brain, reading files) have no import edge;
+// Used by the lefthook pre-commit hook. Tests that reach code by path (spawning bin/plangraph, reading files) have no import edge;
 // locally the two smoke tests cover those paths and CI runs the full suite. The result always contains the smoke tests, so
 // the piped `xargs node --test` never receives empty input (which would run the whole suite).
 import fs from 'node:fs';

@@ -10,7 +10,7 @@ import path from 'node:path';
 import { readCapped, readDataCapped, readJsonl } from '../lib/jsonl.ts';
 import { writeAtomicSafe } from '../lib/fsafe.ts';
 import { readConfig } from '../lib/model.ts';
-import type { BrainError } from '../src/errors.ts';
+import type { PlangraphError } from '../src/errors.ts';
 /** The arguments the fake readSync passes through: whatever the reader called it with. */
 type ReadArgs = [number, NodeJS.ArrayBufferView, number, number, fs.ReadPosition | null];
 
@@ -166,10 +166,10 @@ test('index: a plangraph.sqlite symlink is refused on open, and a planted symlin
   const w = world(); const dir = path.join(w.root, '.plangraph'), file = path.join(dir, INDEX_FILE);
   const target = path.join(w.out, 'planted.sqlite'); const before = w.secretBytes();
   fs.symlinkSync(w.secret, file);
-  assert.throws(() => openIndex(file, { dir }), (e: BrainError) => e.code === 'DATA' && e.message === 'the index is a symlink, not a regular file' && e.hint === 'run `brain build` to rebuild it');
+  assert.throws(() => openIndex(file, { dir }), (e: PlangraphError) => e.code === 'DATA' && e.message === 'the index is a symlink, not a regular file' && e.hint === 'run `plangraph build` to rebuild it');
   fs.rmSync(file);
   const tmp = `${file}.tmp-${process.pid}`; fs.symlinkSync(target, tmp);
-  assert.throws(() => buildIndex({ dir }), (e: BrainError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
+  assert.throws(() => buildIndex({ dir }), (e: PlangraphError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
   assert.equal(fs.lstatSync(tmp).isSymbolicLink(), true, 'not ours: left in place');
   assert.equal(fs.existsSync(target), false, 'nothing created through the planted symlink');
   fs.rmSync(tmp);
@@ -192,7 +192,7 @@ test('index: the build temp file deleted and recreated after SQLite closed it is
     return real.lstatSync(...(a as [fs.PathLike])); // the caller's own arguments, passed through
   };
   try {
-    assert.throws(() => buildIndex({ dir }), (e: BrainError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp file was replaced during the build');
+    assert.throws(() => buildIndex({ dir }), (e: PlangraphError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp file was replaced during the build');
   } finally { Object.assign(mfs, real); }
   assert.ok(swapped, 'the swap ran');
   assert.ok(heldAtCheck, 'the temp file descriptor is still open at the identity check');
@@ -213,12 +213,12 @@ test('index: the temp-name rules are what docs/CONTRACT.md says (own-pid regular
   buildIndex({ dir });
   assert.equal(fs.existsSync(tmp), false); assert.equal(w.secretBytes(), before); assert.equal(fs.statSync(w.secret).nlink, 1);
   fs.symlinkSync(w.secret, tmp);
-  assert.throws(() => buildIndex({ dir }), (e: BrainError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
+  assert.throws(() => buildIndex({ dir }), (e: PlangraphError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
   assert.equal(fs.lstatSync(tmp).isSymbolicLink(), true); fs.rmSync(tmp);
   const mfs = (fs as unknown as Record<string, unknown>), real = fs.openSync; let planted = false; // node:fs patched for the test (src/db.ts calls it directly)
   mfs.openSync = (...a: unknown[]) => { if (a[0] === tmp && !planted) { planted = true; fs.writeFileSync(tmp, 'LATE'); } return real(...(a as Parameters<typeof fs.openSync>)); }; // the caller's own arguments, passed through
   try {
-    assert.throws(() => buildIndex({ dir }), (e: BrainError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
+    assert.throws(() => buildIndex({ dir }), (e: PlangraphError) => e.code === 'REFUSED' && e.message === 'refusing to build the index: its temp path already exists and was not created by this build');
   } finally { mfs.openSync = real; }
   assert.ok(planted); assert.equal(fs.readFileSync(tmp, 'utf8'), 'LATE', 'not ours: left in place'); fs.rmSync(tmp);
   assert.equal(w.secretBytes(), before);

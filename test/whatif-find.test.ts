@@ -1,4 +1,4 @@
-// `brain whatif KEY --find` (review M5): every (owner, sprint) slot KEY may move to with no violation anywhere, ranked (slip, same owner
+// `plangraph whatif KEY --find` (review M5): every (owner, sprint) slot KEY may move to with no violation anywhere, ranked (slip, same owner
 // first, least target load, name, sprint), read-only and bounded. Library examples, a property test against brute force on random small
 // plans (each listed slot applied to a copy passes verifyPlan with nothing new), the CLI text, --json, usage errors and nothing written.
 // The exhaustive small-scope check is test/assure/find.assure.ts.
@@ -43,7 +43,7 @@ test('lib: later sprints of the same owner by default; --owner-change and --earl
 test('lib: none valid gives the reason groups; a closed ticket never moves; strict turns the In Progress warning into a stop; unknown key', () => {
   const none = findSlots(buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHEDULE, config: { ...CONFIG, end_sprint: 3 } }), 'A-1');
   assert.deepEqual([none.status, none.tried, none.reasons], ['none', 1, { CAPACITY: 1 }]);
-  assert.deepEqual(renderFind(none, { cmd: () => null }), ['FIND A-1 (Ana S2): no valid slot among 1 tried (later sprints, same owner): CAPACITY 1', 'try: --earlier, --owner-change, or brain whatif A-1 --sprint M --slip --apply-plan to shift other tickets too']);
+  assert.deepEqual(renderFind(none, { cmd: () => null }), ['FIND A-1 (Ana S2): no valid slot among 1 tried (later sprints, same owner): CAPACITY 1', 'try: --earlier, --owner-change, or plangraph whatif A-1 --sprint M --slip --apply-plan to shift other tickets too']);
   const done = findSlots(model(), 'P-1', { allowOwnerChange: true, allowEarlier: true });
   assert.deepEqual([done.status, done.valid, done.tried, done.frozen], ['frozen', 0, 1, 'status Done']);
   assert.deepEqual(renderFind(done, { cmd: () => null }), ['FIND P-1 (Ana S1): no slot: P-1 keeps its slot (STARTED: status Done)']);
@@ -82,7 +82,7 @@ test('property: on random small plans the slots equal a brute force over the sam
 });
 
 // ---- CLI ----
-const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain'), GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph'), GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 let BASE = '', REPO = '';
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, ...GIT });
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
@@ -100,16 +100,16 @@ before(() => {
 });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });
 
-test('brain whatif KEY --find: the ranked slots with their commands, exit 0, nothing written; none found: exit 1 with the reasons', () => {
+test('plangraph whatif KEY --find: the ranked slots with their commands, exit 0, nothing written; none found: exit 1 with the reasons', () => {
   const d = digest();
   let r = run('whatif', 'A-1', '--find', '--owner-change', '--earlier');
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, [
     'FIND A-1 (Ana S2): 7 valid slots of 9 tried (later or earlier sprints, any owner); best: S2 Ben, S1 Ana (no change), S1 Ben, S3 Ben, S4 Ana (no change)',
-    'S2 Ben: slip 0, load 0/3 | brain whatif A-1 --to Ben --sprint 2', 'S1 Ana (no change): slip 1, load 1/3 | brain whatif A-1 --sprint 1',
-    'S1 Ben: slip 1, load 0/3 | brain whatif A-1 --to Ben --sprint 1', 'S3 Ben: slip 1, load 1/3 | brain whatif A-1 --to Ben --sprint 3',
-    'S4 Ana (no change): slip 2, load 0/3 | brain whatif A-1 --sprint 4', '... 2 more valid slots (--json lists up to 200)',
-    '(dry run, nothing changed: each slot was checked with whatif and brain verify on a copy; to apply one, run its command with --apply-plan --write, then brain export)', ''].join('\n'));
+    'S2 Ben: slip 0, load 0/3 | plangraph whatif A-1 --to Ben --sprint 2', 'S1 Ana (no change): slip 1, load 1/3 | plangraph whatif A-1 --sprint 1',
+    'S1 Ben: slip 1, load 0/3 | plangraph whatif A-1 --to Ben --sprint 1', 'S3 Ben: slip 1, load 1/3 | plangraph whatif A-1 --to Ben --sprint 3',
+    'S4 Ana (no change): slip 2, load 0/3 | plangraph whatif A-1 --sprint 4', '... 2 more valid slots (--json lists up to 200)',
+    '(dry run, nothing changed: each slot was checked with whatif and plangraph verify on a copy; to apply one, run its command with --apply-plan --write, then plangraph export)', ''].join('\n'));
   r = run('whatif', 'D-1', '--find');
   assert.equal(r.status, 0, r.stderr);
   assert.equal(digest(), d, 'nothing written');
@@ -117,12 +117,12 @@ test('brain whatif KEY --find: the ranked slots with their commands, exit 0, not
   assert.deepEqual([r.status, r.stdout], [1, 'FIND P-1 (Ana S1): no slot: P-1 keeps its slot (STARTED: status Done)\n']);
 });
 
-test('brain whatif KEY --find --json: the v2 envelope with every slot and its command, the counts and next = the best commands', () => {
+test('plangraph whatif KEY --find --json: the v2 envelope with every slot and its command, the counts and next = the best commands', () => {
   const e = JSON.parse(run('whatif', 'A-1', '--find', '--json').stdout);
   assert.deepEqual([e.v, e.cmd, e.ok, e.exit], [2, 'whatif', true, 0]);
   assert.deepEqual(e.data, { key: 'A-1', status: 'found', from: { owner: 'Ana', sprint: 2 }, tried: 3, valid: 1, allowed: ['later'], searchComplete: true,
-    slots: [{ owner: 'Ana', sprint: 4, slip: 2, sameOwner: true, load: 0, cap: 3, command: 'brain whatif A-1 --sprint 4' }], reasons: { CAPACITY: 1, CONSUMER_EARLY: 1 } });
-  assert.deepEqual(e.next, ['brain whatif A-1 --sprint 4']);
+    slots: [{ owner: 'Ana', sprint: 4, slip: 2, sameOwner: true, load: 0, cap: 3, command: 'plangraph whatif A-1 --sprint 4' }], reasons: { CAPACITY: 1, CONSUMER_EARLY: 1 } });
+  assert.deepEqual(e.next, ['plangraph whatif A-1 --sprint 4']);
 });
 
 test('--find usage errors: with --to, --sprint, --relieve, --apply-plan or --write: exit 2, fixed message', () => {

@@ -1,11 +1,11 @@
-// brain explain [COMMAND]: the CLI describes itself, generated from the registry (summary, options, positionals, writes class) and the
-// error table, so it cannot drift from the code. No brain directory or index is needed. Output is deterministic and bounded: the full
+// plangraph explain [COMMAND]: the CLI describes itself, generated from the registry (summary, options, positionals, writes class) and the
+// error table, so it cannot drift from the code. No plan directory or index is needed. Output is deterministic and bounded: the full
 // list stays under 400 estimated tokens (names grouped by what they write), one command is a few lines. --json gives the same facts.
-import { EXIT_MEANING, BrainError, didYouMean } from '../errors.ts';
+import { EXIT_MEANING, PlangraphError, didYouMean } from '../errors.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { Command, CommandMap, OptionSpec } from '../registry.ts';
 
-// Grouped by the registry's `writes` class: what a command may change: the brain data (text files or the index), or only output files
+// Grouped by the registry's `writes` class: what a command may change: the plan data (text files or the index), or only output files
 // on request (`file`: --out, card --write). `none` means it writes nothing at all.
 const WRITES = Object.freeze([['none', 'writes none'], ['file', 'writes files'], ['index', 'writes index'], ['text', 'writes text']]);
 const GLOBAL = '--json -v --dir DIR --if-present';
@@ -41,11 +41,11 @@ async function explain(ctx: Ctx, args: Args): Promise<number> {
     if (!c) {
       const near = didYouMean(name, names);
       // the try line (src/cli.ts passes `explain` as the failing command) is replaced by the near command's explain
-      throw new BrainError('USAGE', `unknown command ${String(name).replace(/[^\w-]/g, '?').slice(0, 40)}${near ? `; did you mean ${near}?` : ''}`, { hint: near ? `\`brain explain ${near}\`` : '`brain explain`' });
+      throw new PlangraphError('USAGE', `unknown command ${String(name).replace(/[^\w-]/g, '?').slice(0, 40)}${near ? `; did you mean ${near}?` : ''}`, { hint: near ? `\`plangraph explain ${near}\`` : '`plangraph explain`' });
     }
     const opts = Object.keys(c.options).toSorted();
     out(`${name}: ${c.summary}`);
-    out(`usage: brain ${name}${argsText(c.positionals)}${opts.length ? ' [options]' : ''}`);
+    out(`usage: plangraph ${name}${argsText(c.positionals)}${opts.length ? ' [options]' : ''}`);
     if (opts.length) out(`options: ${opts.slice(0, MAX_OPTIONS).map((k) => optionText(k, c.options[k] as OptionSpec)).join(' ')}${opts.length > MAX_OPTIONS ? ` +${opts.length - MAX_OPTIONS} more` : ''}`); // opts holds c.options' own keys
     out(`global: ${GLOBAL}`);
     out(writesText(c));
@@ -53,7 +53,7 @@ async function explain(ctx: Ctx, args: Args): Promise<number> {
     ctx.io.data?.({ commands: [describe(name, c)], exit: Object.fromEntries(EXIT_MEANING) }, { next: [] });
     return 0;
   }
-  out('brain: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}');
+  out('plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}');
   out(exitLine());
   for (const [w, label] of WRITES) {
     const group = names.filter((n) => (registry.get(n) as Command).writes === w); // n is one of the registry's own keys
@@ -68,7 +68,7 @@ async function explain(ctx: Ctx, args: Args): Promise<number> {
   }
   if (who.length) out(`also writes: ${who.join(', ')}: ${[...what].map((x) => (SIDE_LABEL as Record<string, string>)[x] ?? x).join(', ')}`); // lookup by any name: ?? covers the rest
   out(`global: ${GLOBAL}`);
-  out('more: brain explain COMMAND | brain explain --json');
+  out('more: plangraph explain COMMAND | plangraph explain --json');
   ctx.io.data?.({ commands: names.map((n) => describe(n, registry.get(n) as Command)), exit: Object.fromEntries(EXIT_MEANING) }, { next: [] }); // registry keys
   return 0;
 }

@@ -1,4 +1,4 @@
-$ brain migrate --json
+$ plangraph migrate --json
 exit: 0
 --- stdout
 {"v":2,"cmd":"migrate","ok":true,"exit":0,"data":{"lines":["up to date"]},"fresh":null,"next":[]}

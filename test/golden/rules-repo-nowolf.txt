@@ -1,4 +1,4 @@
-$ brain rules --repo
+$ plangraph rules --repo
 exit: 0
 --- stdout
 no repo rules: .wolf/cerebrum.md not found

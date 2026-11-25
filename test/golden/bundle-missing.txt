@@ -1,4 +1,4 @@
-$ brain bundle T-999
+$ plangraph bundle T-999
 exit: 0
 --- stdout
 # T-999: not in the plan

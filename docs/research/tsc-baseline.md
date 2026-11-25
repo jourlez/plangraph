@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # tsc baseline (Task 18)
 
 Measured 2026-11-22 on branch base 94965d8 with `typescript@7.0.2` (native compiler, `tsc -v` = `Version 7.0.2`), `@types/node@24.19.2`, Node 24.18.0.

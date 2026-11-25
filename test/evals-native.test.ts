@@ -72,9 +72,9 @@ test('writeSuite pins the node that built the suite in every scaffold, and copie
   const fx = Object.fromEntries(['S', 'M', 'L'].map((z) => [z, path.join(root, 'evals', 'fixtures', z)]));
   const plugin = writeSuite(path.join(tmp, 'pin'), { srcRoot: root, cases: cases.slice(0, 3), fixtures: fx, runs: 1 });
   const sh = fs.readFileSync(path.join(plugin, 'evals', cases[0].id, 'scaffold.sh'), 'utf8');
-  assert.ok(sh.includes(`'${process.execPath}' "$plugin_root/bin/brain" build`));
+  assert.ok(sh.includes(`'${process.execPath}' "$plugin_root/bin/plangraph" build`));
   for (const d of ['test', 'docs', '.git', '.superpowers', 'evals/cases']) assert.ok(!fs.existsSync(path.join(plugin, d)), d);
-  for (const d of ['bin/brain', 'lib', 'skills', 'hooks', '.claude-plugin/plugin.json', 'evals/overlay.ts']) assert.ok(fs.existsSync(path.join(plugin, d)), d);
+  for (const d of ['bin/plangraph', 'lib', 'skills', 'hooks', '.claude-plugin/plugin.json', 'evals/overlay.ts']) assert.ok(fs.existsSync(path.join(plugin, d)), d);
   const v = writeSuite(path.join(tmp, 'nocard'), { srcRoot: root, cases: cases.slice(0, 1), fixtures: fx, runs: 1, variant: 'no-card' });
   assert.equal(fs.readFileSync(path.join(v, 'hooks', 'hooks.json'), 'utf8'), '{"hooks":{}}\n');
   const s = writeSuite(path.join(tmp, 'noskills'), { srcRoot: root, cases: cases.slice(0, 1), fixtures: fx, runs: 1, variant: 'no-skills' });

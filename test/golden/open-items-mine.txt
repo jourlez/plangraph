@@ -1,4 +1,4 @@
-$ brain open-items --mine --me Ana
+$ plangraph open-items --mine --me Ana
 exit: 0
 --- stdout
 open items: 4 (4 yours, due S1: 3)

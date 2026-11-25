@@ -1,4 +1,4 @@
-// Record validators for the brain's JSONL files. Each takes a parsed record and returns an error message or null.
+// Record validators for plangraph's JSONL files. Each takes a parsed record and returns an error message or null.
 // Unknown extra fields are always allowed (forward compatibility). Messages name the field, never the value.
 export type Rec = Record<string, unknown>;
 type FieldCheck = (r: Rec, k: string) => string | null;

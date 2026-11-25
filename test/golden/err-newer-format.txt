@@ -1,7 +1,7 @@
-$ brain ticket T-5
+$ plangraph ticket T-5
 exit: 2
 --- stdout
 --- stderr
-error: .plangraph: data format 99 (needs reader >= 99) is newer than this tool supports (1): upgrade the brain tool
-hint: upgrade the brain plugin, then retry
-try: brain explain ticket
+error: .plangraph: data format 99 (needs reader >= 99) is newer than this tool supports (1): upgrade the plangraph tool
+hint: upgrade the plangraph plugin, then retry
+try: plangraph explain ticket

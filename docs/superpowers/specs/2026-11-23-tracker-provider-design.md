@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Tracker provider and tenant alias: design
 
 Date: 2026-11-23. Status: approved in conversation; executes after the TypeScript migration (`2026-11-23-typescript-migration-design.md`) is released, so every file named here is already `.ts`.

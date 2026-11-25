@@ -1,6 +1,6 @@
-$ brain whatif
+$ plangraph whatif
 exit: 2
 --- stdout
 --- stderr
 error: whatif needs a KEY, or --relieve NAME --sprint N
-try: brain explain whatif
+try: plangraph explain whatif

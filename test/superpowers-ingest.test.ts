@@ -19,7 +19,7 @@ import type { SpFinding, SpRecords } from '../lib/integrations/superpowers.ts';
 // Fixtures are the synthetic ones from docs/research/integrations/superpowers.md section 7 (invented names, no real data).
 const HERE = import.meta.dirname;
 const FIX = path.join(HERE, 'fixtures/superpowers');
-const BRAIN = path.join(HERE, '../bin/brain');
+const BRAIN = path.join(HERE, '../bin/plangraph');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
 const PLAN_REL = 'docs/superpowers/plans/2026-11-20-widget-export.md';
 const SPEC_REL = 'docs/superpowers/specs/2026-11-20-widget-export-design.md';
@@ -32,7 +32,7 @@ const asExisting = (r: SpRecords) => ({ tickets: r.tickets, edges: r.edges, find
 
 // ---------- temp repo + CLI helpers ----------
 const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sp-')));
-// a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
+// a private plugin data directory: bin/plangraph keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = tmp();
 process.on('exit', () => fs.rmSync(DATA, { recursive: true, force: true }));
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
@@ -59,7 +59,7 @@ const loud = (root: string, args: string[], re: RegExp | null, status = 2) => {
   const before = snapshot(root); const r = run(root, ...args);
   assert.equal(r.status, status, `exit ${r.status}: ${r.stdout}${r.stderr}`);
   // one error line, then the try line of the error table (Task 14)
-  assert.match(r.stderr, /^error: [^\n]*\ntry: brain [a-z-]+[^\n]*\n$/, r.stderr); assert.doesNotMatch(r.stderr, /\n\s+at /);
+  assert.match(r.stderr, /^error: [^\n]*\ntry: plangraph [a-z-]+[^\n]*\n$/, r.stderr); assert.doesNotMatch(r.stderr, /\n\s+at /);
   if (re) assert.match(r.stderr, re);
   assert.deepEqual(snapshot(root), before, 'a loud failure must leave every file byte- and mtime-identical');
   return r;
@@ -567,7 +567,7 @@ test('open-items --findings accepts a finding on an sp: key', () => {
 test('write pre-check: a refusable target (symlink) fails before ANY file is rewritten', () => {
   const root = repo(); const edges = path.join(root, '.plangraph/edges.jsonl'), real = path.join(root, '.plangraph/edges.real');
   fs.renameSync(edges, real); fs.symlinkSync(real, edges);
-  loud(root, ['sp-ingest', PLAN_REL], /^error: refusing to write edges\.jsonl: it is a symlink \(nothing was written\)\ntry: brain explain sp-ingest\n$/, 4); // REFUSED: exit 4
+  loud(root, ['sp-ingest', PLAN_REL], /^error: refusing to write edges\.jsonl: it is a symlink \(nothing was written\)\ntry: plangraph explain sp-ingest\n$/, 4); // REFUSED: exit 4
   fs.rmSync(edges); fs.renameSync(real, edges); // the target is fixed: a plain re-run converges to the full result
   assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0);
   const fresh = repo(); assert.equal(run(fresh, 'sp-ingest', PLAN_REL).status, 0);

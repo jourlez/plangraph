@@ -10,7 +10,7 @@ Read-only, the only module that touches the network. Never put a token in a file
 | `site-token` | unscoped Cloud token | `https://<site>.atlassian.net` | fallback, Atlassian is deprecating unscoped tokens |
 | `datacenter` | Personal Access Token (Bearer) | your Jira host | Data Center / Server |
 
-Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cloud_id":"<uuid>","jql":"project = ABC"}}`. For `site-token` also `base_url`. In scoped mode `base_url` stays unset (an empty string, as `brain init` writes it, counts as unset). A missing tenant (no `cloud_id` in scoped mode, no usable `base_url` otherwise) is refused before any credential helper runs, with a message that names the missing field. A Data Center host is NEVER read from the repo: set `PLANGRAPH_JIRA_DC_HOSTS=jira.corp.example` (comma list, `host:port` allowed) in your shell or user config. Optional pin for site tokens: `PLANGRAPH_JIRA_SITES=acme.atlassian.net` so a committed config cannot aim your token at someone else's tenant.
+Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cloud_id":"<uuid>","jql":"project = ABC"}}`. For `site-token` also `base_url`. In scoped mode `base_url` stays unset (an empty string, as `plangraph init` writes it, counts as unset). A missing tenant (no `cloud_id` in scoped mode, no usable `base_url` otherwise) is refused before any credential helper runs, with a message that names the missing field. A Data Center host is NEVER read from the repo: set `PLANGRAPH_JIRA_DC_HOSTS=jira.corp.example` (comma list, `host:port` allowed) in your shell or user config. Optional pin for site tokens: `PLANGRAPH_JIRA_SITES=acme.atlassian.net` so a committed config cannot aim your token at someone else's tenant.
 
 ## Setup recipe (scoped token)
 
@@ -20,7 +20,7 @@ Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cl
    - `export JIRA_EMAIL=you@corp.example JIRA_API_TOKEN=...` (type it in your own shell, do not paste into files)
    - `export JIRA_OP_REF=op://Vault/Jira/token` (1Password CLI; the secret may also be `email:token`)
    - macOS: `security add-generic-password -s plangraph-jira -a "$JIRA_EMAIL" -w` (prompts for the token); Linux: `secret-tool store --label plangraph-jira service plangraph-jira`. With a keychain secret, still export `JIRA_EMAIL` or store the secret as `email:token`.
-4. Smoke test: `brain jira-pull --out /tmp/snap.jsonl` prints one line like `pulled 12 issues (full), drift 0, complete, hash a1b2c3`. A 401 means wrong mode for the token type (the error says so); an "anonymous identity" error means the token was not accepted.
+4. Smoke test: `plangraph jira-pull --out /tmp/snap.jsonl` prints one line like `pulled 12 issues (full), drift 0, complete, hash a1b2c3`. A 401 means wrong mode for the token type (the error says so); an "anonymous identity" error means the token was not accepted.
 5. Rotation: create the new token, replace it in env/1Password/keychain, run the smoke test, then revoke the old token in Atlassian. Nothing in the repo changes.
 
 ## Behaviour
@@ -32,7 +32,7 @@ Config (committed, treated as untrusted): `{"jira":{"auth":{"mode":"scoped"},"cl
 - Failure: a mid-pagination error returns `ok:false, snapshot:null` and the CLI exits non-zero without writing. Auth, config and unbounded-JQL errors throw before any data is fetched.
 - Snapshot JSONL: line 1 `{schema:1, meta}`, then one issue per line sorted by key. `meta.content_hash` covers issues only, so unchanged Jira content gives an identical hash.
 
-## Atlassian connector payload and import (`brain jira-import`)
+## Atlassian connector payload and import (`plangraph jira-import`)
 
 Shape of the connector's issue result: **verified on one real payload, 2026-11-22** (structure only; other variants are unverified). `issues.nodes[]` objects have keys `expand`, `fields`, `id`, `key`, `webUrl`. Custom fields are NOT `customfield_NNNNN` keys under `fields`: they are nested under `fields.customFields`, keyed by DISPLAY NAME, each entry `{ id: 'customfield_NNNNN', value }`:
 
@@ -78,12 +78,12 @@ compare. For bulk, `searchJiraIssuesUsingJql` with the same `fields`; whether it
 unverified. Expected size: the synthetic slim fixture in `test/jira-slim.test.ts` (one issue, 22 links, two sprints) is about 3,200
 characters as JSON, against the ~15,000 baseline; a real slim response is unmeasured.
 
-`brain jira-import` accepts that slim shape (tested on the synthetic fixture built from the verified payload shape above): link `type`
+`plangraph jira-import` accepts that slim shape (tested on the synthetic fixture built from the verified payload shape above): link `type`
 trimmed to `name` only gives an empty `rel`; a field the response leaves out (`summary`, `status`, `assignee`, `updated`,
 `resolutiondate`, the Sprint entry, `issuelinks`) keeps the value already in the snapshot, while a field that is present, even `null` or
 an empty list, replaces it. With no previous snapshot nothing is invented (empty strings, no sprint).
 
-Bulk rule: for more than about 20 tickets use `brain jira-pull` (token, no model tokens spent). Otherwise a subagent pages `searchJiraIssuesUsingJql` into files and runs `brain jira-import` on them, returning one line (the import summary), so ticket content never enters the main context.
+Bulk rule: for more than about 20 tickets use `plangraph jira-pull` (token, no model tokens spent). Otherwise a subagent pages `searchJiraIssuesUsingJql` into files and runs `plangraph jira-import` on them, returning one line (the import summary), so ticket content never enters the main context.
 
 ## Known limits
 
@@ -94,18 +94,18 @@ Bulk rule: for more than about 20 tickets use `brain jira-pull` (token, no model
 
 ## How to tell whether Jira is set up
 
-`brain doctor` prints one `jira:` line (info only, no network, no secret read or shown): the auth mode, whether the site or cloud id and the JQL are set, and which credential source is present in the environment (`JIRA_EMAIL` + `JIRA_API_TOKEN`, or `JIRA_OP_REF`; the OS keychain is not checked). `jira: not configured` means `brain jira-pull` is off. `jira: invalid config: auth.mode must be scoped, site-token or datacenter; ...` means the mode is not one of the three exact values (case and spaces count): `brain jira-pull` refuses it before any credential is looked up. `NO credential bound to <tenant>: ...` means generic credentials may not go to that tenant and no per-tenant binding is set. The Atlassian connector (MCP) is separate: `brain` never uses it, and a connector signed in to another site cannot see your project. To see which site a connector reaches, call its `getAccessibleAtlassianResources`.
+`plangraph doctor` prints one `jira:` line (info only, no network, no secret read or shown): the auth mode, whether the site or cloud id and the JQL are set, and which credential source is present in the environment (`JIRA_EMAIL` + `JIRA_API_TOKEN`, or `JIRA_OP_REF`; the OS keychain is not checked). `jira: not configured` means `plangraph jira-pull` is off. `jira: invalid config: auth.mode must be scoped, site-token or datacenter; ...` means the mode is not one of the three exact values (case and spaces count): `plangraph jira-pull` refuses it before any credential is looked up. `NO credential bound to <tenant>: ...` means generic credentials may not go to that tenant and no per-tenant binding is set. The Atlassian connector (MCP) is separate: `plangraph` never uses it, and a connector signed in to another site cannot see your project. To see which site a connector reaches, call its `getAccessibleAtlassianResources`.
 
 ## Several companies, several Jira sites (tenants)
 
-Each brain directory names its own tenant in its committed config (`cloud_id` for a scoped token, `base_url` for a site token or Data Center), so every repository can point at a different Jira. Credentials are bound to the tenant, never shared: a token for company B is never sent to company A's site.
+Each plan directory names its own tenant in its committed config (`cloud_id` for a scoped token, `base_url` for a site token or Data Center), so every repository can point at a different Jira. Credentials are bound to the tenant, never shared: a token for company B is never sent to company A's site.
 
 Resolution for a tenant T, first hit wins:
 1. **User-level registry** `~/.config/plangraph/jira-sites.json` (or `$PLANGRAPH_CONFIG_DIR`, `$XDG_CONFIG_HOME/plangraph`). Never committed. It holds names and references only, never a secret: `{"sites": {"acme.atlassian.net": {"email_env": "ACME_JIRA_EMAIL", "token_env": "ACME_JIRA_TOKEN"}, "<cloud-id>": {"op_ref": "op://Work/Jira/token"}, "jira.corp.example": {"keychain": "my-corp-jira"}}}`. A tenant with an entry never falls back to anything else.
 2. **Convention**: env `JIRA_EMAIL__TAG` + `JIRA_API_TOKEN__TAG` (or `JIRA_OP_REF__TAG`), or keychain service `plangraph-jira:T`; TAG is the host without `.atlassian.net`, upper-case, non-alphanumerics as `_`.
 3. **Generic** `JIRA_EMAIL` + `JIRA_API_TOKEN` (or `JIRA_OP_REF`, or the keychain service `plangraph-jira`): used only where the tenant is not chosen by a committed config: a scoped tenant (the gateway host is fixed; a committed `cloud_id` still chooses which cloud, see SECURITY.md), a Data Center host when `PLANGRAPH_JIRA_DC_HOSTS` lists exactly that ONE host (with several hosts a committed config could pick any of them, so each needs a registry entry or a convention binding), a site listed in `PLANGRAPH_JIRA_SITES`, or the tenant named in your own `projects` entry (below). Otherwise the pull stops and names the missing binding.
 
-`brain doctor` shows the tenant and which binding applies, without printing a secret.
+`plangraph doctor` shows the tenant and which binding applies, without printing a secret.
 
 ### Keep the tenant out of the repository
 
@@ -115,4 +115,4 @@ A public project must not have to commit its company's Jira site, cloud id or JQ
 
 Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. An entry that names any tenant field (`auth`, `base_url` or `cloud_id`) decides the WHOLE tenant: the committed `auth`, `base_url` and `cloud_id` are then ignored, so give the mode and its tenant field together (`auth.mode` defaults to `scoped`, which needs `cloud_id`; `site-token` and `datacenter` need `base_url`). The committed `jql`, `sprint_field` and `full_reconcile_every` still apply unless the entry sets them. The tenant field named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `PLANGRAPH_JIRA_SITES` pin.
 
-Output files of `brain jira-pull --out`, `brain jira-import --out` and `brain jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.
+Output files of `plangraph jira-pull --out`, `plangraph jira-import --out` and `plangraph jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.

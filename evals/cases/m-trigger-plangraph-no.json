@@ -1,0 +1,64 @@
+{
+  "$schema": "plangraph-eval-case/2",
+  "id": "m-trigger-plangraph-no",
+  "kind": "trigger",
+  "family": "trigger-plangraph",
+  "tags": [
+    "trigger",
+    "synthetic",
+    "size-m",
+    "should-not-trigger",
+    "plangraph"
+  ],
+  "fixture": {
+    "size": "M",
+    "seed": 7,
+    "plangraph": true,
+    "overlay": []
+  },
+  "prompt": "Explain in two sentences what a burndown chart shows.",
+  "limits": {
+    "max_turns": 10,
+    "timeout_s": 240,
+    "max_usd": 0.4
+  },
+  "graders": [
+    {
+      "id": "rel-burndown",
+      "role": "outcome",
+      "type": "regex",
+      "target": "last_message",
+      "pattern": "burn-?down",
+      "flags": "i",
+      "weight": 1,
+      "arm": "both"
+    },
+    {
+      "id": "neg-plangraph-not-used",
+      "role": "outcome",
+      "type": "tool_used",
+      "tool": "Bash",
+      "input_match": "(?:^|[\\s;&|(])plangraph\\s",
+      "min": 0,
+      "max": 0,
+      "weight": 3,
+      "arm": "both"
+    },
+    {
+      "id": "neg-skill-not-fired",
+      "role": "outcome",
+      "type": "tool_used",
+      "tool": "Skill",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif)\"",
+      "min": 0,
+      "max": 0,
+      "weight": 3,
+      "arm": "both"
+    }
+  ],
+  "difficulty": "medium",
+  "expected": {
+    "trigger": false,
+    "skill": "plangraph"
+  }
+}

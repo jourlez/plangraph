@@ -2,19 +2,19 @@
   "$schema": "plangraph-eval-case/2",
   "id": "m-trigger-near-key-shape",
   "kind": "trigger",
-  "family": "trigger-brain",
+  "family": "trigger-plangraph",
   "tags": [
     "trigger",
     "synthetic",
     "size-m",
     "should-not-trigger",
-    "brain",
+    "plangraph",
     "near-miss"
   ],
   "fixture": {
     "size": "M",
     "seed": 7,
-    "brain": true,
+    "plangraph": true,
     "overlay": []
   },
   "prompt": "Rename the variable T9 to retryCount in this snippet: const T9 = 3; retry(T9);",
@@ -35,11 +35,11 @@
       "arm": "both"
     },
     {
-      "id": "neg-brain-not-used",
+      "id": "neg-plangraph-not-used",
       "role": "outcome",
       "type": "tool_used",
       "tool": "Bash",
-      "input_match": "(?:^|[\\s;&|(])brain\\s",
+      "input_match": "(?:^|[\\s;&|(])plangraph\\s",
       "min": 0,
       "max": 0,
       "weight": 3,
@@ -50,7 +50,7 @@
       "role": "outcome",
       "type": "tool_used",
       "tool": "Skill",
-      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:brain(?:-[a-z]+)?|whatif)\"",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif)\"",
       "min": 0,
       "max": 0,
       "weight": 3,
@@ -60,6 +60,6 @@
   "difficulty": "medium",
   "expected": {
     "trigger": false,
-    "skill": "brain"
+    "skill": "plangraph"
   }
 }

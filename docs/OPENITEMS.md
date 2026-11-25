@@ -7,7 +7,7 @@ Decisions and fixes owed by a named person before a ticket may start. Module: `l
 `key, kind, owner, due_sprint (int|null), status ("open"|"done"), text, closed_at?, closed_by?, close_note?, source? ("manual")`. Unknown extra fields are kept and sorted last. Reading checks that `key` and `kind` are strings, `owner` is a string or absent (or null), and `status` is a non-empty string when present; anything else is a data error naming the line (exit 2).
 An item is identified by `key|kind`, one item per pair (several findings of the same pair merge into one text, sorted, joined by ` | `, max 300 chars).
 
-## Contract with `brain ready`
+## Contract with `plangraph ready`
 `ready` reads exactly `status`, `key`, `kind`. An item is closed iff `status === "done"`; every other status blocks. A finding blocks its ticket unless a
 closed item with the same `key|kind` exists. A manual open item (no finding behind it) also blocks. Reuse `blocksReady(items, key, {findings})`
 (true when blocked), `blockingItems(items, key)` (reasons) and `closedSet(items)` (the `key|kind` set `ready` builds inline today).
@@ -41,7 +41,7 @@ An open item is DUE when `due - lead_time <= currentSprint`; `late` is `due < cu
 - The plugin never executes commands. Checks (schema clashes etc.) run in CI or via Claude's own Bash tool under its normal permission prompts, and write a findings JSONL file; a `checks` section in config is ignored.
 
 ## CLI wiring (as implemented in `src/commands/openitems.ts`)
-`brain open-items [--mine] [--close KEY KIND [--note TEXT] | --reopen KEY KIND | --register KEY KIND --owner O --due N --text T] [--findings FILE|-] [--write] [--sprint N] [--me NAME]` (one action per run)
+`plangraph open-items [--mine] [--close KEY KIND [--note TEXT] | --reopen KEY KIND | --register KEY KIND --owner O --due N --text T] [--findings FILE|-] [--write] [--sprint N] [--me NAME]` (one action per run)
 1. load model; `const {findings, errors} = parseFindings(readFileSync(file, 'utf8'), file)` (print errors to stderr); `derived = openItemsFromFindings(model, config, {extraFindings: findings})`;
 2. `items = reconcileItems(parseItems(file), derived)`; apply one of `--close`, `--reopen` or `--register` (one action per run: giving two is a usage error, exit 2); `--mine` filters to `owner === me`;
 3. `--write`, or any one action, writes `serializeItems(items)` to `open-items.jsonl` and `renderOpenItems(items)` to `OPEN-ITEMS.md`; otherwise print `renderCompact(items, {me, currentSprint})`, its item lines (which carry free text) inside one `<untrusted>` fence; exit 1 if anything is late (optional).

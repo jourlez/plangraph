@@ -8,8 +8,8 @@
 // --check-tokens is a separate, optional guard: it compares the comment-free token stream of every source file (old side with the
 // substitutions applied) with the working tree; the pin mapping itself is textual and does not depend on it.
 // Substitution is whole-token: `brainstorm` is protected only because `s` is a word character, `brain_rules_version` because `_` is one.
-// `open-brain` is NOT protected (`-` is not a word character): under `brain=plangraph` it becomes `open-plangraph` unless a longer
-// explicit `--subst open-brain=open-brain` is given (longest match wins).
+// A name joined to another by `-` is not protected (`-` is not a word character): `x-brain` becomes `x-plangraph` under `brain=plangraph`
+// unless a longer explicit `--subst x-brain=x-brain` is given (longest match wins).
 // A pin whose substituted `to` equals its substituted `from` is reported unmapped (the mutant would be a no-op), and a mutate.ts array row
 // that looks like a pin but has a non-string-literal cell is reported unmapped (the tool cannot re-pin what it cannot read).
 // --write replaces the pin literals in scripts/mutate.ts (rows matched by position) and rewrites scripts/mutate/equivalent.json (2-space JSON).

@@ -1,5 +1,5 @@
 // report: generate report.md and report.html from the plan (lib/report.ts, deterministic). It only writes the two files, atomically and
-// confined to the repository; publishing and sharing belong to the Artifact and Slack tools, proposed by the brain-report skill.
+// confined to the repository; publishing and sharing belong to the Artifact and Slack tools, proposed by the plangraph:report skill.
 // Race left: between the pre-check and the rename another process could swap a target for a symlink; the rename replaces the link itself.
 import fs from 'node:fs';
 import path from 'node:path';

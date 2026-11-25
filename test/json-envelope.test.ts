@@ -1,4 +1,4 @@
-// `--json on any command prints the v2 envelope` (docs/CONTRACT.md) holds for EVERY registered command: run through bin/brain with --json
+// `--json on any command prints the v2 envelope` (docs/CONTRACT.md) holds for EVERY registered command: run through bin/plangraph with --json
 // and with --json -v, each on a fresh copy of a small plan, stdout is exactly one JSON envelope {v:2, cmd, ok, exit, data, fresh, next}
 // whose exit and ok repeat the process exit code, also when the command printed no text (findings of a plan with none, card --if-present
 // without an index) and when it failed (no index, missing credentials, an argument error after --json was seen).
@@ -11,7 +11,7 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { registry } from '../src/registry.ts';
 
-const BRAIN = path.join(import.meta.dirname, '../bin/brain'), FX = path.join(import.meta.dirname, 'fixtures');
+const BRAIN = path.join(import.meta.dirname, '../bin/plangraph'), FX = path.join(import.meta.dirname, 'fixtures');
 let BASE = '', FIXTURE = '', EMPTY = '';
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', SOURCE_DATE_EPOCH: '1795305600', ...GIT });
@@ -48,7 +48,7 @@ before(async () => {
 });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });
 
-// Argument shapes per command; '@empty' runs in a git repo without a brain directory.
+// Argument shapes per command; '@empty' runs in a git repo without a plan directory.
 /** @type {Record<string, string[][]>} */
 const SHAPES = {
   ticket: [['T-1'], ['T-404']], neighbors: [['T-2']], chain: [['T-2']], sprint: [['1'], ['99']], person: [['Ana']], blockers: [[]],
@@ -77,7 +77,7 @@ test('--json (plain and -v) prints exactly one v2 envelope on every registered c
     const inEmpty = c.includes('@empty'), args = c.filter((a) => a !== '@empty'), name = args[0];
     let cwd = EMPTY;
     if (!inEmpty) { cwd = path.join(BASE, `run-${n++}`); fs.cpSync(FIXTURE, cwd, { recursive: true }); }
-    const r = await run(cwd, args), what = `brain ${args.join(' ')}${inEmpty ? ' (no brain)' : ''} -> exit ${r.status}`;
+    const r = await run(cwd, args), what = `plangraph ${args.join(' ')}${inEmpty ? ' (no plangraph)' : ''} -> exit ${r.status}`;
     if (r.status !== 0) failed++;
     let e: { v?: unknown; cmd?: unknown; ok?: unknown; exit?: unknown; data?: unknown; next?: unknown };
     try { e = JSON.parse(r.stdout); } catch { bad.push(`${what}: stdout is not one JSON value: ${JSON.stringify(r.stdout.slice(0, 160))} stderr ${JSON.stringify(r.stderr.slice(0, 160))}`); return; }

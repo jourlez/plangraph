@@ -3,7 +3,7 @@
 // V (absent, null, string, integer, fraction, boolean, object with unsorted keys, array) plus an unknown field (absent, string, nested
 // object), and a duplicate-line file: canonLine == a clean-room canonical serializer (known fields in schema order, unknown sorted, nested
 // keys sorted, set fields sorted and deduplicated, arrays otherwise in order), and canon(parse(canon(x))) == canon(x) (idempotent).
-// Layer 2 (CLI, in-process): `brain build` then `brain export` for every exported table, every known column x V x unknown field:
+// Layer 2 (CLI, in-process): `plangraph build` then `plangraph export` for every exported table, every known column x V x unknown field:
 //   a boolean, object or array in a known TEXT column is a data error (exit 2, `file:line: "field" must be a string or a number`);
 //   an integer column follows its validator (sp: number >= 0, fractions allowed; sprint: whole number; v2_sprint: number);
 //   everything else round-trips byte for byte (canonical file of the exported table == canonical input), except that a schedule row

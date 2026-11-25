@@ -1,5 +1,5 @@
 // Tests for scripts/baseline.ts, the differential baseline harness: two captures of the same tree compare equal, the normalizer maps
-// only what the migration may change, and the matrix cannot miss a command that `brain explain` lists.
+// only what the migration may change, and the matrix cannot miss a command that `plangraph explain` lists.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -50,12 +50,16 @@ test('compareDirs lists the id of a changed file', () => {
 // The 0.3.0 rename: the OLD side (a) of a compare is mapped to the new names, the NEW side (b) never is, and a new capture holding an old
 // name is refused. Old names are assembled so that this file names them only here.
 const OB = 'brain', OPB = ['project', OB].join('-');
-test('the name map: whole token, longest first, never inside brainstorm, the plugin bin/ untouched', () => {
+test('the name map: whole token, longest first, never inside brainstorm; the command word and the plugin file names follow', () => {
   assert.equal(mapOldNames(`~/.config/${OPB}/a ${OPB}-jira:h .${OB}/*.jsonl merge=${OB}-jsonl .${OB}rc ${OB}.sqlite-journal <ROOT>/home/data/bin/${OB}-merge %O ${OB.toUpperCase()}_DIR`),
     '~/.config/plangraph/a plangraph-jira:h .plangraph/*.jsonl merge=plangraph-jsonl .plangraphrc plangraph.sqlite-journal <ROOT>/home/data/bin/plangraph-merge %O PLANGRAPH_DIR');
-  for (const keep of ['brainstorm.sqlite', `NO_${OB.toUpperCase()}_X`, `<ROOT>/bin/${OB}-merge`, `x.${OB}`, `.${OB}stormy`, 'brain_rules_version']) assert.equal(mapOldNames(keep), keep, keep);
-  assert.deepEqual(oldNameHits('.plangraph/*.jsonl merge=plangraph-jsonl PLANGRAPH_DIR brainstorm'), []);
-  assert.equal(oldNameHits(`.${OB}/x merge=${OB}-jsonl`).length, 2);
+  for (const keep of ['brainstorm.sqlite', `NO_${OB.toUpperCase()}_X`, `.${OB}stormy`, 'brain_rules_version', 'superpowers:brainstorming']) assert.equal(mapOldNames(keep), keep, keep);
+  // the command word, the plugin's file names, the skill names and the error code
+  assert.equal(mapOldNames(`${OB}: 3 tickets; try: ${OB} doctor --fix; <ROOT>/bin/${OB}-merge; ${OB}-solve: x; no ${OB} directory: run ${OB} init; plangraph:${OB}-plan plangraph:${OB} NO_${OB.toUpperCase()}`),
+    'plangraph: 3 tickets; try: plangraph doctor --fix; <ROOT>/bin/plangraph-merge; plangraph-solve: x; no plan directory: run plangraph init; plangraph:plan plangraph:plangraph NO_PLANGRAPH');
+  assert.deepEqual(oldNameHits('.plangraph/*.jsonl merge=plangraph-jsonl PLANGRAPH_DIR brainstorm plangraph: x'), []);
+  assert.ok(oldNameHits(`try: ${OB} doctor`).length >= 1);
+  assert.equal(oldNameHits(`.${OB}/x merge=${OB}-jsonl`).length, 3); // the directory, the driver and the bare word
 });
 test('compareDirs maps old names on the old side only', () => {
   const a = dir(), b = dir();
@@ -93,7 +97,7 @@ test('compare --only-common ignores ids present on one side and prints new: N', 
 
 test('the matrix covers every command that brain explain lists', () => {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-baseline-data-')); // private data dir: the compile cache never goes to the real HOME
-  const r = spawnSync(process.execPath, [path.join(ROOT, 'bin/brain'), 'explain', '--json'], { encoding: 'utf8', cwd: os.tmpdir(), env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'explain', '--json'], { encoding: 'utf8', cwd: os.tmpdir(), env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
   fs.rmSync(data, { recursive: true, force: true });
   const names = JSON.parse(r.stdout).data.commands.map((c: { name: string }) => c.name);
   assert.ok(names.length >= 30);

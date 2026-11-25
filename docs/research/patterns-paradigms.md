@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # Patterns and paradigms for plangraph: research and architecture review
 
 Date 2026-11-22. Scope: read `docs/CONTRACT.md`, `FORMAT.md`, `STALE.md`, `SOLVER.md`, `bin/brain`, `bin/brain-merge`, `bin/brain-solve`, `lib/*.mjs`. No project file was modified. Counterexamples were run from the scratchpad (`.../scratchpad/ce/t1.mjs`..`t5.mjs`) against the real `lib/` code.

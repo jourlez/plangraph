@@ -1,4 +1,4 @@
-$ brain person Ana
+$ plangraph person Ana
 exit: 0
 --- stdout
 total 38 SP in 5 sprints

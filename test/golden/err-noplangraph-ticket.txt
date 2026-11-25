@@ -1,0 +1,6 @@
+$ plangraph ticket T-1
+exit: 2
+--- stdout
+--- stderr
+error: no plan directory: run `plangraph init`
+try: plangraph init

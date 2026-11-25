@@ -1,4 +1,4 @@
-# brain-solve: sprint assignment with CP-SAT
+# plangraph-solve: sprint assignment with CP-SAT
 
 Assigns every ticket to one person and one sprint. Rules: each ticket placed once; person-sprint load within capacity; strict handoff
 `sprint[consumer] >= sprint[producer] + (owner differs ? 1 : 0)`; frozen tickets unchanged (they still use capacity). Frozen history
@@ -12,17 +12,17 @@ only the work that must sit in sprints `first_sprint` and later.
 ## Run
 
 ```
-bin/brain-solve-run --out schedule.json [--end 14] [--time 400] [--workers 8] [--seed 1] [--deterministic]
+bin/plangraph-solve-run --out schedule.json [--end 14] [--time 400] [--workers 8] [--seed 1] [--deterministic]
                     [--baseline current|v2|<archive>] [--freeze K1,K2] [--freeze-file f.json] [--jsonl-dir DIR] [--no-reduce] [--balance]
                     [--lns] [--decompose] [--verbose]
-brain schedule-load schedule.json <archive-name>
+plangraph schedule-load schedule.json <archive-name>
 ```
 
-`brain schedule-load` refuses (exit 4, nothing written) a schedule that moves or drops a frozen ticket of the current plan (docs/CONTRACT.md,
-Frozen history); `brain verify schedule.json` names each one as `FROZEN_MOVED`.
+`plangraph schedule-load` refuses (exit 4, nothing written) a schedule that moves or drops a frozen ticket of the current plan (docs/CONTRACT.md,
+Frozen history); `plangraph verify schedule.json` names each one as `FROZEN_MOVED`.
 
 `--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl config.json` directly (no SQLite). Without it the solver reads
-`plangraph.sqlite` and `config.json` from the brain dir (as before). `--end 0` and `--time 0` are real values.
+`plangraph.sqlite` and `config.json` from the plan dir (as before). `--end 0` and `--time 0` are real values.
 
 ## Status (never inflated)
 
@@ -43,9 +43,9 @@ Exit codes: 0 proved or feasible within the target end sprint; 1 infeasible; 2 u
 
 ## Output
 
-`--out` is the array `[{item, owner, sprint}]` that `brain schedule-load` reads, written atomically (temp file + `os.replace`).
+`--out` is the array `[{item, owner, sprint}]` that `plangraph schedule-load` reads, written atomically (temp file + `os.replace`).
 Metadata is in `<out>.meta.json` (`--meta none` to skip), or inside `{"schedule":[...],"meta":{...}}` with `--format object` (then
-`brain schedule-load` must be taught the object form; it reads arrays today). Meta fields: `status proved stages[{name,status,objective,bound,gap_pct,
+`plangraph schedule-load` must be taught the object form; it reads arrays today). Meta fields: `status proved stages[{name,status,objective,bound,gap_pct,
 wall_s|det_time,conflicts,budget}] objective bound gap_pct end_sprint end_sprint_bound end_sprint_proved target_end target_met owner_changes
 shortfall conflicts seed workers deterministic ortools_version input_hash wall_s links_total links_modeled horizon explanation verified source
 stage_order`, plus `lns decompose components polish{method,rounds,improved,components,before,after}` when those options are used. Each stage
@@ -68,7 +68,7 @@ written before it (the previous anytime schedule, or the `--out` from before the
 schedule that was about to be written; it never leaves a new schedule beside an earlier run's final meta. With `--meta none` (and the default
 array format) nothing could mark a mid-run `--out` as partial, so anytime writes are off: `--out` is written once, at the end. With
 `--format object` the meta travels inside the file, so anytime writes stay on. `--verbose` prints one `anytime {...}` line per write
-to stderr (`stage` ends in `:done` for the end-of-stage write). A kill between `mkstemp` and the rename can leave a `.brain-solve-*.tmp` file
+to stderr (`stage` ends in `:done` for the end-of-stage write). A kill between `mkstemp` and the rename can leave a `.plangraph-solve-*.tmp` file
 in the output directory.
 
 When the run ends without a schedule (INFEASIBLE, UNKNOWN, VERIFY_FAILED, MODEL_INVALID from the solver), the `--out` that existed before the run
@@ -76,9 +76,9 @@ is put back byte for byte (or removed, if the run created it), so "nothing writt
 snapshotted at start; if it is not a regular file of at most 64 MiB, anytime writes are off for that run (`anytime` in the meta says so). A kill
 skips the restore: then `--out` holds the last verified schedule.
 
-Killing the launcher: `bin/brain-solve-run` `exec`s the solver's Python on every path, so the launcher's process is the solver and any
+Killing the launcher: `bin/plangraph-solve-run` `exec`s the solver's Python on every path, so the launcher's process is the solver and any
 signal, `SIGKILL` included, stops it: no orphan is left to overwrite `--out` later. On the uv path uv only prepares the environment
-(`uv sync --locked --script bin/brain-solve`, which still verifies the pinned lock and fails on a stale one) and names its interpreter
+(`uv sync --locked --script bin/plangraph-solve`, which still verifies the pinned lock and fails on a stale one) and names its interpreter
 (`uv python find --script`); an overriding `PLANGRAPH_SOLVE_SCRIPT` runs on that same locked environment. Both preparation calls run from the
 plugin's `bin` directory, so a `uv.toml` (or `pyproject.toml` `[tool.uv]`) in the repository you run from is not read; your user-level uv
 config and `UV_*` variables (a mirror through `UV_INDEX_URL` or `UV_DEFAULT_INDEX`) still apply. The solver itself runs in your directory. On a macOS framework build of Python
@@ -91,7 +91,7 @@ directory: an absolute `--python` found by `uv python find` run from the plugin'
 is cut short; an anytime meta + schedule pair and the final schedule + meta are each held as one unit) and exits with no further write.
 After a kill, `--out` holds the last verified anytime schedule and its meta says `partial: true`. Tested: a SIGKILL on the launcher on both
 paths (`PLANGRAPH_SOLVE_LAUNCH=uv-run` forces the fallback) leaves no solver process within 5 s and `--out` unchanged afterwards. Not covered: a
-SIGKILL that lands inside the one-process solver's own write leaves a `.brain-solve-*.tmp` file (see above), never a torn `--out`.
+SIGKILL that lands inside the one-process solver's own write leaves a `.plangraph-solve-*.tmp` file (see above), never a torn `--out`.
 
 ## Method
 
@@ -123,7 +123,7 @@ SIGKILL that lands inside the one-process solver's own write leaves a `.brain-so
 
 Stage order: `stage_order` in config.json is a list of `end_sprint shortfall load_of peak_load owner_changes`. Listed stages run first, in that
 order; stages left out follow in the default order; stages that do not apply (no `min_per_sprint`, no `minimize_load_of`, no balance, no
-baseline owners) are dropped; `load_of` wins over `peak_load` as before. Unset, or the value `brain init` writes
+baseline owners) are dropped; `load_of` wins over `peak_load` as before. Unset, or the value `plangraph init` writes
 (`["end_sprint","shortfall","load_of","peak_load","owner_changes"]`), gives the order above. For a replan where keeping people on their tickets
 matters more than spreading load, use `["end_sprint","shortfall","owner_changes","load_of"]`: with every stage proved, owner changes are then
 never more than with the default order (tested against brute force on tiny plans and on 26-ticket replans whose current plan is feasible).
@@ -133,7 +133,7 @@ with a fixed message that does not echo the value: `stage_order must be a list o
 
 Frozen tickets: `--freeze`, `--freeze-file` (JSON array of keys), config `frozen_statuses` (by `jira_status`), config `frozen_before_sprint`
 (current sprint below it). All use the current schedule slot. Closed tickets (`jira_status` Done, or one listed in config `closed_statuses`,
-or an `sp:` task with `impl_status` done) with a current slot are always frozen, whatever `frozen_statuses` says; `brain verify` and `brain
+or an `sp:` task with `impl_status` done) with a current slot are always frozen, whatever `frozen_statuses` says; `plangraph verify` and `plangraph
 whatif` pin them the same way. The links that constrain are filtered by the frozen-history rule before the transitive reduction (reducing
 first could drop `c>p` as implied by `c>m>p` and then drop `c>m` because `m` is closed). An INFEASIBLE whose culprit link ends at a frozen
 consumer says that no later end sprint fixes it (the free producer cannot start before `first_sprint`), instead of blaming the end sprint.
@@ -147,11 +147,11 @@ Fractional story points: `sp`, `caps` and `min_per_sprint` may be any non-negati
 non-number, exits 2 `story points, caps and min_per_sprint must be numbers with at most 4 decimal places`). They are read as exact decimals and
 scaled by the smallest power of ten that makes all of them whole numbers, so the integer model is exact (an all-integer plan is not scaled, and its
 model, output and `input_hash` are unchanged); load figures in the output (`shortfall`, `load_of`, `peak_load`, their stage objectives and bounds)
-are reported in story points. `brain verify` sums story points as binary floats, where `0.1 + 0.2` is above `0.3`; so a person-sprint cell
+are reported in story points. `plangraph verify` sums story points as binary floats, where `0.1 + 0.2` is above `0.3`; so a person-sprint cell
 that holds a story point which is not exactly a binary float (0.1, 2.6; unlike 0.5 or 0.25) is kept strictly below its capacity, never at an
-exact tie. That is the safe side: the solver may leave a tie unused that `brain verify` would have accepted, never the reverse. A 0-SP
-ticket adds nothing to the float sum, so it may still join such a cell at a tie held by frozen tickets (its placement adds no violation `brain
-verify` did not already report), and `brain whatif` likewise allows a 0-SP move into a cell that is already over capacity.
+exact tie. That is the safe side: the solver may leave a tie unused that `plangraph verify` would have accepted, never the reverse. A 0-SP
+ticket adds nothing to the float sum, so it may still join such a cell at a tie held by frozen tickets (its placement adds no violation `plangraph
+verify` did not already report), and `plangraph whatif` likewise allows a 0-SP move into a cell that is already over capacity.
 
 ## Cost to know
 
@@ -227,8 +227,8 @@ case is not measured here.
 
 ## Environment (PEP 723 notes)
 
-`bin/brain-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/brain-solve ...` also works.
-OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/brain-solve-run` tries, in order: `uv run --locked --script bin/brain-solve` (dependencies pinned with hashes in `bin/brain-solve.lock`; a stale lock fails instead of re-resolving);
+`bin/plangraph-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/plangraph-solve ...` also works.
+OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/plangraph-solve-run` tries, in order: `uv run --locked --script bin/plangraph-solve` (dependencies pinned with hashes in `bin/plangraph-solve.lock`; a stale lock fails instead of re-resolving);
 a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
 else prints three lines and exits 3. `PLANGRAPH_SOLVE_SCRIPT` overrides the script (used by the mutation test).
 
@@ -243,18 +243,18 @@ that is 100,000 story points), so CP-SAT only sees small exact integers: a large
 points, caps and min_per_sprint must be at most 1000000000 after scaling to whole numbers`. `first_sprint`, `end_sprint` (and `--end`) and
 `frozen_before_sprint` must be whole numbers from -1,000,000 to 1,000,000 (an integer: not a float, string or boolean), else exit 2
 `MODEL_INVALID: <name> must be a whole number from -1000000 to 1000000`.
-`--jsonl-dir` and the brain dir (`.plangraphrc` / `PLANGRAPH_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
+`--jsonl-dir` and the plan dir (`.plangraphrc` / `PLANGRAPH_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
 
-Input guards (`load_raw`; tests: `test/brain-solve-input.test.ts`, Python unit checks, stdlib only). The index (`plangraph.sqlite` or `--db`)
+Input guards (`load_raw`; tests: `test/plangraph-solve-input.test.ts`, Python unit checks, stdlib only). The index (`plangraph.sqlite` or `--db`)
 gets the same guards as the CLI's `openIndex` (`src/db.ts`): it must be a regular file (lstat, then the solver's own
 `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` open and fstat with the same device and inode: a symlink or a FIFO is refused, never followed or blocked
 on), no SQLite sidecar (`-journal`, `-wal`, `-shm`) may sit beside it (a hot journal would be replayed), it is opened read-only
 (`file:...?mode=ro` plus `PRAGMA query_only`), its `sqlite_master` must pass the same schema allowlist as `schemaOk` (a planted view, for
 example over an infinite `WITH RECURSIVE`, is refused before any query; the Python lists are compared with `src/db.ts` by a test), and its
 content digest must match (the same canonical rows as `contentDigest`; the JSON row text comes from SQLite itself; an index without a digest
-is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`brain build\``. JSONL files and the brain dir's `config.json` are read like
+is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`plangraph build\``. JSONL files and the plan dir's `config.json` are read like
 `readDataCapped`: lstat (a symlink is refused), `O_NOFOLLOW|O_NONBLOCK` open, fstat must be a regular file with the lstat's device, inode and
 ctime, at most 64 MiB; errors name the base name only. A `--config` named on the command line may be a symlink (it is still regular-file
 only and capped). Residual: SQLite opens the index again by path after the check, as in `openIndex`; `.plangraphrc` is still read with a plain
@@ -268,27 +268,27 @@ only and capped). Residual: SQLite opens the index again by path after the check
 - The anytime restore (put back or remove `--out` when a run ends without a schedule) re-checks `--out` (no symlink, parent inside the root) and
   removes only a regular file, but the check and the `unlink` are separate path-based steps, with the same window as above.
 - Setting `PLANGRAPH_SOLVE_SCRIPT` runs the unlocked path and disables locking (test-only override).
-- uv's own error text mentions `uv.lock` rather than `brain-solve.lock`; it is the same lock (`uv lock --script` writes `bin/brain-solve.lock`).
+- uv's own error text mentions `uv.lock` rather than `plangraph-solve.lock`; it is the same lock (`uv lock --script` writes `bin/plangraph-solve.lock`).
 
 ## Where the lock files live
 
 Claude Code exposes every file in `bin/` as a command on PATH, so the hash-pinned pip requirements live in `solver/solver-requirements.txt` (moved out of `bin/`; verified
-that `uv export --script bin/brain-solve --format requirements-txt --no-header` reproduces it byte for byte and that the fallback's `pip install --require-hashes` builds a working venv from the new path).
-`bin/brain-solve.lock` has to stay next to the script because `uv lock --script` writes `<script>.lock` and `uv run --locked --script` reads it from there. It is a non-executable data file,
-so it is listed by the validator as a `bin` entry but cannot be run as a command. `uv lock --check --script bin/brain-solve` passes.
+that `uv export --script bin/plangraph-solve --format requirements-txt --no-header` reproduces it byte for byte and that the fallback's `pip install --require-hashes` builds a working venv from the new path).
+`bin/plangraph-solve.lock` has to stay next to the script because `uv lock --script` writes `<script>.lock` and `uv run --locked --script` reads it from there. It is a non-executable data file,
+so it is listed by the validator as a `bin` entry but cannot be run as a command. `uv lock --check --script bin/plangraph-solve` passes.
 
 ## What the first run downloads
 
-The locked uv path (`uv run --locked --script bin/brain-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
-fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/brain-solve.lock` and
+The locked uv path (`uv run --locked --script bin/plangraph-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
+fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/plangraph-solve.lock` and
 `solver/solver-requirements.txt`. They come from PyPI (`pypi.org` for the index, `files.pythonhosted.org` for the files) and are cached afterwards (uv cache, or the venv under
 `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv`). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
 `github.com` (release download URL), which redirected to `release-assets.githubusercontent.com` when checked on 2026-11-22 (that CDN host is GitHub's choice and may change). The pip fallback uses only the default PyPI index and never downloads a Python.
 These four hosts, plus the two Jira hosts, are what `network.hosts` in `.claude-plugin/plugin.json` declares. Nothing else leaves the machine: no ticket data, no telemetry. This is the only network access the solver ever makes.
 A cold first run took about 27 s on a fast connection (one measurement in an isolated cache; it is network-bound, so a slow connection takes longer); later runs reuse the cache.
-To pre-fetch in CI (or before going offline): `uv run --locked --script bin/brain-solve --help`.
+To pre-fetch in CI (or before going offline): `uv run --locked --script bin/plangraph-solve --help`.
 
 ## Refreshing the locked dependencies
 
-After changing the pin in `bin/brain-solve`: `uv lock --script bin/brain-solve && uv export --script bin/brain-solve --format requirements-txt --no-header > solver/solver-requirements.txt`
+After changing the pin in `bin/plangraph-solve`: `uv lock --script bin/plangraph-solve && uv export --script bin/plangraph-solve --format requirements-txt --no-header > solver/solver-requirements.txt`
 (uv 0.8.8: hashes are emitted by default; the flag is `--hashes`/`--no-hashes`, not `--hash`). Commit both files.

@@ -13,7 +13,7 @@
   "fixture": {
     "size": "M",
     "seed": 7,
-    "brain": true,
+    "plangraph": true,
     "overlay": []
   },
   "prompt": "In JavaScript, what happens if I move a const declaration below the first line that uses it?",
@@ -34,11 +34,11 @@
       "arm": "both"
     },
     {
-      "id": "neg-brain-not-used",
+      "id": "neg-plangraph-not-used",
       "role": "outcome",
       "type": "tool_used",
       "tool": "Bash",
-      "input_match": "(?:^|[\\s;&|(])brain\\s",
+      "input_match": "(?:^|[\\s;&|(])plangraph\\s",
       "min": 0,
       "max": 0,
       "weight": 3,
@@ -49,7 +49,7 @@
       "role": "outcome",
       "type": "tool_used",
       "tool": "Skill",
-      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:brain(?:-[a-z]+)?|whatif)\"",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif)\"",
       "min": 0,
       "max": 0,
       "weight": 3,

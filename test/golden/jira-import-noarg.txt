@@ -1,6 +1,6 @@
-$ brain jira-import
+$ plangraph jira-import
 exit: 2
 --- stdout
 --- stderr
-error: usage: brain jira-import FILE... --out snapshot.jsonl
-try: brain explain jira-import
+error: usage: plangraph jira-import FILE... --out snapshot.jsonl
+try: plangraph explain jira-import

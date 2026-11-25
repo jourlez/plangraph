@@ -1,4 +1,4 @@
-$ brain migrate
+$ plangraph migrate
 exit: 0
 --- stdout
 up to date

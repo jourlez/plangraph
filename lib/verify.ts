@@ -3,11 +3,11 @@
 // opts: { frozen: Map key->{owner,sprint}, enforceMin: bool }. O(V+E).
 // Conventions: HANDOFF key = consumer; CAPACITY/MINLOAD key = "Person S<n>"; CYCLE key = smallest ticket key on the cycle, detail = path;
 // BEFORE_FIRST key = ticket; CONFIG key = the config field.
-// Frozen history (lib/frozen.ts states the rule once; bin/brain-solve verify() applies the same): frozen = closed (Done, closed_statuses, an
+// Frozen history (lib/frozen.ts states the rule once; bin/plangraph-solve verify() applies the same): frozen = closed (Done, closed_statuses, an
 // sp: task with impl_status done), jira_status in config.frozen_statuses, a key of opts.frozen, or current sprint below
 // config.frozen_before_sprint. A constraint exists only where at least one side is free: no HANDOFF when the producer is closed or both ends
 // are frozen; CAPACITY only for a cell above cap that holds a free ticket with story points (free load must fit in max(0, cap - frozen load)).
-// First-sprint window (the rule of bin/brain-solve verify(), checked against it by test/verify.test.ts): a FREE ticket placed before
+// First-sprint window (the rule of bin/plangraph-solve verify(), checked against it by test/verify.test.ts): a FREE ticket placed before
 // config.first_sprint (default 1) is BEFORE_FIRST; frozen tickets keep their own slot, even below it. A first_sprint that is not a whole
 // number within +-1000000 is one CONFIG violation, and the window (and MINLOAD) is then not checked.
 // Key namespace rule: a key starting with `sp:` is a superpowers implementation task (or its plan epic). It is placed only when someone

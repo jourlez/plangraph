@@ -26,6 +26,6 @@ budget_tokens: 1000
 ## Context
 
 - Branch dev is 3 commits ahead of origin.
-<!-- brain:card:begin -->
-brain: sprint 4 | ready 6 | blocked 2 | stale 1 | open-items due 3 | plan a1b2c3d4
-<!-- brain:card:end -->
+<!-- plangraph:card:begin -->
+plangraph: sprint 4 | ready 6 | blocked 2 | stale 1 | open-items due 3 | plan a1b2c3d4
+<!-- plangraph:card:end -->

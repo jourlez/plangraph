@@ -1,3 +1,5 @@
+> Historical document: written before the 0.3.0 rename to plangraph. It names the tool, its commands, files and variables as they were called then (`brain`, `.brain/`, `BRAIN_*`); the text is unchanged.
+
 # plangraph and the other installed tools
 
 Research date 2026-11-22. Scope: caveman, context7, gitkraken-hooks, and the hosted connectors (Atlassian, Slack, Artifacts / Claude Docs, Meetings, Google Drive). Every claim carries a tag:

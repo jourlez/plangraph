@@ -13,11 +13,11 @@
 // Test mapping: tier 1 = test files that import the target directly, plus, for a module under src/ or one no test imports directly, the
 // tests that load it in-process through other modules; minus those whose unmutated run takes longer than --tier1-budget ms (default 10000; they move to
 // tier 2, the fastest file always stays); tier 2 = test files whose transitive import graph reaches it, or that
-// run bin/brain, bin/brain-merge or mcp/brain-mcp.ts (found from the path text in the test) when that entry point reaches it; plus the
+// run bin/plangraph, bin/plangraph-merge or mcp/plangraph-mcp.ts (found from the path text in the test) when that entry point reaches it; plus the
 // OVERRIDES table below. Tier 2 runs only for mutants tier 1 left alive. Test files that fail on the unmutated copy are dropped from the
 // mapping and reported (a red test would kill every mutant).
 //
-// Resumable: results are kept in <TMPDIR>/brain-mutate-all/<repo id>/progress.json. A result is reused while the target file's bytes are
+// Resumable: results are kept in <TMPDIR>/plangraph-mutate-all/<repo id>/progress.json. A result is reused while the target file's bytes are
 // unchanged; a survivor is re-run when any of its mapped test files changed. --fresh discards the progress file; --state DIR keeps
 // it (and the work copies) in DIR instead, so two runs never share one progress file.
 //
@@ -284,9 +284,9 @@ export function importsOf(src: string) {
 }
 
 const ENTRY_PATTERNS: Array<[string, RegExp]> = ([
-  ['bin/brain', /bin(?:\/|['"`]\s*,\s*['"`])brain(?:['"`]|$)|['"`]brain['"`]\s*\)|PLANGRAPH_BIN/m],
-  ['bin/brain-merge', /brain-merge/],
-  ['mcp/brain-mcp.ts', /brain-mcp\.(?:mjs|ts)/],
+  ['bin/plangraph', /bin(?:\/|['"`]\s*,\s*['"`])plangraph(?:['"`]|$)|['"`]plangraph['"`]\s*\)|PLANGRAPH_BIN/m],
+  ['bin/plangraph-merge', /plangraph-merge/],
+  ['mcp/plangraph-mcp.ts', /plangraph-mcp\.(?:mjs|ts)/],
 ]);
 
 /** Tier 1 / tier 2 test files for each target. @param {string} root @param {string[]} targets @param {string[]} tests

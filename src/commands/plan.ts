@@ -6,7 +6,7 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { readCapped } from '../../lib/jsonl.ts';
 import { oneLine } from '../../lib/sanitize.ts';
-import { BrainError } from '../errors.ts';
+import { PlangraphError } from '../errors.ts';
 import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABLES, INDEX_FILE, SIDECARS } from '../db.ts';
 import { checkRepoPath } from '../../lib/gitsafe.ts';
 import { NODE_FLOOR, nodeSupported } from '../floor.js';
@@ -49,12 +49,12 @@ function whatifData(r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifVa
   return { data, next: nextList([apply, known ? nextCommand(['ticket', [key], '-v']) : null]) };
 }
 // --relieve PERSON --sprint N: a read-only search (lib/whatif.ts relieve) for the smallest valid set of single-ticket moves that brings that
-// cell to <= cap; it prints the exact `brain whatif` dry-run command of each move and never writes (--to, --apply-plan, --write refused).
+// cell to <= cap; it prints the exact `plangraph whatif` dry-run command of each move and never writes (--to, --apply-plan, --write refused).
 // Exit 0 when relief was found or none is needed, 1 when none was found. Names and keys are one sanitized line; commands are shell-safe.
 function relieveCmd(ctx: Ctx, args: Args<WhatifValues>, W: WhatifLib, model: Model): number {
   const v = args.values, out = ctx.io.out, sprint = (v.sprint as number), s = (x: unknown, n = 60) => oneLine(x ?? '', n); // whatif checked --sprint before the call
   const person = W.resolvePerson(model, v.relieve as string); // whatif calls relieveCmd only when --relieve was given
-  if (person === null) throw new BrainError('USAGE', '--relieve matches no single person in the plan (exact, case-insensitive or a unique first name)', { hint: `\`brain sprint ${sprint}\` lists its owners` });
+  if (person === null) throw new PlangraphError('USAGE', '--relieve matches no single person in the plan (exact, case-insensitive or a unique first name)', { hint: `\`plangraph sprint ${sprint}\` lists its owners` });
   const r = W.relieve(model, { person, sprint }, { allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']) });
   const cmd = (m: ReturnType<WhatifLib['relieve']>['moves'][number]) => nextCommand(['whatif', [m.key], ...(m.to.owner !== m.from.owner ? ['--to', [m.to.owner]] : []), '--sprint', String(m.to.sprint)]);
   const limit = verbose(args) ? 100 : 15, keys = verbose(args) ? 50 : 5;
@@ -97,7 +97,7 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
   // the schema refuses both at build time; an index built by an older version may still hold them, and whatif must not crash on bad data
   const badSprint = [...model.sched.values()].some((p) => p.sprint != null && !Number.isSafeInteger(p.sprint));
   if (badSprint || [...model.tickets.values()].some((t) => t.sp != null && !(Number.isFinite(t.sp) && t.sp >= 0))) {
-    throw dataError('the index holds a sprint that is not a whole number or a negative sp', 'fix schedule.jsonl / tickets.jsonl, then `brain build` (it names the line)');
+    throw dataError('the index holds a sprint that is not a whole number or a negative sp', 'fix schedule.jsonl / tickets.jsonl, then `plangraph build` (it names the line)');
   }
   if (v.relieve !== undefined) return relieveCmd(ctx, args, W, model);
   if (v.find) return findCmd(ctx, args, W, model, (key as string)); // a KEY is required without --relieve (checked above)
@@ -114,10 +114,10 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
   out(`PLAN: ${r.moves.length} move(s), ${r.shifted} others shifted, ${r.ownerChanges} owner changes${r.searchComplete === false ? ' (search budget hit: not proven minimal)' : ''}`);
   const first = (o: unknown) => oneLine(String(o).split(' ')[0], 40);
   for (const m of r.moves) out(`${oneLine(m.key, 120)} ${first(m.from.owner)} S${oneLine(m.from.sprint, 20)} > ${first(m.to.owner)} S${oneLine(m.to.sprint, 20)}`);
-  if (!v.write) { out('(dry run: add --write to change the index, then `brain export` to save it as text)'); return 0; }
+  if (!v.write) { out('(dry run: add --write to change the index, then `plangraph export` to save it as text)'); return 0; }
   const V = await import('../../lib/verify.ts'), next = W.applyMoves(model.sched, r.moves);
   const before = new Set(V.verifyPlan(model).map((x) => x.code + x.key)), fresh = V.verifyPlan(model, next).filter((x) => !before.has(x.code + x.key));
-  if (fresh.length) throw new BrainError('REFUSED', `refusing to write: the verifier found ${fresh.length} new violation(s)`);
+  if (fresh.length) throw new PlangraphError('REFUSED', `refusing to write: the verifier found ${fresh.length} new violation(s)`);
   {
     using db = openIndex(dbFile(ctx), { readOnly: false });
     db.exec('BEGIN');
@@ -126,11 +126,11 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
     stampContent(db); // a legitimate index write: the content digest follows it
     db.exec('COMMIT');
   }
-  out('written to the index; run `brain export` to save it as text');
+  out('written to the index; run `plangraph export` to save it as text');
   return 0;
 }
 
-// ---- keep the current plan under an archive name, load a new one (index only; `brain export` saves it as text) ----
+// ---- keep the current plan under an archive name, load a new one (index only; `plangraph export` saves it as text) ----
 async function scheduleLoad(ctx: Ctx, args: Args): Promise<number> {
   const [file, archive] = args.positionals;
   if (!archive || archive === 'current' || archive.length > 200) throw usage('archive name must be non-empty, at most 200 characters and not "current"');
@@ -142,7 +142,7 @@ async function scheduleLoad(ctx: Ctx, args: Args): Promise<number> {
   // before the index is opened for writing (no override flag: unfreeze the ticket in the data first)
   const F = await import('../../lib/frozen.ts'), at = new Map((rows as SlotRow[]).map((r) => [r.item, r])); // every row was checked above
   const moved = [...F.frozenSlots(modelFromDb(ctx))].filter(([k, f]) => { const r = at.get(k); return !r || r.owner !== f.owner || r.sprint !== f.sprint; }).map(([k]) => k).sort();
-  if (moved.length) throw new BrainError('REFUSED', `refusing to load: the schedule moves ${moved.length} frozen ticket${moved.length === 1 ? '' : 's'} (${moved.slice(0, 10).map((k) => oneLine(k, 60)).join(' ')}${moved.length > 10 ? ` +${moved.length - 10} more` : ''}); a frozen ticket keeps its slot`, { hint: '`brain verify FILE` lists each one (FROZEN_MOVED)' });
+  if (moved.length) throw new PlangraphError('REFUSED', `refusing to load: the schedule moves ${moved.length} frozen ticket${moved.length === 1 ? '' : 's'} (${moved.slice(0, 10).map((k) => oneLine(k, 60)).join(' ')}${moved.length > 10 ? ` +${moved.length - 10} more` : ''}); a frozen ticket keeps its slot`, { hint: '`plangraph verify FILE` lists each one (FROZEN_MOVED)' });
   using db = openIndex(dbFile(ctx), { readOnly: false });
   if ((db.get('SELECT COUNT(*) c FROM schedule WHERE version=?', archive) as { c: number }).c) throw usage(`archive name already used: ${oneLine(archive, 80)}`); // COUNT(*) returns one row
   const people = new Set((db.all("SELECT DISTINCT v2_owner o FROM ticket WHERE v2_owner<>''") as Array<{ o: unknown }>).map((r) => r.o)); // the columns this SELECT names
@@ -156,7 +156,7 @@ async function scheduleLoad(ctx: Ctx, args: Args): Promise<number> {
     stampContent(db); // a legitimate index write: the content digest follows it
     db.exec('COMMIT');
   } catch (e) { db.exec('ROLLBACK'); throw dataError(`schedule file could not be loaded: ${oneLine(String((e as Error).message).split('\n')[0], 160)}`); } // node:sqlite throws an Error
-  ctx.io.out(`loaded as current; previous plan kept as ${oneLine(archive, 200)}; run \`brain export\` to save it as text`);
+  ctx.io.out(`loaded as current; previous plan kept as ${oneLine(archive, 200)}; run \`plangraph export\` to save it as text`);
   return 0;
 }
 
@@ -171,7 +171,7 @@ async function exportText(ctx: Ctx): Promise<number> {
     using d = openIndex(file, { readOnly: true, dir: ctx.dir });
     // A stale index means the text was edited after the build: exporting would silently overwrite those edits with the older index.
     // (schedule-load and whatif --write change only the index, so the fingerprint still matches and export goes ahead.)
-    if (d.stale) throw dataError('the index is stale: the text files changed since it was built, and export would overwrite them', 'run `brain build` first (it reads the text), then export');
+    if (d.stale) throw dataError('the index is stale: the text files changed since it was built, and export would overwrite them', 'run `plangraph build` first (it reads the text), then export');
     for (const [t, order] of EXPORT) {
       const { file: fn } = (TABLES.get(t) as TableSpec); // EXPORT names TABLES' own tables
       const rows = (d.all(`SELECT * FROM ${t} ORDER BY ${order}`) as Array<Record<string, unknown>>).map((row) => { // one object per row
@@ -200,13 +200,13 @@ function build(ctx: Ctx): number {
 
 // ---- set-up ----
 const CONFIG = {
-  _doc: 'Constraints for brain-solve and brain check. Capacity is points per person per sprint.',
+  _doc: 'Constraints for plangraph-solve and plangraph check. Capacity is points per person per sprint.',
   first_sprint: 1, end_sprint: 12, caps: { default: 40 }, min_per_sprint: {}, minimize_load_of: '', default_ref: 'HEAD', brain_rules_version: 1, closed_statuses: ['Done'],
   frozen_statuses: ['Done'], ignore_link_kinds: [], time_limit_seconds: 300, workers: 8,
   stage_order: ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes'],
   ref_heading: '^#{2,3} Task {id}:', jira: { base_url: '', jql: '' },
 };
-// The brain dir's .gitignore lines: the derived index and the sidecar files SQLite may leave beside it (a committed journal is replayed into
+// The plan dir's .gitignore lines: the derived index and the sidecar files SQLite may leave beside it (a committed journal is replayed into
 // the index by SQLite; src/db.ts SIDECARS). A line counts as present when a line of the file equals it after trimming.
 const INDEX_PATTERN = '*.sqlite';
 const IGNORE_LINES = Object.freeze([INDEX_PATTERN, ...SIDECARS.map((s) => INDEX_PATTERN + s)]);
@@ -216,7 +216,7 @@ async function init(ctx: Ctx): Promise<number> {
   precheckTargets(ctx, [fmt]); // a symlinked format.json (even a dangling one) is REFUSED (exit 4) before anything is written
   fs.mkdirSync(dir, { recursive: true });
   const missing = (f: string) => !fs.existsSync(f), gi = path.join(dir, '.gitignore'), changes: string[] = [];
-  const existing = !missing(cfg) || !missing(path.join(dir, 'tickets.jsonl')); // a brain that was set up before: init must not read as a first set-up
+  const existing = !missing(cfg) || !missing(path.join(dir, 'tickets.jsonl')); // a plangraph that was set up before: init must not read as a first set-up
   precheckTargets(ctx, [gi]);
   if (missing(cfg)) writeState(ctx, cfg, `${JSON.stringify(CONFIG, null, 2)}\n`);
   const dst = path.join(dir, 'learnings.jsonl');
@@ -234,10 +234,10 @@ async function init(ctx: Ctx): Promise<number> {
   }
   for (const [t] of EXPORT) { const f = path.join(dir, (TABLES.get(t) as TableSpec).file); if (missing(f)) { writeState(ctx, f, ''); changes.push(`created ${(TABLES.get(t) as TableSpec).file}`); } } // EXPORT names TABLES' own tables
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
-  try { await wireMergeDriver(ctx); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`brain doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
+  try { await wireMergeDriver(ctx); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`plangraph doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
   if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);
-  else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`brain build\``);
-  // Print-only: brain never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
+  else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`plangraph build\``);
+  // Print-only: plangraph never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
   if (!claudeSteer(ctx).steered) ctx.io.outBlock(["suggested lines for this repo's CLAUDE.md (printed only, nothing written):", ...claudeSnippet(rel(ctx, dir))]);
   return 0;
 }
@@ -254,8 +254,8 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean }>): Promise<number> 
   const S = await import('../../lib/store.ts'), out = ctx.io.out, dir = rel(ctx, ctx.dir); let bad = 0;
   const f = S.readFormat(ctx.dir);
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
-  out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `brain migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
-  const target = path.join(BIN, 'brain-merge'); // the running plugin's driver: a shim left at another install is a problem
+  out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `plangraph migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
+  const target = path.join(BIN, 'plangraph-merge'); // the running plugin's driver: a shim left at another install is a problem
   let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '';
   if (dm.problems.length && args.values.fix) {
     try { await wireMergeDriver(ctx); } catch (e) { wireErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
@@ -269,24 +269,24 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean }>): Promise<number> 
   const nodeOk = nodeSupported(process.versions.node);
   out(`node ${process.version}: ${nodeOk ? 'ok' : `too old (needs >= ${NODE_FLOOR})`}`); if (!nodeOk) bad++;
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8', timeout: 10000 });
-  out(`solver runtime: ${uv.status === 0 ? 'uv found (brain-solve-run will use it)' : 'uv not found (brain-solve-run falls back to a python3.10-3.14 venv)'}`);
+  out(`solver runtime: ${uv.status === 0 ? 'uv found (plangraph-solve-run will use it)' : 'uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)'}`);
   doctorJira(ctx);
   await doctorWarnings(ctx);
   return bad ? 1 : 0;
 }
-// Jira status line, info only (never changes the exit code, no network, no process, no secret read or printed): says whether `brain jira-pull`
-// is set up, so nobody has to guess. The Atlassian connector (MCP) is separate: `brain` never uses it, `brain integrations` cannot see it.
+// Jira status line, info only (never changes the exit code, no network, no process, no secret read or printed): says whether `plangraph jira-pull`
+// is set up, so nobody has to guess. The Atlassian connector (MCP) is separate: `plangraph` never uses it, `plangraph integrations` cannot see it.
 function doctorJira(ctx: Ctx): void {
   const out = ctx.io.out, env = ctx.env || {};
   let committed: JiraSettings | undefined; try { committed = ctx.config().jira as JiraSettings | undefined; } catch { return; /* a bad config is reported by the data checks */ } // config.json's jira block: PlanConfig does not type it
   let t: ReturnType<typeof resolveTenant>;
   try { t = resolveTenant(committed, ctx.root, env); } catch (e) {
-    if (e instanceof Error && e.name === 'JiraError' && (e as Error & { code: string }).code === 'bad_config') out(`jira: invalid config: ${oneLine(e.message, 160)}; \`brain jira-pull\` refuses it (fix config.json "jira" or your projects entry; see docs/JIRA.md)`); // a JiraError has a code
+    if (e instanceof Error && e.name === 'JiraError' && (e as Error & { code: string }).code === 'bad_config') out(`jira: invalid config: ${oneLine(e.message, 160)}; \`plangraph jira-pull\` refuses it (fix config.json "jira" or your projects entry; see docs/JIRA.md)`); // a JiraError has a code
     return;
   }
   const { jira: j, tenant, mode, registry: reg, entry: e, allowGeneric } = t;
   const set = (k: string) => String(env[k] || '').trim() !== '';
-  if (!j.jql && !j.cloud_id && !j.base_url) { out('jira: not configured (config.json "jira" is empty): `brain jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `brain` never uses it'); return; }
+  if (!j.jql && !j.cloud_id && !j.base_url) { out('jira: not configured (config.json "jira" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it'); return; }
   const tag = tenant ? siteTag(tenant) : '';
   let cred: string;
   if (!tenant) cred = 'tenant unknown (base_url or cloud_id missing)';
@@ -295,27 +295,27 @@ function doctorJira(ctx: Ctx): void {
   else if (allowGeneric) cred = set('JIRA_EMAIL') && set('JIRA_API_TOKEN') ? 'generic env JIRA_EMAIL + JIRA_API_TOKEN set' : set('JIRA_OP_REF') ? 'generic env JIRA_OP_REF set' : 'no credentials in env (OS keychain not checked)';
   else cred = `NO credential bound to ${tenant}: add it to ${reg.file} or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}`;
   out(`jira: ${mode}, tenant ${tenant || '?'}, jql ${j.jql ? 'set' : 'missing'}, ${cred}`);
-  if (tenant) out(`jira connector: use the Atlassian connector only if getAccessibleAtlassianResources lists ${tenant === (j.cloud_id || '').toLowerCase() ? `cloud id ${tenant}` : tenant}; otherwise use \`brain jira-pull\` (read-only) and make no Jira write`);
+  if (tenant) out(`jira connector: use the Atlassian connector only if getAccessibleAtlassianResources lists ${tenant === (j.cloud_id || '').toLowerCase() ? `cloud id ${tenant}` : tenant}; otherwise use \`plangraph jira-pull\` (read-only) and make no Jira write`);
   for (const p of reg.problems) out(`warning: ${oneLine(p, 160)} (${reg.file})`);
 }
-// The index is derived and machine-local (init writes `*.sqlite` and its sidecar patterns to the brain dir's .gitignore): a committed one goes stale for everyone
+// The index is derived and machine-local (init writes `*.sqlite` and its sidecar patterns to the plan dir's .gitignore): a committed one goes stale for everyone
 // else and can be tampered with in a commit. Returns its repo-relative path when git tracks it, else '' (also outside a git repository).
-// Literal pathspec, argv only: the brain dir name never acts as a glob or an option.
+// Literal pathspec, argv only: the plan dir name never acts as a glob or an option.
 function trackedIndex(ctx: Ctx, name: string = INDEX_FILE): string {
   const relIdx = path.relative(ctx.root, path.join(ctx.dir, name)).split(path.sep).join('/');
   try { return ctx.git('--literal-pathspecs', 'ls-files', '-z', '--', checkRepoPath(relIdx)) ? oneLine(relIdx, 200) : ''; } catch { return ''; }
 }
-// Warnings only (the exit code is unchanged): a SQLite sidecar beside the index (every index command refuses it; `brain build` removes a
-// regular one), a committed sidecar (a journal in git is replayed by SQLite into whoever's index sits beside it, if brain did not refuse it),
-// and a brain-dir .gitignore that lacks the sidecar lines (`brain init` appends them). Names come from constants, never from the directory.
+// Warnings only (the exit code is unchanged): a SQLite sidecar beside the index (every index command refuses it; `plangraph build` removes a
+// regular one), a committed sidecar (a journal in git is replayed by SQLite into whoever's index sits beside it, if plangraph did not refuse it),
+// and a plangraph-dir .gitignore that lacks the sidecar lines (`plangraph init` appends them). Names come from constants, never from the directory.
 function doctorSidecars(ctx: Ctx): void {
   const out = ctx.io.out, base = path.join(ctx.dir, INDEX_FILE), shown = (p: string) => oneLine(path.relative(ctx.root, p).split(path.sep).join('/'), 200);
-  try { for (const [p] of sidecarsOf(base)) out(`warning: ${shown(p)}: a SQLite journal file beside the index; every index command refuses it until \`brain build\` removes it`); } catch { /* unreadable: skip */ }
+  try { for (const [p] of sidecarsOf(base)) out(`warning: ${shown(p)}: a SQLite journal file beside the index; every index command refuses it until \`plangraph build\` removes it`); } catch { /* unreadable: skip */ }
   for (const s of SIDECARS) { const t = trackedIndex(ctx, INDEX_FILE + s); if (t) out(`warning: tracked journal: ${t} is committed; untrack it with \`git rm --cached ${t}\``); }
   const gi = path.join(ctx.dir, '.gitignore');
   let text = null; try { text = readCapped(gi, 1024 * 1024, { follow: false }); } catch { /* missing or refused */ }
   if (text !== null && missingIgnoreLines(text).some((l) => l !== INDEX_PATTERN)) {
-    out(`warning: ${shown(gi)} does not ignore the SQLite journal files (${IGNORE_LINES.slice(1).join(', ')}): run \`brain init\` to add the missing lines`);
+    out(`warning: ${shown(gi)} does not ignore the SQLite journal files (${IGNORE_LINES.slice(1).join(', ')}): run \`plangraph init\` to add the missing lines`);
   }
 }
 const listMore = (out: (line: string) => void, found: string[], max: number, line: (x: string) => string): void => { for (const x of found.slice(0, max)) out(line(x)); if (found.length > max) out(`  ... and ${found.length - max} more`); };
@@ -337,8 +337,8 @@ async function doctorWarnings(ctx: Ctx): Promise<void> {
       budget -= st.size;
       text.split('\n').forEach((l, i) => { if (/^(<{7}|={7}|>{7})/.test(l)) markers.push(`${oneLine(f, 60)}:${i + 1}`); });
     }
-  } catch { /* no brain directory yet */ }
-  listMore(out, markers, 5, (m) => `warning: unresolved conflict marker ${m} (GitKraken Desktop may ignore the merge driver; resolve it, then run \`brain build\`)`);
+  } catch { /* no plan directory yet */ }
+  listMore(out, markers, 5, (m) => `warning: unresolved conflict marker ${m} (GitKraken Desktop may ignore the merge driver; resolve it, then run \`plangraph build\`)`);
   for (const f of skipped) out(`warning: skipped (too large): ${oneLine(f, 60)}`);
   if (more) out(`  ... and ${more} more .jsonl files not scanned (the scan reads at most 20)`);
   const strays: string[] = [];
@@ -351,17 +351,17 @@ async function doctorWarnings(ctx: Ctx): Promise<void> {
   const sp = tools.superpowers; if (sp.state !== 'absent') out(`superpowers: ${oneLine(sp.state, 20)}${sp.version ? ` ${oneLine(sp.version, 64)}` : ''}`);
   const gk = tools.gitkraken; if (gk.state !== 'absent') out(`gitkraken: ${oneLine(gk.state, 20)}${gk.version ? ` ${oneLine(gk.version, 64)}` : ''}: ${oneLine(gk.notes.find((n: string) => n.startsWith('logs every prompt')) ?? '', 200)}`);
   if (tools.openwolf.state === 'protocol-only') out('warning: openwolf: rules only: its hooks are not registered');
-  // Info only (never a failure, never a write): a CLAUDE.md exists but does not steer plan questions to brain.
-  // Info only: OpenWolf's STATUS.md carries a brain line that is not the one `brain card --line` prints now (the handoff is older than the
+  // Info only (never a failure, never a write): a CLAUDE.md exists but does not steer plan questions to plangraph.
+  // Info only: OpenWolf's STATUS.md carries a plangraph line that is not the one `plangraph card --line` prints now (the handoff is older than the
   // data). Only when OpenWolf is active or protocol-only (disabled injects nothing); STATUS.md is read through readWolfFile (capped, no
-  // symlink) and nothing from it is printed. Any failure (no brain data, an unreadable file) skips the check silently.
+  // symlink) and nothing from it is printed. Any failure (no plan data, an unreadable file) skips the check silently.
   if (tools.openwolf.state === 'active' || tools.openwolf.state === 'protocol-only') {
     try {
       const W = await import('../../lib/integrations/openwolf.ts'), st = W.readWolfFile(ROOT, 'STATUS.md'), seen = st.ok ? W.statusBrainLine(st.text) : null;
-      if (seen !== null) { const { cardLineText } = await import('./queries.ts'); if (seen !== await cardLineText(ctx)) out('info: OpenWolf STATUS.md mentions an older brain line: run /handoff'); }
-    } catch { /* no brain data or an unreadable file: nothing to compare */ }
+      if (seen !== null) { const { cardLineText } = await import('./queries.ts'); if (seen !== await cardLineText(ctx)) out('info: OpenWolf STATUS.md mentions an older plangraph line: run /handoff'); }
+    } catch { /* no plan data or an unreadable file: nothing to compare */ }
   }
-  const cs = claudeSteer(ctx); if (cs.exists && !cs.steered) out('info: CLAUDE.md does not steer plan questions to brain: `brain init` prints a 3-line snippet to add (nothing is written)');
+  const cs = claudeSteer(ctx); if (cs.exists && !cs.steered) out('info: CLAUDE.md does not steer plan questions to plangraph: `plangraph init` prints a 3-line snippet to add (nothing is written)');
 }
 
 const B = { type: 'boolean' };
@@ -371,7 +371,7 @@ export const commands: CommandMap = {
   'schedule-load': { run: scheduleLoad, positionals: [2, 2], writes: 'index', summary: 'keep the current plan under an archive name and load a new schedule into the index' },
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },
-  init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the brain directory, config, generic learnings and the merge driver' },
+  init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the plan directory, config, generic learnings and the merge driver' },
   migrate: { run: migrate, positionals: [0, 0], writes: 'text', guard: 'none', options: { write: B }, summary: 'upgrade the data format (dry run unless --write)' },
   doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
 };

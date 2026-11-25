@@ -1,4 +1,4 @@
-// Which Jira tenant a brain dir talks to, and the user-level registry that binds each tenant to its own credential source.
+// Which Jira tenant a plan dir talks to, and the user-level registry that binds each tenant to its own credential source.
 // The registry lives outside every repository (never committed) and holds NAMES and references only: env var names, an op:// ref or a
 // keychain service. A secret is never stored here. lib/jira.ts stays free of fs; this module does the reading.
 import fs from 'node:fs';
@@ -21,7 +21,7 @@ export interface TenantResolution { jira: JiraSettings; tenant: string; mode: Au
 
 const MAX_REGISTRY = 64 * 1024;
 
-/** Directory of the user-level config: PLANGRAPH_CONFIG_DIR, else $XDG_CONFIG_HOME/plangraph, else ~/.config/plangraph. A binding kept under the pre-rename folder is not read: `brain migrate-names` copies it. */
+/** Directory of the user-level config: PLANGRAPH_CONFIG_DIR, else $XDG_CONFIG_HOME/plangraph, else ~/.config/plangraph. A binding kept under the pre-rename folder is not read: `plangraph migrate-names` copies it. */
 export function configDir(env: Record<string, string | undefined> = {}): string {
   if (env.PLANGRAPH_CONFIG_DIR) return path.resolve(String(env.PLANGRAPH_CONFIG_DIR));
   const base = env.XDG_CONFIG_HOME ? String(env.XDG_CONFIG_HOME) : path.join(env.HOME || os.homedir(), '.config');
@@ -70,7 +70,7 @@ export { AUTH_MODES };
 // committed is untrusted at runtime: its auth.mode is checked here, before any credential helper runs (makeClient checks it again).
 /**
  * The ONE place that decides which tenant a project talks to and whether the generic credentials may be used for it. `jira-pull` (which
- * acts on the decision) and `brain doctor` (which only describes it) both call this, so they cannot disagree.
+ * acts on the decision) and `plangraph doctor` (which only describes it) both call this, so they cannot disagree.
  * Throws JiraError bad_config when auth.mode is not one of AUTH_MODES (compared exactly: no case folding, no trimming).
  * @param committed the committed config.jira block (untrusted, may be empty)
  * @param root the repository root
@@ -111,7 +111,7 @@ export async function tenantCredentials(t: TenantResolution, env: Record<string,
   return getCredentialsFor(t.tenant, { env, registry: t.registry.reg, allowGeneric: t.allowGeneric, ...opts });
 }
 
-/** What makeClient is given for a resolved tenant. JIRA_BASE_URL overrides base_url; an empty base_url (as `brain init` writes it) counts as
+/** What makeClient is given for a resolved tenant. JIRA_BASE_URL overrides base_url; an empty base_url (as `plangraph init` writes it) counts as
  * unset, so scoped mode uses the fixed gateway instead of failing with bad_host "empty". */
 export function clientBase(t: TenantResolution, env: Record<string, string | undefined> = {}): { auth: { mode?: unknown } | undefined; cloudId: unknown; baseUrl: string | undefined } {
   return { auth: t.jira.auth, cloudId: t.jira.cloud_id, baseUrl: env.JIRA_BASE_URL || t.jira.base_url || undefined };

@@ -1,4 +1,4 @@
-// Shared fixture and in-process runner for the CLI goldens (test/mutation-kills-cli*.test.mjs): a generated repository with a built brain,
+// Shared fixture and in-process runner for the CLI goldens (test/mutation-kills-cli*.test.mjs): a generated repository with a built plangraph,
 // copies of it, a runner that calls src/cli.ts main() with the fixture as the working directory, and a snapshot of changed text files.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -34,7 +34,7 @@ export async function run(cwd: string, argv: string[], env: Record<string, strin
 }
 
 export const state = { FIX: '' };
-/** a git repository with an initialised brain over a generated plan, findings, open items, refs, a plan file and a superpowers plan */
+/** a git repository with an initialised plangraph over a generated plan, findings, open items, refs, a plan file and a superpowers plan */
 export async function fixture(): Promise<string> {
   const d = tmp();
   git(d, 'init', '-q'); git(d, 'checkout', '-q', '-b', 'main');

@@ -1,4 +1,4 @@
-// Every command group of the brain CLI. src/registry.ts registers these into the default registry (Map, frozen specs).
+// Every command group of the plangraph CLI. src/registry.ts registers these into the default registry (Map, frozen specs).
 import { commands as queries } from './queries.ts';
 import { commands as plan } from './plan.ts';
 import { commands as audit } from './audit.ts';

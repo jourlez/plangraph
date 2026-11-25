@@ -1,4 +1,4 @@
-// Tests for lib/merge.ts and bin/brain-merge. NOT covered: git hosts/versions other than the local git, rename/rename or
+// Tests for lib/merge.ts and bin/plangraph-merge. NOT covered: git hosts/versions other than the local git, rename/rename or
 // mode conflicts, very large files (performance), concurrent merges of the same file by two processes, Windows path handling in %P.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ import { mergeJsonl } from '../lib/merge.ts';
 import * as S from '../lib/store.ts';
 import { readJsonl, IngestError } from '../lib/jsonl.ts';
 
-const BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/brain-merge');
+const BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/plangraph-merge');
 type Rng = () => number;
 /** A ticket record of these tests: key and sp always present. */
 type TRec = { key: string; sp: number; [k: string]: unknown };
@@ -127,8 +127,8 @@ test('__proto__ field survives a field-level merge', () => {
   assert.deepEqual(r.conflicts, []); assert.equal(r.text, '{"key":"A","sp":2,"__proto__":{"p":2}}\n'); assert.equal(({} as Record<string, unknown>).p, undefined); // reads a key a fresh object does not have
 });
 
-// ---- bin/brain-merge as a process ----
-test('brain-merge: exit 0 clean (result in %A), 1 on conflict (markers + keys on stderr), 2 on garbage', () => {
+// ---- bin/plangraph-merge as a process ----
+test('plangraph-merge: exit 0 clean (result in %A), 1 on conflict (markers + keys on stderr), 2 on garbage', () => {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bm-')), w = (n: string, t: string) => { fs.writeFileSync(path.join(d, n), t); return path.join(d, n); };
   const O = w('o', txt([tk('A'), tk('B')])), B = w('b', txt([tk('A', { sp: 3 }), tk('B')]));
   let A = w('a', txt([tk('A'), tk('B', { epic: 'Q' })]));
@@ -249,20 +249,20 @@ test('awkward key names (constructor, toString, __proto__, hasOwnProperty) merge
 
 // Review M7: a clean text merge of the schedule or the links can still break a rule (edge T-2 needs T-1; base both Ana S2; ours moves T-2
 // to Ben S3, theirs moves both to S3: clean merge, HANDOFF violation). The driver says so in one line; other files stay silent.
-test('brain-merge: a clean merge of schedule.jsonl or edges.jsonl prints a one-line `brain check` hint; other files do not', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-merge-hint-'));
+test('plangraph-merge: a clean merge of schedule.jsonl or edges.jsonl prints a one-line `plangraph check` hint; other files do not', () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-merge-hint-'));
   try {
     const SC = S.SCHEMAS['schedule.jsonl'], row = (key: string, owner: string, sprint: number) => ({ version: 'current', key, owner, sprint });
     const put = (n: string, recs: readonly S.Rec[], sch: S.KeySpec) => { const f = path.join(d, n); fs.writeFileSync(f, S.canonFile(recs, sch)); return f; };
     const O = put('O', [row('T-1', 'Ana', 2), row('T-2', 'Ana', 2)], SC), A = put('A', [row('T-1', 'Ana', 2), row('T-2', 'Ben', 3)], SC), B = put('B', [row('T-1', 'Ana', 3), row('T-2', 'Ana', 3)], SC);
     const r = spawnSync(process.execPath, [BIN, O, A, B, '.plangraph/schedule.jsonl'], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
-    assert.equal(r.stderr, 'brain-merge: schedule.jsonl merged cleanly, but a text merge can still break a handoff or capacity rule: run `brain build` then `brain check`\n');
+    assert.equal(r.stderr, 'plangraph-merge: schedule.jsonl merged cleanly, but a text merge can still break a handoff or capacity rule: run `plangraph build` then `plangraph check`\n');
     assert.equal(fs.readFileSync(A, 'utf8'), S.canonFile([row('T-1', 'Ana', 3), row('T-2', 'Ben', 3)], SC));
     const E = S.SCHEMAS['edges.jsonl'], ed = (consumer: string, producer: string) => ({ consumer, producer, kind: 'plan_need', note: '' });
     const eo = put('eo', [ed('T-2', 'T-1')], E), ea = put('ea', [ed('T-2', 'T-1'), ed('T-3', 'T-2')], E), eb = put('eb', [ed('T-2', 'T-1'), ed('T-1', 'T-3')], E);
     const re = spawnSync(process.execPath, [BIN, eo, ea, eb, 'sub/.plangraph/edges.jsonl'], { encoding: 'utf8' });
-    assert.equal(re.status, 0, re.stderr); assert.match(re.stderr, /^brain-merge: edges\.jsonl merged cleanly, but .* `brain check`\n$/);
+    assert.equal(re.status, 0, re.stderr); assert.match(re.stderr, /^plangraph-merge: edges\.jsonl merged cleanly, but .* `plangraph check`\n$/);
     const to = put('to', [tk('T-1')], T), ta = put('ta', [tk('T-1', { sp: 2 })], T), tb = put('tb', [tk('T-1')], T);
     const rt = spawnSync(process.execPath, [BIN, to, ta, tb, '.plangraph/tickets.jsonl'], { encoding: 'utf8' });
     assert.equal(rt.status, 0); assert.equal(rt.stderr, '');
