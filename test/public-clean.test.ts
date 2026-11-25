@@ -75,13 +75,18 @@ test('the guard fails on every planted denylisted string in a temp copy, and rep
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-/** The commits of a `%h %ae %ce` log whose author or committer e-mail is not the GitHub noreply form; the short hash only, never the address. */
+const NOREPLY = /^[^@\s]+@users\.noreply\.github\.com$/;
+/**
+ * The commits of a `%h<TAB>%an<TAB>%ae<TAB>%cn<TAB>%ce` log (tab-separated) that break the rule:
+ * the author e-mail is the GitHub noreply form; the committer is the same form, or GitHub itself (web and squash merges). Short hash only.
+ */
 export function nonNoreply(log: string): string[] {
   const bad: string[] = [];
   for (const line of log.split('\n')) {
     if (!line.trim()) continue;
-    const [hash = '', ...emails] = line.trim().split(/\s+/);
-    if (emails.length !== 2 || !emails.every((e) => /^[^@\s]+@users\.noreply\.github\.com$/.test(e))) bad.push(hash.slice(0, 12));
+    const f = line.split('\t'), [hash = '', , ae = '', cn = '', ce = ''] = f;
+    const committerOk = NOREPLY.test(ce) || (cn === 'GitHub' && ce === 'noreply@github.com');
+    if (f.length !== 5 || !NOREPLY.test(ae) || !committerOk) bad.push(hash.slice(0, 12));
   }
   return bad;
 }
@@ -94,19 +99,26 @@ function baseRef(): string | null {
   return candidates.find((r) => git(['rev-parse', '--verify', '-q', `${r}^{commit}`]) !== null) ?? null;
 }
 
-test('commit-author check: every author and committer e-mail is the noreply form, and a violation names the short hash only', () => {
-  const ok = 'abc1234 1+me@users.noreply.github.com 1+me@users.noreply.github.com';
+test('commit-author check: author is noreply, committer is noreply or GitHub, and a violation names the short hash only', () => {
+  const me = '1+me@users.noreply.github.com';
+  const row = (...f: string[]) => f.join('\t');
+  const ok = row('abc1234', 'me', me, 'me', me);
   assert.deepEqual(nonNoreply(ok), []);
-  const bad = nonNoreply(`${ok}\ndef5678901234567890 someone@other.test 1+me@users.noreply.github.com\n0a1b2c3 1+me@users.noreply.github.com x@y.test`);
-  assert.deepEqual(bad, ['def567890123', '0a1b2c3']);
+  assert.deepEqual(nonNoreply(row('a1b2c3d', 'me', me, 'GitHub', 'noreply@github.com')), [], 'a web-flow or squash committer passes');
+  assert.deepEqual(nonNoreply(row('b2c3d4e', 'dependabot[bot]', '49699333+dependabot[bot]@users.noreply.github.com', 'GitHub', 'noreply@github.com')), [], 'a Dependabot author passes');
+  const bad = nonNoreply([ok, row('def5678901234567890', 'x', 'someone@gmail.test', 'x', me), row('0a1b2c3', 'me', me, 'me', 'x@y.test'), row('1b2c3d4', 'me', me, 'Mallory', 'noreply@github.com'), row('2c3d4e5', 'GitHub', 'noreply@github.com', 'GitHub', 'noreply@github.com'), row('abc1234', 'me', me)].join('\n'));
+  assert.deepEqual(bad, ['def567890123', '0a1b2c3', '1b2c3d4', '2c3d4e5', 'abc1234'], 'gmail author, other committer, GitHub as author and a short line fail');
   assert.doesNotMatch(bad.join(' '), /@/, 'no address is printed');
-  assert.deepEqual(nonNoreply('abc1234 1+me@users.noreply.github.com'), ['abc1234'], 'a missing committer e-mail fails');
 });
 
-test('every commit of this branch (base..HEAD) has a noreply author and committer', (t) => {
+// An empty range (a push to main, where origin/main is HEAD) is accepted: the commits were checked on the pull request before the merge.
+test('every commit of this branch (base..HEAD) has a noreply author and a noreply or GitHub committer', (t) => {
   const base = baseRef();
-  if (!base) { t.skip('no base ref in this checkout'); return; }
-  const log = git(['log', '--format=%h %ae %ce', `${base}..HEAD`]);
+  if (!base) {
+    if (process.env.GITHUB_ACTIONS) assert.fail('no base ref in CI: the checkout needs fetch-depth 0');
+    t.skip('no base ref in this checkout'); return;
+  }
+  const log = git(['log', '--no-merges', '--format=%h%x09%an%x09%ae%x09%cn%x09%ce', `${base}..HEAD`]);
   assert.notEqual(log, null, 'git log failed');
   const bad = nonNoreply(log ?? '');
   assert.deepEqual(bad, [], `commits with a non-noreply e-mail (short hashes only): ${bad.join(' ')}`);

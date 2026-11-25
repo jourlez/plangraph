@@ -409,8 +409,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!a || !b) { process.stderr.write(usage); process.exit(2); }
     let r: ReturnType<typeof compareDirs>;
     try { r = compareDirs(path.resolve(a), path.resolve(b), { onlyCommon }); } catch (e) { process.stderr.write(`compare: ${(e as Error).message}\n${usage}`); process.exit(2); } // as Error: whatever compareDirs threw
+    const vacuous = onlyCommon && r.same + r.differing.length === 0;
     process.stdout.write(`same: ${r.same}\ndiffering: ${r.differing.length}\n${onlyCommon ? `new: ${r.added.length}\n` : ''}${r.differing.map((id) => `  ${id}\n`).join('')}`);
-    process.exitCode = r.differing.length ? 1 : 0;
+    if (vacuous) process.stderr.write('compare: no id is present on both sides, so nothing was compared\n');
+    process.exitCode = r.differing.length || vacuous ? 1 : 0;
   } else if (cmd === 'bench') {
     const raw = opt(rest, 'runs') ?? '30', runs = /^\d+$/.test(raw) ? Number(raw) : NaN;
     if (!Number.isSafeInteger(runs) || runs < 1) { process.stderr.write('usage: baseline.ts bench [--runs N]   (N a whole number of at least 1)\n'); process.exit(2); }

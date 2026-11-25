@@ -60,6 +60,10 @@ test('compare --only-common ignores ids present on one side and prints new: N', 
   const r = cli('--only-common', '--a', a, '--b', b);
   assert.equal(r.status, 0); assert.equal(r.stdout, 'same: 1\ndiffering: 0\nnew: 2\n');
   assert.equal(cli('--a', a, '--b', b).status, 1);
+  const c = dir(), d = dir();
+  fs.writeFileSync(path.join(c, 'p.json'), '{}\n'); fs.writeFileSync(path.join(d, 'q.json'), '{}\n');
+  const v = cli('--only-common', '--a', c, '--b', d);
+  assert.equal(v.status, 1, 'a compare with no common id is vacuous and fails'); assert.match(v.stderr, /nothing was compared/);
 });
 
 test('the matrix covers every command that brain explain lists', () => {

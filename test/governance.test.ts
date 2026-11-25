@@ -51,6 +51,8 @@ test('package.json has the playbook script set', () => {
     'bulletproof:check': 'npm run lint:check && npm run typecheck && npm run test',
   };
   for (const [k, v] of Object.entries(want)) assert.equal(s[k], v, `script ${k}`);
+  assert.equal(s.format, undefined, 'format is deferred with the formatter');
+  assert.equal(s['format:check'], undefined, 'format:check is deferred with the formatter');
 });
 
 test('package.json has keywords and author', () => {
