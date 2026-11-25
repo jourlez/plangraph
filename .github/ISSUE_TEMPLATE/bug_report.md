@@ -17,5 +17,5 @@ labels: bug
 - Operating system:
 
 ## Checklist
-- [ ] I ran `brain doctor` and included its output (remove any private ticket text first).
+- [ ] I ran `plangraph doctor` and included its output (remove any private ticket text first).
 - [ ] This is not a security issue (those go through `SECURITY.md`, not a public issue).
