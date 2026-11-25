@@ -134,13 +134,31 @@ Rulings:
 8. Untrusted imported text (tickets, issues, PR titles) is never placed in a tool argument or shell command unchecked and never reaches the card; write and egress tools stay separate from tools that read imported text (the lethal-trifecta rule). Already the design of section 3.5.
 
 
-### 3.14 Guardrails against the four design risks (enforced by tests and gates, not by intent)
+### 3.14 Optimizations from research (replaces the earlier guardrail and scorecard idea; evidence in the two surveys of 2026-11-25, partly unverified)
 
-1. Complexity creep. A budget file `docs/BUDGETS.md` plus tests: the card stays at or under its token bound; `tools/list` stays at or under 2,600 bytes; every command's default output has a golden token bound; the number of committed file types and of core node types and relations is a frozen list in `lib/graph/files.ts` and changing it needs a decision record (`docs/decisions/NNNN-title.md`: need, rule that reads it, merge key, fuzz test, token cost). A new concept that no rule reads is info-only and costs zero tokens by default.
-2. Drift into a generic knowledge graph. A non-goals charter in `docs/CONTRACT.md`: no embeddings, no LLM extraction of nodes, no code parsing (code is linked through references), no free-text memory store. Acceptance test: every core relation has a named reader (blockers, capacity, whatif, readiness, touches) or is declared info-only; a test fails when a relation has no entry in `REL_SEMANTICS`; default outputs never print info relations.
-3. Solver at your scale. Synthetic plan sized to the owner's real project (about 1,400 tickets, 10,000 links, 4 people, 11 sprints) in the slow CI job with a time bound and the independent `verify` check on every solver result (exists); greedy or heuristic results stay labelled upper bounds; shadow mode on the real project: the solver proposes, the owner's actual placement is compared, and feasibility rate, differences and time are recorded in the scorecard (task 7C).
-4. Unproven value. Task 7C, a dogfood scorecard defined before building the feature it measures: five daily questions (can it start, what does a move break, who is overloaded, which repos does it touch, is the sprint feasible), each timed and counted in tokens against the baseline of reading the tracker and files by hand, run on the owner's real project for two weeks with a local-only command log; outcome recorded in `docs/SCORECARD.md`. The format benchmark (7B) covers answer correctness and tokens; 7C covers real use.
-5. Single maintainer. Zero runtime dependencies stay; every behavior has a test that can fail; every non-obvious choice has a decision record; `docs/TEAM.md` and `CONTRIBUTING.md` stay current (checked by tests that every named command exists).
+Principle: reduce risk by design (a small core, a disposable index, fast checks), not by ceremony or long observation periods. Fossil and git-bug both keep the authored log canonical and the index rebuildable, which is already this design; the research adds the following.
+
+Solver and what-if (measured facts about the current solver are in `docs/SOLVER.md`):
+1. Trust fix, first and in 0.3.0 (task S1): OR-Tools 9.15.6755 has a reported defect where a run with a solution hint can report OPTIMAL above the true optimum (upstream issue 5582, fix only in the 10.0 release candidate, which regresses large neighborhood search, issue 5571, so no upgrade). Rule: never accept OPTIMAL from a hinted stage without an independent recomputation of that stage's objective from the output; hinted stages set `presolve_inclusion_work_limit=0`; a test replays a deliberately wrong hint and fails if the reported objective beats the proven bound. `sufficient_assumptions_for_infeasibility` is not trusted with presolve on (upstream issue 5141); infeasibility is explained by the existing relaxed-cost model plus deletion-based minimization.
+2. What-if without the solver for the check: a move only affects the cone of its transitive descendants and the target person-sprint cell, so the check is propagation over those links (milliseconds). The solver is called only for a repair suggestion, with every ticket outside the cone fixed and a complete hint, and a stability objective (owner changes and sprint moves first). Task 11 of 0.5.0 builds the check on this; the repair suggestion is 0.5.0 Task 15.
+3. Presolve cost: the 12 s rebuild per lexicographic stage is the dominant cost at the owner's size. 0.5.0 Task 16 measures, on a synthetic plan of that size, folding the stages into one weighted objective with exact dominance weights versus dropping the previous optimum as a hard constraint, and keeps whichever is faster without changing results (compared by `verify` and by objective values). Structured neighborhoods (one sprint window or the cone of a changed ticket) replace random ones if they win over 5 seeds. `--decompose` stays off (measured no better). A topological list-scheduling heuristic with a critical-path bound is measured against the solver's end sprint; if equal on the real shape it becomes the instant first answer and the solver the polish, and it is labelled an upper bound.
+4. Determinism stays: one worker with deterministic time and no wall-clock cap; multi-worker runs are documented as possibly differing.
+
+Validation without a long observation period:
+5. Golden questions: 30 to 50 questions drawn from real failures of the tool (not invented), graded deterministically against SQL and the solver, with Wilson intervals; replaces the earlier large benchmark size and the scorecard. Part of Task 7B.
+6. Differential tests: rules, `whatif` and the solver against a brute-force oracle on small random instances (new Task 7C replaces the dogfood scorecard); it proves encodings agree, not that semantics are right, so each rule also keeps its hand-written cases.
+7. Backtesting (0.5.0 Task 16): expanding-window replay over the owner's completed sprints: plan with the data available before each sprint, compare predicted and actual sprint per ticket (hit rate), and report a Monte Carlo interval from historical item throughput next to the point plan. Cheap only because the Jira ingest already exports history; if an export is missing the task reports that instead of inventing data.
+
+Data layout and merge:
+8. One row per line, sorted by key, stable key order inside a row, hash or random ids for new rows (never counters), a `schema_version` per row and unknown fields preserved on rewrite; the keyed merge driver gets adversarial two-sided tests for every file kind (the closest tool shipped a buggy 3-way merge for months).
+9. Fewer file kinds: `plantasks.jsonl` is dropped (plan tasks are derived nodes from `refs.plans`), `capacity.jsonl` stays, and a new file kind needs a stated rule that reads it (a node type or relation with no reader is info-only and costs zero tokens by default). The set after 0.4.0: people, sprints, epics, repos, capacity, links, xrefs.
+10. Cross-worktree claims (0.6.0) use a local lock plus compare-and-swap on a ref, not git merges.
+
+Performance (measure with hyperfine on `--version`, one query and `card`, cold and warm, on a synthetic 10^4 and 10^5 edge dataset):
+11. Lazy imports of heavy modules in the CLI entry (the largest measured start-up win in comparable CLIs, about 3.5x on `--version` in one case) with the existing compile cache kept (about 13 to 25 percent); added to Task 11 of 0.3.0 and checked by a start-up size-ratio test, never a wall-clock limit.
+12. Incremental index: per-file fingerprint, rebuild only changed files in one transaction, indexed edge endpoints, WAL with `synchronous=NORMAL` (the index is disposable). No precomputed closure until on-demand recursive queries fail a stated budget; no daemon, no CRDT layer, no database backend.
+
+Answer shape: concise default and detailed opt-in, filter before return, short meaningful ids, byte-stable tool text and output prefix so prompt caching hits, and no reliance on tool-result clearing (clearing a little each step breaks the cache); answers stay valid if cleared.
 
 
 ## 4. Rulings on defects found in the graph plan
@@ -171,7 +189,7 @@ Rulings:
 | 5 | `graph` KEY accepts `pg:` URIs; `--json` ids in URI form; xrefs printed fenced. |
 | 6, 6A, 7 | Unchanged; Task 7's audit adds the forward-compatibility fixture (section 6). |
 | 7B (new) | Format benchmark `evals/graph-format` (section 3.11); the default answer format is set from its result before 0.4.0 ships. |
-| 7C (new) | Dogfood scorecard (section 3.14): five daily questions timed and counted against the by-hand baseline on the owner's real project, shadow-mode solver comparison, `docs/SCORECARD.md`; plus `docs/BUDGETS.md` and its budget tests. |
+| 7C (new) | Differential tests of rules, whatif and the solver against a brute-force oracle on small random instances (section 3.14 item 6). |
 | 8 | Becomes `plangraph graph materialize` (no format bump) per D23. |
 | 9 (0.5.0) | Provider seam, `jira`, `sp` and `generic` providers, `plangraph import --sys`, `obs` table, cache git-ignore. |
 | 10 (0.5.0) | `lib/graph/drift.ts`, `plangraph sync --plan`. |
@@ -179,6 +197,8 @@ Rulings:
 | 12 (0.5.0) | MCP: `graph` tool, resource templates, URI key validation, bench bound. |
 | 13 (0.5.0) | `sp-link --track`. |
 | 14 (0.5.0) | GitHub provider (key in branch name or PR title), `touches` heuristic with `conf` and `why`, monorepo `paths`, `catalog-info.yaml` seed |
+| 15 (0.5.0) | Whatif repair suggestion: cone-fixed solver call with a complete hint and a stability objective (section 3.14 item 2). |
+| 16 (0.5.0) | Solver measurement and backtesting: stage folding vs dropped constraint, structured neighborhoods, heuristic bound, expanding-window replay and Monte Carlo interval (section 3.14 items 3 and 7). |
 
 Decisions: D23 materialize instead of migrate (answer: materialize); D24 xref `sys` grammar and no account ids or emails committed (answer: as written); D25 MCP resources in 0.5.0 are templates and read only (answer: as written). Each dependent commit records `Decision Dn: <answer>`.
 
