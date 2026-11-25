@@ -37,7 +37,7 @@ test('errors: classification, text, suggestions, try lines, full lines', () => {
 });
 
 test('node floor, registry validation, collector and renderer', () => {
-  G('floor', () => [NODE_FLOOR, floorTry, floorMessage('v1.2.3'.repeat(9)), ['24.2.0', '24.1.9', '24.10.0', '25.0.0', '23.99.99', 'v24.2.0', '24.2', '24', 'x', '', '100.0.0', '24.2.0-pre'].map((v) => nodeSupported(v))]);
+  G('floor', () => [NODE_FLOOR, floorTry, floorMessage('v1.2.3'.repeat(9)), ['24.15.0', '24.14.9', '24.10.0', '25.0.0', '23.99.99', 'v24.15.0', '24.15', '24', 'x', '', '100.0.0', '24.15.0-pre'].map((v) => nodeSupported(v))]);
   const reg = createRegistry();
   const ok = { summary: 's', run: () => 0, positionals: [0, 1], options: { a: { type: 'string' } }, writes: 'none', guard: 'none' };
   G('registry', () => [outcome(() => defineCommand(reg, 'ok', ok)), lookup(reg, 'ok')?.summary, lookup(reg, 5), outcome(() => defineCommand(reg, 'ok', ok)),

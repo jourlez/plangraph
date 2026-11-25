@@ -6,7 +6,7 @@ Goal: the best planning memory for AI coding agents. Hard rules, in priority ord
 2. **Tokens are a budget.** Every answer a command prints is read by a model. Default output is the smallest useful answer (target: one line for a yes/no, under 250 tokens for anything, under 60 for the common case). No prose, no decoration, stable ordering, stable field names. Bounded output: an explicit limit plus a `... N more` marker. Every answer that depends on data states its freshness when it could be stale. Estimate tokens as `ceil(chars / 4)`.
 3. **No network or model calls** anywhere except `lib/jira.ts`. Never write, log or echo secrets (Jira token). Tokens only from the process environment or an OS keychain helper.
 4. **Pure core.** Library modules are ES modules in `lib/*.ts` that take plain data (the model from `lib/model.ts`, see `buildModel`) and return plain data or strings. No SQLite, no `process.exit`, no `console.log` inside library functions (return strings or objects; the CLI prints). This keeps them testable and lets the CLI drop SQLite later.
-5. **No runtime dependencies** (Node built-ins only; Python solver only uses OR-Tools). Dev-only, exact-pinned, never shipped: `typescript`, `@types/node`, `@biomejs/biome` (`npm run typecheck`, `npm run lint`). Node >= 24.2. Tests use `node:test` + `node:assert/strict`, files named `test/<module>.test.ts`, runnable with `npm test`. Fixtures come from `test/fixtures/gen.ts` (`genPlan`, `rng`). Never use real people, tickets or company data; names are invented.
+5. **No runtime dependencies** (Node built-ins only; Python solver only uses OR-Tools). Dev-only, exact-pinned, never shipped: `typescript`, `@types/node`, `@biomejs/biome` (`npm run typecheck`, `npm run lint`). Node >= 24.15. Tests use `node:test` + `node:assert/strict`, files named `test/<module>.test.ts`, runnable with `npm test`. Fixtures come from `test/fixtures/gen.ts` (`genPlan`, `rng`). Never use real people, tickets or company data; names are invented.
 6. **Determinism.** Same input gives byte-identical output. Sort with plain `<` comparison (not localeCompare). Seeded RNG only (`rng` from the fixtures file; copy the tiny function into lib if the module needs randomness).
 7. **Merge-friendly data.** Text files are JSONL, one record per line, sorted by primary key, canonical key order, `\n` endings, trailing newline.
 
@@ -72,7 +72,7 @@ Exit codes:
 | 0 | ok |
 | 1 | a negative verdict: `check`, `verify`, `ready`, `whatif`, `doctor` found a problem |
 | 2 | usage or data error: unknown command or option, missing or bad argument, unreadable or invalid input file, no index, corrupt index, `export` over a stale index, data format too new or needing migration for a writing command |
-| 3 | environment missing: Node older than 24.2 (with `--if-present`, any command: silent exit 0 instead), Jira credentials or configuration missing or rejected |
+| 3 | environment missing: Node older than 24.15 (with `--if-present`, any command: silent exit 0 instead), Jira credentials or configuration missing or rejected |
 | 4 | refused: a plan directory outside the repository (absolute, or escaping it through `..` or a symlink), a write target that is a symlink, not a regular file or outside the repository (nothing is written), a whatif write that would add violations |
 | 5 | unexpected internal error (`error: internal error: ...`) |
 
