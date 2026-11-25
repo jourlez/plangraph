@@ -283,9 +283,9 @@ test('sp-ingest: one summary line, records merged, non-owned records untouched, 
   for (const x of keep.e) assert.ok(readRecs(root, 'edges.jsonl').some((y) => JSON.stringify(y) === JSON.stringify(x)));
   for (const x of keep.f) assert.ok(readRecs(root, 'findings.jsonl').some((y) => JSON.stringify(y) === JSON.stringify(x)));
   assert.ok(readRecs(root, 'schedule.jsonl').every((s) => !s.key.startsWith(EPIC)), 'no --owner: nothing scheduled');
-  const once = snapshot(root).plangraph;
+  const once = snapshot(root).brain;
   const r2 = run(root, 'sp-ingest', PLAN_REL); assert.equal(r2.status, 0);
-  const twice = snapshot(root).plangraph;
+  const twice = snapshot(root).brain;
   assert.deepEqual(twice, once, 'the second run writes nothing (same bytes, same mtimes)');
   const j = run(root, 'sp-ingest', PLAN_REL, '--json'); assert.equal(j.status, 0);
   const env = JSON.parse(j.stdout); assert.equal(env.v, 2); assert.equal(env.ok, true); assert.match(env.data.lines[0], /^ingested sp:/);
