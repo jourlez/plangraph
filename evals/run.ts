@@ -119,7 +119,7 @@ export function evalArgs(pass: { name: string; ablation: string }, o: Options, {
 // Split the hard cap across passes in proportion to each pass's high estimate; the shares sum to the cap.
 export function splitBudget(est: { passes: Array<{ hi: number }> }, cap: number): number[] {
   const tot = est.passes.reduce((s, p) => s + p.hi, 0) || 1;
-  const shares = est.passes.map((p) => Math.floor(((cap * p.hi) / tot) * 100) / 100);
+  const shares = est.passes.map((p) => Math.floor(((cap * p.hi) / tot) * 100 + 1e-9) / 100); // 1e-9: a whole share such as 3.5 * hi / hi = 3.4999999999999996 must not lose a cent
   return shares.map((s) => Math.max(0.01, s));
 }
 

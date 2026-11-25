@@ -311,6 +311,7 @@ test('the cost estimate is derived from each case\'s prompt, turn cap and fixtur
   assert.equal(estimate([{ name: 'a', cases: [c], arms: ['with'] }], { runs: 1, model: 'nope', judgeModel: 'nope' }), null);
   const sh = splitBudget({ passes: [{ hi: 3 }, { hi: 1 }] }, 10);
   assert.ok(sh[0] + sh[1] <= 10 && sh[0] > sh[1]);
+  assert.deepEqual(splitBudget({ passes: [{ hi: 29 / 9973 }] }, 3.5), [3.5], 'a single pass keeps the whole cap (3.5 * hi / hi is 3.4999999999999996 here)');
 });
 
 // ------------------------------------------------------------------ the runner never spends money by default, never writes into the repo
