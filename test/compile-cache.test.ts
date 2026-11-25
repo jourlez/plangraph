@@ -1,5 +1,5 @@
 // bin/brain turns on Node's module compile cache after the floor check and before it loads src/cli.ts, in a PRIVATE per-user directory:
-// <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA when absolute, else ~/.cache/project-brain (the rule of lib/driver.ts
+// <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA when absolute, else ~/.cache/plangraph (the rule of lib/driver.ts
 // defaultDataDir). It is used only when it is a real directory (not a symlink) owned by the current user with no group or world bits:
 // Node accepts a cache directory of any owner and mode and checks entries by CRC32 only, so a shared or foreign directory would let
 // another local user plant code that runs as this user. When NODE_COMPILE_CACHE is set, Node's own behavior is left untouched.
@@ -71,12 +71,12 @@ test('the entry point keeps the cache in CLAUDE_PLUGIN_DATA/compile-cache with m
   assert.deepEqual(entries(path.join(tmpdir, 'node-compile-cache')), [], 'nothing in the shared temp directory');
 });
 
-test('without an absolute CLAUDE_PLUGIN_DATA the cache lives under HOME/.cache/project-brain/compile-cache (mode 0700)', () => {
+test('without an absolute CLAUDE_PLUGIN_DATA the cache lives under HOME/.cache/plangraph/compile-cache (mode 0700)', () => {
   const d = repo();
   for (const extra of [{}, { CLAUDE_PLUGIN_DATA: 'relative/data' }]) {
     const home = tmp('cc-home2-'), r = card(d, { ...extra, HOME: home });
     assert.deepEqual([r.status, r.stderr], [0, '']);
-    const dir = path.join(home, '.cache', 'project-brain', 'compile-cache');
+    const dir = path.join(home, '.cache', 'plangraph', 'compile-cache');
     assert.ok(entries(dir).length > 0, `the cache is under HOME (${JSON.stringify(extra)})`);
     assert.equal(fs.statSync(dir).mode & 0o777, 0o700);
   }

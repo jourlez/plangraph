@@ -260,7 +260,7 @@ export const PROBES: Probe[] = [
     const exec = async (file: string, args: string[]) => {
       calls.push(`${file} ${args.join(' ')}`);
       if (file === 'op') return `op-user@example.invalid:${tok}\n`;
-      if (file === 'security' || file === 'secret-tool') { if (args.includes('keychain-svc') || args.includes('project-brain-jira:four.example.invalid')) return `kc-user@example.invalid:${tok}\n`; throw new Error('item not found'); }
+      if (file === 'security' || file === 'secret-tool') { if (args.includes('keychain-svc') || args.includes('plangraph-jira:four.example.invalid')) return `kc-user@example.invalid:${tok}\n`; throw new Error('item not found'); }
       throw new Error(`unexpected ${file}`);
     };
     const parsed = parseSiteRegistry(JSON.stringify({ sites: {

@@ -157,7 +157,7 @@ test('credentials: keychain per platform, argv exact, missing item falls through
   const exec = async (f: string, a: string[]) => { seen.push([f, ...a]); return TOKEN; };
   const d = await getCredentials({ env: { JIRA_EMAIL: EMAIL }, exec, platform: 'darwin' });
   const l = await getCredentials({ env: { JIRA_EMAIL: EMAIL }, exec, platform: 'linux' });
-  assert.deepEqual(seen, [['security', 'find-generic-password', '-s', 'project-brain-jira', '-w'], ['secret-tool', 'lookup', 'service', 'project-brain-jira']]);
+  assert.deepEqual(seen, [['security', 'find-generic-password', '-s', 'plangraph-jira', '-w'], ['secret-tool', 'lookup', 'service', 'plangraph-jira']]);
   assert.deepEqual([d.source, l.source], ['keychain', 'keychain']);
   await assert.rejects(getCredentials({ env: {}, exec: async () => { throw new Error('not found'); }, platform: 'darwin' }), { code: 'no_credentials' });
   await assert.rejects(getCredentials({ env: {}, exec: noExec, platform: 'win32' }), { code: 'no_credentials' });

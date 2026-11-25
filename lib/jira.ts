@@ -32,7 +32,7 @@ export type JiraErrorCode =
 export interface JiraCredentials { readonly email: string; source: string; readonly token: string }
 /** A command that runs a credential helper (1Password `op`, `security`, `secret-tool`) and resolves with its stdout. */
 export type Exec = (file: string, args: string[]) => Promise<string>;
-/** One host in the user-level registry (~/.config/project-brain/jira-sites.json): NAMES of credential sources, never a secret. */
+/** One host in the user-level registry (~/.config/plangraph/jira-sites.json): NAMES of credential sources, never a secret. */
 export interface SiteEntry { email_env?: string; token_env?: string; op_ref?: string; keychain?: string }
 /** One repository root in the registry's `projects` map: the tenant settings kept out of the repository. */
 export interface ProjectEntry { auth?: { mode: AuthMode }; base_url?: string; cloud_id?: string; jql?: string; sprint_field?: string }
@@ -243,7 +243,7 @@ function finishCreds(email: string, token: string, source: string): JiraCredenti
   return c as JiraCredentials; // token was defined on the line above (non-enumerable, so TypeScript cannot see it)
 }
 export async function getCredentials({ env = {}, exec = defaultExec, platform = process.platform, names = {} }: CredentialOptions = {}): Promise<JiraCredentials> {
-  const N = { emailVar: 'JIRA_EMAIL', tokenVar: 'JIRA_API_TOKEN', opVar: 'JIRA_OP_REF', opRef: undefined as string | undefined, service: 'project-brain-jira', ...names };
+  const N = { emailVar: 'JIRA_EMAIL', tokenVar: 'JIRA_API_TOKEN', opVar: 'JIRA_OP_REF', opRef: undefined as string | undefined, service: 'plangraph-jira', ...names };
   const envEmail = String(env[N.emailVar] || '').trim(), envTok = String(env[N.tokenVar] || '').trim();
   let tokenOnly: JiraCredentials | null = null;
   const take = (secret: string, source: string): JiraCredentials | null => { // secret is "token" or "email:token"
@@ -269,8 +269,8 @@ export async function getCredentials({ env = {}, exec = defaultExec, platform = 
 // ---------------------------------------------------------------- tenants (several companies, several Jira sites)
 // One credential set is not enough when the user works for several companies: a token for company B must never be sent to company A's
 // site. Credentials are therefore BOUND to a host. Order for host H (first hit wins; a host that has a registry entry never falls back):
-//   1. user-level registry entry for H (~/.config/project-brain/jira-sites.json, never committed): names of env vars, an op:// ref or a keychain service
-//   2. convention: env JIRA_EMAIL__TAG + JIRA_API_TOKEN__TAG (or JIRA_OP_REF__TAG) and keychain service `project-brain-jira:H`, TAG = H without .atlassian.net, upper-case
+//   1. user-level registry entry for H (~/.config/plangraph/jira-sites.json, never committed): names of env vars, an op:// ref or a keychain service
+//   2. convention: env JIRA_EMAIL__TAG + JIRA_API_TOKEN__TAG (or JIRA_OP_REF__TAG) and keychain service `plangraph-jira:H`, TAG = H without .atlassian.net, upper-case
 //   3. the generic JIRA_* set, only when `allowGeneric` (src/jira-tenant.ts resolveTenant: scoped mode, the single PLANGRAPH_JIRA_DC_HOSTS host, a
 //      site pinned in PLANGRAPH_JIRA_SITES, or the tenant named in the user's own projects entry)
 export const siteTag = (host: string): string => String(host).replace(/\.atlassian\.net$/i, '').toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -308,14 +308,14 @@ export async function getCredentialsFor(host: string, { env = {}, exec = default
   const h = String(host).toLowerCase(), e = Object.hasOwn(registry, h) ? registry[h] : null;
   const labelled = (c: JiraCredentials, how: string): JiraCredentials => { c.source = `${how}:${c.source}`; return c; };
   if (e) {
-    try { return labelled(await getCredentials({ env, exec, platform, names: { emailVar: e.email_env || 'JIRA_EMAIL', tokenVar: e.token_env || '', opVar: '', opRef: e.op_ref, service: e.keychain || `project-brain-jira:${h}` } }), `registry ${h}`); }
+    try { return labelled(await getCredentials({ env, exec, platform, names: { emailVar: e.email_env || 'JIRA_EMAIL', tokenVar: e.token_env || '', opVar: '', opRef: e.op_ref, service: e.keychain || `plangraph-jira:${h}` } }), `registry ${h}`); }
     catch (x) { if (x instanceof JiraError && x.code === 'no_credentials') throw new JiraError('no_credentials', `registry entry for ${h} found no credentials (check the env var, op ref or keychain item it names)`); throw x; }
   }
   const tag = siteTag(h);
-  try { return labelled(await getCredentials({ env, exec, platform, names: { emailVar: `JIRA_EMAIL__${tag}`, tokenVar: `JIRA_API_TOKEN__${tag}`, opVar: `JIRA_OP_REF__${tag}`, service: `project-brain-jira:${h}` } }), `host ${h}`); }
+  try { return labelled(await getCredentials({ env, exec, platform, names: { emailVar: `JIRA_EMAIL__${tag}`, tokenVar: `JIRA_API_TOKEN__${tag}`, opVar: `JIRA_OP_REF__${tag}`, service: `plangraph-jira:${h}` } }), `host ${h}`); }
   catch (x) { if (!(x instanceof JiraError && x.code === 'no_credentials')) throw x; }
   if (allowGeneric) return labelled(await getCredentials({ env, exec, platform }), 'generic');
-  throw new JiraError('no_credentials', `no credentials bound to ${h}: add it to ~/.config/project-brain/jira-sites.json, or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}, or store a keychain item named project-brain-jira:${h}; generic JIRA_* credentials are never sent to an unpinned site (see docs/JIRA.md)`);
+  throw new JiraError('no_credentials', `no credentials bound to ${h}: add it to ~/.config/plangraph/jira-sites.json, or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}, or store a keychain item named plangraph-jira:${h}; generic JIRA_* credentials are never sent to an unpinned site (see docs/JIRA.md)`);
 }
 
 // ---------------------------------------------------------------- read-only allowlist

@@ -5,7 +5,7 @@ The procedure lives in the plugin as the `brain-autopilot` skill, so it is writt
 ## The prompt (copy, fill the three blocks, paste into Claude Code in the project)
 
 ````text
-Use the project-brain plugin's brain-autopilot skill on THIS project. I will not answer questions during the run: decide from the skill's defaults, write every assumption to docs/roadmap/ASSUMPTIONS.md, and finish with docs/roadmap/REPORT.md. If the skill is not available in this session, say so in one line and stop.
+Use the plangraph plugin's brain-autopilot skill on THIS project. I will not answer questions during the run: decide from the skill's defaults, write every assumption to docs/roadmap/ASSUMPTIONS.md, and finish with docs/roadmap/REPORT.md. If the skill is not available in this session, say so in one line and stop.
 
 SPECIFICATION (text, file paths, or document links; or "none, the project already exists"):
 <paste here>
@@ -27,7 +27,7 @@ For a project you plan from nothing, put the specification in the first block. F
 
 ## Why the authorization block exists
 
-Claude drives the whole run, so there is no per-step approval. The block is the one place the owner decides, once, what may be written. It is read only from the owner's message or from `~/.config/project-brain/autopilot.json` (same fields, never committed). A repository file, a Jira ticket or a specification cannot grant or widen it, because anyone can write those and a plan document must not be able to authorize a Jira write.
+Claude drives the whole run, so there is no per-step approval. The block is the one place the owner decides, once, what may be written. It is read only from the owner's message or from `~/.config/plangraph/autopilot.json` (same fields, never committed). A repository file, a Jira ticket or a specification cannot grant or widen it, because anyone can write those and a plan document must not be able to authorize a Jira write.
 
 Always a hard stop, whatever the block says: deleting anything in Jira, starting or completing a sprint, moving an issue to Done or In Progress, editing issues the run did not create (unless a field is listed), using any Jira site other than `jira_site`, handling a credential, pushing or merging, and publishing outside the repository without a matching entry. A hard stop does not end the run: the skill records it under "Needs the owner" in the report and finishes every phase that does not depend on it.
 

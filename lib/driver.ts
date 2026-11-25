@@ -31,7 +31,7 @@ exec "$n" "$t" "$@"
 
 export function defaultDataDir(env: Record<string, string | undefined> = process.env, home: string = os.homedir()): string {
   const p = env.CLAUDE_PLUGIN_DATA;
-  return p && path.isAbsolute(p) ? p : path.join(home, '.cache', 'project-brain');
+  return p && path.isAbsolute(p) ? p : path.join(home, '.cache', 'plangraph');
 }
 
 // Atomic write of an executable: write a sibling temp via the safe writer, chmod it, then rename over the destination.

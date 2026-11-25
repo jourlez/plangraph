@@ -40,7 +40,7 @@ async function attempt(committed: unknown, env: Record<string, string>): Promise
   } catch (e) { outcome = (e as JiraError).code || 'throw'; message = (e as Error).message; } // every throw on this path is a JiraError; a plain Error shows as 'throw'
   return { t, source, outcome, message, hits, calls };
 }
-const genericHelper = (c: string) => c.startsWith('op read op://Private/jira/generic') || / -s project-brain-jira -w$/.test(c) || c === 'secret-tool lookup service project-brain-jira';
+const genericHelper = (c: string) => c.startsWith('op read op://Private/jira/generic') || / -s plangraph-jira -w$/.test(c) || c === 'secret-tool lookup service plangraph-jira';
 
 test('makeClient refuses an unknown auth.mode with bad_config and never calls fetch', () => {
   let called = 0;

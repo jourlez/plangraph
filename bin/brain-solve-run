@@ -1,7 +1,7 @@
 #!/bin/sh
 # Launcher for brain-solve: finds or builds a Python (3.10-3.14) that has OR-Tools, then runs the solver with the given flags.
 # Dependencies are locked: bin/brain-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/brain-solve`.
-# Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv, else a python3 that already has ortools.
+# Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv, else a python3 that already has ortools.
 # Env: PLANGRAPH_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
 # Isolation: every python call of the fallback passes -I, so the current directory (a repo that may commit ortools.py, venv/ or pip.py)
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
@@ -38,7 +38,7 @@ if command -v uv >/dev/null 2>&1; then
   if [ -z "${PLANGRAPH_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
   exec uv run --quiet --no-project --python "$PYI" --with "$PIN" python "$SCRIPT" "$@"
 fi
-VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv"
+VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv"
 if [ ! -x "$VENV/bin/python" ] || ! "$VENV/bin/python" -I -c 'import ortools' >/dev/null 2>&1; then
   for v in 3.14 3.13 3.12 3.11 3.10; do
     if command -v "python$v" >/dev/null 2>&1; then

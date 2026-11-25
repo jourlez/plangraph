@@ -30,9 +30,9 @@ test('the README install line uses the new names', () => {
   assert.ok(read('README.md').includes('plangraph@plangraph-marketplace'));
 });
 
-test('per-user state names keep their pre-rename values', () => {
-  assert.ok(configDir({ HOME: '/h' }).endsWith(path.join('.config', 'project-brain')));
-  assert.match(read('lib/jira.ts'), /service: 'project-brain-jira'/);
-  assert.match(read('lib/jira.ts'), /`project-brain-jira:\$\{h\}`/);
+test('per-user state names are the plangraph names', () => {
+  assert.ok(configDir({ HOME: '/h' }).endsWith(path.join('.config', 'plangraph')));
+  assert.match(read('lib/jira.ts'), /service: 'plangraph-jira'/);
+  assert.match(read('lib/jira.ts'), /`plangraph-jira:\$\{h\}`/);
   assert.match(read('lib/store.ts'), /^const DRIVER = 'brain-jsonl';$/m);
 });

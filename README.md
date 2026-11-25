@@ -350,7 +350,7 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 
 What the hook does: if the project has a brain index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. With `--heal` it also repairs a missing or outdated merge driver, silently. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
 
-`plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/project-brain` outside Claude Code; it holds the merge-driver shim and, on the pip path, the solver venv.
+`plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the merge-driver shim and, on the pip path, the solver venv.
 
 ## Commands
 
@@ -451,7 +451,7 @@ The plugin ships eight skills. Claude picks one from its description, or you inv
 |---|---|
 | `PLANGRAPH_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
 | `PLANGRAPH_DIR` | brain directory (relative, inside the repository) |
-| `CLAUDE_PLUGIN_DATA` | data directory for the merge shim and solver venv (set by Claude Code; default `~/.cache/project-brain`) |
+| `CLAUDE_PLUGIN_DATA` | data directory for the merge shim and solver venv (set by Claude Code; default `~/.cache/plangraph`) |
 | `JIRA_EMAIL`, `JIRA_API_TOKEN` | Jira credential from your shell |
 | `JIRA_OP_REF` | 1Password reference (`op://vault/item/field`) for the token |
 | `JIRA_BASE_URL` | overrides `jira.base_url` for site tokens |
@@ -495,7 +495,7 @@ Every error prints `error: ...` on stderr and a last line `try: <exact command>`
 3. Provide the credential from outside the repository. The first source found wins:
    - environment: `export JIRA_EMAIL=you@example.com JIRA_API_TOKEN=...`, typed in your own shell;
    - 1Password: `export JIRA_OP_REF=op://Vault/Jira/token`;
-   - OS keychain: on macOS `security add-generic-password -s project-brain-jira -a "$JIRA_EMAIL" -w`, on Linux `secret-tool store --label project-brain-jira service project-brain-jira`.
+   - OS keychain: on macOS `security add-generic-password -s plangraph-jira -a "$JIRA_EMAIL" -w`, on Linux `secret-tool store --label plangraph-jira service plangraph-jira`.
 4. Run `brain jira-pull --out snapshot.jsonl`.
 
 The credential is never written to a file, logged, or accepted as a command-line argument. Requests are HTTPS only, to a fixed host rule, through a read-only method and path allowlist, and redirects are never followed. For one or a few tickets, use the Atlassian connector instead (no token at all); [docs/JIRA.md](docs/JIRA.md) has a slim `getJiraIssue` call shape (marked unverified) and the bulk rule.

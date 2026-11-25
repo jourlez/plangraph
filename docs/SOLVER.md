@@ -229,7 +229,7 @@ case is not measured here.
 
 `bin/brain-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/brain-solve ...` also works.
 OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/brain-solve-run` tries, in order: `uv run --locked --script bin/brain-solve` (dependencies pinned with hashes in `bin/brain-solve.lock`; a stale lock fails instead of re-resolving);
-a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
+a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
 else prints three lines and exits 3. `PLANGRAPH_SOLVE_SCRIPT` overrides the script (used by the mutation test).
 
 Tests: `node --test test/solver.test.ts` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
@@ -282,7 +282,7 @@ so it is listed by the validator as a `bin` entry but cannot be run as a command
 The locked uv path (`uv run --locked --script bin/brain-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
 fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/brain-solve.lock` and
 `solver/solver-requirements.txt`. They come from PyPI (`pypi.org` for the index, `files.pythonhosted.org` for the files) and are cached afterwards (uv cache, or the venv under
-`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv`). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
+`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv`). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
 `github.com` (release download URL), which redirected to `release-assets.githubusercontent.com` when checked on 2026-11-22 (that CDN host is GitHub's choice and may change). The pip fallback uses only the default PyPI index and never downloads a Python.
 These four hosts, plus the two Jira hosts, are what `network.hosts` in `.claude-plugin/plugin.json` declares. Nothing else leaves the machine: no ticket data, no telemetry. This is the only network access the solver ever makes.
 A cold first run took about 27 s on a fast connection (one measurement in an isolated cache; it is network-bound, so a slow connection takes longer); later runs reuse the cache.

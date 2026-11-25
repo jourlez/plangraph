@@ -4,7 +4,7 @@
 // This file stays parseable on any old Node: it checks the floor first and only then loads the CLI (which uses current syntax).
 // Too-old Node: exit 3 with the message and a try line, or 0 and silent with --if-present; `card --if-present` is also silent with exit 0 on any failure in src/cli.ts.
 // Compile cache (supported Node only, before the CLI loads): kept in a PRIVATE directory, <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA
-// when absolute, else ~/.cache/project-brain (the lib/driver.ts defaultDataDir rule, inlined: nothing from lib/ or a .ts file loads before the
+// when absolute, else ~/.cache/plangraph (the lib/driver.ts defaultDataDir rule, inlined: nothing from lib/ or a .ts file loads before the
 // cache is on, since the first .ts file pays the type-stripper start-up). Node trusts a cache directory of any owner and mode (CRC32-checked
 // entries, plain JavaScript in the transpile cache), so a shared one would run code another local user planted. Both directories must be real
 // directories (lstat: no symlink) owned by this uid; <data> without group or world write (the driver's trust-root rule), the cache without any
@@ -21,7 +21,7 @@ if (!nodeSupported(process.versions.node)) {
     const { enableCompileCache } = await import('node:module'), env = process.env;
     if (!env.NODE_COMPILE_CACHE && typeof enableCompileCache === 'function') {
       const fs = await import('node:fs'), { join, isAbsolute } = await import('node:path'), { homedir } = await import('node:os');
-      const base = env.CLAUDE_PLUGIN_DATA && isAbsolute(env.CLAUDE_PLUGIN_DATA) ? env.CLAUDE_PLUGIN_DATA : join(homedir(), '.cache', 'project-brain');
+      const base = env.CLAUDE_PLUGIN_DATA && isAbsolute(env.CLAUDE_PLUGIN_DATA) ? env.CLAUDE_PLUGIN_DATA : join(homedir(), '.cache', 'plangraph');
       const dir = join(base, 'compile-cache');
       const owned = (p, forbidden) => {
         const st = fs.lstatSync(p);
