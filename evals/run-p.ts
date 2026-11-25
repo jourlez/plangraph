@@ -51,7 +51,7 @@ interface Opt { runs: number; j: number; budget: number | null; perRunUsd: numbe
 const here = import.meta.dirname;
 const root = path.resolve(here, '..');
 const MAX = 64 << 20;
-export const SCHEMA_P = 'brain-eval-p/1';
+export const SCHEMA_P = 'plangraph-eval-p/1';
 export const THRESHOLD = 0.8;
 export const TOOLS = ['Read', 'Grep', 'Glob', 'Bash', 'Skill', 'Edit', 'Write'];
 // The same grant in both arms. Bash: the plugin CLI plus the read-style commands an agent uses on a repository (python3/node so arm B
@@ -190,7 +190,7 @@ function runClaude(bin: string, args: string[], { cwd, prompt, env, timeoutS, tr
 
 async function runJob(job: Job, S: SuiteCtx): Promise<Rec> {
   const { c, style, arm, run } = job;
-  const ws = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-p-ws-')));
+  const ws = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-p-ws-')));
   if (inside(ws, root)) throw new Error('refusing a workspace inside the repository');
   const tracePath = path.join(S.suite, 'traces', `${job.key}.jsonl`);
   const t0 = Date.now();
@@ -264,7 +264,7 @@ function resolveClaude(o: Args): string {
   return bin;
 }
 function newSuite(o: Args): string {
-  if (o.out === undefined) return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-p-')));
+  if (o.out === undefined) return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-p-')));
   const abs = path.resolve(o.out);
   let real = abs; try { real = fs.realpathSync(abs); } catch { /* not yet there */ }
   if (inside(real, fs.realpathSync(root)) || inside(abs, root)) usage('--out must be outside this repository');
@@ -284,7 +284,7 @@ async function probe(o: Args, opt: Opt): Promise<number> {
   let spent = 0;
   for (const arm of ARMS) {
     if (!mayLaunch({ spent, inflight: 0, reserve: c.limits.max_usd, cap: opt.budget as number })) throw new CapHit('the cap does not cover the probe'); // as number: a paid mode has --max-cost-usd (checked in main)
-    const ws = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-p-ws-')));
+    const ws = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-p-ws-')));
     scaffold(ws, c, { suite });
     const tracePath = path.join(suite, 'traces', `probe-${arm}.jsonl`);
     await runClaude(opt.claude, claudeArgs({ arm, model: opt.model, budget: c.limits.max_usd, pluginDir: path.join(suite, 'plugin') }), { cwd: ws, prompt, env: childEnv(), timeoutS: 120, tracePath });

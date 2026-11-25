@@ -88,7 +88,7 @@ const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAU
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
 const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-find-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-find-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });

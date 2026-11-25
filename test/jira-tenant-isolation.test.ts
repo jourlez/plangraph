@@ -19,7 +19,7 @@ const EVIL = 'https://evil.atlassian.net';
 
 /** A fresh user-level config dir; `obj` is written as its jira-sites.json when given. */
 function cfgEnv(obj?: unknown): Record<string, string> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-iso-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-iso-'));
   if (obj !== undefined) fs.writeFileSync(path.join(dir, 'jira-sites.json'), JSON.stringify(obj));
   return { PLANGRAPH_CONFIG_DIR: dir };
 }
@@ -157,7 +157,7 @@ test('a user projects entry with only base_url (scoped by default) gets a messag
 });
 
 test('brain jira-pull with no tenant configured runs no credential helper (a recording `op` and `security` on PATH stay unused)', () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-iso-cli-'))), bin = path.join(root, 'fakebin'), log = path.join(root, 'helper.log');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-iso-cli-'))), bin = path.join(root, 'fakebin'), log = path.join(root, 'helper.log');
   fs.mkdirSync(bin);
   for (const h of ['op', 'security', 'secret-tool']) { fs.writeFileSync(path.join(bin, h), `#!/bin/sh\necho "${h} $*" >> '${log}'\nexit 1\n`); fs.chmodSync(path.join(bin, h), 0o755); }
   const env = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: root, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.data'), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', JIRA_EMAIL: 'me@example.invalid', JIRA_OP_REF: 'op://Private/jira/generic', JIRA_API_TOKEN: '', ...cfgEnv() };

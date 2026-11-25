@@ -83,7 +83,7 @@ const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain'), made: string
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 function brainRepo(tickets: Ticket[], edges: Edge[], schedule: ScheduleRow[], config: PlanConfig) {
-  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-frozen-'))); made.push(base);
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-frozen-'))); made.push(base);
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(base, d));
   const repo = path.join(base, 'repo'), env = { PATH: process.env.PATH, HOME: path.join(base, 'home'), CLAUDE_PLUGIN_DATA: path.join(base, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: base, ...GIT };
   const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: repo, env, encoding: 'utf8', timeout: 60000 });

@@ -19,7 +19,7 @@ const ROOT = path.join(import.meta.dirname, '..');
 const MIN = { lib: 21, 'lib/integrations': 3, src: 9, 'src/commands': 10, mcp: 1, scripts: 6, evals: 13, testTop: 121, assure: 25, helpers: 4, tscListed: 209 };
 // a nested `node --test` must not inherit the parent runner's reporter channel
 const { NODE_TEST_CONTEXT: _ctx, ...CLEAN_ENV } = process.env;
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'brain-enum-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-enum-'));
 const rm = (d: string) => fs.rmSync(d, { recursive: true, force: true });
 const SRC = /\.(mjs|ts)$|^src\/floor\.js$/;
 const countIn = (dir: string) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).filter((e) => e.isFile() && SRC.test(`${dir}/${e.name}`)).length;

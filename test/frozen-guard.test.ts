@@ -25,7 +25,7 @@ const file = (over: Record<string, [string, number] | null>) => {
 };
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fguard-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fguard-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });

@@ -67,7 +67,7 @@ test('compare --only-common ignores ids present on one side and prints new: N', 
 });
 
 test('the matrix covers every command that brain explain lists', () => {
-  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-baseline-data-')); // private data dir: the compile cache never goes to the real HOME
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-baseline-data-')); // private data dir: the compile cache never goes to the real HOME
   const r = spawnSync(process.execPath, [path.join(ROOT, 'bin/brain'), 'explain', '--json'], { encoding: 'utf8', cwd: os.tmpdir(), env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
   fs.rmSync(data, { recursive: true, force: true });
   const names = JSON.parse(r.stdout).data.commands.map((c: { name: string }) => c.name);

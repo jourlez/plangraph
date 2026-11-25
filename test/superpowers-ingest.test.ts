@@ -31,7 +31,7 @@ const ingest = (planText = PLAN, ledgerText: string | null = LEDGER, existing: P
 const asExisting = (r: SpRecords) => ({ tickets: r.tickets, edges: r.edges, findings: r.findings, refs: r.refs, schedule: r.schedule });
 
 // ---------- temp repo + CLI helpers ----------
-const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sp-')));
+const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sp-')));
 // a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = tmp();
 process.on('exit', () => fs.rmSync(DATA, { recursive: true, force: true }));

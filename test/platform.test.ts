@@ -39,9 +39,9 @@ test('node:sqlite is loaded in exactly one place, with no warning shim', () => {
 
 // ---- hardening helpers ----
 function repo() {
-  const tmp = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'brain-plat-'));
+  const tmp = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'plangraph-plat-'));
   // a private plugin data directory inside the temp repo's .git: the compile cache and the merge-driver shim never go to the real HOME
-  const run = (...a: string[]) => spawnSync('node', [BRAIN, ...a], { cwd: tmp.path, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(tmp.path, '.git', 'brain-data') } });
+  const run = (...a: string[]) => spawnSync('node', [BRAIN, ...a], { cwd: tmp.path, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(tmp.path, '.git', 'plangraph-data') } });
   spawnSync('git', ['init', '-q'], { cwd: tmp.path });
   assert.equal(run('init').status, 0);
   return { tmp, dir: path.join(tmp.path, '.plangraph'), run, [Symbol.dispose]() { tmp[Symbol.dispose](); } };
@@ -64,7 +64,7 @@ test('(1) rules TOPIC prints learnings text inside one untrusted fence, unforgea
 
 test('(2) build refuses a symlinked or non-regular source file (exit 2, base name only, nothing written)', () => {
   using r = repo();
-  using outside = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'brain-out-'));
+  using outside = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'plangraph-out-'));
   const secret = path.join(outside.path, 'secret.jsonl');
   fs.writeFileSync(secret, '');
   fs.rmSync(path.join(r.dir, 'findings.jsonl'), { force: true });
@@ -85,7 +85,7 @@ test('(3) loadModel reads config.json capped and refuses a symlink', () => {
   fs.writeFileSync(cfg, JSON.stringify({ pad: 'x'.repeat(70 * 1024) }));
   assert.throws(() => loadModel(r.dir), (e: Error & { code?: string }) => e.code === 'TOO_LARGE' && !e.message.includes(r.dir));
   fs.rmSync(cfg);
-  using outside = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'brain-out-'));
+  using outside = fs.mkdtempDisposableSync(path.join(os.tmpdir(), 'plangraph-out-'));
   fs.writeFileSync(path.join(outside.path, 'c.json'), '{}');
   fs.symlinkSync(path.join(outside.path, 'c.json'), cfg);
   assert.throws(() => loadModel(r.dir), (e: Error) => /config\.json: is a symlink/.test(e.message) && !e.message.includes(outside.path));

@@ -20,7 +20,7 @@ import { BrainError } from '../src/errors.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-sidecar-')); tmps.push(d); return d; };
+const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sidecar-')); tmps.push(d); return d; };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const run = (cwd: string, args: string[], env = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 const SIDE = ['-journal', '-wal', '-shm'];

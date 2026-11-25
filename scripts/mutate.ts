@@ -111,7 +111,7 @@ const runTests = (cwd: string, files: string[]) => new Promise<number | null>((r
   c.on('close', (code) => resolve(code));
 });
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-mutate-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mutate-'));
 const copies = Array.from({ length: Math.min(jobs, MUTATIONS.length) }, (_, k) => path.join(tmp, `repo-${k}`));
 try {
   for (const work of copies) fs.cpSync(ROOT, work, { recursive: true, filter: (s) => !/(^|\/)(\.git|node_modules)(\/|$)/.test(path.relative(ROOT, s)) });

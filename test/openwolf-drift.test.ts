@@ -14,7 +14,7 @@ import { statusBrainLine, parseCerebrum, renderRepoRules, repoRuleList, handleOf
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), FIX = path.join(HERE, 'fixtures/openwolf');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
 const tmps: string[] = []; after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-owd-'))); tmps.push(d); return d; };
+const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-owd-'))); tmps.push(d); return d; };
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: path.join(cwd, '.home'), CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } });
 const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {

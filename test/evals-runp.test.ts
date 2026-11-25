@@ -212,7 +212,7 @@ test('report over run-p results: natural is the headline block, plugin use is sh
     rec(pick[0], 'layout-told', 'with', 1, { used: true }), rec(pick[0], 'layout-told', 'without', 1),
   ];
   fs.mkdirSync(path.join(suite, 'results'));
-  fs.writeFileSync(path.join(suite, 'results', 'run-p.json'), JSON.stringify({ schema: 'brain-eval-p/1', records }));
+  fs.writeFileSync(path.join(suite, 'results', 'run-p.json'), JSON.stringify({ schema: 'plangraph-eval-p/1', records }));
   const s = summarize(suite);
   assert.deepEqual(s.styles.map((b) => b.style), ['natural', 'layout-told']);
   assert.equal(s.overall.A.n, 2, 'top-level numbers are the natural block');

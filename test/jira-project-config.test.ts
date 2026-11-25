@@ -8,7 +8,7 @@ import type { JiraSettings } from '../src/jira-tenant.ts';
 import { parseSiteRegistry } from '../lib/jira.ts';
 
 function envWith(obj: unknown): Record<string, string> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-cfg-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-cfg-'));
   fs.writeFileSync(path.join(dir, 'jira-sites.json'), JSON.stringify(obj));
   return { PLANGRAPH_CONFIG_DIR: dir };
 }

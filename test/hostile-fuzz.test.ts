@@ -97,7 +97,7 @@ async function makeFixture(root: string) {
 }
 
 before(async () => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-hostile-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-hostile-')));
   HOME = path.join(BASE, 'home'); fs.mkdirSync(path.join(HOME, 'data'), { recursive: true });
   PATHDIR = path.join(BASE, 'bin'); fs.mkdirSync(PATHDIR);
   fs.symlinkSync(process.execPath, path.join(PATHDIR, 'node'));

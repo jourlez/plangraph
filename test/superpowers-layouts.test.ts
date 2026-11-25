@@ -16,7 +16,7 @@ import { findLedgers, parseLedger, ledgerLayoutOf, SP_LAYOUTS } from '../lib/int
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/brain'), FIX = path.join(HERE, 'fixtures/superpowers');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
 const tmps: string[] = []; after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-spl-'))); tmps.push(d); return d; };
+const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-spl-'))); tmps.push(d); return d; };
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const PLAN_REL = 'docs/superpowers/plans/2026-11-20-widget-export.md', SLUG = '2026-11-20-widget-export';
 const ID = (p: string) => `# SDD ledger — plan: ${p}\n`;

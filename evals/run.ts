@@ -172,7 +172,7 @@ async function main(argv: string[]): Promise<number> {
     if (inside(real, fs.realpathSync(root)) || inside(abs, root)) usage('--out must be outside this repository');
     if (fs.existsSync(real) && fs.readdirSync(real).length) usage('--out must be empty');
     suite = real;
-  } else suite = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-eval-')));
+  } else suite = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-eval-')));
   const src = await sourceCases(opt);
   const cases = src.cases;
   const passes = passesFor(cases, opt);

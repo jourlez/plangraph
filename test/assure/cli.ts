@@ -19,5 +19,5 @@ export async function run(root: string, argv: string[]): Promise<{ code: number;
   const code = await main(argv, { io: { out: (s: string) => out.push(s), err: (s: string) => err.push(s) }, env: { PATH: process.env.PATH, HOME: root, SOURCE_DATE_EPOCH: '1' }, cwd: root });
   return { code, out: out.join('\n'), err: err.join('\n') };
 }
-export const tmpBase = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'brain-assure-'));
+export const tmpBase = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-assure-'));
 export const rmBase = (b: string): void => fs.rmSync(b, { recursive: true, force: true });

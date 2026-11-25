@@ -15,7 +15,7 @@ const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '
 const tk = (key: string, sp = 1) => ({ key, summary: `s ${key}`, epic: 'E', sp, verdict: 'READY' });
 const at = (key: string, owner: string, sprint: number) => ({ version: 'current', key, owner, sprint });
 function plan(tickets: object[], schedule: object[]) {
-  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-unpl-'))); made.push(base);
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-unpl-'))); made.push(base);
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(base, d));
   const repo = path.join(base, 'repo'), env = { PATH: process.env.PATH, HOME: path.join(base, 'home'), CLAUDE_PLUGIN_DATA: path.join(base, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: base, ...GIT };
   const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: repo, env, encoding: 'utf8', timeout: 60000 });

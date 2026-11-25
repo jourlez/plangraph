@@ -20,7 +20,7 @@ const MOD = path.join(HERE, '../lib/integrations/openwolf.ts');
 const fx = (n: string) => fs.readFileSync(path.join(FIX, n), 'utf8');
 const temps: string[] = [];
 after(() => { for (const d of temps) fs.rmSync(d, { recursive: true, force: true }); });
-const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-wolf-'))); temps.push(d); return d; };
+const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-wolf-'))); temps.push(d); return d; };
 // a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = tmp();
 const put = (root: string, rel: string, text: string | Uint8Array) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };

@@ -212,7 +212,7 @@ test('README and CHANGELOG hard-code no test-count claim', () => {
 });
 
 test('docs/TOKENS.md measured block equals the benchmark output (node test/bench-tokens.ts --check)', () => {
-  const r = spawnSync(process.execPath, [path.join(root, 'test/bench-tokens.ts'), '--check', '--dir', fs.mkdtempSync(path.join(os.tmpdir(), 'brain-bench-check-'))], { encoding: 'utf8', timeout: 120000 });
+  const r = spawnSync(process.execPath, [path.join(root, 'test/bench-tokens.ts'), '--check', '--dir', fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-bench-check-'))], { encoding: 'utf8', timeout: 120000 });
   assert.equal(r.status, 0, `TOKENS.md drifted or an answer is wrong: run node test/bench-tokens.ts\n${r.stderr.slice(0, 500)}`);
 });
 

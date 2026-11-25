@@ -456,7 +456,7 @@ async function main(argv: string[]) {
   const map = testMap(ROOT, targets, tests);
   const fileHash = new Map(files.filter(isSource).map((f) => [f, sha(fs.readFileSync(path.join(ROOT, f), 'utf8'))]));
 
-  const base = o.state ? path.resolve(o.state) : path.join(os.tmpdir(), 'brain-mutate-all', sha(ROOT));
+  const base = o.state ? path.resolve(o.state) : path.join(os.tmpdir(), 'plangraph-mutate-all', sha(ROOT));
   fs.mkdirSync(base, { recursive: true });
   const progressFile = path.join(base, 'progress.json');
   /** @type {{ results: Record<string, Result>, baseline: Record<string, { hash: string, ok: boolean, ms: number }> }} */

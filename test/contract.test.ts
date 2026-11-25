@@ -25,7 +25,7 @@ interface Data { sprint: number; rows: Array<{ owner: string }>; over: unknown; 
 const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-contract-'))); tmps.push(d); return d; };
+const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-contract-'))); tmps.push(d); return d; };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const ENV = { PATH: process.env.PATH, LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, HOME: cwd, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data') }, timeout: 60000 });

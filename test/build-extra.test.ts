@@ -14,9 +14,9 @@ const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 // a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
-const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-extra-data-')); tmps.push(DATA);
+const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-data-')); tmps.push(DATA);
 function repo() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-extra-'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-'));
   tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   run(d, 'init');

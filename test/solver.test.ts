@@ -50,7 +50,7 @@ const HAVE_UV = has('uv', ['--version']);
 const HAVE_PY = has('python3', ['-c', 'import ortools']);
 const SKIP = HAVE_UV || HAVE_PY ? false : 'skipped: neither uv nor a python3 with ortools is available, solver tests cannot run';
 if (SKIP) console.log(SKIP);
-const tmpRoot = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'brain-solver-'));
+const tmpRoot = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'plangraph-solver-'));
 process.on('exit', () => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 spawnSync('git', ['init', '-q'], { cwd: tmpRoot });  // the solver confines paths to the git root of its cwd: run it from here
 let counter = 0;
@@ -187,7 +187,7 @@ test('stage_order: config order is honored in the meta stages; the default keeps
 
 test('stage_order: the default written by `brain init` keeps today\'s order (peak_load before owner_changes with balance_load)', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'init-')); spawnSync('git', ['init', '-q'], { cwd: repo });
-  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'brain-data') } }); // private data dir: never the real HOME
+  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'plangraph-data') } }); // private data dir: never the real HOME
   assert.equal(ir.status, 0, ir.stderr);
   const so = JSON.parse(fs.readFileSync(path.join(repo, '.plangraph', 'config.json'), 'utf8')).stage_order;
   assert.deepEqual(so, ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes']);

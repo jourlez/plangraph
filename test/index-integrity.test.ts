@@ -20,7 +20,7 @@ const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [BRAIN,
 
 // A repo whose eight index sources each hold at least one row, so every table can be tampered with.
 function repo() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-integrity-')); tmps.push(d);
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-integrity-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');
@@ -119,7 +119,7 @@ test('legitimate index writes re-stamp the digest: whatif --write, schedule-load
 test('cost: the digest of a 1,400-ticket index is computed in well under the open budget (full digest, no sampling)', async () => {
   const { budget } = await import('./helpers/perf.ts');
   const { contentDigest } = await import('../src/db.ts');
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-integrity-')); tmps.push(d);
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-integrity-')); tmps.push(d);
   const b = path.join(d, '.plangraph'); fs.mkdirSync(b);
   const t = [], sc = [], e = [];
   for (let i = 0; i < 1400; i++) {

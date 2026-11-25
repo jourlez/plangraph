@@ -23,7 +23,7 @@ import type { Ticket } from '../lib/model.ts';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const CALIBRATION = path.join(ROOT, 'test/token-calibration.json');
-const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'brain-bench'));
+const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'plangraph-bench'));
 const BRAIN = path.join(SCRATCH, 'brain');
 const lt = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 

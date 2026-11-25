@@ -28,7 +28,7 @@ const EDGES = [{ consumer: 'W-1', producer: 'R-1', kind: 'code' }, { consumer: '
 const CONFIG = { closed_statuses: ['Done', 'Closed'] };
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-ready-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-ready-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });

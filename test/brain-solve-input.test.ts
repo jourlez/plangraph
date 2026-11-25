@@ -47,7 +47,7 @@ const py = (cwd: string, body: string, ...args: string[]) => {
 function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-solve-in-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
-  const env = { ...process.env, CLAUDE_PLUGIN_DATA: path.join(d, '.git', 'brain-data') }; // private data dir: never the real HOME
+  const env = { ...process.env, CLAUDE_PLUGIN_DATA: path.join(d, '.git', 'plangraph-data') }; // private data dir: never the real HOME
   assert.equal(spawnSync(process.execPath, [BRAIN, 'init'], { cwd: d, encoding: 'utf8', env }).status, 0);
   const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'one', sp: 1.5, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two x', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));

@@ -40,7 +40,7 @@ const DRY = '(dry run, nothing changed: to apply, the owner runs each command ab
 const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-relieve-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-relieve-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });

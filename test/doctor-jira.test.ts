@@ -11,7 +11,7 @@ function run(dir: string, env: Record<string, string>, args: string[]) {
   return spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env: clean, encoding: 'utf8' });
 }
 function repo() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-doctor-jira-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-doctor-jira-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   assert.equal(run(dir, {}, ['init']).status, 0);
   return dir;

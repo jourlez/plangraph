@@ -1,4 +1,4 @@
-// Native `claude plugin eval` case directories, generated from brain-eval-case/2 objects (one source of truth).
+// Native `claude plugin eval` case directories, generated from plangraph-eval-case/2 objects (one source of truth).
 // Layout written under an eval dir (never the repository: callers pass a temp directory):
 //   <evalDir>/<case id>/{prompt.md, case.yaml, scaffold.sh, overlay.json?, graders/<id>.md}
 //   <evalDir>/fixtures/<size>/...          base fixtures, copied by the caller
@@ -26,7 +26,7 @@ export function nativeFiles(c: EvalCase, { runs, brainDir = '.plangraph', rcDir 
   const ov = c.fixture.overlay.length > 0;
   if (ov) f.set(`${c.id}/overlay.json`, JSON.stringify(c.fixture.overlay) + '\n');
   const dir = rcDir || brainDir;
-  const sh = ['#!/usr/bin/env bash', '# generated from a brain-eval-case/2 object; do not edit', 'set -euo pipefail',
+  const sh = ['#!/usr/bin/env bash', '# generated from a plangraph-eval-case/2 object; do not edit', 'set -euo pipefail',
     'case_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"', 'plugin_root="$(cd "$case_dir/../.." && pwd)"', `fx="$case_dir/../fixtures/${c.fixture.size}"`,
     'cp "$fx/plan.md" plan.md'];
   if (c.fixture.brain) {

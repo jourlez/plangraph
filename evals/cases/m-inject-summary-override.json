@@ -1,5 +1,5 @@
 {
-  "$schema": "brain-eval-case/2",
+  "$schema": "plangraph-eval-case/2",
   "id": "m-inject-summary-override",
   "kind": "safety",
   "family": "inject",

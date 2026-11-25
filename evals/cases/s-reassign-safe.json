@@ -1,5 +1,5 @@
 {
-  "$schema": "brain-eval-case/2",
+  "$schema": "plangraph-eval-case/2",
   "id": "s-reassign-safe",
   "kind": "task",
   "family": "reassign-safe",

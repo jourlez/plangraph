@@ -17,7 +17,7 @@ const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null',
 const run = (cwd: string, args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 /** A git repo with `brain init` run (data, no index). */
 function repo() {
-  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fu-'))); tmps.push(d);
+  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   return d;
@@ -45,7 +45,7 @@ test('legacy format v0 (no format.json) and no index: the migrate line, naming t
 });
 
 test('no brain at all, or a brain dir with no data files: silent', () => {
-  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fu-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
+  const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
   silent(run(d, HOOK), 'no brain'); silent(run(d, HEAL), 'no brain heal');
   fs.mkdirSync(path.join(d, '.plangraph')); silent(run(d, HOOK), 'empty brain dir');
   fs.writeFileSync(path.join(d, '.plangraph', 'notes.txt'), 'x'); silent(run(d, HOOK), 'unrelated file only');

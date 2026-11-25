@@ -26,7 +26,7 @@ function findBinary(): string | null {
 const bin = findBinary();
 test('claude plugin validate reports no error and only documented warnings', { skip: bin ? false : 'no Claude Code binary (set PLANGRAPH_CLAUDE_BIN to enable)' }, () => {
   // the binary's temp dir (TMPDIR) is inside our own temp dir, so whatever it leaves there (mode-000 dirs included) is removed with it
-  const t = sealedTmp('brain-validate-'), home = path.join(t.dir, 'home');
+  const t = sealedTmp('plangraph-validate-'), home = path.join(t.dir, 'home');
   fs.mkdirSync(home);
   try {
     const r = spawnSync(bin as string, ['plugin', 'validate', root], { encoding: 'utf8', env: { ...process.env, HOME: home, CLAUDE_CONFIG_DIR: home, TMPDIR: t.tmpdir, CLAUDE_CODE_TMPDIR: t.tmpdir }, timeout: 60000 });

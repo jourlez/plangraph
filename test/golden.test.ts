@@ -53,7 +53,7 @@ function makeFixture(root: string): void {
 }
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-golden-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-golden-')));
   HOME = path.join(BASE, 'home'); DATA = path.join(BASE, 'data'); fs.mkdirSync(HOME); fs.mkdirSync(DATA);
   // a private PATH holding only node and git, so doctor's probes (uv, python, ...) do not depend on the host
   PATHDIR = path.join(BASE, 'bin'); fs.mkdirSync(PATHDIR);

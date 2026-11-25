@@ -47,7 +47,7 @@ test('floorTry is a plain-text try line naming the floor', () => {
 });
 
 test('bin/brain on a pretended old Node: exit 3 with one line; silent exit 0 with --if-present (the session hook)', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-floor-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-floor-'));
   try {
     const old = 'data:text/javascript,Object.defineProperty(process.versions,"node",{value:"24.1.0"});Object.defineProperty(process,"version",{value:"v24.1.0"})';
     const run = (...a: string[]) => spawnSync(process.execPath, ['--import', old, path.join(root, 'bin/brain'), ...a], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '' } });
@@ -70,7 +70,7 @@ test('src/floor.js is plain JavaScript: stripping types leaves it byte for byte 
   assert.equal(r.status, 0, `src/floor.js changes when types are stripped: it contains TypeScript syntax\n${r.stderr}`);
   assert.equal(r.stderr, '');
   // the check itself bites: a file with an annotation differs after stripping
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-floor-ts-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-floor-ts-'));
   try {
     const typed = path.join(dir, 'typed.js');
     fs.writeFileSync(typed, 'export const f = (v: unknown): string => String(v);\n');

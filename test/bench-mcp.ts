@@ -17,7 +17,7 @@ import { createServer, serve, TOOLS } from '../src/mcp.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const argv = process.argv.slice(2);
-const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'brain-bench-mcp'));
+const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'plangraph-bench-mcp'));
 const bytes = (s: string) => Buffer.byteLength(s, 'utf8');
 
 const gen = spawnSync(process.execPath, [path.join(ROOT, 'test/bench-tokens.ts'), '--dir', SCRATCH, '--no-write'], { encoding: 'utf8', timeout: 300000 });

@@ -25,7 +25,7 @@ const run = (cwd: string, args: string[]): Promise<{ status: number | null; stdo
 });
 
 before(async () => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-jsonenv-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-jsonenv-')));
   for (const d of ['home', 'data']) fs.mkdirSync(path.join(BASE, d));
   FIXTURE = path.join(BASE, 'fixture'); fs.mkdirSync(FIXTURE);
   const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: 'ignore' });

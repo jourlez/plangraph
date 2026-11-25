@@ -18,13 +18,13 @@ const PLAN = ['# Demo Gadget Plan', '', '**Goal:** Ship a demo gadget.', '',
   ...Object.entries(POINTS).flatMap(([n, p]) => [`### Task ${n}: Part ${n}`, '', `Points: ${p}`, '', `Build part ${n}.`, ''])].join('\n');
 
 function ingested() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-spsolve-')));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-spsolve-')));
   process.on('exit', () => fs.rmSync(root, { recursive: true, force: true }));
   execFileSync('git', ['init', '-q'], { cwd: root });
   const rel = 'docs/superpowers/plans/demo.md';
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), PLAN);
   // a private plugin data directory under the temp root: the compile cache and the merge-driver shim never go to the real HOME
-  const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'brain-data') } });
+  const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'plangraph-data') } });
   let r = brain('init'); assert.equal(r.status, 0, r.stderr);
   r = brain('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
   const tickets = fs.readFileSync(path.join(root, '.plangraph', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));

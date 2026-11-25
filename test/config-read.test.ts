@@ -19,7 +19,7 @@ const run = (cwd: string, ...a: string[]) => spawnSync(process.execPath, [BRAIN,
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-cfg-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-cfg-')));
   HOME = path.join(BASE, 'home'); DATA = path.join(BASE, 'data'); OUTSIDE = path.join(BASE, 'outside');
   for (const d of [HOME, DATA, OUTSIDE]) fs.mkdirSync(d);
   fs.writeFileSync(path.join(OUTSIDE, 'secret.json'), '{"first_sprint": 1, "SECRET": "s3cr3t"}');

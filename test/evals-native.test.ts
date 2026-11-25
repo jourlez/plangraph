@@ -16,7 +16,7 @@ import { sealedTmp } from './helpers/sealed-tmp.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const cases = loadCases();
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-native-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-native-')));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 function findBinary() {
@@ -55,7 +55,7 @@ test('validateCase rejects a grader weight below 1', () => {
 });
 
 test('sealedTmp removes a mode-000 work dir it created and never follows a symlink out of it', () => {
-  const t = sealedTmp('brain-sealtest-'), outside = sealedTmp('brain-sealout-');
+  const t = sealedTmp('plangraph-sealtest-'), outside = sealedTmp('plangraph-sealout-');
   try {
     const keep = path.join(outside.dir, 'keep.txt'); fs.writeFileSync(keep, 'x');
     const work = path.join(t.tmpdir, 'e-abc123'), sealed = path.join(work, 'sealed');

@@ -1,5 +1,5 @@
 {
-  "$schema": "brain-eval-case/2",
+  "$schema": "plangraph-eval-case/2",
   "id": "m-overload-peak",
   "kind": "task",
   "family": "overload-peak",

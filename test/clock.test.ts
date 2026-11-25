@@ -15,7 +15,7 @@ const ENV = (epoch?: number) => ({ PATH: process.env.PATH, HOME: os.tmpdir(), LC
 const brain = (cwd: string, epoch: number | undefined, ...a: string[]) => { const r = spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: ENV(epoch), encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
 
 function repo(epoch: number) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-clock-')));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-clock-')));
   execFileSync('git', ['init', '-q'], { cwd: root, env: ENV() });
   brain(root, epoch, 'init'); brain(root, epoch, 'build');
   brain(root, epoch, 'open-items', '--register', 'T-1', 'followup', '--owner', 'Ana', '--text', 'x', '--write');

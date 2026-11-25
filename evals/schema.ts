@@ -1,4 +1,4 @@
-// Schema and offline graders for the eval cases (brain-eval-case/2). Pure functions: no I/O, no model calls, no clock.
+// Schema and offline graders for the eval cases (plangraph-eval-case/2). Pure functions: no I/O, no model calls, no clock.
 // A case is one JSON object; the same object generates the native `claude plugin eval` case directory (evals/native.ts), so there is
 // one source of truth. Grader types mirror the native ones verified in Claude Code 2.1.329 (regex with target last_message | trace |
 // files | {source: file, path} and match contains | not_contains | count:N; tool_used; file_exists; llm). `role` is ours (not emitted):
@@ -33,7 +33,7 @@ export interface RunInput { message?: string; calls?: Array<{ tool: string; inpu
 export interface GradeOptions { arm?: string; ablation?: string; matchers?: Record<string, (input: string) => boolean> }
 export interface GradeResult { results: Array<{ id: string; role: string; weight: number; pass: boolean | null; scored: boolean }>; score: number; failed: string[] }
 
-export const SCHEMA = 'brain-eval-case/2';
+export const SCHEMA = 'plangraph-eval-case/2';
 // `unknown[]` on the lists that untrusted values are looked up in: includes() compares by identity, any value is safe
 export const KINDS: unknown[] = ['task', 'control', 'safety', 'trigger'];
 export const SIZES: unknown[] = ['S', 'M', 'L', 'R'];

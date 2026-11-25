@@ -82,12 +82,12 @@ export function prepareReal({ from, deps }: { from?: string | undefined; deps?: 
   const cases = [...f.cases, ...s.cases];
   for (const c of cases) { const e = validateCase(c); if (e.length) throw new Error(`generator invariant: case ${c.id} invalid: ${e.join('; ')}`); }
   const fixture = { ...files, 'format.json': '{"format_version":1,"min_reader":1}\n', 'plan.md': st ? st.planText : '# Plan\n' };
-  const manifest = { schema: 'brain-real-eval/1', cases: cases.length, families: [...new Set(cases.map((c) => c.family))].length, skipped: [...f.skipped, ...s.skipped], tickets: m0.tickets.size, people: new Set([...m0.sched.values()].map((x) => x.owner)).size };
+  const manifest = { schema: 'plangraph-real-eval/1', cases: cases.length, families: [...new Set(cases.map((c) => c.family))].length, skipped: [...f.skipped, ...s.skipped], tickets: m0.tickets.size, people: new Set([...m0.sched.values()].map((x) => x.owner)).size };
   return { dir, cases, fixture, manifest };
 }
 
 export function generateReal({ from, out, runs = 3, verify = false, deps, filter = null }: { from?: string | undefined; out?: string | undefined; runs?: number; verify?: boolean; deps?: Deps | undefined; filter?: ((cs: EvalCase[]) => EvalCase[]) | null } = {}) {
-  const o = out ? checkOut(out, { from: from as string }) : fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-real-eval-'))); // as string: a missing `from` fails inside checkOut as before (prepareReal refuses it)
+  const o = out ? checkOut(out, { from: from as string }) : fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-real-eval-'))); // as string: a missing `from` fails inside checkOut as before (prepareReal refuses it)
   const r = prepareReal({ from, deps });
   const cases = filter ? filter(r.cases) : r.cases;
   fs.mkdirSync(o, { recursive: true, mode: 0o700 });

@@ -5,7 +5,7 @@ import { parseJsonlText, readRecords } from '../lib/store.ts'; import { parseIte
 /** What a failed parse throws (an IngestError), as these tests read it. */
 type Thrown = { message: string; total: number; errors: Error[] };
 const dirs: string[] = [];
-const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-schema-')); dirs.push(d); return d; };
+const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-schema-')); dirs.push(d); return d; };
 after(() => { for (const d of dirs) fs.rmSync(d, { recursive: true, force: true }); });
 
 test('errors carry file:line and never echo file content', () => {

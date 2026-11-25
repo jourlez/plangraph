@@ -100,7 +100,7 @@ test('the Node and Claude Code minimums equal package.json and plugin.json', () 
 });
 
 test('the exit-code line is the one brain explain prints, and the table has one row per code', () => {
-  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-readme-data-')); // private data dir: the compile cache never goes to the real HOME
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-readme-data-')); // private data dir: the compile cache never goes to the real HOME
   const r = spawnSync(process.execPath, [path.join(root, 'bin/brain'), 'explain'], { encoding: 'utf8', cwd: root, env: { ...process.env, CLAUDE_PLUGIN_DATA: data } });
   fs.rmSync(data, { recursive: true, force: true });
   assert.equal(r.status, 0, r.stderr);

@@ -22,7 +22,7 @@ const env = () => ({ ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home
 const run = (args: string[], nodeArgs: string[] = []) => spawnSync(process.execPath, [...nodeArgs, path.join(plugin, 'bin', 'brain'), ...args], { cwd: work, encoding: 'utf8', env: env() });
 
 before(() => {
-  base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-install-')));
+  base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-install-')));
   plugin = path.join(base, 'with space é', 'plangraph', '0.0.0');
   const files = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter((f) => f && !SKIP_DIRS.test(f) && fs.existsSync(path.join(ROOT, f)));
   for (const f of files) {

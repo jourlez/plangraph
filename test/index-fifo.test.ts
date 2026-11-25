@@ -26,7 +26,7 @@ const run = (cwd: string, args: string[]) => {
 };
 
 function repo() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fifo-')); tmps.push(d);
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fifo-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');

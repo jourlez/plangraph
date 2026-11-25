@@ -31,7 +31,7 @@ const FINDINGS = [{ key: 'A-5', kind: 'gap', text: 'missing acceptance' }];
 const FRESH = '(statuses as of the last build: pass --jira snapshot.json for live ones)';
 
 before(() => {
-  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-ready-bulk-')));
+  BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-ready-bulk-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });

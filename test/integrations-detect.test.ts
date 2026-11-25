@@ -8,7 +8,7 @@ import { detectTools, CONNECTOR_HINTS } from '../lib/integrations/detect.ts';
 import type { DetectedTool, DetectResult } from '../lib/integrations/detect.ts';
 
 // All fixtures are synthetic: invented plugin names, temp project and fake HOME, never the real home directory.
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'brain-int-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-int-'));
 const write = (f: string, text: unknown) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, typeof text === 'string' ? text : JSON.stringify(text)); };
 function world() { const base = tmp(), root = path.join(base, 'proj'), home = path.join(base, 'home'); fs.mkdirSync(root); fs.mkdirSync(home); return { root, home }; }
 const registry = (home: string, plugins: unknown) => write(path.join(home, '.claude/plugins/installed_plugins.json'), { version: 2, plugins });

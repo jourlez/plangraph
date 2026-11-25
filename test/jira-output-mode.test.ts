@@ -12,7 +12,7 @@ const run = (dir: string, args: string[]) => spawnSync(process.execPath, [BIN, .
 const modeOf = (f: string) => fs.statSync(f).mode & 0o777;
 
 test('jira-text and jira-import write their outputs 0600; init writes config.json 0644', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-jira-mode-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-jira-mode-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   assert.equal(run(dir, ['init']).status, 0);
   assert.equal(modeOf(path.join(dir, '.plangraph', 'config.json')), 0o644 & ~process.umask()); // init writes through writeState (the same helper, default mode)

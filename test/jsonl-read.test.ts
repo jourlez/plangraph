@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { readCapped, readJsonl } from '../lib/jsonl.ts';
 
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'brain-read-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-read-'));
 const code = (c: string) => (e: unknown) => e instanceof Error && (e as NodeJS.ErrnoException).code === c; // an Error thrown by the reader carries its code
 
 test('readCapped reads a normal file whole', () => {
