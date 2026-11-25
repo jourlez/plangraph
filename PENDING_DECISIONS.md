@@ -4,6 +4,8 @@ Decisions the owner has to make before or during the zero-gaps work (plan `docs/
 
 Rule (the same as the plans' Global Constraints and Definition of done): the plan executes the recommendation unless the owner has overruled it before the dependent task starts (a decision without a recommendation, such as D14, blocks its step until the owner answers), and every dependent task records `Decision Dn: <answer used>` in its commit body. When the owner decides, move the entry to "Decided" with the date and the answer; an overruling answer changes the named tasks before they start. The plan's controller owns this file and moves each entry when its dependent task merges; the 0.3.0 release keeps under "Open" only the graph-plan decisions (D7, D10, D18), and the 0.4.0 release moves those.
 
+> 2026-11-25: decisions D1 to D24 are re-answered in `docs/superpowers/plans/2026-11-25-plangraph-0.3.0-revised.md` section 2, which wins over every entry below (D15 and D17 done by history rewrite; D14 dropped; D1, D2, D5, D21 deferred; D19 changed; D23 and D24 added).
+
 ## Open
 
 ### D1: Adopt the Biome formatter and import organization
