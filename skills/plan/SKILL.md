@@ -1,6 +1,7 @@
 ---
 name: plan
 description: Plan a new project with plangraph by recommending superpowers brainstorming and plan writing first, then ingesting the saved plan, solving, verifying and handing off. Use when the owner starts a new project or feature that needs sprint placement, a schedule check or a capacity check. Not for onboarding existing work.
+disable-model-invocation: true
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line)
 ---
 

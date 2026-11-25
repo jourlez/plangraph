@@ -4,6 +4,10 @@
 
 Use GitHub private vulnerability reporting: open the repository's Security tab, choose Report a vulnerability, and describe the issue there. It is private to the maintainer until an advisory is published. This channel must be enabled in the repository settings (Settings, Code security, Private vulnerability reporting); if the button is missing, it is not enabled yet. Please do not put exploit details in a public issue.
 
+## Response
+
+Best effort, single maintainer, no response-time promise: report privately through GitHub private vulnerability reporting (above), not in a public issue.
+
 ## Supported versions
 
 Only the latest release receives fixes. The package is distributed through git (a Claude Code marketplace) and is marked `private` in `package.json` so it cannot be published to npm by accident. Dependabot opens weekly update pull requests for the dev-only tools and the GitHub Actions.

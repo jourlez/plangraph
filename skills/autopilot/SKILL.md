@@ -1,6 +1,7 @@
 ---
 name: autopilot
 description: Plan and document a whole project end to end without asking questions, from a specification for a new project or from an existing repository and Jira that already hold open work, covering roadmap docs, tickets, dependency links, sprint schedule, Jira creation or reconciliation, verification and handoff. Use when the owner hands over a specification, asks to plan or take over a project, set up its Jira and roadmap, or says to run the autopilot. Not for writing product code.
+disable-model-invocation: true
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line), mcp__*Atlassian*__getJiraIssue, mcp__*Atlassian*__searchJiraIssuesUsingJql
 ---
 
