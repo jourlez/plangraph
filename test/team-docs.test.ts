@@ -76,6 +76,8 @@ test('dependabot: labels, @types/node major ignore, grouped updates', () => {
 
 test('skills that write to Jira, plan data or the schedule are not model-invocable; read-only skills are', () => {
   const flag = (n: string): boolean => /^disable-model-invocation: true$/m.test((/^---\n([\s\S]*?)\n---/.exec(read(`skills/${n}/SKILL.md`)) as RegExpExecArray)[1] as string);
-  for (const n of ['autopilot', 'onboard', 'plan', 'audit', 'init']) assert.ok(flag(n), `skills/${n} must set disable-model-invocation: true`);
+  for (const n of ['autopilot', 'audit', 'init']) assert.ok(flag(n), `skills/${n} must set disable-model-invocation: true`);
+  // plan and onboard only write local plan files that git can revert, so the model may offer them
+  for (const n of ['onboard', 'plan', 'plangraph', 'report', 'whatif']) assert.ok(!flag(n), `skills/${n} stays model-invocable`);
   for (const n of ['plangraph', 'report', 'whatif']) assert.ok(!flag(n), `skills/${n} is read-only and must stay invocable`);
 });
