@@ -1,6 +1,6 @@
 // Stable merge-driver shim. git config must point at a path that survives plugin updates (Claude Code deletes old versioned
 // plugin-cache directories), so it points at a shim in a stable data directory that reads the CURRENT target at run time.
-// No printing, no process.exit. Writes only under dataDir.
+// No printing, no process.exit. Writes only under dataDir, except recordConsent (the clone's local git config, see the end).
 // Trust model: the data directory is a code-execution trust root, because whoever can write driver.node, driver.target or
 // bin/plangraph-merge runs code as the user at the next merge. ensureStableDriver therefore creates the data dir and bin/ 0700,
 // and REFUSES (never silently chmods) an existing data dir or bin/ that is a symlink, is not owned by the current user, or is
@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { writeAtomicSafe } from './fsafe.ts';
+import { makeGit } from './gitsafe.ts';
 
 // git runs drivers via sh with the user's environment, where `node` may not be on PATH: the node binary is recorded too.
 // Failure contract: whenever the real driver cannot run, print ONE stderr line and exit 2 (never 0, 126 or 127).
@@ -71,4 +72,34 @@ export function ensureStableDriver({ dataDir, target, nodePath = process.execPat
   writeAtomicSafe(path.join(dataDir, 'driver.target'), target + '\n');
   writeExecutable(shim, SHIM);
   return shim;
+}
+
+// ---------- heal consent (decision D3) ----------
+// The SessionStart hook repairs the merge driver only in a clone the user wired. Consent is the key plangraph.heal in the clone's own
+// git config (the config file of the git common directory): it is the same file for the hook and for a terminal run, all worktrees of
+// the clone share it, it cannot be committed, it moves with the clone, and a new clone at the same path does not inherit it. Only a
+// version value counts (what recordConsent writes), so `false`, `off` or any other value never grants healing; `never` declines.
+/** The git config key that records the user's consent to heal the merge driver at session start. */
+export const CONSENT_KEY = 'plangraph.heal';
+const CONSENT_VALUE = /^\d+\.\d+\.\d+/;
+
+/** The real path of the git common directory of the repository at cwd (shared by its worktrees); null outside a git repository. */
+export function gitCommonDir(cwd: string): string | null {
+  try {
+    const out = makeGit(cwd)('rev-parse', '--git-common-dir').replace(/\r?\n$/, '');
+    return out ? fs.realpathSync(path.resolve(cwd, out)) : null;
+  } catch { return null; }
+}
+/** The value of a key in the local config file of a git common directory; null when unset or unreadable. Includes are not followed. */
+export function localConfigValue(commonDir: string, key: string): string | null {
+  try { return makeGit(commonDir)('config', '--file', path.join(commonDir, 'config'), '--get', key).replace(/\r?\n$/, ''); } catch { return null; }
+}
+/** True only when plangraph.heal holds a version (the value recordConsent writes). */
+export const hasConsent = (commonDir: string): boolean => CONSENT_VALUE.test(localConfigValue(commonDir, CONSENT_KEY) ?? '');
+/** True when plangraph.heal is exactly `never`: no heal and no nudge. */
+export const hasDeclined = (commonDir: string): boolean => localConfigValue(commonDir, CONSENT_KEY) === 'never';
+/** Record consent: `git config --file <commonDir>/config plangraph.heal <version>` (no shell). */
+export function recordConsent(commonDir: string, version: string): void {
+  if (!CONSENT_VALUE.test(version)) throw new TypeError(`not a version: ${JSON.stringify(String(version)).slice(0, 40)}`);
+  makeGit(commonDir)('config', '--file', path.join(commonDir, 'config'), CONSENT_KEY, version);
 }
