@@ -99,6 +99,8 @@ function baseRef(): string | null {
   return candidates.find((r) => git(['rev-parse', '--verify', '-q', `${r}^{commit}`]) !== null) ?? null;
 }
 
+// The committer `GitHub <noreply@github.com>` is self-declared and forgeable: it is accepted because this check is a privacy guard against
+// leaking a real address, not authentication of who committed.
 test('commit-author check: author is noreply, committer is noreply or GitHub, and a violation names the short hash only', () => {
   const me = '1+me@users.noreply.github.com';
   const row = (...f: string[]) => f.join('\t');

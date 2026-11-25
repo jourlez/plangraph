@@ -4,7 +4,14 @@
 // guesses: a pin it cannot place, or can place twice, is reported and the exit code is 1; fix those by hand.
 // Usage: node scripts/repin.ts [--root <dir>] --before <git-ref> [--subst old=new]... [--only <globs>] [--write] [--check-tokens]
 // Output: `mapped: N`, `unmapped: M`, `token-mismatch: K`, `ambiguous: A` (exit 1 when M + K + A > 0).
-// --check-tokens compares the comment-free token stream of every source file (old side with the substitutions applied) with the working tree.
+// --root <dir> runs against another git work tree (default: this repository). A --before value starting with `-` is refused (exit 2).
+// --check-tokens is a separate, optional guard: it compares the comment-free token stream of every source file (old side with the
+// substitutions applied) with the working tree; the pin mapping itself is textual and does not depend on it.
+// Substitution is whole-token: `brainstorm` is protected only because `s` is a word character, `brain_rules_version` because `_` is one.
+// `open-brain` is NOT protected (`-` is not a word character): under `brain=plangraph` it becomes `open-plangraph` unless a longer
+// explicit `--subst open-brain=open-brain` is given (longest match wins).
+// A pin whose substituted `to` equals its substituted `from` is reported unmapped (the mutant would be a no-op), and a mutate.ts array row
+// that looks like a pin but has a non-string-literal cell is reported unmapped (the tool cannot re-pin what it cannot read).
 // --write replaces the pin literals in scripts/mutate.ts (rows matched by position) and rewrites scripts/mutate/equivalent.json (2-space JSON).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -54,7 +61,9 @@ export function repinPin(pin: Pin, before: string, after: string | null, subst: 
   const n = count(after, nf);
   if (n === 0) return { status: 'unmapped', why: 'the substituted text is not in the new file' };
   if (n > 1) return { status: 'ambiguous', why: `the substituted text occurs ${n} times in the new file` };
-  return { status: 'mapped', value: [applySubst(pin[0], subst), nf, applySubst(to, subst), tests.map((t) => applySubst(t, subst))] };
+  const nt = applySubst(to, subst);
+  if (nt === nf) return { status: 'unmapped', why: 'the substituted replacement equals the substituted text' };
+  return { status: 'mapped', value: [applySubst(pin[0], subst), nf, nt, tests.map((t) => applySubst(t, subst))] };
 }
 
 /** Re-pin one equivalent: line and mutated get the substitutions, the line must be one trimmed line of the new file and the pair must match
@@ -67,7 +76,8 @@ export function repinEquivalent(e: Equivalent, after: string | null, subst: Subs
   if (here === 0) return { status: 'unmapped', why: 'the substituted line is not a line of the new file' };
   if (here > 1) return { status: 'ambiguous', why: `the substituted line occurs ${here} times in the new file` };
   const hits = mutantsFor(file, after).filter((m) => m.lineText === line && m.mutatedLine === mutated).length;
-  if (hits !== 1) return { status: 'ambiguous', why: `${hits} generated mutants match the substituted line and mutated text` };
+  if (hits === 0) return { status: 'unmapped', why: 'no generated mutant matches the substituted line and mutated text' };
+  if (hits > 1) return { status: 'ambiguous', why: `${hits} generated mutants match the substituted line and mutated text` };
   return { status: 'mapped', value: { ...e, file, line, mutated } };
 }
 
@@ -98,6 +108,20 @@ export function pinRows(src: string): Array<{ lits: [Lit, Lit, Lit]; tests: Lit[
     rows.push({ lits: [a, b, c], tests, pin: [a.value, b.value, c.value, tests ? tests.map((x) => x.value) : []] });
   }
   return rows;
+}
+
+/** Count rows that look like pins (an array opening with a source-file string literal and a comma) whose next two cells are not both string
+ * literals followed by commas: pinRows cannot read them.
+ * @param {string} src */
+export function oddPinRows(src: string): number {
+  const t = tokenize(src).filter((x: Token) => x.type !== 'comment');
+  let n = 0;
+  for (let k = 0; k + 2 < t.length; k++) {
+    if (t[k].value !== '[' || t[k + 1].type !== 'string' || t[k + 2].value !== ',' || !/\.(?:m?ts|m?js)(?:'|")$/.test(src.slice(t[k + 1].start, t[k + 1].end))) continue;
+    const ok = t[k + 3]?.type === 'string' && t[k + 4]?.value === ',' && t[k + 5]?.type === 'string' && t[k + 6]?.value === ',';
+    if (!ok) n++;
+  }
+  return n;
 }
 
 /** A JavaScript string literal for `value`, in the quote of `likeRaw` unless `value` holds it (then the other quote).
@@ -156,14 +180,16 @@ export function run(argv: string[], root0: string): Report {
   }
   if (!opt.before) throw new Error('--before <git-ref> is required');
   const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'pipe'] });
-  const old = (f: string): string | null => { try { return git(['show', `${opt.before}:${f}`]); } catch { return null; } };
+  const old = (f: string): string | null => { try { return git(['show', '--end-of-options', `${opt.before}:${f}`]); } catch { return null; } };
   const cur = (f: string): string | null => { try { return fs.readFileSync(path.join(root, f), 'utf8'); } catch { return null; } };
   const keep = (f: string) => !opt.only || opt.only.some((r) => r.test(f));
   const rep: Report = { mapped: 0, unmapped: 0, tokenMismatch: 0, ambiguous: 0, problems: [] };
   const bad = (kind: 'unmapped' | 'ambiguous', what: string, why: string) => { rep[kind]++; rep.problems.push(`${kind}: ${what}: ${why}`); };
 
   const MUT = 'scripts/mutate.ts', EQ = 'scripts/mutate/equivalent.json';
+  if (opt.before.startsWith('-')) throw new Error(`--before must be a git ref, not ${opt.before}`);
   const oldMut = old(MUT);
+  if (oldMut !== null && oddPinRows(oldMut) > 0) bad('unmapped', MUT, `${oddPinRows(oldMut)} pin-like row(s) with a non-string-literal cell cannot be re-pinned`);
   const pins = oldMut === null ? [] : pinRows(oldMut).map((r) => r.pin);
   const newPins: Array<Pin | null> = [];
   const texts = new Map<string, [string | null, string | null]>();
@@ -185,7 +211,7 @@ export function run(argv: string[], root0: string): Report {
   }
 
   if (opt.check) {
-    for (const f of git(['ls-tree', '-r', '--name-only', opt.before]).split('\n').filter((x) => x && isSource(x) && keep(x))) {
+    for (const f of git(['ls-tree', '-r', '--name-only', '--end-of-options', opt.before]).split('\n').filter((x) => x && isSource(x) && keep(x))) {
       const b = old(f), a = cur(applySubst(f, opt.subst));
       let same = false;
       try { same = b !== null && a !== null && JSON.stringify(significantTokens(applySubst(b, opt.subst))) === JSON.stringify(significantTokens(a)); } catch { same = false; }

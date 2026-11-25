@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Differential baseline harness: records what the plugin does today so a later change (the TypeScript migration) can prove it behaves the same.
 //   node scripts/baseline.ts capture --out DIR [--data DIR]    record every observation as one JSON file per id under DIR
-//   node scripts/baseline.ts compare [--only-common] --a DIR --b DIR   print `same: N`, `differing: M` and one line per differing id (exit 1 when M > 0);
+//   node scripts/baseline.ts compare [--only-common] --a DIR --b DIR   print `same: N`, `differing: M` and one line per differing id (exit 1 when M > 0 or when --only-common compared nothing);
 //                                                              with --only-common an id on one side only is not differing: `new: K` counts them
 //   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `brain card --if-present`
 //                                                                on the plan fixture (one untimed warm-up run first; N defaults to 30)

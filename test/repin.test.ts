@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mutantsFor } from '../scripts/mutate-all.ts';
-import { applySubst, repinPin, repinEquivalent, quoteLike, pinRows, writePins, run, significantTokens } from '../scripts/repin.ts';
+import { applySubst, oddPinRows, repinPin, repinEquivalent, quoteLike, pinRows, writePins, run, significantTokens } from '../scripts/repin.ts';
 
 const S: Array<[string, string]> = [['brain', 'plangraph'], ['BRAIN_', 'PLANGRAPH_'], ['project-brain', 'plangraph']];
 
@@ -64,11 +64,51 @@ test('an equivalent maps when line and mutated match exactly one generated mutan
   }
 });
 
-test('after substitution, an equivalent whose line occurs twice is ambiguous', () => {
-  const after = 'export const a = (x: number) => x < 3;\nexport const a = (x: number) => x < 3;\n';
-  const m = mutantsFor('lib/a.ts', after)[0];
-  const v = repinEquivalent({ file: 'lib/a.ts', line: m.lineText, mutated: m.mutatedLine, why: 'w' }, after, []);
-  assert.equal(v.status, 'ambiguous');
+test('after substitution, an equivalent whose line collapses with another line is ambiguous', () => {
+  const before = 'export const a = (brain: number) => brain < 3;\nexport const a = (plangraph: number) => plangraph < 3;\n';
+  const after = 'export const a = (plangraph: number) => plangraph < 3;\nexport const a = (plangraph: number) => plangraph < 3;\n';
+  const m = mutantsFor('lib/a.ts', before).find((x) => x.lineText.includes('(brain: number)') && x.mutatedLine.includes('<='));
+  assert.ok(m);
+  const e = { file: 'lib/a.ts', line: m.lineText, mutated: m.mutatedLine, why: 'w' };
+  assert.equal(repinEquivalent(e, before, []).status, 'mapped', 'unique before the substitution');
+  assert.equal(repinEquivalent(e, after, S).status, 'ambiguous');
+});
+
+test('an equivalent whose line is present but whose mutated text matches no mutant is unmapped', () => {
+  const src = SRC('x');
+  const m = mutantsFor('lib/a.ts', src)[0];
+  const v = repinEquivalent({ file: 'lib/a.ts', line: m.lineText, mutated: `${m.mutatedLine} // nothing generates this`, why: 'w' }, src, []);
+  assert.equal(v.status, 'unmapped');
+});
+
+test('a pin whose replacement equals its text after substitution is reported', () => {
+  const v = repinPin(['lib/a.ts', 'brain.x()', 'plangraph.x()', []], 'brain.x()\n', 'plangraph.x()\n', S);
+  assert.equal(v.status, 'unmapped');
+});
+
+test('a pin with whole-token old names (a path, an env name, a dot directory) survives the two substitutions end to end', () => {
+  const src = "const s = 'bin/brain-solve'; const d = process.env.BRAIN_DIR ?? '.brain/'; const k = 'brain_rules_version'; // brainstorm\n";
+  const v = repinPin(['lib/a.ts', "process.env.BRAIN_DIR ?? '.brain/'", "process.env.BRAIN_DIR ?? '.brain/x'", []], src, applySubst(src, [['brain', 'plangraph'], ['BRAIN_', 'PLANGRAPH_']]), [['brain', 'plangraph'], ['BRAIN_', 'PLANGRAPH_']]);
+  assert.deepEqual(v, { status: 'mapped', value: ['lib/a.ts', "process.env.PLANGRAPH_DIR ?? '.plangraph/'", "process.env.PLANGRAPH_DIR ?? '.plangraph/x'", []] });
+  const d = fixtureWith(src, "['lib/a.ts', \"process.env.BRAIN_DIR ?? '.brain/'\", \"process.env.BRAIN_DIR ?? '.brain/x'\", ['test/a.test.ts']]");
+  try {
+    fs.writeFileSync(path.join(d, 'lib/a.ts'), applySubst(src, [['brain', 'plangraph'], ['BRAIN_', 'PLANGRAPH_']]));
+    const r = run(['--before', 'HEAD', '--subst', 'brain=plangraph', '--subst', 'BRAIN_=PLANGRAPH_', '--write'], d);
+    assert.deepEqual([r.mapped, r.unmapped, r.ambiguous], [1, 0, 0], r.problems.join('\n'));
+    const m = fs.readFileSync(path.join(d, 'scripts/mutate.ts'), 'utf8');
+    assert.ok(m.includes("process.env.PLANGRAPH_DIR ?? '.plangraph/'") && m.includes("'.plangraph/x'"), m);
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
+
+test('pin-like rows with a non-string cell are counted and make the run fail', () => {
+  assert.equal(oddPinRows("const X = [\n  ['lib/a.ts', 'a', 'b', []],\n  ['lib/a.ts', 'a' + 'b', 'c', []],\n  ['lib/a.ts', 'a', `t`, []],\n];\n"), 2);
+  assert.equal(oddPinRows("const X = [['lib/a.ts', 'a', 'b', []]];\n"), 0);
+  const d = fixtureWith('x\n', "['lib/a.ts', 'x' + 'y', 'z', []]");
+  try {
+    const r = run(['--before', 'HEAD'], d);
+    assert.equal(r.unmapped, 1);
+    assert.match(r.problems.join('\n'), /non-string-literal/);
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
 });
 
 test('an equivalent whose line is gone is unmapped', () => {
@@ -116,6 +156,16 @@ function fixture(): string {
   const m = mutantsFor('lib/a.ts', SRC('brain')).find((x) => x.lineText.endsWith('brain < 4;') && x.mutatedLine.includes('<='));
   assert.ok(m);
   fs.writeFileSync(path.join(d, 'scripts/mutate/equivalent.json'), `${JSON.stringify([{ file: 'lib/a.ts', line: m.lineText, mutated: m.mutatedLine, why: 'w' }], null, 2)}\n`);
+  git(d, 'add', '-A'); git(d, 'commit', '-q', '-m', 'one');
+  return d;
+}
+function fixtureWith(libSrc: string, row: string): string {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'repin-'));
+  git(d, 'init', '-q');
+  fs.mkdirSync(path.join(d, 'lib')); fs.mkdirSync(path.join(d, 'scripts/mutate'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'lib/a.ts'), libSrc);
+  fs.writeFileSync(path.join(d, 'scripts/mutate.ts'), `const MUTATIONS = [\n  ${row},\n];\n`);
+  fs.writeFileSync(path.join(d, 'scripts/mutate/equivalent.json'), '[]\n');
   git(d, 'add', '-A'); git(d, 'commit', '-q', '-m', 'one');
   return d;
 }
@@ -180,5 +230,20 @@ test('the CLI exits 1 and names the pin on an unmapped pin, 0 when all map, 2 on
     assert.equal(ok.status, 0, ok.stdout);
     assert.match(ok.stdout, /mapped: 2\nunmapped: 0\ntoken-mismatch: 0\nambiguous: 0/);
     assert.equal(spawnSync(process.execPath, [path.join(import.meta.dirname, '../scripts/repin.ts')], { encoding: 'utf8' }).status, 2);
+  } finally { fs.rmSync(d, { recursive: true, force: true }); }
+});
+
+test('the CLI reports an ambiguous pin as `ambiguous: 1` and exits 1; a --before starting with a dash exits 2', () => {
+  const d = fixtureWith('f(brain.x());\nf(plangraph.x());\n', "['lib/a.ts', 'f(brain.x());', 'f(0);', []]");
+  fs.writeFileSync(path.join(d, 'lib/a.ts'), 'f(plangraph.x());\nf(plangraph.x());\n');
+  const cli = (...a: string[]) => spawnSync(process.execPath, [path.join(import.meta.dirname, '../scripts/repin.ts'), '--root', d, ...a], { encoding: 'utf8' });
+  try {
+    const r = cli('--before', 'HEAD', '--subst', 'brain=plangraph');
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, /ambiguous: 1\n/);
+    assert.match(r.stdout, /unmapped: 0\n/);
+    const dash = cli('--before', '--output=x');
+    assert.equal(dash.status, 2);
+    assert.match(dash.stderr, /git ref/);
   } finally { fs.rmSync(d, { recursive: true, force: true }); }
 });
