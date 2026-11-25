@@ -13,7 +13,7 @@ import type { SpawnSyncReturns } from 'node:child_process';
 const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const ENV = { ...process.env, BRAIN_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 /** A git repo with `brain init` run (data, no index). */
 function repo() {
@@ -90,12 +90,12 @@ test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --he
     try { for (const a of [HOOK, HEAL]) silent(run(d, a), `${what} ${a.join(' ')}`); } finally { try { fs.chmodSync(path.join(b, 'config.json'), 0o644); } catch { /* not there */ } }
   }
   const d = repo();
-  for (const [what, env] of [['absolute BRAIN_DIR', { BRAIN_DIR: '/etc' }], ['escaping BRAIN_DIR', { BRAIN_DIR: '../x' }], ['BRAIN_DIR with a space', { BRAIN_DIR: 'a b' }]] as const) silent(run(d, HOOK, env), what);
+  for (const [what, env] of [['absolute PLANGRAPH_DIR', { PLANGRAPH_DIR: '/etc' }], ['escaping PLANGRAPH_DIR', { PLANGRAPH_DIR: '../x' }], ['PLANGRAPH_DIR with a space', { PLANGRAPH_DIR: 'a b' }]] as const) silent(run(d, HOOK, env), what);
   silent(run(d, [...HOOK, '--dir', '../x']), 'escaping --dir'); silent(run(d, [...HOOK, '--bogus']), 'unknown option');
 });
 
 test('card off silences the nudge too', () => {
-  const d = repo(); silent(run(d, HOOK, { BRAIN_CARD: 'off' }), 'BRAIN_CARD=off'); silent(run(d, HOOK, { CLAUDE_PLUGIN_OPTION_CARD: 'off' }), 'option off');
+  const d = repo(); silent(run(d, HOOK, { PLANGRAPH_CARD: 'off' }), 'PLANGRAPH_CARD=off'); silent(run(d, HOOK, { CLAUDE_PLUGIN_OPTION_CARD: 'off' }), 'option off');
 });
 
 test('the nudge shows a configured dir relative and sanitized', () => {

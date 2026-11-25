@@ -5,7 +5,7 @@
 // writes for an agent (report.md/html, OPEN-ITEMS.md, CARD.md, units): no line starts with INJECTED- (outside the multi-line fences that
 // hold plan or Jira text by design), no raw ESC/BEL/CR/VT/FF/U+2028/U+2029/NEL or other C0/C1 control byte, every fence tag is one of
 // our own fences (guardOutput leaves the text unchanged), and --json output parses, with no string value carrying a line break before a
-// marker. Runs with BRAIN_STRICT_OUT=1, so a command passing a multi-line string to ctx.io.out fails here (src/cli.ts makeCollector).
+// marker. Runs with PLANGRAPH_STRICT_OUT=1, so a command passing a multi-line string to ctx.io.out fails here (src/cli.ts makeCollector).
 // Private HOME, CLAUDE_PLUGIN_DATA, GIT_CONFIG_GLOBAL and a PATH holding only node and git (no keychain helper, no uv): no network.
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,7 +34,7 @@ const safeRefs = () => jl([
 
 let BASE = '', FIXTURE = '', HOME = '', PATHDIR = '', HANDLE = '';
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 'tester', GIT_AUTHOR_EMAIL: 'tester@example.invalid', GIT_COMMITTER_NAME: 'tester', GIT_COMMITTER_EMAIL: 'tester@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-const env = () => ({ PATH: PATHDIR, HOME, CLAUDE_PLUGIN_DATA: path.join(HOME, 'data'), LC_ALL: 'C', TZ: 'UTC', BRAIN_DIR: '', SOURCE_DATE_EPOCH: '1795305600', BRAIN_STRICT_OUT: '1', ...GIT_ENV });
+const env = () => ({ PATH: PATHDIR, HOME, CLAUDE_PLUGIN_DATA: path.join(HOME, 'data'), LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', PLANGRAPH_STRICT_OUT: '1', ...GIT_ENV });
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: ['ignore', 'pipe', 'pipe'] });

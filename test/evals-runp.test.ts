@@ -139,9 +139,9 @@ test('claude command line: both arms identical except --plugin-dir; isolation fl
 });
 
 test('child environment: parent-session Claude variables and brain settings are dropped, auth kept, PATH entries with a brain binary removed', () => {
-  const e = childEnv({ PATH: '/usr/bin:/opt/brainbin:/bin', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 'x', CLAUDE_PLUGIN_ROOT: '/p', CLAUDE_CONFIG_DIR: '/c', CLAUDE_CODE_OAUTH_TOKEN: 't', ANTHROPIC_API_KEY: 'k', BRAIN_CARD: 'off', HOME: '/h' }, { hasBrain: (d) => d === '/opt/brainbin' });
+  const e = childEnv({ PATH: '/usr/bin:/opt/brainbin:/bin', CLAUDECODE: '1', CLAUDE_CODE_SESSION_ID: 'x', CLAUDE_PLUGIN_ROOT: '/p', CLAUDE_CONFIG_DIR: '/c', CLAUDE_CODE_OAUTH_TOKEN: 't', ANTHROPIC_API_KEY: 'k', PLANGRAPH_CARD: 'off', HOME: '/h' }, { hasBrain: (d) => d === '/opt/brainbin' });
   assert.equal(e.PATH, '/usr/bin:/bin');
-  for (const k of ['CLAUDECODE', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_PLUGIN_ROOT', 'BRAIN_CARD']) assert.equal(e[k], undefined, k);
+  for (const k of ['CLAUDECODE', 'CLAUDE_CODE_SESSION_ID', 'CLAUDE_PLUGIN_ROOT', 'PLANGRAPH_CARD']) assert.equal(e[k], undefined, k);
   for (const k of ['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'HOME']) assert.ok(e[k], k);
 });
 

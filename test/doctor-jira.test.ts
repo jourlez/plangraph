@@ -31,7 +31,7 @@ test('doctor reports credential presence without printing any secret', () => {
   const none = jiraLine(run(dir, {}, ['doctor']));
   assert.match(none, /NO credential bound to acme\.atlassian\.net/);
   const secret = 'tok-SECRET-123';
-  const r = run(dir, { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: secret, BRAIN_JIRA_SITES: 'acme.atlassian.net' }, ['doctor']);
+  const r = run(dir, { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: secret, PLANGRAPH_JIRA_SITES: 'acme.atlassian.net' }, ['doctor']);
   assert.match(jiraLine(r), /generic env JIRA_EMAIL \+ JIRA_API_TOKEN set/);
   assert.ok(!r.stdout.includes(secret) && !r.stderr.includes(secret));
 });
@@ -47,8 +47,8 @@ test('doctor says a multi-host Data Center tenant needs a binding; one host may 
   const dir = repo();
   setJira(dir, { auth: { mode: 'datacenter' }, base_url: 'https://jira.beta.example', jql: 'project = ABC' });
   const gen = { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: 'tok-SECRET-123' };
-  const two = jiraLine(run(dir, { ...gen, BRAIN_JIRA_DC_HOSTS: 'jira.acme.example,jira.beta.example' }, ['doctor']));
+  const two = jiraLine(run(dir, { ...gen, PLANGRAPH_JIRA_DC_HOSTS: 'jira.acme.example,jira.beta.example' }, ['doctor']));
   assert.match(two, /^jira: datacenter, tenant jira\.beta\.example, jql set, NO credential bound to jira\.beta\.example: /);
-  const one = jiraLine(run(dir, { ...gen, BRAIN_JIRA_DC_HOSTS: 'jira.beta.example' }, ['doctor']));
+  const one = jiraLine(run(dir, { ...gen, PLANGRAPH_JIRA_DC_HOSTS: 'jira.beta.example' }, ['doctor']));
   assert.match(one, /generic env JIRA_EMAIL \+ JIRA_API_TOKEN set$/);
 });

@@ -119,7 +119,7 @@ test('validateBase mode specificity, localhost opt-in, Data Center allowlist', (
   const ok = validateBase('https://jira.corp.example/jira', { mode: 'datacenter', dcHosts: 'x.example, JIRA.corp.example' });
   assert.deepEqual([ok.kind, ok.basePath], ['datacenter', '/jira']);
   assert.throws(() => validateBase('https://jira.corp.example/a/../b?x', { mode: 'datacenter', dcHosts: ['jira.corp.example'] }), { code: 'bad_host' });
-  assert.deepEqual(dcHostsFromEnv({ BRAIN_JIRA_DC_HOSTS: 'A.example,b.example:8443, bad host' }), ['a.example', 'b.example:8443']);
+  assert.deepEqual(dcHostsFromEnv({ PLANGRAPH_JIRA_DC_HOSTS: 'A.example,b.example:8443, bad host' }), ['a.example', 'b.example:8443']);
 });
 test('makeClient refuses evil hosts and ignores a Data Center host smuggled in repo config', () => {
   const creds = { email: EMAIL, token: TOKEN };

@@ -18,7 +18,7 @@ const SKIP_DIRS = /^(test|docs|evals|\.git|\.baseline|node_modules|\.superpowers
 
 let base: string, plugin: string, work: string, home: string;
 
-const env = () => ({ ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), XDG_CACHE_HOME: path.join(home, '.cache'), BRAIN_DIR: '', NODE_OPTIONS: '' });
+const env = () => ({ ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), XDG_CACHE_HOME: path.join(home, '.cache'), PLANGRAPH_DIR: '', NODE_OPTIONS: '' });
 const run = (args: string[], nodeArgs: string[] = []) => spawnSync(process.execPath, [...nodeArgs, path.join(plugin, 'bin', 'brain'), ...args], { cwd: work, encoding: 'utf8', env: env() });
 
 before(() => {

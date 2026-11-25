@@ -54,7 +54,7 @@ function generate() {
 }
 // a private plugin data directory in the scratch dir: bin/brain's compile cache never goes to the real HOME
 const run = (args: string[]) => {
-  const o = spawnSync(process.execPath, [path.join(ROOT, 'bin/brain'), ...args], { cwd: SCRATCH, env: { ...process.env, BRAIN_DIR: path.relative(SCRATCH, BRAIN), CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }, encoding: 'utf8', timeout: 120000 });
+  const o = spawnSync(process.execPath, [path.join(ROOT, 'bin/brain'), ...args], { cwd: SCRATCH, env: { ...process.env, PLANGRAPH_DIR: path.relative(SCRATCH, BRAIN), CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }, encoding: 'utf8', timeout: 120000 });
   return { out: ((o.stdout || '') + (o.stderr || '')).replace(/\n+$/, ''), code: o.status };
 };
 function main() {

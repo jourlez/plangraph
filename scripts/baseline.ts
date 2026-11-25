@@ -29,7 +29,7 @@ interface Probe { id: string; run: () => unknown | Promise<unknown> }
 /** The environment of every child: fixed HOME, TZ and locale, no brain-specific variables from the caller.
  * @param {string} home @returns {Record<string, string>} */
 function childEnv(home: string) {
-  return { PATH: process.env.PATH ?? '', HOME: home, CLAUDE_PLUGIN_DATA: path.join(home, 'data'), BRAIN_DIR: '', SOURCE_DATE_EPOCH: '1795305600', LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', ...GIT_ENV };
+  return { PATH: process.env.PATH ?? '', HOME: home, CLAUDE_PLUGIN_DATA: path.join(home, 'data'), PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', ...GIT_ENV };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- normalization
@@ -331,7 +331,7 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
       const live = writes.get(cmd) || e.args.some((a) => /^--(write|fix|heal|apply-plan)$/.test(a)) ? (() => { const d = path.join(work, `run-${n++}`); clone(tplRoot, d); return d; })() : tplRoot;
       const cwd = path.join(live, 'repo');
       const sub = (a: string) => a.replace(/@KEY@/g, tpl.vars.KEY).replace(/@PERSON@/g, tpl.vars.PERSON).replace(/@SPRINT@/g, tpl.vars.SPRINT).replace(/@BRAINDIR@/g, tpl.brainDir);
-      const runEnv = dataDir && e.fixture === 'plan' ? { ...env, BRAIN_DIR: tpl.brainDir } : env;
+      const runEnv = dataDir && e.fixture === 'plan' ? { ...env, PLANGRAPH_DIR: tpl.brainDir } : env;
       const r = brainRun(e.args.map(sub), cwd, runEnv);
       save(e.id, { id: e.id, fixture: e.fixture, args: e.args, code: r.code, stdout: r.stdout, stderr: r.stderr });
       if (live !== tplRoot) fs.rmSync(live, { recursive: true, force: true });

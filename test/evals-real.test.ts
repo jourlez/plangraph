@@ -2,7 +2,7 @@
 // (invented full names, a ticket-key prefix and summary markers that occur nowhere else); the generator must carry them into its temp
 // suite (proving the check is sensitive) and NO file tracked under evals/ may contain any of them. The generator must refuse to write into
 // this repository or the source project, must leave the source byte-identical, and its truth must agree with the brain CLI.
-// Optional: BRAIN_REAL_PROJECT=<root> also checks that no tracked evals/ file contains a person name or ticket key of that project
+// Optional: PLANGRAPH_REAL_PROJECT=<root> also checks that no tracked evals/ file contains a person name or ticket key of that project
 // (read-only; only counts are printed). No network, no model calls.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,13 +83,13 @@ test('the gen-real CLI prints counts only, never names, keys or summaries', () =
   assert.match(r.stdout, /^out: /m);
 });
 
-test('no committable file under evals/ contains a canary name, key or summary marker (and none from BRAIN_REAL_PROJECT when set)', () => {
+test('no committable file under evals/ contains a canary name, key or summary marker (and none from PLANGRAPH_REAL_PROJECT when set)', () => {
   const files = tracked();
   assert.ok(files.length >= 20, 'git ls-files found the tracked eval files');
   const texts = files.map((f) => fs.readFileSync(path.join(root, f), 'utf8'));
   const hit = (ns: string[]) => ns.filter((n) => texts.some((t) => t.includes(n))).length;
   assert.equal(hit(needles(canary, [`${canary.prefix}-`])), 0);
-  const real = process.env.BRAIN_REAL_PROJECT;
+  const real = process.env.PLANGRAPH_REAL_PROJECT;
   if (real && fs.existsSync(path.join(real, '.brainrc'))) {
     const dir = JSON.parse(fs.readFileSync(path.join(real, '.brainrc'), 'utf8')).dir;
     const rows = (n: string): Array<Record<string, unknown>> => fs.readFileSync(path.join(real, dir, n), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));

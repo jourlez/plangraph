@@ -24,7 +24,7 @@ const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir
 // a private plugin data directory: bin/brain keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
 const DATA = tmp();
 const put = (root: string, rel: string, text: string | Uint8Array) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
-const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
+const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
 const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {
   if (!fs.existsSync(dir)) return out;
   for (const n of fs.readdirSync(dir).sort()) { const f = path.join(dir, n), st = fs.lstatSync(f); if (st.isDirectory()) walk(f, base, out); else out[path.relative(base, f)] = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + ':' + st.mtimeMs; }

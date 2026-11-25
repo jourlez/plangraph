@@ -36,7 +36,7 @@ const tmp = () => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-s
 const DATA = tmp();
 process.on('exit', () => fs.rmSync(DATA, { recursive: true, force: true }));
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
-const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
+const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
 function repo({ ledger = '7x', plan = PLAN } = {}) {
   const root = tmp();
   execFileSync('git', ['init', '-q'], { cwd: root });

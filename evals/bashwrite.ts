@@ -52,7 +52,7 @@ const LEAD = String.raw`^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(?:(?:sudo|command
 const WRITE_CMD = new RegExp(`${LEAD}(?:rm|rmdir|mv|cp|touch|mkdir|tee|truncate|ln|install|chmod|chown|dd|unlink|patch|shred|rsync)\\b`);
 const SED_I = new RegExp(`${LEAD}(?:g?sed|perl)\\b[^\\n]*\\s-[A-Za-z]*i`);
 const GIT_W = new RegExp(`${LEAD}git\\b(?:\\s+-[cC]\\s+\\S+)*\\s+(?:commit|add|rm|mv|checkout|switch|reset|restore|apply|am|stash|merge|rebase|cherry-pick|revert|clean|push|pull|tag|config|init|worktree|update-index|notes)\\b`);
-const BRAIN_W = new RegExp(`${LEAD}(?:node\\s+)?(?:\\S*/)?brain\\s+(?:-\\S+\\s+)*(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b`);
+const PLANGRAPH_W = new RegExp(`${LEAD}(?:node\\s+)?(?:\\S*/)?brain\\s+(?:-\\S+\\s+)*(?:init|learn|migrate|refs-update|export|report|sp-ingest|sp-link|schedule-load|jira-pull|jira-import|units)\\b`);
 const FIND_W = new RegExp(`${LEAD}find\\b[^\\n]*\\s-(?:delete|exec(?:dir)?\\s+(?:rm|mv|cp|sed\\s+-i|tee|truncate)\\b|fprint)`);
 const INTERP = new RegExp(`${LEAD}(?:\\S*/)?(?:python[0-9.]*|node|nodejs|deno|bun|ruby|perl|php|osascript|sqlite3)\\b`);
 // code-level writes in a script body (python, node, ruby, perl); SQL writes only where the code talks to sqlite
@@ -79,7 +79,7 @@ export function bashWrite(cmd: unknown): { write: boolean; why: string | null } 
     if (WRITE_CMD.test(seg)) return { write: true, why: 'command' };
     if (SED_I.test(seg)) return { write: true, why: 'in-place edit' };
     if (GIT_W.test(seg)) return { write: true, why: 'git write' };
-    if (BRAIN_W.test(seg)) return { write: true, why: 'brain write verb' };
+    if (PLANGRAPH_W.test(seg)) return { write: true, why: 'brain write verb' };
     if (FIND_W.test(seg)) return { write: true, why: 'find write' };
   }
   // code: heredoc bodies fed to an interpreter, and inline code of an interpreter call (python -c '...', node -e '...')

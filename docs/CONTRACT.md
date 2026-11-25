@@ -88,7 +88,7 @@ schedule row; an `sp:` task is exempt until someone places it). Its one line add
 and `check` saying all is well can no longer both happen.
 
 Session hook: `brain card --if-present` (with or without `--heal`) prints nothing and exits 0 whenever anything fails: a too-old Node, a bad
-`.brainrc`, a refused brain directory (`BRAIN_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
+`.brainrc`, a refused brain directory (`PLANGRAPH_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
 thrown error. On success it prints the card (a last `STALE:` line when the index is stale). With no index but brain data present (the brain
 directory resolves inside the repository and holds `tickets.jsonl` or `config.json`) it prints ONE fixed first-use line instead, still exit 0:
 `brain: plan data found in <dir> but no index: run brain build`, or, when `format.json` is older than the tool's (a missing file is format 0),
@@ -105,7 +105,7 @@ brain directory, `brain build` for a missing index, `brain doctor` for environme
 `did you mean <name>?` (edit distance at most 2); the command list itself is `brain explain`. A line never carries a newline or a forged
 `<untrusted>` tag from the data, and untrusted text never reaches the try line. Commands print through `ctx.io.out(line)`, which takes
 exactly one line: a line break of any kind (LF, CR, VT, FF, NEL, U+2028, U+2029) is a programmer error that fails the tests
-(`BRAIN_STRICT_OUT=1`, set under `node --test`) and becomes a space in production; intended multi-line output (a fence block) goes
+(`PLANGRAPH_STRICT_OUT=1`, set under `node --test`) and becomes a space in production; intended multi-line output (a fence block) goes
 through `ctx.io.outBlock(lines)`. `test/hostile-fuzz.test.ts` runs every registered command over a plan whose every free-text field
 carries a line injection.
 
@@ -171,7 +171,7 @@ modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people
 line `plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read <brain dir>/*.jsonl` (lib/steer.ts; the
 directory as the repo configures it, default `.brain`), and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
 
-Brain directory: `--dir`, else a non-empty `BRAIN_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be
+Brain directory: `--dir`, else a non-empty `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be
 a relative path inside the repository: an absolute or escaping directory is refused with exit 4 (`brain directory is outside the repository`), and so is a name with whitespace, a control character or any of `* ? [ ] \ ! # "` (`brain directory name has a character that is not allowed`; the merge driver is only wired for names made of `A-Z a-z 0-9 . _ / -`), except under
 `brain card --if-present`, which stays silent with exit 0.
 

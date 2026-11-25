@@ -331,7 +331,7 @@ test('bundles do not shell out per ticket: plan file read once per (ref,path)', 
 // ---------------- real git ----------------
 function sh(cwd: string, ...a: string[]) { return execFileSync('git', ['-C', cwd, ...a], { stdio: ['ignore', 'pipe', 'pipe'] }).toString(); }
 function repo() {
-  const dir = fs.mkdtempSync(path.join(process.env.BRAIN_TEST_TMP || os.tmpdir(), 'stale-git-')); sh(dir, 'init', '-q', '-b', 'main'); sh(dir, 'config', 'user.name', 'Test'); sh(dir, 'config', 'user.email', 't@example.invalid'); sh(dir, 'config', 'commit.gpgsign', 'false');
+  const dir = fs.mkdtempSync(path.join(process.env.PLANGRAPH_TEST_TMP || os.tmpdir(), 'stale-git-')); sh(dir, 'init', '-q', '-b', 'main'); sh(dir, 'config', 'user.name', 'Test'); sh(dir, 'config', 'user.email', 't@example.invalid'); sh(dir, 'config', 'commit.gpgsign', 'false');
   return dir;
 }
 const commit = (dir: string, msg: string) => { sh(dir, 'add', '-A'); sh(dir, 'commit', '-q', '-m', msg); };

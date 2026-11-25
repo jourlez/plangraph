@@ -79,7 +79,7 @@ skips the restore: then `--out` holds the last verified schedule.
 Killing the launcher: `bin/brain-solve-run` `exec`s the solver's Python on every path, so the launcher's process is the solver and any
 signal, `SIGKILL` included, stops it: no orphan is left to overwrite `--out` later. On the uv path uv only prepares the environment
 (`uv sync --locked --script bin/brain-solve`, which still verifies the pinned lock and fails on a stale one) and names its interpreter
-(`uv python find --script`); an overriding `BRAIN_SOLVE_SCRIPT` runs on that same locked environment. Both preparation calls run from the
+(`uv python find --script`); an overriding `PLANGRAPH_SOLVE_SCRIPT` runs on that same locked environment. Both preparation calls run from the
 plugin's `bin` directory, so a `uv.toml` (or `pyproject.toml` `[tool.uv]`) in the repository you run from is not read; your user-level uv
 config and `UV_*` variables (a mirror through `UV_INDEX_URL` or `UV_DEFAULT_INDEX`) still apply. The solver itself runs in your directory. On a macOS framework build of Python
 (Homebrew, python.org) that interpreter's `bin/python3.x` itself `exec`s `Python.framework/.../Python.app/Contents/MacOS/Python`, so `ps`
@@ -87,10 +87,10 @@ shows the process as `Python`, but it is the same process (same pid) and the sam
 without `sync --script`), the launcher falls back to `uv run`, where uv stays the parent (the fallback's interpreter comes from `bin`, never from your
 directory: an absolute `--python` found by `uv python find` run from the plugin's `bin` directory, with `UV_PYTHON` as the request when set, so a
 `.venv` or `.python-version` committed in the repository is never used; when none is found it exits 3 naming `uv python install 3.14`); the solver then runs a parent watchdog
-(`BRAIN_SOLVE_WATCH_PARENT=1`, set only there): a thread polls `getppid()` every 0.2 s and, once uv is gone, takes the write lock (so no write
+(`PLANGRAPH_SOLVE_WATCH_PARENT=1`, set only there): a thread polls `getppid()` every 0.2 s and, once uv is gone, takes the write lock (so no write
 is cut short; an anytime meta + schedule pair and the final schedule + meta are each held as one unit) and exits with no further write.
 After a kill, `--out` holds the last verified anytime schedule and its meta says `partial: true`. Tested: a SIGKILL on the launcher on both
-paths (`BRAIN_SOLVE_LAUNCH=uv-run` forces the fallback) leaves no solver process within 5 s and `--out` unchanged afterwards. Not covered: a
+paths (`PLANGRAPH_SOLVE_LAUNCH=uv-run` forces the fallback) leaves no solver process within 5 s and `--out` unchanged afterwards. Not covered: a
 SIGKILL that lands inside the one-process solver's own write leaves a `.brain-solve-*.tmp` file (see above), never a torn `--out`.
 
 ## Method
@@ -230,7 +230,7 @@ case is not measured here.
 `bin/brain-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/brain-solve ...` also works.
 OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/brain-solve-run` tries, in order: `uv run --locked --script bin/brain-solve` (dependencies pinned with hashes in `bin/brain-solve.lock`; a stale lock fails instead of re-resolving);
 a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
-else prints three lines and exits 3. `BRAIN_SOLVE_SCRIPT` overrides the script (used by the mutation test).
+else prints three lines and exits 3. `PLANGRAPH_SOLVE_SCRIPT` overrides the script (used by the mutation test).
 
 Tests: `node --test test/solver.test.ts` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
 
@@ -243,7 +243,7 @@ that is 100,000 story points), so CP-SAT only sees small exact integers: a large
 points, caps and min_per_sprint must be at most 1000000000 after scaling to whole numbers`. `first_sprint`, `end_sprint` (and `--end`) and
 `frozen_before_sprint` must be whole numbers from -1,000,000 to 1,000,000 (an integer: not a float, string or boolean), else exit 2
 `MODEL_INVALID: <name> must be a whole number from -1000000 to 1000000`.
-`--jsonl-dir` and the brain dir (`.brainrc` / `BRAIN_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
+`--jsonl-dir` and the brain dir (`.brainrc` / `PLANGRAPH_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
 
@@ -267,7 +267,7 @@ only and capped). Residual: SQLite opens the index again by path after the check
 - The repository root comes from `git rev-parse --show-toplevel`, so it honours `GIT_DIR`, `GIT_WORK_TREE` and a hostile repository's `core.worktree`. The confinement guards against bad arguments, not against a hostile checkout or environment.
 - The anytime restore (put back or remove `--out` when a run ends without a schedule) re-checks `--out` (no symlink, parent inside the root) and
   removes only a regular file, but the check and the `unlink` are separate path-based steps, with the same window as above.
-- Setting `BRAIN_SOLVE_SCRIPT` runs the unlocked path and disables locking (test-only override).
+- Setting `PLANGRAPH_SOLVE_SCRIPT` runs the unlocked path and disables locking (test-only override).
 - uv's own error text mentions `uv.lock` rather than `brain-solve.lock`; it is the same lock (`uv lock --script` writes `bin/brain-solve.lock`).
 
 ## Where the lock files live

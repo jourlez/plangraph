@@ -119,7 +119,7 @@ test('every skill has a row in the Skills table, and the card option is document
   for (const n of skills) assert.match(sec, new RegExp(`^\\| \`${n}\` \\|`, 'm'), `no Skills row for ${n}`);
   const opt = plugin.userConfig.card;
   for (const v of opt.options) assert.ok(readme.includes(`\`${v}\``), `card value ${v} not documented`);
-  assert.ok(readme.includes('--config card=off') && readme.includes('BRAIN_CARD=off'));
+  assert.ok(readme.includes('--config card=off') && readme.includes('PLANGRAPH_CARD=off'));
 });
 
 test('the network hosts named in the README are exactly the ones plugin.json declares', () => {

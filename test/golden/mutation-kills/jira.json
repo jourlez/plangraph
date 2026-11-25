@@ -1719,12 +1719,12 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: site is not in the user-level site allowlist (BRAIN_JIRA_SITES)",
+    "message": "base URL rejected: site is not in the user-level site allowlist (PLANGRAPH_JIRA_SITES)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: site is not in the user-level site allowlist (BRAIN_JIRA_SITES)",
+    "message": "base URL rejected: site is not in the user-level site allowlist (PLANGRAPH_JIRA_SITES)",
     "code": "bad_host"
    },
    {
@@ -1811,22 +1811,22 @@
   [
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -1851,12 +1851,12 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -1902,7 +1902,7 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -1915,22 +1915,22 @@
   [
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -1955,17 +1955,17 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -2005,12 +2005,12 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    }
   ],
@@ -2123,22 +2123,22 @@
   [
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -2163,17 +2163,17 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
@@ -2215,12 +2215,12 @@
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    },
    {
     "(error)": "JiraError",
-    "message": "base URL rejected: host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)",
+    "message": "base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)",
     "code": "bad_host"
    }
   ]

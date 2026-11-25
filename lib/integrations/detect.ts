@@ -30,7 +30,7 @@ const CAP = 1024 * 1024;
 const MEASURED = 'measured 2026-11-22 on one machine';
 // Static table of always-on injections in tokens (research other-tools.md section 6). Not a live measurement.
 const BUDGET: Record<string, number> = { caveman: 936, superpowers: 871, openwolf: 1067, context7: 175, gitkraken: 0 };
-const BRAIN_CARD = 185;
+const PLANGRAPH_CARD = 185;
 const GITKRAKEN_NOTE = 'logs every prompt and tool result to ~/Library/Caches/GitKrakenCLI/sessions (per research); permission hook can wait up to 24 h without the desktop app';
 
 // Name-glob patterns a skill can match against its own tool list. Connectors cannot be detected from a shell.
@@ -196,6 +196,6 @@ export function detectTools({ root, home, env = process.env, fsImpl = fs, names 
   // its cost arrives through the CLAUDE.md `@.wolf/OPENWOLF.md` import, not through hooks.
   const costs = (t: DetectedTool) => (t.name === 'openwolf' ? t.state !== 'absent' : t.state === 'enabled');
   const items = tools.filter(costs).map((t) => ({ name: t.name, tokens: BUDGET[t.name] ?? 0, source: MEASURED }));
-  items.push({ name: 'brain card', tokens: BRAIN_CARD, source: MEASURED });
+  items.push({ name: 'brain card', tokens: PLANGRAPH_CARD, source: MEASURED });
   return { tools, connectorHints: CONNECTOR_HINTS.map((h) => ({ ...h })), budget: { items, total: items.reduce((n, i) => n + i.tokens, 0) } };
 }

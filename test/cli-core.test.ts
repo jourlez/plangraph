@@ -283,16 +283,16 @@ test('outBlock(lines): an array of single lines, in order; a string or a line wi
   prod.outBlock(['x', 'y\nINJECTED']); prod.outBlock(/** @type {any} */ ('z\nw'));
   assert.deepEqual(prod.lines, ['x', 'y INJECTED', 'z w']);
 });
-test('main: strict output comes from BRAIN_STRICT_OUT (and node --test); a multi-line out() is exit 5 there, one line otherwise', async () => {
+test('main: strict output comes from PLANGRAPH_STRICT_OUT (and node --test); a multi-line out() is exit 5 there, one line otherwise', async () => {
   const reg = createRegistry();
   defineCommand(reg, 'two', { summary: 'prints a line break', options: {}, positionals: [0, 0], run: async (ctx: Ctx) => { ctx.io.out('a\nINJECTED'); } });
   defineCommand(reg, 'block', { summary: 'prints a block', options: {}, positionals: [0, 0], run: async (ctx: Ctx) => { ctx.io.outBlock(['a', 'b']); } });
-  let r = io(); assert.equal(await main(['two'], { registry: reg, io: r.io, makeContext: stubCtx, env: { BRAIN_STRICT_OUT: '1' } }), 5);
+  let r = io(); assert.equal(await main(['two'], { registry: reg, io: r.io, makeContext: stubCtx, env: { PLANGRAPH_STRICT_OUT: '1' } }), 5);
   assert.deepEqual(r.o.out, []); assert.match(r.o.err[0], /^error: internal error: io\.out takes exactly one line/);
-  r = io(); assert.equal(await main(['two'], { registry: reg, io: r.io, makeContext: stubCtx, env: { BRAIN_STRICT_OUT: '0' } }), 0);
+  r = io(); assert.equal(await main(['two'], { registry: reg, io: r.io, makeContext: stubCtx, env: { PLANGRAPH_STRICT_OUT: '0' } }), 0);
   assert.deepEqual(r.o.out, ['a INJECTED']);
   r = io(); assert.equal(await main(['two'], { registry: reg, io: r.io, makeContext: stubCtx, env: {} }), 5, 'node --test sets NODE_TEST_CONTEXT: strict');
-  r = io(); assert.equal(await main(['block'], { registry: reg, io: r.io, makeContext: stubCtx, env: { BRAIN_STRICT_OUT: '1' } }), 0);
+  r = io(); assert.equal(await main(['block'], { registry: reg, io: r.io, makeContext: stubCtx, env: { PLANGRAPH_STRICT_OUT: '1' } }), 0);
   assert.deepEqual(r.o.out, ['a\nb']);
 });
 
@@ -302,9 +302,9 @@ test('makeContext resolves the brain dir like bin/brain (flag, env, .brainrc, de
   assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, '.brain'));
   fs.writeFileSync(path.join(root, '.brainrc'), '{"dir":"plan/brain"}');
   assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
-  assert.equal(makeContext({ root, env: { BRAIN_DIR: 'e' }, flags: {}, io: sink }).dir, path.join(root, 'e'));
-  assert.equal(makeContext({ root, env: { BRAIN_DIR: '' }, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
-  assert.equal(makeContext({ root, env: { BRAIN_DIR: 'e' }, flags: { dir: 'f' }, io: sink }).dir, path.join(root, 'f'));
+  assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: {}, io: sink }).dir, path.join(root, 'e'));
+  assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: '' }, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
+  assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: { dir: 'f' }, io: sink }).dir, path.join(root, 'f'));
   assert.throws(() => makeContext({ root, env: {}, flags: { dir: '../out' }, io: sink }), (e: BrainError) => e instanceof BrainError && e.code === 'REFUSED' && e.exitCode === 4 && e.message === 'brain directory is outside the repository');
   assert.throws(() => makeContext({ root, env: {}, flags: { dir: '/etc' }, io: sink }), (e: BrainError) => e.code === 'REFUSED');
   fs.writeFileSync(path.join(root, '.brainrc'), '{"dir": SECRET-TEXT');
@@ -348,12 +348,12 @@ test('makeContext finds the git top level from cwd and runs git without a shell'
 function brainRepo(files: Record<string, string> = {}) {
   const d = tmp();
   execFileSync('git', ['init', '-q'], { cwd: d });
-  execFileSync(process.execPath, [BRAIN, 'init'], { cwd: d, stdio: 'ignore', env: { ...process.env, BRAIN_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', CLAUDE_PLUGIN_DATA: DATA } });
+  execFileSync(process.execPath, [BRAIN, 'init'], { cwd: d, stdio: 'ignore', env: { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', CLAUDE_PLUGIN_DATA: DATA } });
   const dir = path.join(d, '.brain');
   for (const [f, t] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), t);
   return { root: d, dir, ctx: makeContext({ root: d, env: {}, flags: {}, io: io().io }) };
 }
-const brainBuild = (root: string) => spawnSync(process.execPath, [BRAIN, 'build'], { cwd: root, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
+const brainBuild = (root: string) => spawnSync(process.execPath, [BRAIN, 'build'], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
 type Row = Record<string, unknown>;
 function dump(file: string): Record<string, Row[]> {
   const db = new DatabaseSync(file, { readOnly: true });

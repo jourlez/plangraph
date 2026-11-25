@@ -49,7 +49,7 @@ test('node floor, registry validation, collector and renderer', () => {
   G('collector', () => [render(col, { name: 'x', code: 0 }), render(col, { name: 'x', code: 1, json: true, fresh: { fp: 'a', built: 'b' } }), render(makeCollector(), { name: 'y', code: 0, verbose: true })]);
   const strict = makeCollector({ strict: true });
   G('collector-strict', () => [outcome(() => strict.out('a\nb')), outcome(() => strict.out('a b')), outcome(() => makeCollector().out('a\rb'))]);
-  G('strict-env', () => [strictOutput({ BRAIN_STRICT_OUT: '1' }), strictOutput({ BRAIN_STRICT_OUT: '0' }), strictOutput({})]);
+  G('strict-env', () => [strictOutput({ PLANGRAPH_STRICT_OUT: '1' }), strictOutput({ PLANGRAPH_STRICT_OUT: '0' }), strictOutput({})]);
   G('rel-dir', () => [relDir({ dir: '/r/.brain', root: '/r' }, 'in /r/.brain/x'), relDir({ dir: '/r', root: '/r' }, '/r/y'), relDir(null, 'z'), relDir({ root: '/r' }, '/r/z'), relDir({ dir: '/r/d' }, '/r/d/z')]);
 });
 

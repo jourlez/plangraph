@@ -20,7 +20,7 @@ const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-native-
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 function findBinary() {
-  const env = process.env.BRAIN_CLAUDE_BIN;
+  const env = process.env.PLANGRAPH_CLAUDE_BIN;
   if (env) return fs.existsSync(env) ? env : null;
   const ext = path.join(os.homedir(), '.vscode', 'extensions');
   let dirs = [];
@@ -82,7 +82,7 @@ test('writeSuite pins the node that built the suite in every scaffold, and copie
 });
 
 const bin = findBinary();
-test('the real claude plugin eval loads every case, warns about none, runs the first scaffold and stops at the login check', { skip: bin ? false : 'no Claude Code binary (set BRAIN_CLAUDE_BIN to enable)' }, () => {
+test('the real claude plugin eval loads every case, warns about none, runs the first scaffold and stops at the login check', { skip: bin ? false : 'no Claude Code binary (set PLANGRAPH_CLAUDE_BIN to enable)' }, () => {
   const fx = Object.fromEntries(['S', 'M', 'L'].map((z) => [z, path.join(root, 'evals', 'fixtures', z)]));
   const plugin = writeSuite(path.join(tmp, 'suite'), { srcRoot: root, cases, fixtures: fx, runs: 1 });
   const home = path.join(tmp, 'home'); fs.mkdirSync(home);

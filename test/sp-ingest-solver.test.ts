@@ -24,7 +24,7 @@ function ingested() {
   const rel = 'docs/superpowers/plans/demo.md';
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), PLAN);
   // a private plugin data directory under the temp root: the compile cache and the merge-driver shim never go to the real HOME
-  const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'brain-data') } });
+  const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'brain-data') } });
   let r = brain('init'); assert.equal(r.status, 0, r.stderr);
   r = brain('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
   const tickets = fs.readFileSync(path.join(root, '.brain', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));

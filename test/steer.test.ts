@@ -17,7 +17,7 @@ const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-steer-'))); tmps.push(d); return d; };
 const jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-const ENV = { ...process.env, BRAIN_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], env: Record<string, string | undefined> = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, HOME: path.join(cwd, '.home'), CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 
 const STEER = 'plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl';

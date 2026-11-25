@@ -11,7 +11,7 @@ import { sourceNow, isoDay } from '../lib/clock.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 const D1 = 1795305600; // 2026-11-22T00:00:00Z
 const D2 = D1 + 86400;
-const ENV = (epoch?: number) => ({ PATH: process.env.PATH, HOME: os.tmpdir(), LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', BRAIN_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', ...(epoch === undefined ? {} : { SOURCE_DATE_EPOCH: String(epoch) }) });
+const ENV = (epoch?: number) => ({ PATH: process.env.PATH, HOME: os.tmpdir(), LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', ...(epoch === undefined ? {} : { SOURCE_DATE_EPOCH: String(epoch) }) });
 const brain = (cwd: string, epoch: number | undefined, ...a: string[]) => { const r = spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: ENV(epoch), encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout; };
 
 function repo(epoch: number) {

@@ -12,7 +12,7 @@ export const tmp = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path
 export const jl = (rows: object[]): string => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 export const HOME = tmp();
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-const ENV = { PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: path.join(HOME, 'data'), BRAIN_DIR: '', SOURCE_DATE_EPOCH: '1795305600', LC_ALL: 'C', TZ: 'UTC', BRAIN_STRICT_OUT: '1', ...GIT_ENV };
+const ENV = { PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: path.join(HOME, 'data'), PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_STRICT_OUT: '1', ...GIT_ENV };
 export const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: { ...process.env, ...GIT_ENV }, stdio: ['ignore', 'pipe', 'pipe'] });
 
 /** run one command in-process: exit code, stdout and stderr lines */

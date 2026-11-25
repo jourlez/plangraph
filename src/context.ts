@@ -1,5 +1,5 @@
 // Context: the capabilities a command gets, instead of globals. Built once per run by the shell (src/cli.ts or a test).
-// Directory precedence matches bin/brain: --dir, else env BRAIN_DIR (when non-empty), else {"dir": "..."} in <root>/.brainrc, else .brain.
+// Directory precedence matches bin/brain: --dir, else env PLANGRAPH_DIR (when non-empty), else {"dir": "..."} in <root>/.brainrc, else .brain.
 // Unlike bin/brain, the directory is confined to the repository (lib/fsafe.ts resolveBrainDir): absolute or escaping dirs are REFUSED.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -70,7 +70,7 @@ function findRoot(cwd: string, gitFactory: (root: string) => GitRun, env: Record
 }
 
 function brainDir(root: string, flags: Record<string, unknown>, env: Record<string, string | undefined>): string {
-  let dir = typeof flags.dir === 'string' ? flags.dir : env.BRAIN_DIR || undefined;
+  let dir = typeof flags.dir === 'string' ? flags.dir : env.PLANGRAPH_DIR || undefined;
   if (dir === undefined) {
     const rc = readJsonObject(path.join(root, '.brainrc'), '.brainrc', RC_MAX);
     if (rc && Object.hasOwn(rc, 'dir')) {

@@ -108,7 +108,7 @@ evidence file, no SQLite index; refs re-fingerprinted on a plan.md built from th
 `cases.json`. It refuses any output inside this repository or the source project (symlinks resolved) and any non-empty directory, and
 prints counts only. `--verify` cross-checks the truth with the brain CLI (zero model calls). Tests generate a stand-in project with a
 canary list (invented names, key prefix, summary markers), prove the canaries reach the temp suite, and fail if any committable file
-under `evals/` contains one; with `BRAIN_REAL_PROJECT=<root>` the same test also checks the real project's names and keys.
+under `evals/` contains one; with `PLANGRAPH_REAL_PROJECT=<root>` the same test also checks the real project's names and keys.
 
 ## Running
 

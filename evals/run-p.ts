@@ -97,7 +97,7 @@ export function childEnv(env: Record<string, string | undefined> = process.env, 
   for (const [k, v] of Object.entries(env)) {
     if (v === undefined) continue;
     if (/^CLAUDE/.test(k) && !KEEP_CLAUDE.has(k)) continue;
-    if (/^BRAIN_/.test(k)) continue;
+    if (/^PLANGRAPH_/.test(k)) continue;
     out[k] = v;
   }
   out.PATH = String(env.PATH || '').split(path.delimiter).filter((d) => d && !hasBrain(d)).join(path.delimiter);

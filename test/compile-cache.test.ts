@@ -24,7 +24,7 @@ const tmp = (p: string) => { const d = fs.realpathSync(fs.mkdtempSync(path.join(
 after(() => { for (const d of made) { try { fs.chmodSync(d, 0o700); } catch { /* gone */ } fs.rmSync(d, { recursive: true, force: true }); } });
 
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' };
-const BASE_ENV: Record<string, string | undefined> = { PATH: process.env.PATH, HOME: tmp('cc-home-'), LC_ALL: 'C', TZ: 'UTC', BRAIN_DIR: '', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV };
+const BASE_ENV: Record<string, string | undefined> = { PATH: process.env.PATH, HOME: tmp('cc-home-'), LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 
 /** A git repository with an initialised, built brain over a small generated plan. */

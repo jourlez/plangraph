@@ -14,7 +14,7 @@ import { registry } from '../src/registry.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/brain'), FX = path.join(import.meta.dirname, 'fixtures');
 let BASE = '', FIXTURE = '', EMPTY = '';
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
-const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', TZ: 'UTC', BRAIN_DIR: '', TMPDIR: BASE, BRAIN_STRICT_OUT: '1', SOURCE_DATE_EPOCH: '1795305600', ...GIT });
+const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', SOURCE_DATE_EPOCH: '1795305600', ...GIT });
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
 const run = (cwd: string, args: string[]): Promise<{ status: number | null; stdout: string; stderr: string }> => new Promise((resolve) => {

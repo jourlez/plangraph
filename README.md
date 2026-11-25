@@ -116,7 +116,7 @@ The plugin declares one option, `card`, with the values `auto` (default) and `of
 - Inside Claude Code: `/plugin configure plangraph@plangraph-marketplace`.
 - At install time: `claude plugin install plangraph@plangraph-marketplace --config card=off`.
 - Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`.
-- For one shell or one machine: set the environment variable `BRAIN_CARD=off`.
+- For one shell or one machine: set the environment variable `PLANGRAPH_CARD=off`.
 
 ### Verifying the install
 
@@ -344,11 +344,11 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 | `uv --version` | `brain doctor` | when run | none |
 | `bin/brain-merge`, through a small shell shim in the plugin data directory | git | at merge, rebase and cherry-pick of brain JSONL files | none |
 | `op read`, `security find-generic-password` (macOS) or `secret-tool lookup` (Linux) | `brain jira-pull`, `brain jira-text` | only to read your Jira credential, in that order, when the environment does not hold it | none from brain; the helper is your own tool |
-| HTTPS requests from `lib/jira.ts` | `brain jira-pull`, `brain jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `BRAIN_JIRA_DC_HOSTS` |
+| HTTPS requests from `lib/jira.ts` | `brain jira-pull`, `brain jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `PLANGRAPH_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/brain-solve`, or a Python venv with `pip install --require-hashes` | `brain-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
 | `node mcp/brain-mcp.ts` | your MCP client | only if you register it yourself (off by default) | none |
 
-What the hook does: if the project has a brain index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. With `--heal` it also repairs a missing or outdated merge driver, silently. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `BRAIN_CARD=off`) turns it off.
+What the hook does: if the project has a brain index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. With `--heal` it also repairs a missing or outdated merge driver, silently. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
 
 `plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/project-brain` outside Claude Code; it holds the merge-driver shim and, on the pip path, the solver venv.
 
@@ -443,20 +443,20 @@ The plugin ships eight skills. Claude picks one from its description, or you inv
 
 ### Brain directory
 
-`--dir DIR`, else `BRAIN_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be a relative path inside the repository; an absolute or escaping path is refused with exit 4.
+`--dir DIR`, else `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be a relative path inside the repository; an absolute or escaping path is refused with exit 4.
 
 ### Environment variables
 
 | Variable | Effect |
 |---|---|
-| `BRAIN_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
-| `BRAIN_DIR` | brain directory (relative, inside the repository) |
+| `PLANGRAPH_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
+| `PLANGRAPH_DIR` | brain directory (relative, inside the repository) |
 | `CLAUDE_PLUGIN_DATA` | data directory for the merge shim and solver venv (set by Claude Code; default `~/.cache/project-brain`) |
 | `JIRA_EMAIL`, `JIRA_API_TOKEN` | Jira credential from your shell |
 | `JIRA_OP_REF` | 1Password reference (`op://vault/item/field`) for the token |
 | `JIRA_BASE_URL` | overrides `jira.base_url` for site tokens |
-| `BRAIN_JIRA_SITES` | pins the `*.atlassian.net` sites a site token may reach |
-| `BRAIN_JIRA_DC_HOSTS` | allowlist of Data Center hosts (never read from the repository) |
+| `PLANGRAPH_JIRA_SITES` | pins the `*.atlassian.net` sites a site token may reach |
+| `PLANGRAPH_JIRA_DC_HOSTS` | allowlist of Data Center hosts (never read from the repository) |
 | `SOURCE_DATE_EPOCH` | fixed clock for every printed or stored date, for reproducible output |
 
 ### Exit codes
@@ -619,7 +619,7 @@ What is verified live, and what only against fixtures:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `BRAIN_CARD`; run `brain card` by hand to see any error |
+| The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `PLANGRAPH_CARD`; run `brain card` by hand to see any error |
 | The session starts with `brain: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet, or the data is in an older format | run `brain build`, or `brain migrate --write` first when the line says so |
 | `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/plangraph/bin/brain ...`, or add that `bin/` directory to your PATH |
 | `note: .brain: data format 0 is older than 1` | data written before `format.json` existed | `brain migrate`, then `brain migrate --write` |
@@ -629,7 +629,7 @@ What is verified live, and what only against fixtures:
 | `merge driver: ... is not set` in `brain doctor` | a fresh clone (git config is not versioned) or a moved plugin install | `brain doctor --fix` |
 | `brain-solve-run` exits 3 | no uv and no usable Python 3.10 to 3.14 | install uv (recommended), or a Python 3.10 to 3.14 |
 | `MODEL_INVALID: every ticket needs an sp` | a ticket without story points (for example the epic ticket `sp-ingest` creates for a plan) | give every ticket an `sp` value (`0` is allowed) |
-| `error: brain directory is outside the repository` | `--dir`, `BRAIN_DIR` or `.brainrc` names an absolute or escaping path | use a relative path inside the repository |
+| `error: brain directory is outside the repository` | `--dir`, `PLANGRAPH_DIR` or `.brainrc` names an absolute or escaping path | use a relative path inside the repository |
 | Errors on Windows | not supported (the merge shim is POSIX shell; untested) | use macOS, Linux or WSL (WSL is also untested) |
 
 ## FAQ

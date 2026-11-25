@@ -1,5 +1,5 @@
 // The one steer toward `brain`, shared by the session card's last line, the CLAUDE.md snippet `brain init` PRINTS (brain never writes a
-// repo's CLAUDE.md) and the `brain doctor` info check. Pure: no I/O. The brain dir is the only input; it comes from .brainrc or BRAIN_DIR
+// repo's CLAUDE.md) and the `brain doctor` info check. Pure: no I/O. The brain dir is the only input; it comes from .brainrc or PLANGRAPH_DIR
 // (repo-controlled text), so it is one sanitized capped line before it is printed.
 import { oneLine } from './sanitize.ts';
 

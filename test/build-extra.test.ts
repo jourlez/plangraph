@@ -93,7 +93,7 @@ test('(c) a legacy file with only known fields exports byte-identical to its can
 test('(d) a known text field with an object value is a data error (security review M3); other tables keep unknown fields', () => {
   const d = repo();
   put(d, 'tickets.jsonl', [tk('T-1', { summary: { not: 'a string' } })]);
-  const bad = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: d, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
+  const bad = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: d, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
   assert.equal(bad.status, 2); assert.equal(bad.stderr, 'error: tickets.jsonl:1: "summary" must be a string or a number\ntry: brain doctor\n');
   put(d, 'tickets.jsonl', [tk('T-1')]);
   put(d, 'edges.jsonl', [{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need', note: '', weight: 2 }]);

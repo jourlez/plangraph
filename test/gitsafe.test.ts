@@ -76,7 +76,7 @@ test('compileHeading: find and nextIndex touch linearly many characters in the t
   assert.ok(s.ratio < s.maxRatio, `compileHeading work ratio ${s.ratio.toFixed(2)} (${s.small} at n, ${s.large} at 4n; linear ~4, quadratic ~16)`);
 });
 test('makeGit pins LC_ALL=C and disables prompts for the git child, whatever the caller locale', () => {
-  const dir = fs.mkdtempSync(path.join(process.env.BRAIN_TEST_TMP || os.tmpdir(), 'gitsafe-env-'));
+  const dir = fs.mkdtempSync(path.join(process.env.PLANGRAPH_TEST_TMP || os.tmpdir(), 'gitsafe-env-'));
   const old = process.env.LC_ALL; process.env.LC_ALL = 'fr_FR.UTF-8';
   try {
     const git = makeGit(dir);

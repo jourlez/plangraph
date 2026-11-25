@@ -8,7 +8,7 @@
 // exempt, no contradictory end-sprint bound); the anytime verifier gate and the LNS acceptance check (mutants); partial meta written before the
 // schedule, --meta none turning anytime writes off, gap_pct clamping and the directory fsync (Python unit checks, stdlib only); the `uv run`
 // fallback never executes a .venv or .python-version interpreter committed in the working directory (real uv; the uv 0.4.30 leg needs
-// BRAIN_TEST_UV_0430).
+// PLANGRAPH_TEST_UV_0430).
 // NOT covered: the SQLite input path (smoke.sh covers it when ortools is present), real-size optimality (only the status honesty is tested at 1400
 // tickets), multi-worker nondeterminism (only --deterministic is tested for identical bytes), Windows, and the launcher's venv fallback branch;
 // anytime writes with --format object end to end, a kill landing between the meta and schedule renames, the 64 MiB snapshot limit, and the measured --lns gain (docs/SOLVER.md, not a test).
@@ -187,7 +187,7 @@ test('stage_order: config order is honored in the meta stages; the default keeps
 
 test('stage_order: the default written by `brain init` keeps today\'s order (peak_load before owner_changes with balance_load)', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'init-')); spawnSync('git', ['init', '-q'], { cwd: repo });
-  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'brain-data') } }); // private data dir: never the real HOME
+  const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'brain-data') } }); // private data dir: never the real HOME
   assert.equal(ir.status, 0, ir.stderr);
   const so = JSON.parse(fs.readFileSync(path.join(repo, '.brain', 'config.json'), 'utf8')).stage_order;
   assert.deepEqual(so, ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes']);
@@ -353,7 +353,7 @@ test('anytime: a verifier rejection restores the --out that existed before the r
   assert.notEqual(mut, src); const script = path.join(tmpRoot, 'brain-solve-mutant2'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 }); const dir = writePlan(p), out = path.join(dir, 'out.json');
   fs.writeFileSync(out, 'precious\n');
-  const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { encoding: 'utf8', cwd: tmpRoot, timeout: 300000, env: { ...process.env, BRAIN_SOLVE_SCRIPT: script } });
+  const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { encoding: 'utf8', cwd: tmpRoot, timeout: 300000, env: { ...process.env, PLANGRAPH_SOLVE_SCRIPT: script } });
   assert.equal(r.status, 6, r.stdout + r.stderr); assert.match(r.stderr, /^anytime \{"source":"constructive"/m, 'the constructive schedule was written first');
   assert.equal(fs.readFileSync(out, 'utf8'), 'precious\n');
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.endsWith('.tmp')), []);
@@ -578,7 +578,7 @@ test('anytime: a CP-SAT callback solution the verifier rejects never reaches --o
   assert.equal(mut.split('\n').length, src.split('\n').length); assert.ok(!mut.includes('if not s.wrote: return') && !mut.includes(CAP_ANCHOR), 'both mutation anchors exist');
   const script = path.join(tmpRoot, 'brain-solve-mutant-gate'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 }); const dir = writePlan(p), out = path.join(dir, 'out.json');
-  const child = spawn(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { cwd: tmpRoot, detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, BRAIN_SOLVE_SCRIPT: script } });
+  const child = spawn(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30', '--verbose'], { cwd: tmpRoot, detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PLANGRAPH_SOLVE_SCRIPT: script } });
   let err = '', all = '', stdout = '', killed = false;
   const done = new Promise<Exit>((res) => child.on('close', (code, signal) => res({ code, signal })));
   child.stdout.setEncoding('utf8'); child.stdout.on('data', (s) => { stdout += s; });
@@ -601,7 +601,7 @@ test('polish: the LNS acceptance check keeps only lexicographic improvements (su
   const mut = src.replace(anchor, '    return {i: (o, s + (0 if i in pr.frozen else 1)) for i, (o, s) in inc.items()}\n' + anchor);
   assert.notEqual(mut, src, 'mutation anchor must exist'); const script = path.join(tmpRoot, 'brain-solve-mutant-lns'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = twoPlans();
-  const r = solve(p, ['--lns', '--deterministic'], { time: 10, env: { BRAIN_SOLVE_SCRIPT: script } }); assert.ok([0, 4].includes(r.code as number), r.stdout + r.stderr); // null (a signal) is not in the list
+  const r = solve(p, ['--lns', '--deterministic'], { time: 10, env: { PLANGRAPH_SOLVE_SCRIPT: script } }); assert.ok([0, 4].includes(r.code as number), r.stdout + r.stderr); // null (a signal) is not in the list
   const pol = r.meta.polish; assert.ok(pol && pol.rounds >= 1, JSON.stringify(pol));
   assert.equal(pol.improved, 0, JSON.stringify(pol)); assert.deepEqual(pol.after, pol.before);
   const key = (o: Record<string, number>) => r.meta.stage_order.map((n) => o[n]), [bk, ak] = [key(pol.before), key(pol.after)];
@@ -790,7 +790,7 @@ test('refuses to write when the independent verifier rejects (mutated model is c
   assert.notEqual(mut, src, 'mutation anchor must exist');
   const script = path.join(tmpRoot, 'brain-solve-mutant'); fs.writeFileSync(script, mut, { mode: 0o755 });
   const p = plan({ n: 12, people: 2, density: 0.1, seed: 6, cap: 5 });
-  const r = solve(p, [], { env: { BRAIN_SOLVE_SCRIPT: script } });
+  const r = solve(p, [], { env: { PLANGRAPH_SOLVE_SCRIPT: script } });
   assert.equal(r.code, 6, r.stdout + r.stderr); assert.match(r.stdout, /^VERIFY_FAILED.*capacity/); assert.equal(r.raw, null); assert.equal(r.meta.status, 'VERIFY_FAILED');
 });
 
@@ -912,7 +912,7 @@ test('characterization: confinement: --out with .. segments or a double slash th
 test('characterization: confinement: a .brainrc dir outside the repository exits 2', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'repo-')); spawnSync('git', ['init', '-q'], { cwd: repo });
   fs.writeFileSync(path.join(repo, '.brainrc'), JSON.stringify({ dir: '../../elsewhere' }));
-  const r = spawnSync(RUN, ['--out', path.join(repo, 'out.json')], { encoding: 'utf8', cwd: repo, timeout: 120000, env: { ...process.env, BRAIN_DIR: '' } });
+  const r = spawnSync(RUN, ['--out', path.join(repo, 'out.json')], { encoding: 'utf8', cwd: repo, timeout: 120000, env: { ...process.env, PLANGRAPH_DIR: '' } });
   assert.equal(r.status, 2, r.stdout + r.stderr); assert.match(r.stdout + r.stderr, /directory outside the repository/);
 });
 test('atomic_write re-checks the confinement at write time (a parent swapped for a symlink after the check is refused)', { skip: SKIP, timeout: T_LIGHT }, () => {
@@ -1017,7 +1017,7 @@ print(json.dumps(res, sort_keys=True))`);
 
 // (b) SIGKILL on the launcher. bin/brain-solve-run now execs the solver's Python itself (uv only prepares the locked environment), so the
 // launcher's pid IS the solver and a SIGKILL leaves no process behind. On the fallback path where `uv run` stays the parent
-// (BRAIN_SOLVE_LAUNCH=uv-run forces it), the solver watches its parent and exits without another write once uv is gone. Either way --out
+// (PLANGRAPH_SOLVE_LAUNCH=uv-run forces it), the solver watches its parent and exits without another write once uv is gone. Either way --out
 // keeps the last verified anytime schedule with its partial meta, and nothing writes it after the kill.
 const procsWith = (needle: string) => spawnSync('ps', ['-A', '-o', 'pid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter((l) => l.includes(needle));
 async function killTest(env: Record<string, string>, { exec = false }: { exec?: boolean } = {}) {
@@ -1062,18 +1062,18 @@ async function killTest(env: Record<string, string>, { exec = false }: { exec?: 
   } finally { clearTimeout(guard); reap(); }
 }
 test('(b) SIGKILL on the launcher leaves no solver process and a valid, marked --out (exec path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({}, { exec: true }));
-test('(b) SIGKILL on a `uv run` launcher: the orphaned solver notices and exits without writing (watchdog path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({ BRAIN_SOLVE_LAUNCH: 'uv-run' }));
+test('(b) SIGKILL on a `uv run` launcher: the orphaned solver notices and exits without writing (watchdog path)', { skip: SKIP || (HAVE_UV ? false : 'skipped: no uv'), timeout: T_HEAVY }, () => killTest({ PLANGRAPH_SOLVE_LAUNCH: 'uv-run' }));
 
 // The `uv run` fallbacks run in the caller's directory, and uv picks the interpreter of a `uv run` there from a committed .venv (every uv
 // version, also with --no-config) and from a .python-version (uv 0.4.30, also with --no-config), so a repository could run its own
 // executable as the user. 0.2.4 passes an absolute --python found from the plugin's bin directory. Each planted interpreter writes a marker
 // and fails; the test asserts no marker, whatever the exit code (the interpreter is chosen before resolution, so UV_OFFLINE=1 with an empty
 // UV_CACHE_DIR keeps the network out and still shows a planted interpreter). HOME is a temporary directory: nothing is written outside it.
-// The uv 0.4.30 leg (no `sync --script`, so it takes the fallback in normal use) runs when BRAIN_TEST_UV_0430 names that uv binary; the CI
+// The uv 0.4.30 leg (no `sync --script`, so it takes the fallback in normal use) runs when PLANGRAPH_TEST_UV_0430 names that uv binary; the CI
 // slow job sets it, and without it the leg is skipped with a notice.
-const OLD_UV = process.env.BRAIN_TEST_UV_0430 || '';
-const OLD_UV_SKIP = !OLD_UV ? 'skipped: BRAIN_TEST_UV_0430 (path to a uv 0.4.30 binary) is unset, the uv 0.4.30 leg cannot run'
-  : spawnSync(OLD_UV, ['--version'], { encoding: 'utf8' }).stdout?.startsWith('uv 0.4.30') ? false : `skipped: BRAIN_TEST_UV_0430=${OLD_UV} is not uv 0.4.30`;
+const OLD_UV = process.env.PLANGRAPH_TEST_UV_0430 || '';
+const OLD_UV_SKIP = !OLD_UV ? 'skipped: PLANGRAPH_TEST_UV_0430 (path to a uv 0.4.30 binary) is unset, the uv 0.4.30 leg cannot run'
+  : spawnSync(OLD_UV, ['--version'], { encoding: 'utf8' }).stdout?.startsWith('uv 0.4.30') ? false : `skipped: PLANGRAPH_TEST_UV_0430=${OLD_UV} is not uv 0.4.30`;
 if (OLD_UV_SKIP) console.log(OLD_UV_SKIP);
 function hostileFallback(plant: 'venv' | 'python-version', oldUv = false): { markers: string[]; status: number | null; stderr: string } {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(tmpRoot, 'hostile-'))), cwd = path.join(base, 'repo'), marks = path.join(base, 'marks');
@@ -1088,7 +1088,7 @@ function hostileFallback(plant: 'venv' | 'python-version', oldUv = false): { mar
   } else { evil('evil/python3'); fs.writeFileSync(path.join(cwd, '.python-version'), './evil/python3\n'); }
   const env: Record<string, string | undefined> = { ...process.env, HOME: path.join(base, 'home'), UV_CACHE_DIR: path.join(base, 'cache'), UV_OFFLINE: '1', UV_PYTHON_DOWNLOADS: 'never', VIRTUAL_ENV: undefined, UV_PYTHON: undefined };
   if (oldUv) { const ub = path.join(base, 'uvbin'); fs.mkdirSync(ub); fs.symlinkSync(OLD_UV, path.join(ub, 'uv')); env.PATH = `${ub}:${process.env.PATH}`; } // 0.4.30 has no sync --script: the fallback runs in normal use
-  else env.BRAIN_SOLVE_LAUNCH = 'uv-run';
+  else env.PLANGRAPH_SOLVE_LAUNCH = 'uv-run';
   const r = spawnSync(RUN, ['--help'], { cwd, env, encoding: 'utf8', timeout: T_LIGHT });
   return { markers: fs.readdirSync(marks), status: r.status, stderr: r.stderr };
 }

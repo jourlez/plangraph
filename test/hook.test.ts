@@ -1,7 +1,7 @@
 // The SessionStart hook, run exactly as hooks/hooks.json declares it: parsed from the JSON, spawned (no shell) with `command` and
 // `args`, ${CLAUDE_PLUGIN_ROOT} substituted. PATH holds only node and git (so `uv` is absent). Real git, temp repos and data dirs.
 // Timing: the p95 over 20 runs must stay under 150 ms (the brief's number; the assertion is a PERFORMANCE contract). Node start-up
-// alone can approach that on a loaded CI box, so the p95 is only enforced when BRAIN_STRICT_PERF=1, and the always-on assertion is
+// alone can approach that on a loaded CI box, so the p95 is only enforced when PLANGRAPH_STRICT_PERF=1, and the always-on assertion is
 // a generous 10x bound (1.5 s) on the p95 plus the median under 150 ms x 4. Measured numbers are printed by the test.
 import baseTest, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -73,14 +73,14 @@ test('a brain dir with a corrupt index still exits 0 and prints nothing to stder
   assert.equal(w.brain(['card']).status, 2, 'a manual card reports the corrupt index');
 });
 
-// Every failure before or inside the command (a bad .brainrc, a refused brain dir from BRAIN_DIR or .brainrc, an unknown option) is
+// Every failure before or inside the command (a bad .brainrc, a refused brain dir from PLANGRAPH_DIR or .brainrc, an unknown option) is
 // thrown and caught in src/cli.ts main(): the hook form returns 0 with no output from that catch; the manual form reports it.
-test('the real hook command stays silent with exit 0 on a bad .brainrc, BRAIN_DIR=/etc, BRAIN_DIR=../x and a .brainrc escaping the repo', () => {
+test('the real hook command stays silent with exit 0 on a bad .brainrc, PLANGRAPH_DIR=/etc, PLANGRAPH_DIR=../x and a .brainrc escaping the repo', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
   const rc = path.join(w.repo, '.brainrc');
   const cases = ([
     ['bad .brainrc', {}, '{bad json'], ['.brainrc dir array', {}, '{"dir": [1]}'], ['.brainrc escaping', {}, '{"dir": "../x"}'],
-    ['BRAIN_DIR=/etc', { BRAIN_DIR: '/etc' }, null], ['BRAIN_DIR=../x', { BRAIN_DIR: '../x' }, null], ['BRAIN_DIR with a space', { BRAIN_DIR: 'a b' }, null],
+    ['PLANGRAPH_DIR=/etc', { PLANGRAPH_DIR: '/etc' }, null], ['PLANGRAPH_DIR=../x', { PLANGRAPH_DIR: '../x' }, null], ['PLANGRAPH_DIR with a space', { PLANGRAPH_DIR: 'a b' }, null],
   ] as Array<[string, Record<string, string>, string | null]>); // a literal list of these tuples
   for (const [what, extra, text] of cases) {
     if (text === null) fs.rmSync(rc, { force: true }); else fs.writeFileSync(rc, text);
@@ -95,11 +95,11 @@ test('the real hook command stays silent with exit 0 on a bad .brainrc, BRAIN_DI
   assert.deepEqual([u.status, u.stdout, u.stderr], [0, '', ''], 'an unknown option in hook form');
 });
 
-test('card off never silences a manual card: CLAUDE_PLUGIN_OPTION_CARD=off or BRAIN_CARD=off with `brain card` still prints it', () => {
+test('card off never silences a manual card: CLAUDE_PLUGIN_OPTION_CARD=off or PLANGRAPH_CARD=off with `brain card` still prints it', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
   const plain = ok(w.brain(['card'])).stdout;
   assert.match(plain, /^brain [0-9a-f]{8} \| /);
-  for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'BRAIN_CARD']) {
+  for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
     const m = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/brain'), 'card'], { cwd: w.repo, env: { ...w.env, [key]: 'off' }, encoding: 'utf8' });
     assert.deepEqual([m.status, m.stdout, m.stderr], [0, plain, ''], key);
     assert.equal(ok(w.run({ ...w.env, [key]: 'OFF ' })).stdout, '', `${key}: case and spaces do not matter for the hook`);
@@ -127,9 +127,9 @@ test('running the hook repairs a missing merge driver once; a second run changes
   const m = fs.statSync(w.shim).mtimeMs; ok(w.run()); assert.equal(fs.statSync(w.shim).mtimeMs, m); assert.equal(w.cfg(), want);
 });
 
-test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and BRAIN_CARD=off silence the hook only, and still heal', () => {
+test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence the hook only, and still heal', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
-  for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'BRAIN_CARD']) {
+  for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
     git(w.repo, 'config', '--unset', 'merge.brain-jsonl.driver');
     const r = ok(w.run({ ...w.env, [key]: 'off' })); assert.equal(r.stdout, '');
     assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
@@ -146,7 +146,7 @@ test('timing: 20 runs, p95 under the contract (see header for how it is enforced
   ms.sort((a, b) => a - b); const p95 = ms[18], median = (ms[9] + ms[10]) / 2;
   console.log(`# hook timing ms: median ${median.toFixed(0)}, p95 ${p95.toFixed(0)}, max ${ms[19].toFixed(0)}`);
   assert.ok(p95 < budget(1500), `p95 ${p95} ms`); assert.ok(median < budget(600), `median ${median} ms`);
-  if (process.env.BRAIN_STRICT_PERF === '1') assert.ok(p95 < 150, `p95 ${p95} ms over the 150 ms contract`);
+  if (process.env.PLANGRAPH_STRICT_PERF === '1') assert.ok(p95 < 150, `p95 ${p95} ms over the 150 ms contract`);
 });
 
 // Size axis: the hook path (card --if-present --heal: heal check, index open with its source fingerprint, model, card) on a plan of n and
@@ -164,7 +164,7 @@ test('timing: the hook path scales linearly with the plan size (n vs 4n tickets,
   };
   const once = async (w: ReturnType<typeof world>) => {
     const out = ([] as string[]), t = performance.now(); // an empty list of this element type
-    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, BRAIN_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
+    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
     const ms = performance.now() - t;
     assert.equal(code, 0); assert.match(out[0] ?? '', /^brain [0-9a-f]{8} \| \d+ tickets/);
     return ms;
@@ -192,7 +192,7 @@ test('work: the hook path touches linearly many elements in the plan size (n vs 
   }
   const once = async (m: number) => {
     const w = worlds.get(m) as ReturnType<typeof world>, out: string[] = []; // both sizes were built above
-    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, BRAIN_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
+    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
     assert.equal(code, 0); assert.match(out[0] ?? '', /^brain [0-9a-f]{8} \| \d+ tickets/);
   };
   const s = await workScaling(once, 500);

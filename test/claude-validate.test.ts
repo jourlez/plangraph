@@ -13,7 +13,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const ALLOWED_WARNINGS: Array<{ id: string }> = [];
 
 function findBinary(): string | null {
-  const env = process.env.BRAIN_CLAUDE_BIN;
+  const env = process.env.PLANGRAPH_CLAUDE_BIN;
   if (env) return fs.existsSync(env) ? env : null;
   const ext = path.join(os.homedir(), '.vscode', 'extensions');
   let dirs: string[] = [];
@@ -24,7 +24,7 @@ function findBinary(): string | null {
 }
 
 const bin = findBinary();
-test('claude plugin validate reports no error and only documented warnings', { skip: bin ? false : 'no Claude Code binary (set BRAIN_CLAUDE_BIN to enable)' }, () => {
+test('claude plugin validate reports no error and only documented warnings', { skip: bin ? false : 'no Claude Code binary (set PLANGRAPH_CLAUDE_BIN to enable)' }, () => {
   // the binary's temp dir (TMPDIR) is inside our own temp dir, so whatever it leaves there (mode-000 dirs included) is removed with it
   const t = sealedTmp('brain-validate-'), home = path.join(t.dir, 'home');
   fs.mkdirSync(home);

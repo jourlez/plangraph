@@ -21,7 +21,7 @@ const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-cmd-'))); tmps.push(d); return d; };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-const ENV = { ...process.env, BRAIN_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], env = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 const silentIo = () => { const o = { out: [] as string[], err: [] as string[] }; return { o, io: { out: (s: string) => o.out.push(s), err: (s: string) => o.err.push(s), raw: (s: string) => o.out.push(s) } }; }; // an empty list of this element type
 
@@ -220,10 +220,10 @@ test('simulate skips a schedule row whose ticket does not exist, with one warnin
 });
 
 // ---------- brain dir confinement and exit codes of the entry point ----------
-test('an absolute or escaping brain dir (BRAIN_DIR, --dir, .brainrc) is refused with exit 4 and writes nothing', () => {
+test('an absolute or escaping brain dir (PLANGRAPH_DIR, --dir, .brainrc) is refused with exit 4 and writes nothing', () => {
   const d = repo(), outside = tmp();
   const want = (cmd: string) => `error: brain directory is outside the repository\nhint: use a relative --dir inside the repository\ntry: brain explain ${cmd}\n`;
-  for (const [args, env] of ([[['ticket', 'T-1'], { BRAIN_DIR: path.join(d, '.brain') }], [['init'], { BRAIN_DIR: outside }], [['build', '--dir', '../x'], {}], [['init', '--dir', outside], {}]] as Array<[string[], Record<string, string>]>)) { // a literal list of these tuples
+  for (const [args, env] of ([[['ticket', 'T-1'], { PLANGRAPH_DIR: path.join(d, '.brain') }], [['init'], { PLANGRAPH_DIR: outside }], [['build', '--dir', '../x'], {}], [['init', '--dir', outside], {}]] as Array<[string[], Record<string, string>]>)) { // a literal list of these tuples
     const r = run(d, args, env);
     assert.equal(r.status, 4, `${args.join(' ')} ${JSON.stringify(env)}`); assert.equal(r.stderr, want(args[0])); assert.equal(r.stdout, '');
   }
@@ -278,8 +278,8 @@ test('card --if-present [--heal] is silent with exit 0 on every failure: bad .br
   fs.writeFileSync(path.join(d, '.brainrc'), JSON.stringify({ dir: 7 }));
   quiet(['card', '--if-present'], {}, '.brainrc dir not a string');
   fs.rmSync(path.join(d, '.brainrc'));
-  quiet(['card', '--if-present'], { BRAIN_DIR: tmp() }, 'absolute BRAIN_DIR');
-  quiet(['card', '--if-present'], { BRAIN_DIR: '../x' }, 'escaping BRAIN_DIR');
+  quiet(['card', '--if-present'], { PLANGRAPH_DIR: tmp() }, 'absolute PLANGRAPH_DIR');
+  quiet(['card', '--if-present'], { PLANGRAPH_DIR: '../x' }, 'escaping PLANGRAPH_DIR');
   quiet(['card', '--if-present', '--dir', '../x'], {}, 'escaping --dir');
   quiet(['card', '--if-present', '--bogus'], {}, 'unknown option');
   // success: the card is printed, nothing on stderr

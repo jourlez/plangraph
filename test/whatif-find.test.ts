@@ -84,7 +84,7 @@ test('property: on random small plans the slots equal a brute force over the sam
 // ---- CLI ----
 const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain'), GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 let BASE = '', REPO = '';
-const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', BRAIN_DIR: '', TMPDIR: BASE, ...GIT });
+const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, ...GIT });
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
 const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.brain'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
 before(() => {

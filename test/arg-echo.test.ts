@@ -13,7 +13,7 @@ import { oneLine, guardOutput } from '../lib/sanitize.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/brain');
 let BASE: string, REPO: string;
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
-const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', BRAIN_DIR: '', TMPDIR: BASE, BRAIN_STRICT_OUT: '1', ...GIT });
+const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
 const jl = (rows: unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 // A directory name that tries to start a line of its own, open a fence and clear the screen.

@@ -284,7 +284,7 @@ export function importsOf(src: string) {
 }
 
 const ENTRY_PATTERNS: Array<[string, RegExp]> = ([
-  ['bin/brain', /bin(?:\/|['"`]\s*,\s*['"`])brain(?:['"`]|$)|['"`]brain['"`]\s*\)|BRAIN_BIN/m],
+  ['bin/brain', /bin(?:\/|['"`]\s*,\s*['"`])brain(?:['"`]|$)|['"`]brain['"`]\s*\)|PLANGRAPH_BIN/m],
   ['bin/brain-merge', /brain-merge/],
   ['mcp/brain-mcp.ts', /brain-mcp\.(?:mjs|ts)/],
 ]);
@@ -412,7 +412,7 @@ const sha = (/** @type {string} */ s: string) => crypto.createHash('sha256').upd
  * @param {string} cwd @param {string[]} files @param {number} timeout @param {number} conc @returns {Promise<{ verdict: 'pass'|'fail'|'timeout', ms: number }>} */
 function runTests(cwd: string, files: string[], timeout: number, conc: number) {
   return new Promise<{ verdict: 'pass' | 'fail' | 'timeout'; ms: number }>((resolve) => {
-    /** @type {NodeJS.ProcessEnv} */ const env: NodeJS.ProcessEnv = { ...process.env, BRAIN_PERF_FACTOR: process.env.BRAIN_PERF_FACTOR ?? '2' };
+    /** @type {NodeJS.ProcessEnv} */ const env: NodeJS.ProcessEnv = { ...process.env, PLANGRAPH_PERF_FACTOR: process.env.PLANGRAPH_PERF_FACTOR ?? '2' };
     delete env.NODE_TEST_CONTEXT;
     const t0 = performance.now();
     const child = spawn(process.execPath, ['--test', '--test-reporter=tap', `--test-concurrency=${conc}`, ...files], { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'ignore'] });

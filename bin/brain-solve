@@ -65,7 +65,7 @@ def confine(path):
 
 def brain_dir():
     root = repo_root()
-    if os.environ.get('BRAIN_DIR'): return confine(os.path.join(root, os.environ['BRAIN_DIR']))
+    if os.environ.get('PLANGRAPH_DIR'): return confine(os.path.join(root, os.environ['PLANGRAPH_DIR']))
     rc = os.path.join(root, '.brainrc')
     if os.path.exists(rc): return confine(os.path.join(root, json.load(open(rc))['dir']))
     return confine(os.path.join(root, '.brain'))
@@ -1061,10 +1061,10 @@ WRITE_LOCK = threading.RLock()  # held for every write of --out / meta (and acro
 
 
 def watch_parent(poll=0.2):
-    """BRAIN_SOLVE_WATCH_PARENT=1 (set by bin/brain-solve-run only on its fallback path, where `uv run` stays this process's parent): a daemon
+    """PLANGRAPH_SOLVE_WATCH_PARENT=1 (set by bin/brain-solve-run only on its fallback path, where `uv run` stays this process's parent): a daemon
     thread polls os.getppid(); once it changes (the parent died and this process was re-parented), it takes WRITE_LOCK, so no atomic write is
     cut short, and exits at once with no further write. --out then keeps the last verified anytime schedule with its partial meta."""
-    if os.environ.get('BRAIN_SOLVE_WATCH_PARENT') != '1': return
+    if os.environ.get('PLANGRAPH_SOLVE_WATCH_PARENT') != '1': return
     ppid = os.getppid()
 
     def run():

@@ -10,7 +10,7 @@ import { parseSiteRegistry } from '../lib/jira.ts';
 function envWith(obj: unknown): Record<string, string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-cfg-'));
   fs.writeFileSync(path.join(dir, 'jira-sites.json'), JSON.stringify(obj));
-  return { BRAIN_CONFIG_DIR: dir };
+  return { PLANGRAPH_CONFIG_DIR: dir };
 }
 
 test('a user-level project entry supplies the tenant; the committed config can stay empty', () => {
@@ -35,7 +35,7 @@ test('resolveTenant is the single trust rule: committed site hosts are untrusted
   const none = envWith({ sites: {} });
   const committed: JiraSettings = { auth: { mode: 'site-token' }, base_url: 'https://evil.atlassian.net' };
   assert.equal(resolveTenant(committed, '/r', none).allowGeneric, false);
-  assert.equal(resolveTenant(committed, '/r', { ...none, BRAIN_JIRA_SITES: 'evil.atlassian.net' }).allowGeneric, true);
+  assert.equal(resolveTenant(committed, '/r', { ...none, PLANGRAPH_JIRA_SITES: 'evil.atlassian.net' }).allowGeneric, true);
   const mine = envWith({ projects: { '/r': { auth: { mode: 'site-token' }, base_url: 'https://mine.atlassian.net' } } });
   assert.equal(resolveTenant({}, '/r', mine).allowGeneric, true);
   assert.equal(resolveTenant({ cloud_id: 'abc' }, '/r', none).allowGeneric, true); // scoped: fixed gateway host

@@ -371,9 +371,9 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
 
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values.heal) await healMergeDriver(ctx);
-  // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or BRAIN_CARD) silences the session-start card.
+  // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card.
   // Healing above still ran; a manual `brain card` is never affected.
-  if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.BRAIN_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
+  if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
   if (args.values.line) return cardLine(ctx);
   const file = dbFile(ctx);
   if (args.values['if-present'] && !fs.existsSync(file)) { const l = await firstUseLine(ctx); if (l) ctx.io.out(l); return 0; }

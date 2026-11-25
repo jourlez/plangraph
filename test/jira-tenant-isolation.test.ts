@@ -21,7 +21,7 @@ const EVIL = 'https://evil.atlassian.net';
 function cfgEnv(obj?: unknown): Record<string, string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-iso-'));
   if (obj !== undefined) fs.writeFileSync(path.join(dir, 'jira-sites.json'), JSON.stringify(obj));
-  return { BRAIN_CONFIG_DIR: dir };
+  return { PLANGRAPH_CONFIG_DIR: dir };
 }
 
 interface Attempt { t: TenantResolution | null; source: string; outcome: string; message: string; hits: string[]; calls: string[] }
@@ -81,7 +81,7 @@ test('finding 1: a user base_url with a committed datacenter mode keeps the user
 const HOSTILE: unknown[] = ['evil', 'Site-Token', 'site-token ', '__proto__', 'constructor', 'toString', '', ['site-token'], { mode: 'site-token' }, 7, true];
 test('hostile auth modes are refused with bad_config before any credential helper runs', async () => {
   for (const mode of HOSTILE) {
-    const env = { ...GEN_OP, BRAIN_JIRA_DC_HOSTS: 'evil.atlassian.net', ...cfgEnv() };
+    const env = { ...GEN_OP, PLANGRAPH_JIRA_DC_HOSTS: 'evil.atlassian.net', ...cfgEnv() };
     assert.throws(() => resolveTenant({ auth: { mode }, base_url: EVIL, cloud_id: 'abcdefgh-1234' } as JiraSettings, ROOT, env), { code: 'bad_config' }, JSON.stringify(mode)); // the hostile shape under test
     const r = await attempt({ auth: { mode }, base_url: EVIL, cloud_id: 'abcdefgh-1234' }, env);
     assert.equal(r.outcome, 'bad_config', JSON.stringify(mode)); assert.equal(r.source, '');
@@ -97,24 +97,24 @@ test('a hostile mode in the user entry is dropped by the registry parser, and a 
 
 const DC_A = 'jira.acme.example', DC_B = 'jira.beta.example';
 test('datacenter with several allowlisted hosts refuses generic credentials without a binding', async () => {
-  const env = { ...GEN_OP, BRAIN_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv() };
+  const env = { ...GEN_OP, PLANGRAPH_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv() };
   const r = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, env);
   assert.equal((r.t as TenantResolution).allowGeneric, false); // valid mode: no throw
   assert.equal(r.outcome, 'no_credentials'); assert.deepEqual(r.hits, []); assert.deepEqual(r.calls.filter(genericHelper), []);
 });
 
 test('datacenter with exactly one allowlisted host allows generic credentials there only', async () => {
-  const ok = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, BRAIN_JIRA_DC_HOSTS: DC_B, ...cfgEnv() });
+  const ok = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, PLANGRAPH_JIRA_DC_HOSTS: DC_B, ...cfgEnv() });
   assert.equal((ok.t as TenantResolution).allowGeneric, true); assert.match(ok.source, /^generic/); // valid mode: no throw
   assert.deepEqual(ok.hits, [`https://${DC_B}/rest/api/2/myself`]);
-  const other = resolveTenant({ auth: { mode: 'datacenter' }, base_url: `https://${DC_A}` }, ROOT, { ...GEN, BRAIN_JIRA_DC_HOSTS: DC_B, ...cfgEnv() });
+  const other = resolveTenant({ auth: { mode: 'datacenter' }, base_url: `https://${DC_A}` }, ROOT, { ...GEN, PLANGRAPH_JIRA_DC_HOSTS: DC_B, ...cfgEnv() });
   assert.equal(other.allowGeneric, false); // the single allowlisted host is not this one
 });
 
 test('datacenter with several hosts uses a registry or convention binding', async () => {
-  const reg = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, BETA_PAT: 'beta-pat-0001', BRAIN_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv({ sites: { [DC_B]: { token_env: 'BETA_PAT' } } }) });
+  const reg = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, BETA_PAT: 'beta-pat-0001', PLANGRAPH_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv({ sites: { [DC_B]: { token_env: 'BETA_PAT' } } }) });
   assert.match(reg.source, /^registry jira\.beta\.example/); assert.equal(reg.hits.length, 1);
-  const conv = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, JIRA_API_TOKEN__JIRA_BETA_EXAMPLE: 'beta-pat-0002', BRAIN_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv() });
+  const conv = await attempt({ auth: { mode: 'datacenter' }, base_url: `https://${DC_B}` }, { ...GEN, JIRA_API_TOKEN__JIRA_BETA_EXAMPLE: 'beta-pat-0002', PLANGRAPH_JIRA_DC_HOSTS: `${DC_A},${DC_B}`, ...cfgEnv() });
   assert.match(conv.source, /^host jira\.beta\.example/); assert.equal(conv.hits.length, 1);
 });
 
@@ -126,7 +126,7 @@ test('legitimate paths keep generic credentials: user site, user cloud id, commi
   assert.match(userCloud.source, /^generic/); assert.deepEqual(userCloud.hits, ['https://api.atlassian.com/ex/jira/acme-cloud-0001/rest/api/3/myself']);
   const committedCloud = await attempt({ cloud_id: 'acme-cloud-0002' }, { ...GEN, ...cfgEnv() });
   assert.match(committedCloud.source, /^generic/); // scoped: the gateway host is fixed
-  const pinned = await attempt({ auth: { mode: 'site-token' }, base_url: 'https://acme.atlassian.net' }, { ...GEN, BRAIN_JIRA_SITES: 'acme.atlassian.net', ...cfgEnv() });
+  const pinned = await attempt({ auth: { mode: 'site-token' }, base_url: 'https://acme.atlassian.net' }, { ...GEN, PLANGRAPH_JIRA_SITES: 'acme.atlassian.net', ...cfgEnv() });
   assert.equal((pinned.t as TenantResolution).pinned, true); assert.match(pinned.source, /^generic/); assert.equal(pinned.hits.length, 1); // valid mode: no throw
   const bound = await attempt({}, { ...GEN, ACME_TOK: 'acme-token-333', ...cfgEnv({ sites: { 'acme.atlassian.net': { token_env: 'ACME_TOK' } }, projects: { [ROOT]: { auth: { mode: 'site-token' }, base_url: 'https://acme.atlassian.net' } } }) });
   assert.match(bound.source, /^registry acme\.atlassian\.net/);
@@ -138,7 +138,7 @@ test('an empty or unusable tenant is refused before any credential helper runs (
     [{ cloud_id: '' }, {}, 'bad_config'],
     [{ auth: { mode: 'site-token' } }, {}, 'bad_host'], // site-token without base_url
     [{ auth: { mode: 'site-token' }, base_url: 'not a url' }, {}, 'bad_host'],
-    [{ auth: { mode: 'datacenter' } }, { BRAIN_JIRA_DC_HOSTS: DC_A }, 'bad_host'],
+    [{ auth: { mode: 'datacenter' } }, { PLANGRAPH_JIRA_DC_HOSTS: DC_A }, 'bad_host'],
   ];
   for (const [committed, extra, code] of cases) {
     const r = await attempt(committed, { ...GEN_OP, ...extra, ...cfgEnv() });
@@ -160,7 +160,7 @@ test('brain jira-pull with no tenant configured runs no credential helper (a rec
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-iso-cli-'))), bin = path.join(root, 'fakebin'), log = path.join(root, 'helper.log');
   fs.mkdirSync(bin);
   for (const h of ['op', 'security', 'secret-tool']) { fs.writeFileSync(path.join(bin, h), `#!/bin/sh\necho "${h} $*" >> '${log}'\nexit 1\n`); fs.chmodSync(path.join(bin, h), 0o755); }
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: root, BRAIN_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.data'), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', JIRA_EMAIL: 'me@example.invalid', JIRA_OP_REF: 'op://Private/jira/generic', JIRA_API_TOKEN: '', ...cfgEnv() };
+  const env = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}`, HOME: root, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.data'), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', JIRA_EMAIL: 'me@example.invalid', JIRA_OP_REF: 'op://Private/jira/generic', JIRA_API_TOKEN: '', ...cfgEnv() };
   try {
     execFileSync('git', ['init', '-q'], { cwd: root, env });
     const brain = path.join(import.meta.dirname, '../bin/brain');

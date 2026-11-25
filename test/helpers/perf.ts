@@ -1,6 +1,6 @@
 // Load-tolerant timing helpers. A fixed deterministic CPU loop is timed (min of 3) and compared with the idle
 // reference; budget(ms) scales an absolute bound by that ratio, so a busy machine gets proportionally more time.
-// BRAIN_PERF_FACTOR multiplies on top. Hard cap keeps a real hang/blow-up failing.
+// PLANGRAPH_PERF_FACTOR multiplies on top. Hard cap keeps a real hang/blow-up failing.
 const REF_MS = 15; // idle reference for one calibration loop on the dev machine
 const CAP = 20;
 const loop = () => { let x = 1; for (let i = 0; i < 1.6e7; i++) x = (Math.imul(x, 1664525) + 1013904223) | 0; return x; };
@@ -9,7 +9,7 @@ export function baselineMs(): number {
   for (let k = 0; k < 3; k++) { const t = performance.now(); loop(); best = Math.min(best, performance.now() - t); }
   return best;
 }
-export const factor = () => { const f = Number(process.env.BRAIN_PERF_FACTOR); return Number.isFinite(f) && f > 0 ? f : 1; };
+export const factor = () => { const f = Number(process.env.PLANGRAPH_PERF_FACTOR); return Number.isFinite(f) && f > 0 ? f : 1; };
 export const ratio = () => Math.min(CAP, Math.max(1, baselineMs() / REF_MS));
 export const budget = (ms: number): number => Math.round(ms * ratio() * factor());
 // Relative complexity check: time fn(n) and fn(4n), each min of `reps`. Linear => ~4x; quadratic => ~16x.

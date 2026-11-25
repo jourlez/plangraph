@@ -2,7 +2,7 @@
 # Launcher for brain-solve: finds or builds a Python (3.10-3.14) that has OR-Tools, then runs the solver with the given flags.
 # Dependencies are locked: bin/brain-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/brain-solve`.
 # Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv, else a python3 that already has ortools.
-# Env: BRAIN_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
+# Env: PLANGRAPH_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
 # Isolation: every python call of the fallback passes -I, so the current directory (a repo that may commit ortools.py, venv/ or pip.py)
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
 # environment (test/solver-launcher.test.ts). The uv branches run the locked script environment; the two uv preparation calls run from this
@@ -11,18 +11,18 @@
 # request when set), never one a .venv or .python-version in the caller's directory names; none found exits 3 (this launcher never installs one).
 # Signals: every path execs the solver's Python, so this process IS the solver and any signal (SIGKILL included) reaches it: on the uv path,
 # uv only prepares the locked script environment (`uv sync --locked --script`, which verifies the pinned lock) and names its interpreter.
-# Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (BRAIN_SOLVE_WATCH_PARENT=1) and exits without
-# writing once uv is gone. BRAIN_SOLVE_LAUNCH=uv-run forces that fallback (tests). See docs/SOLVER.md, Anytime output.
+# Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (PLANGRAPH_SOLVE_WATCH_PARENT=1) and exits without
+# writing once uv is gone. PLANGRAPH_SOLVE_LAUNCH=uv-run forces that fallback (tests). See docs/SOLVER.md, Anytime output.
 PIN="ortools==9.15.6755"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SCRIPT="${BRAIN_SOLVE_SCRIPT:-$HERE/brain-solve}"
+SCRIPT="${PLANGRAPH_SOLVE_SCRIPT:-$HERE/brain-solve}"
 if command -v uv >/dev/null 2>&1; then
   # --locked: fail instead of re-resolving when bin/brain-solve.lock is stale (refresh with: uv lock --script bin/brain-solve). An overriding
   # script (tests, mutation checks) runs on the same locked environment as bin/brain-solve.
   LOCKED="$HERE/brain-solve"
   # Both preparation calls run from this bin directory: uv reads a uv.toml (or pyproject.toml [tool.uv]) from the directory it runs in, even
   # with --script, so the caller's repository could otherwise point uv at another index. User-level uv config and UV_* variables still apply.
-  if [ "${BRAIN_SOLVE_LAUNCH:-}" != "uv-run" ] && (cd "$HERE" && uv sync --quiet --locked --script "$LOCKED") >/dev/null 2>&1 \
+  if [ "${PLANGRAPH_SOLVE_LAUNCH:-}" != "uv-run" ] && (cd "$HERE" && uv sync --quiet --locked --script "$LOCKED") >/dev/null 2>&1 \
      && PY="$(cd "$HERE" && uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
     exec "$PY" "$SCRIPT" "$@"
   fi
@@ -34,8 +34,8 @@ if command -v uv >/dev/null 2>&1; then
     echo "brain-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14" >&2
     exit 3
   fi
-  BRAIN_SOLVE_WATCH_PARENT=1; export BRAIN_SOLVE_WATCH_PARENT
-  if [ -z "${BRAIN_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
+  PLANGRAPH_SOLVE_WATCH_PARENT=1; export PLANGRAPH_SOLVE_WATCH_PARENT
+  if [ -z "${PLANGRAPH_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
   exec uv run --quiet --no-project --python "$PYI" --with "$PIN" python "$SCRIPT" "$@"
 fi
 VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/project-brain}/venv"

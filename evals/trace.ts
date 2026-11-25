@@ -4,7 +4,7 @@
 // with --include-hook-events, are listed apart). Pure: no I/O; never throws on a bad line.
 import { SKILLS } from './schema.ts';
 
-const BRAIN_CALL = /(?:^|[\s;&|(`])(?:node\s+)?(?:\S*\/)?brain(?:\s|$)/m;
+const PLANGRAPH_CALL = /(?:^|[\s;&|(`])(?:node\s+)?(?:\S*\/)?brain(?:\s|$)/m;
 const NOT_FOUND = /command not found: brain|brain: (?:command )?not found|no such file or directory[^\n]*brain|exit code 127/i;
 const textOf = (content: unknown) => (typeof content === 'string' ? content : Array.isArray(content) ? content.map((x) => (x && typeof x.text === 'string' ? x.text : '')).join('\n') : '');
 const PLUGIN_SKILL = new RegExp(`^(?:plangraph:)?(?:${SKILLS.join('|')})$`);
@@ -51,7 +51,7 @@ export function parseTrace(text: unknown) {
   }
   const u = (result && result.usage) || {};
   const tokens = result ? ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens'].reduce((s, k) => s + (Number.isFinite(u[k]) ? u[k] : 0), 0) : null;
-  const brain = calls.filter((c) => c.tool === 'Bash' && BRAIN_CALL.test(c.input));
+  const brain = calls.filter((c) => c.tool === 'Bash' && PLANGRAPH_CALL.test(c.input));
   const skills = calls.filter((c) => c.tool === 'Skill').map((c) => String(c.raw.skill ?? ''));
   return {
     init, calls,

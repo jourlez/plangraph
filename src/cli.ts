@@ -26,11 +26,11 @@ const MAX_STORED = 10000;
 const MAX_NEXT = 3;
 // The output contract: ctx.io.out(line) receives exactly ONE line. A line break of any kind in it (LF, CR, VT, FF, NEL, U+2028, U+2029)
 // is a programmer error: a value from the data reached an output line without oneLine/fence and could forge a line of our own. In strict
-// mode (tests: BRAIN_STRICT_OUT=1, or under node --test) it throws a TypeError, so the command fails with exit 5; in production every run
+// mode (tests: PLANGRAPH_STRICT_OUT=1, or under node --test) it throws a TypeError, so the command fails with exit 5; in production every run
 // of breaks becomes one space, so the line stays one line (never silently several). Intended multi-line output (a fence block, a report)
 // goes through ctx.io.outBlock(lines): an array of single lines, each held to the same rule.
 const BREAK = /[\n\r\u000b\u000c\u0085\u2028\u2029]/, BREAKS = /[\n\r\u000b\u000c\u0085\u2028\u2029]+/g;
-export const strictOutput = (env: Record<string, string | undefined>): boolean => env.BRAIN_STRICT_OUT === '1' || (env.BRAIN_STRICT_OUT !== '0' && process.env.NODE_TEST_CONTEXT !== undefined);
+export const strictOutput = (env: Record<string, string | undefined>): boolean => env.PLANGRAPH_STRICT_OUT === '1' || (env.PLANGRAPH_STRICT_OUT !== '0' && process.env.NODE_TEST_CONTEXT !== undefined);
 /** Collects output lines, one per out() call (outBlock: one per element). Memory is bounded: past maxStored lines are only counted.
  * data(d, { next }) keeps the last structured answer of the command and at most 3 next commands (strings). */
 interface Structured { data: unknown; next: string[] }

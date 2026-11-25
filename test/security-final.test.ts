@@ -22,7 +22,7 @@ const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir
 const HOME = tmp();
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 'tester', GIT_AUTHOR_EMAIL: 'tester@example.invalid', GIT_COMMITTER_NAME: 'tester', GIT_COMMITTER_EMAIL: 'tester@example.invalid' };
-const ENV = { ...process.env, BRAIN_DIR: '', HOME, SOURCE_DATE_EPOCH: '1700000000', ...GIT_ENV };
+const ENV = { ...process.env, PLANGRAPH_DIR: '', HOME, SOURCE_DATE_EPOCH: '1700000000', ...GIT_ENV };
 const run = (cwd: string, args: string[], env: Record<string, string> = {}, o: { input?: string; timeout?: number } = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', timeout: o.timeout ?? 30000, maxBuffer: 1 << 28, input: o.input, env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(HOME, 'data'), ...env } });
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: ENV, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };

@@ -21,9 +21,9 @@ export interface TenantResolution { jira: JiraSettings; tenant: string; mode: Au
 
 const MAX_REGISTRY = 64 * 1024;
 
-/** Directory of the user-level config: BRAIN_CONFIG_DIR, else $XDG_CONFIG_HOME/project-brain, else ~/.config/project-brain. The directory keeps its pre-rename name on purpose: users' Jira bindings live there. */
+/** Directory of the user-level config: PLANGRAPH_CONFIG_DIR, else $XDG_CONFIG_HOME/project-brain, else ~/.config/project-brain. The directory keeps its pre-rename name on purpose: users' Jira bindings live there. */
 export function configDir(env: Record<string, string | undefined> = {}): string {
-  if (env.BRAIN_CONFIG_DIR) return path.resolve(String(env.BRAIN_CONFIG_DIR));
+  if (env.PLANGRAPH_CONFIG_DIR) return path.resolve(String(env.PLANGRAPH_CONFIG_DIR));
   const base = env.XDG_CONFIG_HOME ? String(env.XDG_CONFIG_HOME) : path.join(env.HOME || os.homedir(), '.config');
   return path.join(base, 'project-brain');
 }
@@ -80,7 +80,7 @@ export function resolveTenant(committed: JiraSettings | undefined, root: string,
   if (!isAuthMode(raw)) throw new JiraError('bad_config', 'auth.mode must be scoped, site-token or datacenter');
   const mode = raw, tenant = tenantOf(jira, env);
   const registry = loadRegistry(env), entry = tenant && Object.hasOwn(registry.reg, tenant) ? registry.reg[tenant] as SiteEntry : null; // Object.hasOwn on the same line
-  const pins = String(env.BRAIN_JIRA_SITES || '').toLowerCase().split(',').map((x) => x.trim()).filter(Boolean);
+  const pins = String(env.PLANGRAPH_JIRA_SITES || '').toLowerCase().split(',').map((x) => x.trim()).filter(Boolean);
   const pinned = tenant !== '' && pins.includes(tenant.split(':')[0] as string); // split always returns at least one item
   const dcHosts = dcHostsFromEnv(env);
   // Generic credentials only go where the host is NOT chosen by a committed config (a positive list, so an unknown mode never qualifies):

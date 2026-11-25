@@ -196,8 +196,8 @@ export function parseDcHosts(v: unknown): Set<string> {
   const list: unknown[] = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : [];
   return new Set(list.map((x) => String(x).trim().toLowerCase()).filter((x) => /^[a-z0-9.-]+(:\d+)?$/.test(x)));
 }
-export const siteHostsFromEnv = (env: Record<string, string | undefined> = {}): string[] => [...parseDcHosts(env.BRAIN_JIRA_SITES)];
-export const dcHostsFromEnv = (env: Record<string, string | undefined> = {}): string[] => [...parseDcHosts(env.BRAIN_JIRA_DC_HOSTS)];
+export const siteHostsFromEnv = (env: Record<string, string | undefined> = {}): string[] => [...parseDcHosts(env.PLANGRAPH_JIRA_SITES)];
+export const dcHostsFromEnv = (env: Record<string, string | undefined> = {}): string[] => [...parseDcHosts(env.PLANGRAPH_JIRA_DC_HOSTS)];
 
 const SITE_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.atlassian\.net$/;
 export function validateBase(url: unknown, opts: ValidateOptions = {}): ValidatedBase {
@@ -213,7 +213,7 @@ export function validateBase(url: unknown, opts: ValidateOptions = {}): Validate
   const host = u.hostname; let kind: ValidatedBase['kind'];
   if (loop) kind = 'loopback';
   else if (opts.mode === AUTH_MODES.DATACENTER) {
-    if (!parseDcHosts(opts.dcHosts).has(u.host)) fail('host is not in the user-level Data Center allowlist (BRAIN_JIRA_DC_HOSTS)');
+    if (!parseDcHosts(opts.dcHosts).has(u.host)) fail('host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS)');
     kind = 'datacenter';
   } else {
     if (/(^|\.)xn--/.test(host)) fail('punycode (xn--) host label'); // never rely on the URL parser: newer Node versions accept some malformed punycode that older ones rejected
@@ -221,7 +221,7 @@ export function validateBase(url: unknown, opts: ValidateOptions = {}): Validate
     const gw = host === 'api.atlassian.com', site = SITE_RE.test(host);
     if (opts.mode === AUTH_MODES.SCOPED ? !gw : opts.mode === AUTH_MODES.SITE_TOKEN ? !site : !gw && !site) fail('host is not on the Atlassian allowlist');
     const pins = parseDcHosts(opts.siteHosts); // optional user-level pin: a committed config must not aim a site token at someone else's tenant
-    if (site && pins.size && !pins.has(host)) fail('site is not in the user-level site allowlist (BRAIN_JIRA_SITES)');
+    if (site && pins.size && !pins.has(host)) fail('site is not in the user-level site allowlist (PLANGRAPH_JIRA_SITES)');
     kind = gw ? 'gateway' : 'site';
   }
   const dcPath = kind === 'datacenter' || (loop && opts.mode === AUTH_MODES.DATACENTER);
@@ -271,8 +271,8 @@ export async function getCredentials({ env = {}, exec = defaultExec, platform = 
 // site. Credentials are therefore BOUND to a host. Order for host H (first hit wins; a host that has a registry entry never falls back):
 //   1. user-level registry entry for H (~/.config/project-brain/jira-sites.json, never committed): names of env vars, an op:// ref or a keychain service
 //   2. convention: env JIRA_EMAIL__TAG + JIRA_API_TOKEN__TAG (or JIRA_OP_REF__TAG) and keychain service `project-brain-jira:H`, TAG = H without .atlassian.net, upper-case
-//   3. the generic JIRA_* set, only when `allowGeneric` (src/jira-tenant.ts resolveTenant: scoped mode, the single BRAIN_JIRA_DC_HOSTS host, a
-//      site pinned in BRAIN_JIRA_SITES, or the tenant named in the user's own projects entry)
+//   3. the generic JIRA_* set, only when `allowGeneric` (src/jira-tenant.ts resolveTenant: scoped mode, the single PLANGRAPH_JIRA_DC_HOSTS host, a
+//      site pinned in PLANGRAPH_JIRA_SITES, or the tenant named in the user's own projects entry)
 export const siteTag = (host: string): string => String(host).replace(/\.atlassian\.net$/i, '').toUpperCase().replace(/[^A-Z0-9]/g, '_');
 const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/, SERVICE_RE = /^[A-Za-z0-9._:@-]{1,100}$/, HOST_RE = /^[a-z0-9](?:[a-z0-9.-]{0,120}[a-z0-9])?(?::\d{1,5})?$/;
 /** Validates the user-level registry; returns a null-prototype map host -> entry, dropping anything malformed (reported in `problems`). */

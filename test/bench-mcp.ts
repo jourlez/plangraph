@@ -22,7 +22,7 @@ const bytes = (s: string) => Buffer.byteLength(s, 'utf8');
 
 const gen = spawnSync(process.execPath, [path.join(ROOT, 'test/bench-tokens.ts'), '--dir', SCRATCH, '--no-write'], { encoding: 'utf8', timeout: 300000 });
 if (gen.status !== 0) { console.error('bench-tokens failed:\n' + (gen.stderr || '').slice(0, 800)); process.exit(2); }
-const env = { ...process.env, BRAIN_DIR: 'brain', CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }; // private data dir: bin/brain's compile cache never goes to the real HOME
+const env = { ...process.env, PLANGRAPH_DIR: 'brain', CLAUDE_PLUGIN_DATA: path.join(SCRATCH, '.plugin-data') }; // private data dir: bin/brain's compile cache never goes to the real HOME
 const est = estimator(loadCalibration());
 
 // The bench-tokens questions a tool answers (same numbering and keys: K1 T-700, K2 T-1200, K3 T-20).

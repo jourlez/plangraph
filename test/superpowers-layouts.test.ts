@@ -76,7 +76,7 @@ test('ledgerLayoutOf: the verified releases, everything else not verified', () =
 });
 
 // ---- CLI ----
-const run = (cwd: string, env: Record<string, string | undefined>, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { PATH: process.env.PATH, BRAIN_DIR: '', ...env } });
+const run = (cwd: string, env: Record<string, string | undefined>, ...args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { PATH: process.env.PATH, PLANGRAPH_DIR: '', ...env } });
 function spRepo() {
   const root = tmp(); execFileSync('git', ['init', '-q'], { cwd: root });
   put(root, PLAN_REL, fx('plans/2026-11-20-widget-export.md'));

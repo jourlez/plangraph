@@ -64,7 +64,7 @@ function probe(files: Record<string, string>, { prebuiltVenv = false } = {}) {
   }
   if (prebuiltVenv) assert.equal(spawnSync(real, ['-I', '-m', 'venv', '--without-pip', path.join(data, 'venv')], { cwd: tmp('sl-clean-') }).status, 0, 'a cached venv without ortools');
   const stub = path.join(tmp('sl-stub-'), 'solver.py'); fs.writeFileSync(stub, 'print("stub solver ran")\n');
-  const env = { PATH: bin, HOME: home, CLAUDE_PLUGIN_DATA: data, BRAIN_SOLVE_SCRIPT: stub, PIP_NO_INDEX: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_CONFIG_FILE: '/dev/null' };
+  const env = { PATH: bin, HOME: home, CLAUDE_PLUGIN_DATA: data, PLANGRAPH_SOLVE_SCRIPT: stub, PIP_NO_INDEX: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1', PIP_CONFIG_FILE: '/dev/null' };
   assert.deepEqual(fs.readdirSync(bin).sort(), [...TOOLS, 'python3', 'python3.14'].sort(), 'the probe PATH holds only the fakes and the needed tools');
   // `command -v` of a missing command exits 1 in bash and zsh but 127 in dash (Ubuntu's sh): any non-zero status with no output is "hidden".
   const uv = spawnSync('sh', ['-c', 'command -v uv'], { env, encoding: 'utf8' });
@@ -110,7 +110,7 @@ test('uv path: uv sync and uv python find run from the plugin bin directory, nev
   assert.deepEqual(lines, [`uv ${here} sync --quiet`, `uv ${here} python find`, `solver ${cwd} ${path.join(here, 'brain-solve')} --in x.json`]);
 });
 
-// The `uv run` fallbacks (an older uv without `sync --script`, or BRAIN_SOLVE_LAUNCH=uv-run) run in the caller's directory, where uv picks
+// The `uv run` fallbacks (an older uv without `sync --script`, or PLANGRAPH_SOLVE_LAUNCH=uv-run) run in the caller's directory, where uv picks
 // its interpreter from a committed .venv (every uv version) or .python-version (uv 0.4.30), even with --no-config. Both fallbacks therefore
 // pass an absolute --python found by `uv python find` run from the plugin bin directory (0.2.4). The fake uv fails `sync`, records cwd and
 // argv of every call, and answers `python find` with FIND (an absolute fake interpreter by default). The real-uv hostile cases live in
@@ -127,7 +127,7 @@ function fallback({ find, env: extra = {}, script }: { find?: string; env?: Reco
     `if [ "$1" = python ]; then if [ -n ${JSON.stringify(answer)} ]; then echo ${JSON.stringify(answer)}; exit 0; fi; echo "error: no interpreter found" >&2; exit 2; fi`,
     'exit 0', ''].join('\n'), { mode: 0o755 });
   const env: Record<string, string> = { PATH: `${bin}:/usr/bin:/bin`, HOME: tmp('sl-fbhome-'), ...extra };
-  if (script) env.BRAIN_SOLVE_SCRIPT = script;
+  if (script) env.PLANGRAPH_SOLVE_SCRIPT = script;
   const r = spawnSync(RUN, ['--in', 'x.json'], { cwd, env, encoding: 'utf8', timeout: 60000 });
   return { r, cwd, py, here: fs.realpathSync(path.dirname(RUN)), lines: fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n') : [] };
 }
@@ -138,9 +138,9 @@ test('the fallback passes an absolute --python found by uv python find run from 
   const a = fallback();
   assert.equal(a.r.status, 0, a.r.stderr);
   assert.deepEqual(a.lines.slice(1), [`uv ${a.here} python find >=3.10,<3.15`, `uv ${a.cwd} run --quiet --python ${a.py} --locked --script ${path.join(a.here, 'brain-solve')} --in x.json`]);
-  // BRAIN_SOLVE_LAUNCH=uv-run skips sync; BRAIN_SOLVE_SCRIPT takes the --with branch; UV_PYTHON is the request given to uv python find
+  // PLANGRAPH_SOLVE_LAUNCH=uv-run skips sync; PLANGRAPH_SOLVE_SCRIPT takes the --with branch; UV_PYTHON is the request given to uv python find
   const stub = path.join(tmp('sl-fbstub-'), 'solver.py'); fs.writeFileSync(stub, 'print(1)\n');
-  const b = fallback({ script: stub, env: { BRAIN_SOLVE_LAUNCH: 'uv-run', UV_PYTHON: '3.12' } });
+  const b = fallback({ script: stub, env: { PLANGRAPH_SOLVE_LAUNCH: 'uv-run', UV_PYTHON: '3.12' } });
   assert.equal(b.r.status, 0, b.r.stderr);
   assert.deepEqual(b.lines, [`uv ${b.here} python find 3.12`, `uv ${b.cwd} run --quiet --no-project --python ${b.py} --with ortools==9.15.6755 python ${stub} --in x.json`]);
 });

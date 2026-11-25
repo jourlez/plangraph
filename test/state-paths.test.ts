@@ -10,7 +10,7 @@ test('the user-level config directory keeps its pre-rename name', () => {
   assert.equal(configDir({ HOME: '/h' }), path.join('/h', '.config', 'project-brain'));
   assert.equal(configDir({ HOME: '/h', XDG_CONFIG_HOME: '/x' }), path.join('/x', 'project-brain'));
   assert.equal(registryFile({ HOME: '/h' }), path.join('/h', '.config', 'project-brain', 'jira-sites.json'));
-  assert.equal(configDir({ BRAIN_CONFIG_DIR: '/c' }), path.resolve('/c'));
+  assert.equal(configDir({ PLANGRAPH_CONFIG_DIR: '/c' }), path.resolve('/c'));
 });
 
 test('the data and cache directory keeps its pre-rename name', () => {
