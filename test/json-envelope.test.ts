@@ -31,12 +31,12 @@ before(async () => {
   const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: 'ignore' });
   git(FIXTURE, 'init', '-q');
   assert.equal((await run(FIXTURE, ['init'])).status, 0);
-  put(FIXTURE, '.brain/tickets.jsonl', jl([{ key: 'T-1', sp: 3, verdict: 'READY', jira_status: 'Done' }, { key: 'T-2', sp: 2, verdict: 'READY' }, { key: 'T-3', sp: 1, verdict: 'BLOCKED' }]));
-  put(FIXTURE, '.brain/edges.jsonl', jl([{ consumer: 'T-2', producer: 'T-1', kind: 'code' }]));
-  put(FIXTURE, '.brain/schedule.jsonl', jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 1 }, { key: 'T-3', owner: 'Ben', sprint: 2 }]));
-  put(FIXTURE, '.brain/history.jsonl', jl([30, 34, 28, 36].map((d, i) => ({ sprint: i + 1, planned: 40, done: d }))));
+  put(FIXTURE, '.plangraph/tickets.jsonl', jl([{ key: 'T-1', sp: 3, verdict: 'READY', jira_status: 'Done' }, { key: 'T-2', sp: 2, verdict: 'READY' }, { key: 'T-3', sp: 1, verdict: 'BLOCKED' }]));
+  put(FIXTURE, '.plangraph/edges.jsonl', jl([{ consumer: 'T-2', producer: 'T-1', kind: 'code' }]));
+  put(FIXTURE, '.plangraph/schedule.jsonl', jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 1 }, { key: 'T-3', owner: 'Ben', sprint: 2 }]));
+  put(FIXTURE, '.plangraph/history.jsonl', jl([30, 34, 28, 36].map((d, i) => ({ sprint: i + 1, planned: 40, done: d }))));
   put(FIXTURE, 'docs/plan.md', '# Plan\n\n### Task 1: first\nbuild a\n');
-  put(FIXTURE, '.brain/refs.jsonl', jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }], files: {}, fp_files: '', jira_updated: '', audited_at: 'base' }]));
+  put(FIXTURE, '.plangraph/refs.jsonl', jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }], files: {}, fp_files: '', jira_updated: '', audited_at: 'base' }]));
   put(FIXTURE, 'sched.json', JSON.stringify([{ item: 'T-1', owner: 'Ana', sprint: 1 }, { item: 'T-2', owner: 'Ana', sprint: 2 }, { item: 'T-3', owner: 'Ben', sprint: 2 }]));
   put(FIXTURE, 'issue.json', JSON.stringify({ 'T-1': { key: 'T-1', fields: { summary: 's', status: { name: 'Done' } } } }));
   put(FIXTURE, 'f.jsonl', jl([{ key: 'T-3', kind: 'late', text: 'x' }]));

@@ -93,7 +93,7 @@ Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, l
   inside one inline `<untrusted>` fence): card 86 -> 113 est tok, total over the 24 answers 2853 -> 2907 (+54, +1.9%), each one-line ticket
   answer +9.
 - Steer line (the card's last line `ask: brain explain` became `plan questions: use brain (ticket, ready, whatif, blockers, sprint,
-  person); do not read .brain/*.jsonl`, aimed at runs that grepped the raw JSONL instead of asking brain): card 449 -> 533 bytes,
+  person); do not read .plangraph/*.jsonl`, aimed at runs that grepped the raw JSONL instead of asking brain): card 449 -> 533 bytes,
   113 -> 134 est tok (+21 per session), total over the 24 answers 2907 -> 2928. Whether it changes model behavior is not measured here.
 
 ## Limits (honest)

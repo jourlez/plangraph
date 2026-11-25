@@ -22,7 +22,7 @@ brain schedule-load schedule.json <archive-name>
 Frozen history); `brain verify schedule.json` names each one as `FROZEN_MOVED`.
 
 `--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl config.json` directly (no SQLite). Without it the solver reads
-`brain.sqlite` and `config.json` from the brain dir (as before). `--end 0` and `--time 0` are real values.
+`plangraph.sqlite` and `config.json` from the brain dir (as before). `--end 0` and `--time 0` are real values.
 
 ## Status (never inflated)
 
@@ -243,11 +243,11 @@ that is 100,000 story points), so CP-SAT only sees small exact integers: a large
 points, caps and min_per_sprint must be at most 1000000000 after scaling to whole numbers`. `first_sprint`, `end_sprint` (and `--end`) and
 `frozen_before_sprint` must be whole numbers from -1,000,000 to 1,000,000 (an integer: not a float, string or boolean), else exit 2
 `MODEL_INVALID: <name> must be a whole number from -1000000 to 1000000`.
-`--jsonl-dir` and the brain dir (`.brainrc` / `PLANGRAPH_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
+`--jsonl-dir` and the brain dir (`.plangraphrc` / `PLANGRAPH_DIR`) are resolved with `realpath` and must sit inside the repository root (`git rev-parse --show-toplevel` of the
 current directory, else the current directory): otherwise exit 2 `directory outside the repository`. `--out` (and the meta file) must not be a symlink
 (`refusing to write through a symlink`) and its parent directory must resolve inside the root; the same check runs again at write time, so a parent swapped for a symlink after the first check is refused.
 
-Input guards (`load_raw`; tests: `test/brain-solve-input.test.ts`, Python unit checks, stdlib only). The index (`brain.sqlite` or `--db`)
+Input guards (`load_raw`; tests: `test/brain-solve-input.test.ts`, Python unit checks, stdlib only). The index (`plangraph.sqlite` or `--db`)
 gets the same guards as the CLI's `openIndex` (`src/db.ts`): it must be a regular file (lstat, then the solver's own
 `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` open and fstat with the same device and inode: a symlink or a FIFO is refused, never followed or blocked
 on), no SQLite sidecar (`-journal`, `-wal`, `-shm`) may sit beside it (a hot journal would be replayed), it is opened read-only
@@ -257,7 +257,7 @@ content digest must match (the same canonical rows as `contentDigest`; the JSON 
 is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`brain build\``. JSONL files and the brain dir's `config.json` are read like
 `readDataCapped`: lstat (a symlink is refused), `O_NOFOLLOW|O_NONBLOCK` open, fstat must be a regular file with the lstat's device, inode and
 ctime, at most 64 MiB; errors name the base name only. A `--config` named on the command line may be a symlink (it is still regular-file
-only and capped). Residual: SQLite opens the index again by path after the check, as in `openIndex`; `.brainrc` is still read with a plain
+only and capped). Residual: SQLite opens the index again by path after the check, as in `openIndex`; `.plangraphrc` is still read with a plain
 `open()`.
 
 ### Limits of the confinement

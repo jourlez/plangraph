@@ -24,7 +24,7 @@ function repo(epoch: number) {
   brain(root, epoch, 'build');
   return root;
 }
-const observe = (epoch: number) => { const root = repo(epoch); return { items: fs.readFileSync(path.join(root, '.brain/open-items.jsonl'), 'utf8'), line: brain(root, epoch, 'card', '--line') }; };
+const observe = (epoch: number) => { const root = repo(epoch); return { items: fs.readFileSync(path.join(root, '.plangraph/open-items.jsonl'), 'utf8'), line: brain(root, epoch, 'card', '--line') }; };
 
 test('sourceNow: honors a valid SOURCE_DATE_EPOCH, ignores everything else', () => {
   const clock = () => new Date(5000);

@@ -95,11 +95,11 @@ export async function sourceCases(o: Selection) {
     const { prepareReal, Refused } = await import('./gen-real.ts');
     try {
       const r = prepareReal({ from: o.real });
-      return { cases: select(r.cases, o), fixtures: { R: r.fixture }, rcDir: r.dir, brainDir: '.brain', manifest: r.manifest };
+      return { cases: select(r.cases, o), fixtures: { R: r.fixture }, rcDir: r.dir, brainDir: '.plangraph', manifest: r.manifest };
     } catch (e) { if (e instanceof Refused) usage(e.message); throw e; }
   }
   const cases = select(loadCases(), o);
-  return { cases, fixtures: Object.fromEntries(['S', 'M', 'L'].map((z) => [z, path.join(here, 'fixtures', z)])), rcDir: null, brainDir: '.brain', manifest: null };
+  return { cases, fixtures: Object.fromEntries(['S', 'M', 'L'].map((z) => [z, path.join(here, 'fixtures', z)])), rcDir: null, brainDir: '.plangraph', manifest: null };
 }
 
 // The passes of one run: the scored two-arm pass, the single-arm pass that scores skill firing, and optional ablation variants.

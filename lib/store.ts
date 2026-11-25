@@ -301,7 +301,7 @@ const DRIVER = 'plangraph-jsonl';
 const VERSIONED = '/plugins/cache/';
 const SAFE_ATTR_DIR = /^[A-Za-z0-9._/-]+$/;
 const shq = (s: string): string => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
-export function installMergeDriver(repoRoot: string, { dir = '.brain', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
+export function installMergeDriver(repoRoot: string, { dir = '.plangraph', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
   if (String(driverPath).includes(VERSIONED)) throw new TypeError(`refusing a versioned plugin-cache driver path (${VERSIONED} is deleted after a plugin update); pass the stable shim from ensureStableDriver`);
   // The dir becomes a gitattributes pattern line: only a plain name can go there (no newline, space, glob, comment or quote character).
   if (typeof dir !== 'string' || !SAFE_ATTR_DIR.test(dir)) throw new TypeError('refusing to write .gitattributes: the brain directory name must use only A-Z a-z 0-9 . _ / -');
@@ -350,7 +350,7 @@ function shimProblems(dataDir: string, problems: string[], expected: string | un
 }
 // target (optional): the brain-merge the running plugin would install; when given, a shim whose driver.target is another file is a problem.
 export interface MergeDriverDoctor { installed: boolean; attributes: boolean; config: boolean; executable: boolean; driver: string; problems: string[] }
-export function doctorMergeDriver(repoRoot: string, { dir = '.brain', target }: { dir?: string; target?: string } = {}): MergeDriverDoctor {
+export function doctorMergeDriver(repoRoot: string, { dir = '.plangraph', target }: { dir?: string; target?: string } = {}): MergeDriverDoctor {
   const problems: string[] = [];
   let text = '', refusedWhy = '';
   try { text = readGitattributes(path.join(repoRoot, '.gitattributes')); } catch (e) { if ((e as Coded).code !== 'ATTR_REFUSED') throw e; refusedWhy = (e as Coded & { why: string }).why; } // ATTR_REFUSED is only thrown by refused(), which sets why

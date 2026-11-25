@@ -132,10 +132,10 @@ test('brain-merge: exit 0 clean (result in %A), 1 on conflict (markers + keys on
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'bm-')), w = (n: string, t: string) => { fs.writeFileSync(path.join(d, n), t); return path.join(d, n); };
   const O = w('o', txt([tk('A'), tk('B')])), B = w('b', txt([tk('A', { sp: 3 }), tk('B')]));
   let A = w('a', txt([tk('A'), tk('B', { epic: 'Q' })]));
-  let r = spawnSync(BIN, [O, A, B, '.brain/tickets.jsonl'], { encoding: 'utf8' });
+  let r = spawnSync(BIN, [O, A, B, '.plangraph/tickets.jsonl'], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr); assert.equal(fs.readFileSync(A, 'utf8'), txt([tk('A', { sp: 3 }), tk('B', { epic: 'Q' })]));
   A = w('a2', txt([tk('A', { sp: 4 }), tk('B')]));
-  r = spawnSync(BIN, [O, A, B, '.brain/tickets.jsonl'], { encoding: 'utf8' });
+  r = spawnSync(BIN, [O, A, B, '.plangraph/tickets.jsonl'], { encoding: 'utf8' });
   assert.equal(r.status, 1); assert.match(r.stderr, /A: both sides changed field sp/); assert.match(fs.readFileSync(A, 'utf8'), /^<<<<<<< ours$/m);
   A = w('a3', 'not json\n'); r = spawnSync(BIN, [O, A, B, 'x.jsonl'], { encoding: 'utf8' });
   assert.equal(r.status, 2); assert.equal(fs.readFileSync(A, 'utf8'), 'not json\n'); // input untouched on failure
@@ -149,11 +149,11 @@ const gitTry = (cwd: string, ...a: string[]) => { const r = spawnSync('git', a, 
 function repo({ driver = true } = {}) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gm-'));
   git(d, 'init', '-q', '-b', 'main'); git(d, 'config', 'user.name', 'tester'); git(d, 'config', 'user.email', 't@example.invalid'); git(d, 'config', 'commit.gpgsign', 'false');
-  fs.mkdirSync(path.join(d, '.brain'));
+  fs.mkdirSync(path.join(d, '.plangraph'));
   if (driver) S.installMergeDriver(d, { driverPath: BIN });
   return d;
 }
-const put = (d: string, f: string, recs: readonly S.Rec[], sch: S.KeySpec) => fs.writeFileSync(path.join(d, '.brain', f), S.canonFile(recs, sch));
+const put = (d: string, f: string, recs: readonly S.Rec[], sch: S.KeySpec) => fs.writeFileSync(path.join(d, '.plangraph', f), S.canonFile(recs, sch));
 const commit = (d: string, msg: string) => { git(d, 'add', '-A'); git(d, 'commit', '-qm', msg); };
 function scenario(driver: boolean) {
   const d = repo({ driver }), base = [tk('T-1'), tk('T-2'), tk('T-3')];
@@ -168,7 +168,7 @@ test('git merge, driver configured: a case plain git cannot merge (same-line fie
   const ctrl = scenario(false); assert.notEqual(gitTry(ctrl, 'merge', '--no-edit', 'feature').status, 0, 'control: plain git conflicts');
   const d = scenario(true), r = gitTry(d, 'merge', '--no-edit', 'feature');
   assert.equal(r.status, 0, r.out);
-  const merged = fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8');
+  const merged = fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8');
   assert.equal(merged, txt([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31'), tk('T-32')]));
   assert.equal(git(d, 'status', '--porcelain', '-uno').trim(), ''); assert.equal(git(d, 'rev-list', '--parents', '-n1', 'HEAD').trim().split(' ').length, 3); // a real merge commit
 });
@@ -179,10 +179,10 @@ test('git merge, driver configured: true same-field conflict stops the merge, le
   git(d, 'checkout', '-q', 'main'); put(d, 'tickets.jsonl', [tk('T-1', { sp: 5 }), tk('T-2', { sp: 2 })], T); commit(d, 'm');
   const r = gitTry(d, 'merge', '--no-edit', 'feature');
   assert.notEqual(r.status, 0); assert.match(r.out, /CONFLICT/); assert.match(r.out, /T-1: both sides changed field sp/);
-  assert.equal(git(d, 'diff', '--name-only', '--diff-filter=U').trim(), '.brain/tickets.jsonl');
-  const body = fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8');
+  assert.equal(git(d, 'diff', '--name-only', '--diff-filter=U').trim(), '.plangraph/tickets.jsonl');
+  const body = fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8');
   assert.match(body, /<<<<<<< ours\n\{"key":"T-1".*"sp":5.*\n=======\n\{"key":"T-1".*"sp":8.*\n>>>>>>> theirs\n\{"key":"T-2".*"sp":2/);
-  assert.throws(() => readJsonl(path.join(d, '.brain/tickets.jsonl')), IngestError);
+  assert.throws(() => readJsonl(path.join(d, '.plangraph/tickets.jsonl')), IngestError);
   put(d, 'tickets.jsonl', [tk('T-1', { sp: 8 }), tk('T-2', { sp: 2 })], T); git(d, 'add', '-A'); git(d, 'commit', '-qm', 'resolved');
   assert.equal(git(d, 'status', '--porcelain').trim(), '');
 });
@@ -199,7 +199,7 @@ test('git merge: delete vs edit across branches conflicts; delete vs untouched d
   git(d, 'reset', '-q', '--hard', 'main'); git(d, 'checkout', '-qb', 'f3'); put(d, 'tickets.jsonl', [tk('A', { sp: 9 }), tk('B', { sp: 2 }), tk('C'), tk('D')], T); commit(d, 'f3');
   git(d, 'checkout', '-q', 'main'); put(d, 'tickets.jsonl', [tk('A', { sp: 9 }), tk('B'), tk('C', { sp: 6 }), tk('D'), tk('E')], T); commit(d, 'm2');
   git(d, 'checkout', '-q', 'f3'); const ok = gitTry(d, 'rebase', 'main'); assert.equal(ok.status, 0, ok.out);
-  assert.equal(fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8'), txt([tk('A', { sp: 9 }), tk('B', { sp: 2 }), tk('C', { sp: 6 }), tk('D'), tk('E')]));
+  assert.equal(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8'), txt([tk('A', { sp: 9 }), tk('B', { sp: 2 }), tk('C', { sp: 6 }), tk('D'), tk('E')]));
 });
 
 // ---- regressions found by the patterns review (fuzz: 1106 non-commutative results in 20000 cases when null was in the value pool) ----
@@ -255,18 +255,18 @@ test('brain-merge: a clean merge of schedule.jsonl or edges.jsonl prints a one-l
     const SC = S.SCHEMAS['schedule.jsonl'], row = (key: string, owner: string, sprint: number) => ({ version: 'current', key, owner, sprint });
     const put = (n: string, recs: readonly S.Rec[], sch: S.KeySpec) => { const f = path.join(d, n); fs.writeFileSync(f, S.canonFile(recs, sch)); return f; };
     const O = put('O', [row('T-1', 'Ana', 2), row('T-2', 'Ana', 2)], SC), A = put('A', [row('T-1', 'Ana', 2), row('T-2', 'Ben', 3)], SC), B = put('B', [row('T-1', 'Ana', 3), row('T-2', 'Ana', 3)], SC);
-    const r = spawnSync(process.execPath, [BIN, O, A, B, '.brain/schedule.jsonl'], { encoding: 'utf8' });
+    const r = spawnSync(process.execPath, [BIN, O, A, B, '.plangraph/schedule.jsonl'], { encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.stderr, 'brain-merge: schedule.jsonl merged cleanly, but a text merge can still break a handoff or capacity rule: run `brain build` then `brain check`\n');
     assert.equal(fs.readFileSync(A, 'utf8'), S.canonFile([row('T-1', 'Ana', 3), row('T-2', 'Ben', 3)], SC));
     const E = S.SCHEMAS['edges.jsonl'], ed = (consumer: string, producer: string) => ({ consumer, producer, kind: 'plan_need', note: '' });
     const eo = put('eo', [ed('T-2', 'T-1')], E), ea = put('ea', [ed('T-2', 'T-1'), ed('T-3', 'T-2')], E), eb = put('eb', [ed('T-2', 'T-1'), ed('T-1', 'T-3')], E);
-    const re = spawnSync(process.execPath, [BIN, eo, ea, eb, 'sub/.brain/edges.jsonl'], { encoding: 'utf8' });
+    const re = spawnSync(process.execPath, [BIN, eo, ea, eb, 'sub/.plangraph/edges.jsonl'], { encoding: 'utf8' });
     assert.equal(re.status, 0, re.stderr); assert.match(re.stderr, /^brain-merge: edges\.jsonl merged cleanly, but .* `brain check`\n$/);
     const to = put('to', [tk('T-1')], T), ta = put('ta', [tk('T-1', { sp: 2 })], T), tb = put('tb', [tk('T-1')], T);
-    const rt = spawnSync(process.execPath, [BIN, to, ta, tb, '.brain/tickets.jsonl'], { encoding: 'utf8' });
+    const rt = spawnSync(process.execPath, [BIN, to, ta, tb, '.plangraph/tickets.jsonl'], { encoding: 'utf8' });
     assert.equal(rt.status, 0); assert.equal(rt.stderr, '');
     const so = put('so', [row('T-1', 'Ana', 2)], SC), sa = put('sa', [row('T-1', 'Ana', 2)], SC), sb = put('sb', [row('T-1', 'Ana', 2)], SC);
-    assert.equal(spawnSync(process.execPath, [BIN, so, sa, sb, '.brain/my-schedule.jsonl'], { encoding: 'utf8' }).stderr, '', 'exact base names only');
+    assert.equal(spawnSync(process.execPath, [BIN, so, sa, sb, '.plangraph/my-schedule.jsonl'], { encoding: 'utf8' }).stderr, '', 'exact base names only');
   } finally { fs.rmSync(d, { recursive: true, force: true }); }
 });

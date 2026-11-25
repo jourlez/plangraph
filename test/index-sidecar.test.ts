@@ -1,7 +1,7 @@
-// SQLite sidecar files (`brain.sqlite-journal`, `-wal`, `-shm`) beside the index. A planted HOT rollback journal is replayed by SQLite into
+// SQLite sidecar files (`plangraph.sqlite-journal`, `-wal`, `-shm`) beside the index. A planted HOT rollback journal is replayed by SQLite into
 // the database on the first read-write open, and makes every read-only open fail. The attack reproduced here: an attacker copies the real
 // index, edits a row, re-stamps the (unkeyed) content digest with the repo's own stampContent (the text fingerprint is unchanged), and writes
-// a valid hot journal whose records are every page of that forged copy, at `brain.sqlite-journal` (a tracked file if committed). The journal
+// a valid hot journal whose records are every page of that forged copy, at `plangraph.sqlite-journal` (a tracked file if committed). The journal
 // is hand-written per the SQLite file format (header magic, record count, nonce, initial page count, sector size, page size; each record a
 // page number, the page and the nonce-seeded checksum), which is deterministic, unlike killing a child mid-commit.
 // Covered: replay never happens (openIndex refuses any sidecar before SQLite sees the file, read-only and read-write), `brain build` removes a
@@ -30,7 +30,7 @@ function repo() {
   const d = tmp();
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
-  const b = path.join(d, '.brain');
+  const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'one', sp: 3, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
   assert.equal(run(d, ['build']).status, 0);
@@ -152,16 +152,16 @@ const IGNORE = ['*.sqlite', '*.sqlite-journal', '*.sqlite-wal', '*.sqlite-shm'];
 test('init writes the sidecar ignore lines; on an existing .gitignore it appends only the missing ones and keeps every user line', () => {
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
-  const gi = path.join(d, '.brain', '.gitignore');
+  const gi = path.join(d, '.plangraph', '.gitignore');
   assert.equal(fs.readFileSync(gi, 'utf8'), `${IGNORE.join('\n')}\n`);
   fs.writeFileSync(gi, '# mine\r\n*.sqlite\r\n*.sqlite-wal\r\nCARD.md');
   const r = run(d, ['init']); assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.split('\n')[0], 'already initialised: .brain (added *.sqlite-journal, *.sqlite-shm to .gitignore)');
+  assert.equal(r.stdout.split('\n')[0], 'already initialised: .plangraph (added *.sqlite-journal, *.sqlite-shm to .gitignore)');
   assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\r\n*.sqlite\r\n*.sqlite-wal\r\nCARD.md\r\n*.sqlite-journal\r\n*.sqlite-shm\r\n');
-  assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .brain (no changes)');
+  assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .plangraph (no changes)');
   // a sidecar is really ignored by git now
-  fs.writeFileSync(path.join(d, '.brain', `${INDEX_FILE}-journal`), 'x');
-  assert.equal(execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', '.brain'], { cwd: d, encoding: 'utf8' }).includes('journal'), false);
+  fs.writeFileSync(path.join(d, '.plangraph', `${INDEX_FILE}-journal`), 'x');
+  assert.equal(execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', '.plangraph'], { cwd: d, encoding: 'utf8' }).includes('journal'), false);
 });
 
 test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and a .gitignore without the sidecar lines', () => {
@@ -171,11 +171,11 @@ test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and 
   fs.writeFileSync(`${file}-journal`, 'x');
   let r = run(d, ['doctor'], { HOME: home });
   assert.equal(r.status, 0, r.stdout);
-  assert.match(r.stdout, /^warning: \.brain\/brain\.sqlite-journal: a SQLite journal file beside the index; every index command refuses it until `brain build` removes it$/m);
-  execFileSync('git', ['add', '-f', '.brain/brain.sqlite-journal'], { cwd: d });
+  assert.match(r.stdout, /^warning: \.plangraph\/plangraph\.sqlite-journal: a SQLite journal file beside the index; every index command refuses it until `brain build` removes it$/m);
+  execFileSync('git', ['add', '-f', '.plangraph/plangraph.sqlite-journal'], { cwd: d });
   r = run(d, ['doctor'], { HOME: home });
-  assert.match(r.stdout, /^warning: tracked journal: \.brain\/brain\.sqlite-journal is committed; untrack it with `git rm --cached \.brain\/brain\.sqlite-journal`$/m);
+  assert.match(r.stdout, /^warning: tracked journal: \.plangraph\/plangraph\.sqlite-journal is committed; untrack it with `git rm --cached \.plangraph\/plangraph\.sqlite-journal`$/m);
   fs.writeFileSync(path.join(b, '.gitignore'), '*.sqlite\n');
   r = run(d, ['doctor'], { HOME: home });
-  assert.match(r.stdout, /^warning: \.brain\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\): run `brain init` to add the missing lines$/m);
+  assert.match(r.stdout, /^warning: \.plangraph\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\): run `brain init` to add the missing lines$/m);
 });

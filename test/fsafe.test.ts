@@ -3,7 +3,7 @@ import { mkdtempSync, symlinkSync, writeFileSync, readFileSync, mkdirSync, readd
 import { assertInside, resolveBrainDir, writeAtomicSafe } from '../lib/fsafe.ts';
 const tmp = () => mkdtempSync(join(tmpdir(), 'fsafe-'));
 test('resolveBrainDir keeps the directory inside the repo', () => {
-  const root = tmp(); assert.equal(resolveBrainDir(root, '.brain'), join(root, '.brain'));
+  const root = tmp(); assert.equal(resolveBrainDir(root, '.plangraph'), join(root, '.plangraph'));
   for (const bad of ['../x', '/etc', 'a/../../b']) assert.throws(() => resolveBrainDir(root, bad), (e: NodeJS.ErrnoException) => /outside the repository/.test(e.message) && e.code === 'OUTSIDE_REPO', bad);
 });
 test('resolveBrainDir truncates a long directory in the message', () => {
@@ -11,17 +11,17 @@ test('resolveBrainDir truncates a long directory in the message', () => {
   assert.throws(() => resolveBrainDir(root, bad), (e: NodeJS.ErrnoException) => e.message.length < 140);
 });
 test('a symlink target is never written through', () => {
-  const root = tmp(), victim = join(root, 'victim.txt'); writeFileSync(victim, 'KEEP'); mkdirSync(join(root, '.brain'));
-  symlinkSync(victim, join(root, '.brain', 'findings.jsonl'));
-  assert.throws(() => writeAtomicSafe(join(root, '.brain', 'findings.jsonl'), 'x', { root }), (e: NodeJS.ErrnoException) => /symlink/.test(e.message) && e.code === 'SYMLINK');
-  assert.throws(() => writeAtomicSafe(join(root, '.brain', 'findings.jsonl'), 'x'), /symlink/);
+  const root = tmp(), victim = join(root, 'victim.txt'); writeFileSync(victim, 'KEEP'); mkdirSync(join(root, '.plangraph'));
+  symlinkSync(victim, join(root, '.plangraph', 'findings.jsonl'));
+  assert.throws(() => writeAtomicSafe(join(root, '.plangraph', 'findings.jsonl'), 'x', { root }), (e: NodeJS.ErrnoException) => /symlink/.test(e.message) && e.code === 'SYMLINK');
+  assert.throws(() => writeAtomicSafe(join(root, '.plangraph', 'findings.jsonl'), 'x'), /symlink/);
   assert.equal(readFileSync(victim, 'utf8'), 'KEEP');
-  assert.deepEqual(readdirSync(join(root, '.brain')), ['findings.jsonl']);
+  assert.deepEqual(readdirSync(join(root, '.plangraph')), ['findings.jsonl']);
 });
 test('a path whose parent is a symlink out of the repo is refused', () => {
-  const root = tmp(), out = tmp(); symlinkSync(out, join(root, '.brain'));
-  assert.throws(() => assertInside(root, join(root, '.brain', 'x.jsonl')), (e: NodeJS.ErrnoException) => /outside the repository/.test(e.message) && e.code === 'OUTSIDE_REPO');
-  assert.throws(() => writeAtomicSafe(join(root, '.brain', 'x.jsonl'), 'x', { root }), /outside the repository/);
+  const root = tmp(), out = tmp(); symlinkSync(out, join(root, '.plangraph'));
+  assert.throws(() => assertInside(root, join(root, '.plangraph', 'x.jsonl')), (e: NodeJS.ErrnoException) => /outside the repository/.test(e.message) && e.code === 'OUTSIDE_REPO');
+  assert.throws(() => writeAtomicSafe(join(root, '.plangraph', 'x.jsonl'), 'x', { root }), /outside the repository/);
   assert.equal(existsSync(join(out, 'x.jsonl')), false);
 });
 test('assertInside works for missing nested paths and a symlinked root', () => {

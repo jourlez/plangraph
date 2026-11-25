@@ -10,7 +10,7 @@
 //   handle.stale = true and turns on PRAGMA query_only.
 // - Content integrity: buildIndex also stores a sha256 digest of the index CONTENT (every row of every table, index_meta included except the
 //   digest row itself, in a canonical order: primary key, then every column) under index_meta key content_digest. openIndex recomputes it
-//   (streaming, one row at a time) and refuses a mismatch as DATA with the `brain build` hint, so a row edited directly inside brain.sqlite is
+//   (streaming, one row at a time) and refuses a mismatch as DATA with the `brain build` hint, so a row edited directly inside plangraph.sqlite is
 //   never served. An index without a digest (an older build) is flagged stale (query-only) and index writes refuse it. The legitimate index
 //   writers (whatif --write, schedule-load, stampFingerprint) re-stamp the digest with stampContent before COMMIT. The digest is unkeyed: it
 //   detects direct edits, not a forger who recomputes it (docs/CONTRACT.md).
@@ -27,7 +27,7 @@ import { BrainError } from './errors.ts';
 import { nodeSupported, floorMessage } from './floor.js';
 import type { DatabaseSync, StatementSync, SQLInputValue } from 'node:sqlite';
 
-export const INDEX_FILE = 'brain.sqlite';
+export const INDEX_FILE = 'plangraph.sqlite';
 export const NO_BRAIN_MESSAGE = 'no brain directory: run `brain init`';
 export const FINGERPRINT_KEY = 'source_fingerprint';
 export const CONTENT_KEY = 'content_digest';
@@ -220,7 +220,7 @@ export function removeStaleTemps(where: string, prefix: string, now: number = Da
 // ---------- SQLite sidecars ----------
 // SQLite keeps a rollback journal (`<db>-journal`) or WAL files (`<db>-wal`, `<db>-shm`) beside a database. A HOT journal found at open is
 // replayed into the database on the first read-write open (and makes every read-only open fail), whatever database it came from: a planted
-// or committed `brain.sqlite-journal` could turn a freshly built index into an attacker's copy with a valid digest. Brain never uses WAL and
+// or committed `plangraph.sqlite-journal` could turn a freshly built index into an attacker's copy with a valid digest. Brain never uses WAL and
 // its own writes (journal_mode DELETE) remove their journal on commit, so a sidecar beside the index is never legitimate when an index
 // command starts: openIndex refuses it (DATA, `brain build`) before SQLite sees the file, and buildIndex removes regular ones (they belong to
 // a prior or foreign index and must never be replayed) and refuses a symlink or non-file (REFUSED: removing it is left to a person).
@@ -246,7 +246,7 @@ function clearSidecars(base: string, remove: boolean): void {
 // The INSERT of one table: built only from the frozen table spec and the verb, never from a record (no record parameter).
 const insertSql = (t: Readonly<TableSpec>, verb = 'INSERT') => `${verb} INTO ${t.name}(${t.columnList}) VALUES(${t.placeholders})`;
 
-/** Build the index for ctx.dir into `file` (default <dir>/brain.sqlite). Throws IngestError on bad data, keeping the old index. */
+/** Build the index for ctx.dir into `file` (default <dir>/plangraph.sqlite). Throws IngestError on bad data, keeping the old index. */
 export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, INDEX_FILE), now = Date.now() }: { file?: string; now?: number } = {}): { file: string; counts: Record<string, number>; fingerprint: string; digest: string } {
   let st = null;
   try { st = fs.statSync(ctx.dir); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT' && (e as NodeJS.ErrnoException).code !== 'ENOTDIR') throw e; } // fs throws errno errors
@@ -305,7 +305,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
 }
 
 // ---------- schema check ----------
-// An index is derived and git-ignored, but a committed or planted brain.sqlite is attacker-controlled, and its stored fingerprint can match
+// An index is derived and git-ignored, but a committed or planted plangraph.sqlite is attacker-controlled, and its stored fingerprint can match
 // the text. Before any query its sqlite_master must be exactly what buildIndex (or the old bin/brain build, which lacks index_meta) writes:
 // every table of TABLES as a plain table with exactly its columns plus `extra` (no hidden or generated column), optionally index_meta(k, v),
 // the indexes edge_p and ev_k, and the automatic primary-key indexes; no view, trigger, virtual table or any other object.

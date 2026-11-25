@@ -122,7 +122,7 @@
   "executable": false,
   "driver": "",
   "problems": [
-   ".gitattributes lacks \".brain/*.jsonl merge=plangraph-jsonl\"",
+   ".gitattributes lacks \".plangraph/*.jsonl merge=plangraph-jsonl\"",
    "git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)"
   ]
  },
@@ -173,10 +173,10 @@
  },
  "driver-default": [
   {
-   "gitattributes": ".brain/*.jsonl merge=plangraph-jsonl",
+   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
    "driver": "plangraph-merge %O %A %B %P"
   },
-  ".brain/*.jsonl merge=plangraph-jsonl\n"
+  ".plangraph/*.jsonl merge=plangraph-jsonl\n"
  ],
  "driver-on-path": true,
  "driver-refusals": [
@@ -467,19 +467,19 @@
  },
  "install": [
   {
-   "gitattributes": ".brain/*.jsonl merge=plangraph-jsonl",
+   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
    "driver": "'/opt/brain'\\''s tools/brain-merge' %O %A %B %P"
   },
-  "*.md text\n.brain/*.jsonl merge=plangraph-jsonl\n",
+  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\n",
   {
    "gitattributes": "data/brain/*.jsonl merge=plangraph-jsonl",
    "driver": "no-such-brain-merge-on-path %O %A %B %P"
   },
-  "*.md text\n.brain/*.jsonl merge=plangraph-jsonl\ndata/brain/*.jsonl merge=plangraph-jsonl\n"
+  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\ndata/brain/*.jsonl merge=plangraph-jsonl\n"
  ],
  "install-quoted-doctor": [
   {
-   "gitattributes": ".brain/*.jsonl merge=plangraph-jsonl",
+   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
    "driver": "'<repo>/it'\\''s here/brain-merge' %O %A %B %P"
   },
   "plangraph jsonl three-way merge\n",

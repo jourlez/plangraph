@@ -66,9 +66,9 @@ def confine(path):
 def brain_dir():
     root = repo_root()
     if os.environ.get('PLANGRAPH_DIR'): return confine(os.path.join(root, os.environ['PLANGRAPH_DIR']))
-    rc = os.path.join(root, '.brainrc')
+    rc = os.path.join(root, '.plangraphrc')
     if os.path.exists(rc): return confine(os.path.join(root, json.load(open(rc))['dir']))
-    return confine(os.path.join(root, '.brain'))
+    return confine(os.path.join(root, '.plangraph'))
 
 
 def check_out(path):
@@ -254,7 +254,7 @@ def load_raw(a):
             sched.setdefault(r.get('version', 'current'), {})[r['key']] = (r['owner'], r['sprint'])
     else:
         bd = None if (a.db and a.config) else brain_dir()
-        dbp = a.db or os.path.join(bd, 'brain.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
+        dbp = a.db or os.path.join(bd, 'plangraph.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
         db = open_index(dbp)
         try:
             tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status'), r)) for r in

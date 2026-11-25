@@ -26,7 +26,7 @@ before(() => {
   REPO = path.join(BASE, 'repo'); fs.mkdirSync(REPO);
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run(REPO, 'init').status, 0);
-  const B = path.join(REPO, '.brain');
+  const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([{ key: 'T-1', sp: 3, verdict: 'READY' }, { key: 'T-2', sp: 2, verdict: 'READY' }]));
   fs.writeFileSync(path.join(B, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'code' }]));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 1 }]));
@@ -35,7 +35,7 @@ before(() => {
 });
 after(() => { fs.rmSync(BASE, { recursive: true, force: true }); });
 
-const CFG = () => path.join(REPO, '.brain', 'config.json');
+const CFG = () => path.join(REPO, '.plangraph', 'config.json');
 let saved: Buffer | undefined;
 /** Replace config.json by a bad one for the duration of fn, then restore the original bytes. */
 function withBad(kind: string, fn: () => void) {
@@ -55,7 +55,7 @@ test('readConfig: one capped reader, base-name messages, a typed code; missing f
   assert.equal(CONFIG_MAX, 64 * 1024);
   for (const kind of Object.keys(MESSAGE)) withBad(kind, () => {
     assert.throws(() => readConfig(CFG()), (e: { name: string; message: string; code: unknown }) => e.name === 'IngestError' && e.message === MESSAGE[kind] && typeof e.code === 'string', kind);
-    assert.throws(() => loadModel(path.join(REPO, '.brain')), (e: { name: string; message: string }) => e.name === 'IngestError' && e.message === MESSAGE[kind], kind);
+    assert.throws(() => loadModel(path.join(REPO, '.plangraph')), (e: { name: string; message: string }) => e.name === 'IngestError' && e.message === MESSAGE[kind], kind);
   });
   assert.deepEqual(readConfig(path.join(BASE, 'nope', 'config.json')), {});
   // exactly at the cap is read; one byte over is refused

@@ -77,7 +77,7 @@ const cardId = (fp: unknown): string => String(fp ?? '').replace(/[^0-9a-f]/g, '
 
 // renderCard(model, { fp, stale }, {maxTokens}) -> text (no trailing newline) with estTokens(text + '\n') <= maxTokens (default 250).
 // fp: the source fingerprint of the text (src/db.ts); stale: true when the index no longer matches that text; dir: the brain dir as the
-// repo names it (default `.brain`), printed in the steer line. Any other meta field (a clock, an mtime) is ignored. Lines carry a priority (lower = more important); when over budget the least important lines are
+// repo names it (default `.plangraph`), printed in the steer line. Any other meta field (a clock, an mtime) is ignored. Lines carry a priority (lower = more important); when over budget the least important lines are
 // dropped whole and one `... N lines omitted` line says so. Identity and size (priority 0) and STALE are never dropped (except by the
 // final hard cut).
 export function renderCard(model: CardModel, meta: CardMeta = {}, { maxTokens = CARD_BUDGET }: { maxTokens?: number } = {}): string {

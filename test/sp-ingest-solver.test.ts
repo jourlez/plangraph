@@ -27,7 +27,7 @@ function ingested() {
   const brain = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'brain-data') } });
   let r = brain('init'); assert.equal(r.status, 0, r.stderr);
   r = brain('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
-  const tickets = fs.readFileSync(path.join(root, '.brain', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const tickets = fs.readFileSync(path.join(root, '.plangraph', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   return { root, brain, tickets };
 }
 
@@ -45,7 +45,7 @@ test('sp-ingest: the epic ticket has sp 0 and each task keeps its own points', (
 test('sp-ingest then brain build then brain-solve-run: the solver does not refuse the plan for a ticket without sp', { skip: SKIP, timeout: 900000 }, () => {
   const { root, brain } = ingested();
   const b = brain('build'); assert.equal(b.status, 0, b.stdout + b.stderr);
-  const dir = path.join(root, '.brain'), out = path.join(dir, 'solve-out.json');
+  const dir = path.join(root, '.plangraph'), out = path.join(dir, 'solve-out.json');
   const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '10'], { cwd: root, encoding: 'utf8', timeout: 600000 });
   const text = `${r.stdout}\n${r.stderr}`;
   assert.doesNotMatch(text, /every ticket needs an sp/);

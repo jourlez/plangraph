@@ -70,7 +70,7 @@ export function generate() {
   for (const size of Object.keys(SIZES)) {
     const w = buildWorld(size);
     fixtures[size] = { ...w.files, 'format.json': '{"format_version":1,"min_reader":1}\n', 'plan.md': w.planText };
-    const env = { prefix: size.toLowerCase(), size, seed: SEED, dir: '.brain', files: w.files, stale: w.stale };
+    const env = { prefix: size.toLowerCase(), size, seed: SEED, dir: '.plangraph', files: w.files, stale: w.stale };
     const f = buildFamilies(env, size === 'M' ? null : SCALING);
     cases.push(...f.cases);
     skipped[size] = f.skipped;

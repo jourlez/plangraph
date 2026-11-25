@@ -25,7 +25,7 @@ function world() {
   const brain = (plugin: string, args: string[]) => spawnSync(process.execPath, [path.join(plugin, 'bin/brain'), ...args], { cwd: repo, env, encoding: 'utf8' });
   return { dataDir, repo, brain, target: () => fs.readFileSync(path.join(dataDir, 'driver.target'), 'utf8') };
 }
-const NUDGE = 'brain: plan data found in .brain but no index: run brain build\n'; // the first-use line: brain data, no index yet
+const NUDGE = 'brain: plan data found in .plangraph but no index: run brain build\n'; // the first-use line: brain data, no index yet
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 const want = (plugin: string) => path.join(plugin, 'bin/brain-merge') + '\n';
 

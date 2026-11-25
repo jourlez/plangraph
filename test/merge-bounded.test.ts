@@ -16,7 +16,7 @@ test('a FIFO as a merge input exits 2 at once (no hang), naming no content', { s
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'merge-fifo-')); made.push(d);
   const fifo = path.join(d, 'base'), a = path.join(d, 'ours'), b = path.join(d, 'theirs');
   execFileSync('mkfifo', [fifo]); fs.writeFileSync(a, '{"key":"T-1"}\n'); fs.writeFileSync(b, '{"key":"T-1"}\n');
-  const r = spawnSync(process.execPath, [MERGE, fifo, a, b, '.brain/tickets.jsonl'], { encoding: 'utf8', timeout: 10000 });
+  const r = spawnSync(process.execPath, [MERGE, fifo, a, b, '.plangraph/tickets.jsonl'], { encoding: 'utf8', timeout: 10000 });
   assert.equal(r.signal, null, 'not killed by the timeout: it did not block');
   assert.equal(r.status, 2);
   assert.equal(r.stderr, 'brain-merge: not a regular file\n');

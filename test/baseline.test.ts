@@ -30,7 +30,7 @@ for (const [label, tmpdir] of [['host temp directory', null], ['Linux-style /tmp
     assert.equal(normalizeOutput('a.json and b.jsx stay'), 'a.json and b.jsx stay');
     assert.equal(normalizeOutput(`at ${ROOT}/src/cli.mjs:3`), 'at <ROOT>/src/cli.EXT:3');
     assert.equal(normalizeOutput('/tmp/abc123/x.mjs'), '<ROOT>/x.EXT');
-    assert.equal(normalizeOutput('/private/var/folders/ab/cdef/T/clik-X1/.brain'), '<ROOT>/.brain');
+    assert.equal(normalizeOutput('/private/var/folders/ab/cdef/T/clik-X1/.plangraph'), '<ROOT>/.plangraph');
     assert.equal(normalizeOutput(`${os.tmpdir()}/abc123/x.mjs`), '<ROOT>/x.EXT');
     assert.equal(normalizeOutput(`${fs.realpathSync(os.tmpdir())}/abc123/x.mjs`), '<ROOT>/x.EXT');
     assert.equal(normalizeOutput(`cwd ${os.tmpdir()}`), 'cwd <ROOT>');

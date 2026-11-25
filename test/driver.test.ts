@@ -142,8 +142,8 @@ const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, encod
 const T = S.SCHEMAS['tickets.jsonl'], tk = (key: string, o: S.Rec = {}) => ({ key, summary: 's-' + key, epic: 'E', sp: 1, v2_owner: 'Ana', v2_sprint: 1, ...o });
 function scenario(shim: string, tag: string) {
   const d = tmp('drv-git-'); git(d, 'init', '-q', '-b', 'main'); git(d, 'config', 'user.name', 't'); git(d, 'config', 'user.email', 't@example.invalid'); git(d, 'config', 'commit.gpgsign', 'false');
-  fs.mkdirSync(path.join(d, '.brain')); S.installMergeDriver(d, { driverPath: shim });
-  const put = (recs: readonly S.Rec[]) => fs.writeFileSync(path.join(d, '.brain/tickets.jsonl'), S.canonFile(recs, T)), commit = (m: string) => { git(d, 'add', '-A'); git(d, 'commit', '-qm', m); };
+  fs.mkdirSync(path.join(d, '.plangraph')); S.installMergeDriver(d, { driverPath: shim });
+  const put = (recs: readonly S.Rec[]) => fs.writeFileSync(path.join(d, '.plangraph/tickets.jsonl'), S.canonFile(recs, T)), commit = (m: string) => { git(d, 'add', '-A'); git(d, 'commit', '-qm', m); };
   put([tk('T-1'), tk('T-2'), tk('T-3')]); commit('base'); git(d, 'checkout', '-qb', 'feature');
   put([tk('T-1', { sp: 8 }), tk('T-2'), tk('T-3'), tk('T-31' + tag)]); commit('feature'); git(d, 'checkout', '-q', 'main');
   put([tk('T-1', { summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-32' + tag)]); commit('main');
@@ -156,9 +156,9 @@ test('real git merge via the shim keeps working after the target moves (same git
   fs.copyFileSync(REAL, path.join(v1, 'bin/brain-merge')); fs.copyFileSync(REAL, path.join(v2, 'bin/brain-merge'));
   const shim = ensureStableDriver({ dataDir, target: path.join(v1, 'bin/brain-merge') });
   const want = (tag: string) => S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31' + tag), tk('T-32' + tag)], T);
-  let d = scenario(shim, 'a'); git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8'), want('a'));
+  let d = scenario(shim, 'a'); git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8'), want('a'));
   const cfg = git(d, 'config', '--get', 'merge.plangraph-jsonl.driver');
   fs.rmSync(v1, { recursive: true }); ensureStableDriver({ dataDir, target: path.join(v2, 'bin/brain-merge') });
   d = scenario(shim, 'b'); assert.equal(git(d, 'config', '--get', 'merge.plangraph-jsonl.driver'), cfg);
-  git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.brain/tickets.jsonl'), 'utf8'), want('b'));
+  git(d, 'merge', '--no-edit', 'feature'); assert.equal(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8'), want('b'));
 });

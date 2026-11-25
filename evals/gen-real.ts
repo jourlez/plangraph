@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Real-project eval generator. Reads a project's brain directory (READ-ONLY; found through its .brainrc, else .brain) and writes, into a
+// Real-project eval generator. Reads a project's brain directory (READ-ONLY; found through its .plangraphrc, else .plangraph) and writes, into a
 // TEMP directory only, a self-contained suite: a private copy of the plugin, the copied plan as fixture R, the native case directories
 // and cases.json (the case objects with ground truth, for evals/report.ts). Real people, ticket keys and summaries therefore exist only
 // in that temp directory: nothing is ever written into this repository or into the source project.
@@ -47,12 +47,12 @@ export function checkOut(out: string, { from, repo = REPO_ROOT }: { from: string
 
 export function readBrain(from: string): { dir: string; files: Record<string, string> } {
   const root = fs.realpathSync(from);
-  let dir = '.brain';
-  const rc = path.join(root, '.brainrc');
+  let dir = '.plangraph';
+  const rc = path.join(root, '.plangraphrc');
   if (fs.existsSync(rc)) {
-    if (fs.lstatSync(rc).isSymbolicLink()) refuse('.brainrc is a symlink');
-    let j: { dir?: unknown } | null; try { j = JSON.parse(readCapped(rc, 64 * 1024)); } catch { refuse('.brainrc is not valid JSON'); }
-    if (!j || typeof j.dir !== 'string' || !j.dir) refuse('.brainrc needs a "dir" string');
+    if (fs.lstatSync(rc).isSymbolicLink()) refuse('.plangraphrc is a symlink');
+    let j: { dir?: unknown } | null; try { j = JSON.parse(readCapped(rc, 64 * 1024)); } catch { refuse('.plangraphrc is not valid JSON'); }
+    if (!j || typeof j.dir !== 'string' || !j.dir) refuse('.plangraphrc needs a "dir" string');
     dir = j.dir;
   }
   let abs: string | undefined; try { abs = resolveBrainDir(root, dir); } catch { refuse('the brain directory is not usable'); }

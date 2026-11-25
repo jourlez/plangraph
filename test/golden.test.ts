@@ -28,9 +28,9 @@ function makeFixture(root: string): void {
   const p = genPlan({ n: 40, people: 3, seed: 7 });
   git(root, 'init', '-q'); git(root, 'checkout', '-q', '-b', 'main');
   put(root, 'docs/plan.md', '# Plan\n\n### Task 1: first\nbuild a\n\n### Task 2: second\nbuild b using a\n');
-  put(root, '.brainrc', '{"dir":".brain"}\n');
+  put(root, '.plangraphrc', '{"dir":".plangraph"}\n');
   const ini = run(root, ['init']); assert.equal(ini.status, 0, ini.stderr);
-  const B = '.brain/';
+  const B = '.plangraph/';
   put(root, B + 'tickets.jsonl', jl(p.tickets.map((t, i) => (i === 2 ? { ...t, verdict: 'BLOCKED', verdict_source: 'refute' } : t))));
   put(root, B + 'edges.jsonl', jl(p.edges)); put(root, B + 'schedule.jsonl', jl(p.schedule));
   put(root, B + 'config.json', JSON.stringify({ ...p.config, caps: { default: 1000 }, first_sprint: 1, closed_statuses: ['Done'], owner_of_decisions: 'Ana', default_ref: 'HEAD' }, null, 2) + '\n');
@@ -80,7 +80,7 @@ function normalize(text: string, root: string): string {
 }
 
 // Ana's capacity lowered in config.json (read at run time, not part of the source fingerprint): her sprint loads go over cap for relieve.
-const capAna = (root: string, cap: number) => { const f = path.join(root, '.brain/config.json'), c = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify({ ...c, caps: { ...c.caps, Ana: cap } }, null, 2) + '\n'); };
+const capAna = (root: string, cap: number) => { const f = path.join(root, '.plangraph/config.json'), c = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify({ ...c, caps: { ...c.caps, Ana: cap } }, null, 2) + '\n'); };
 // A case: { name, args, repo: 'fixture' (default, fresh copy of the built fixture) | 'sp' | 'empty', stdin, setup(root), files: [rel paths printed after the run] }
 const J = (...a: string[]) => [...a, '--json'];
 interface Case { name: string; args: string[]; repo?: 'sp' | 'empty'; stdin?: string; setup?: (root: string) => void; files?: string[] }
@@ -109,38 +109,38 @@ const CASES: Case[] = [
   { name: 'whatif-relieve', args: ['whatif', '--relieve', 'Ana', '--sprint', '3'], setup: (r) => capAna(r, 12) }, { name: 'whatif-relieve-json', args: J('whatif', '--relieve', 'Ana', '--sprint', '3'), setup: (r) => capAna(r, 12) },
   { name: 'whatif-relieve-none', args: ['whatif', '--relieve', 'Ana', '--sprint', '1'], setup: (r) => capAna(r, 4) }, { name: 'whatif-relieve-write', args: ['whatif', '--relieve', 'Ana', '--sprint', '3', '--write'] },
   { name: 'forecast', args: ['forecast'] }, { name: 'forecast-json', args: J('forecast') },
-  { name: 'forecast-nohistory', args: ['forecast'], setup: (r) => fs.rmSync(path.join(r, '.brain/history.jsonl')) },
+  { name: 'forecast-nohistory', args: ['forecast'], setup: (r) => fs.rmSync(path.join(r, '.plangraph/history.jsonl')) },
   { name: 'simulate', args: ['simulate', '--runs', '50', '--seed', '3'] }, { name: 'simulate-json', args: J('simulate', '--runs', '50', '--seed', '3') },
   { name: 'open-items', args: ['open-items'] }, { name: 'open-items-json', args: J('open-items') },
   { name: 'open-items-mine', args: ['open-items', '--mine', '--me', 'Ana'] },
   { name: 'open-items-suggest', args: ['open-items', '--suggest-from-status'] }, { name: 'open-items-suggest-json', args: J('open-items', '--suggest-from-status') },
   { name: 'open-items-suggest-write', args: ['open-items', '--suggest-from-status', '--write'] },
-  { name: 'open-items-findings', args: ['open-items', '--findings', '-', '--write'], stdin: jl([{ key: 'T-30', kind: 'plan_text', text: 'late finding' }]), files: ['.brain/open-items.jsonl'] },
-  { name: 'open-items-reopen', args: ['open-items', '--reopen', 'T-20', 'decision', '--write'], files: ['.brain/open-items.jsonl'] },
+  { name: 'open-items-findings', args: ['open-items', '--findings', '-', '--write'], stdin: jl([{ key: 'T-30', kind: 'plan_text', text: 'late finding' }]), files: ['.plangraph/open-items.jsonl'] },
+  { name: 'open-items-reopen', args: ['open-items', '--reopen', 'T-20', 'decision', '--write'], files: ['.plangraph/open-items.jsonl'] },
   { name: 'card', args: ['card'] }, { name: 'card-json', args: J('card') }, { name: 'card-line', args: ['card', '--line'] }, { name: 'card-line-json', args: J('card', '--line') },
   { name: 'card-write', args: ['card', '--write'], files: ['.wolf/STATUS.md'] }, { name: 'card-if-present', args: ['card', '--if-present'] },
   { name: 'card-if-present-noindex', args: ['card', '--if-present'], repo: 'empty' },
   { name: 'stale', args: ['stale', '--ref', 'HEAD'] }, { name: 'stale-list', args: ['stale', '--ref', 'HEAD', '--list'] },
-  { name: 'refs-update', args: ['refs-update', '--ref', 'HEAD'], files: ['.brain/refs.jsonl'] },
+  { name: 'refs-update', args: ['refs-update', '--ref', 'HEAD'], files: ['.plangraph/refs.jsonl'] },
   { name: 'bundle', args: ['bundle', 'T-3', 'T-5'] }, { name: 'bundle-missing', args: ['bundle', 'T-999'] },
   { name: 'units', args: ['units', '--keys', 'T-3,T-5,T-9', '--size', '2', '--out', 'units-out'], files: ['units-out/u001.md', 'units-out/u001.in.json', 'units-out/units.json'] },
-  { name: 'schedule-load', args: ['schedule-load', 'new-schedule.json', 'archive-a'], setup: (r) => put(r, 'new-schedule.json', JSON.stringify(genPlan({ n: 40, people: 3, seed: 7 }).schedule.map((s) => ({ item: s.key, owner: s.owner, sprint: s.key === 'T-9' ? s.sprint + 1 : s.sprint })))), files: ['.brain/schedule.jsonl'] },
-  { name: 'report', args: ['report'], files: ['.brain/report.md', '.brain/report.html'] }, { name: 'report-badflag', args: ['report', '--jira', 'x.json'] },
+  { name: 'schedule-load', args: ['schedule-load', 'new-schedule.json', 'archive-a'], setup: (r) => put(r, 'new-schedule.json', JSON.stringify(genPlan({ n: 40, people: 3, seed: 7 }).schedule.map((s) => ({ item: s.key, owner: s.owner, sprint: s.key === 'T-9' ? s.sprint + 1 : s.sprint })))), files: ['.plangraph/schedule.jsonl'] },
+  { name: 'report', args: ['report'], files: ['.plangraph/report.md', '.plangraph/report.html'] }, { name: 'report-badflag', args: ['report', '--jira', 'x.json'] },
   { name: 'build', args: ['build'] }, { name: 'build-json', args: J('build') },
   { name: 'export', args: ['export'] },
   { name: 'migrate', args: ['migrate'] }, { name: 'migrate-write', args: ['migrate', '--write'] }, { name: 'migrate-json', args: J('migrate') },
   { name: 'doctor', args: ['doctor'] }, { name: 'doctor-json', args: J('doctor') },
   { name: 'doctor-fix', args: ['doctor', '--fix'] },
-  { name: 'doctor-conflict', args: ['doctor'], setup: (r) => fs.appendFileSync(path.join(r, '.brain/findings.jsonl'), '<<<<<<< ours\n') },
+  { name: 'doctor-conflict', args: ['doctor'], setup: (r) => fs.appendFileSync(path.join(r, '.plangraph/findings.jsonl'), '<<<<<<< ours\n') },
   { name: 'integrations', args: ['integrations'] }, { name: 'integrations-verbose', args: ['integrations', '-v'] }, { name: 'integrations-json', args: J('integrations') },
-  { name: 'init', args: ['init'], repo: 'empty', files: ['.brain/config.json', '.brain/.gitignore', '.brain/format.json'] }, { name: 'init-json', args: J('init'), repo: 'empty' },
-  { name: 'learn-from-wolf-text', args: ['learn', '--from-wolf', 'Never confirm a checkout from the redirect; wait for the webhook.'], files: ['.brain/learnings.jsonl'] },
+  { name: 'init', args: ['init'], repo: 'empty', files: ['.plangraph/config.json', '.plangraph/.gitignore', '.plangraph/format.json'] }, { name: 'init-json', args: J('init'), repo: 'empty' },
+  { name: 'learn-from-wolf-text', args: ['learn', '--from-wolf', 'Never confirm a checkout from the redirect; wait for the webhook.'], files: ['.plangraph/learnings.jsonl'] },
   { name: 'learn-from-wolf-nomatch', args: ['learn', '--from-wolf', 'no such rule'] }, { name: 'learn-noarg', args: ['learn'] }, { name: 'learn-number', args: ['learn', '--from-wolf', '3'] },
   { name: 'learn-bad-handle', args: ['learn', '--from-wolf', 'w000000'] },
-  { name: 'sp-ingest', args: ['sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none'], repo: 'sp', setup: (r) => put(r, '.brain/tickets.jsonl', ''), files: ['.brain/tickets.jsonl', '.brain/edges.jsonl', '.brain/refs.jsonl'] },
+  { name: 'sp-ingest', args: ['sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none'], repo: 'sp', setup: (r) => put(r, '.plangraph/tickets.jsonl', ''), files: ['.plangraph/tickets.jsonl', '.plangraph/edges.jsonl', '.plangraph/refs.jsonl'] },
   { name: 'sp-ingest-json', args: J('sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none', '--owner', 'Ana', '--sprint', '2'), repo: 'sp' },
   { name: 'sp-ingest-missing', args: ['sp-ingest', 'docs/nope.md'], repo: 'sp' }, { name: 'sp-ingest-noarg', args: ['sp-ingest'], repo: 'sp' },
-  { name: 'sp-link', args: ['sp-link', 'T-3', 'docs/plan.md', '--tasks', '1,2'], files: ['.brain/refs.jsonl'] },
+  { name: 'sp-link', args: ['sp-link', 'T-3', 'docs/plan.md', '--tasks', '1,2'], files: ['.plangraph/refs.jsonl'] },
   { name: 'sp-link-missing', args: ['sp-link', 'T-3', 'docs/none.md'] }, { name: 'sp-link-noarg', args: ['sp-link'] },
   { name: 'jira-import', args: ['jira-import', 'issue.json', '--out', 'snap.jsonl'], setup: (r) => put(r, 'issue.json', fx('jira-connector-issue.json')), files: ['snap.jsonl'] },
   { name: 'jira-import-noarg', args: ['jira-import'] }, { name: 'jira-import-badfile', args: ['jira-import', 'nope.json', '--out', 'snap.jsonl'] },
@@ -153,7 +153,7 @@ const CASES: Case[] = [
   { name: 'err-nobrain-ticket', args: ['ticket', 'T-1'], repo: 'empty' }, { name: 'err-nobrain-build', args: ['build'], repo: 'empty' },
   { name: 'err-nobrain-check', args: ['check'], repo: 'empty' }, { name: 'err-nobrain-doctor', args: ['doctor'], repo: 'empty' },
   { name: 'err-nobrain-learn', args: ['learn', '--from-wolf', 'x'], repo: 'empty' },
-  { name: 'err-newer-format', args: ['ticket', 'T-5'], setup: (r) => put(r, '.brain/format.json', '{"format_version":99,"min_reader":99}\n') },
+  { name: 'err-newer-format', args: ['ticket', 'T-5'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":99,"min_reader":99}\n') },
 ];
 
 for (const c of CASES) {

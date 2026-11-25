@@ -16,7 +16,7 @@ function repo() {
   assert.equal(run(dir, {}, ['init']).status, 0);
   return dir;
 }
-const cfgPath = (dir: string) => path.join(dir, '.brain', 'config.json');
+const cfgPath = (dir: string) => path.join(dir, '.plangraph', 'config.json');
 const setJira = (dir: string, jira: unknown) => { const c = JSON.parse(fs.readFileSync(cfgPath(dir), 'utf8')); c.jira = jira; fs.writeFileSync(cfgPath(dir), JSON.stringify(c)); };
 const jiraLine = (r: { stdout: string }) => r.stdout.split('\n').find((l) => l.startsWith('jira:')) || '';
 

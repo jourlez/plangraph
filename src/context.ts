@@ -1,5 +1,5 @@
 // Context: the capabilities a command gets, instead of globals. Built once per run by the shell (src/cli.ts or a test).
-// Directory precedence matches bin/brain: --dir, else env PLANGRAPH_DIR (when non-empty), else {"dir": "..."} in <root>/.brainrc, else .brain.
+// Directory precedence matches bin/brain: --dir, else env PLANGRAPH_DIR (when non-empty), else {"dir": "..."} in <root>/.plangraphrc, else .plangraph.
 // Unlike bin/brain, the directory is confined to the repository (lib/fsafe.ts resolveBrainDir): absolute or escaping dirs are REFUSED.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,16 +72,16 @@ function findRoot(cwd: string, gitFactory: (root: string) => GitRun, env: Record
 function brainDir(root: string, flags: Record<string, unknown>, env: Record<string, string | undefined>): string {
   let dir = typeof flags.dir === 'string' ? flags.dir : env.PLANGRAPH_DIR || undefined;
   if (dir === undefined) {
-    const rc = readJsonObject(path.join(root, '.brainrc'), '.brainrc', RC_MAX);
+    const rc = readJsonObject(path.join(root, '.plangraphrc'), '.plangraphrc', RC_MAX);
     if (rc && Object.hasOwn(rc, 'dir')) {
-      if (typeof rc.dir !== 'string' || !rc.dir) throw new BrainError('DATA', '.brainrc: "dir" must be a non-empty string');
+      if (typeof rc.dir !== 'string' || !rc.dir) throw new BrainError('DATA', '.plangraphrc: "dir" must be a non-empty string');
       dir = rc.dir;
     }
   }
-  try { return resolveBrainDir(root, dir ?? '.brain'); }
+  try { return resolveBrainDir(root, dir ?? '.plangraph'); }
   catch (e) { // lib/fsafe.ts throws an Error with a code
     if ((e as NodeJS.ErrnoException).code === 'OUTSIDE_REPO') throw new BrainError('REFUSED', 'brain directory is outside the repository', { hint: 'use a relative --dir inside the repository', cause: e }); // fs and the readers throw errno-style errors with a code
-    if ((e as NodeJS.ErrnoException).code === 'BAD_DIR_NAME') throw new BrainError('REFUSED', (e as Error).message, { hint: 'use a plain relative --dir such as .brain', cause: e }); // fs and the readers throw errno-style errors with a code
+    if ((e as NodeJS.ErrnoException).code === 'BAD_DIR_NAME') throw new BrainError('REFUSED', (e as Error).message, { hint: 'use a plain relative --dir such as .plangraph', cause: e }); // fs and the readers throw errno-style errors with a code
     throw e;
   }
 }

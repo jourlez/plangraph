@@ -33,7 +33,7 @@ before(() => {
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
-  const B = path.join(REPO, '.brain');
+  const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(TICKETS.map((t, i) => ({ key: t.key, owner: 'Ana', sprint: 1 + (i % 3) }))));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));

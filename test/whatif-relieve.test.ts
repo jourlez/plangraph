@@ -37,7 +37,7 @@ const model = () => buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHED
 const DRY = '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then brain export)';
 
 /** sha256 of every file under the brain directory (the index included). */
-const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.brain'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
+const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
 
 before(() => {
   BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-relieve-')));
@@ -45,7 +45,7 @@ before(() => {
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
-  const B = path.join(REPO, '.brain');
+  const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));

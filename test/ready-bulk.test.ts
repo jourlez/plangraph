@@ -36,7 +36,7 @@ before(() => {
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
-  const B = path.join(REPO, '.brain');
+  const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE)); fs.writeFileSync(path.join(B, 'findings.jsonl'), jl(FINDINGS));
   fs.writeFileSync(path.join(REPO, 'snap.json'), JSON.stringify({ 'A-2': { status: 'Done' } }));

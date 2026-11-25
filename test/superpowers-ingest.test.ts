@@ -44,9 +44,9 @@ function repo({ ledger = '7x', plan = PLAN } = {}) {
   if (ledger === '7x') { put(root, `.superpowers/sdd/${SLUG}/progress.md`, LEDGER); put(root, `.superpowers/sdd/${SLUG}/plan-path`, fx('ledger-7x/plan-path')); }
   const r = run(root, 'init'); assert.equal(r.status, 0, r.stderr);
   // records this ingest does not own: must never be touched
-  put(root, '.brain/tickets.jsonl', '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n{"key":"sp:other-plan/1","summary":"x","epic":"sp:other-plan"}\n');
-  put(root, '.brain/edges.jsonl', '{"consumer":"T-1","producer":"sp:other-plan/1","kind":"plan_need","note":""}\n');
-  put(root, '.brain/findings.jsonl', '{"key":"T-1","kind":"note","text":"keep me"}\n');
+  put(root, '.plangraph/tickets.jsonl', '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n{"key":"sp:other-plan/1","summary":"x","epic":"sp:other-plan"}\n');
+  put(root, '.plangraph/edges.jsonl', '{"consumer":"T-1","producer":"sp:other-plan/1","kind":"plan_need","note":""}\n');
+  put(root, '.plangraph/findings.jsonl', '{"key":"T-1","kind":"note","text":"keep me"}\n');
   return root;
 }
 const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {
@@ -54,7 +54,7 @@ const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {
   for (const n of fs.readdirSync(dir)) { const f = path.join(dir, n), st = fs.lstatSync(f); if (st.isDirectory()) walk(f, base, out); else out[path.relative(base, f)] = crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') + ':' + st.mtimeMs; }
   return out;
 };
-const snapshot = (root: string) => ({ brain: walk(path.join(root, '.brain')), sp: walk(path.join(root, '.superpowers')), docs: walk(path.join(root, 'docs')) });
+const snapshot = (root: string) => ({ brain: walk(path.join(root, '.plangraph')), sp: walk(path.join(root, '.superpowers')), docs: walk(path.join(root, 'docs')) });
 const loud = (root: string, args: string[], re: RegExp | null, status = 2) => {
   const before = snapshot(root); const r = run(root, ...args);
   assert.equal(r.status, status, `exit ${r.status}: ${r.stdout}${r.stderr}`);
@@ -64,7 +64,7 @@ const loud = (root: string, args: string[], re: RegExp | null, status = 2) => {
   assert.deepEqual(snapshot(root), before, 'a loud failure must leave every file byte- and mtime-identical');
   return r;
 };
-const readRecs = (root: string, f: string) => fs.readFileSync(path.join(root, '.brain', f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+const readRecs = (root: string, f: string) => fs.readFileSync(path.join(root, '.plangraph', f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 
 // ---------- parser ----------
 test('parsePlan: the fixture plan gives header, constraints, review focus and three tasks', () => {
@@ -259,13 +259,13 @@ test('schema: tickets accept the four impl_status values and reject anything els
 test('build and export: a legacy tickets.jsonl without impl_status round-trips byte-stable, and impl_status survives', () => {
   const root = repo({ ledger: 'none' });
   const legacy = '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}\n';
-  put(root, '.brain/tickets.jsonl', legacy); put(root, '.brain/edges.jsonl', ''); put(root, '.brain/findings.jsonl', '');
+  put(root, '.plangraph/tickets.jsonl', legacy); put(root, '.plangraph/edges.jsonl', ''); put(root, '.plangraph/findings.jsonl', '');
   assert.equal(run(root, 'build').status, 0); assert.equal(run(root, 'export').status, 0);
-  assert.equal(fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), legacy);
+  assert.equal(fs.readFileSync(path.join(root, '.plangraph/tickets.jsonl'), 'utf8'), legacy);
   const withImpl = legacy.replace('"first_verdict":"READY"}', '"first_verdict":"READY","impl_status":"done"}') + '{"key":"T-2","summary":"s","epic":"E","sp":1,"jira_status":"","v2_owner":"Ana","v2_sprint":1,"verdict":"","verdict_source":"","first_verdict":""}\n';
-  put(root, '.brain/tickets.jsonl', withImpl);
+  put(root, '.plangraph/tickets.jsonl', withImpl);
   const b = run(root, 'build'); assert.equal(b.status, 0, b.stderr); assert.equal(run(root, 'export').status, 0);
-  assert.equal(fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), withImpl);
+  assert.equal(fs.readFileSync(path.join(root, '.plangraph/tickets.jsonl'), 'utf8'), withImpl);
 });
 
 // ---------- CLI ----------
@@ -283,9 +283,9 @@ test('sp-ingest: one summary line, records merged, non-owned records untouched, 
   for (const x of keep.e) assert.ok(readRecs(root, 'edges.jsonl').some((y) => JSON.stringify(y) === JSON.stringify(x)));
   for (const x of keep.f) assert.ok(readRecs(root, 'findings.jsonl').some((y) => JSON.stringify(y) === JSON.stringify(x)));
   assert.ok(readRecs(root, 'schedule.jsonl').every((s) => !s.key.startsWith(EPIC)), 'no --owner: nothing scheduled');
-  const once = snapshot(root).brain;
+  const once = snapshot(root).plangraph;
   const r2 = run(root, 'sp-ingest', PLAN_REL); assert.equal(r2.status, 0);
-  const twice = snapshot(root).brain;
+  const twice = snapshot(root).plangraph;
   assert.deepEqual(twice, once, 'the second run writes nothing (same bytes, same mtimes)');
   const j = run(root, 'sp-ingest', PLAN_REL, '--json'); assert.equal(j.status, 0);
   const env = JSON.parse(j.stdout); assert.equal(env.v, 2); assert.equal(env.ok, true); assert.match(env.data.lines[0], /^ingested sp:/);
@@ -294,12 +294,12 @@ test('sp-ingest: one summary line, records merged, non-owned records untouched, 
 
 test('sp-ingest: with the ledger gone, previous statuses and ledger findings stay; --ledger none means no new status info', () => {
   const root = repo(); assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0);
-  const before = fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), fb = fs.readFileSync(path.join(root, '.brain/findings.jsonl'), 'utf8');
+  const before = fs.readFileSync(path.join(root, '.plangraph/tickets.jsonl'), 'utf8'), fb = fs.readFileSync(path.join(root, '.plangraph/findings.jsonl'), 'utf8');
   fs.rmSync(path.join(root, '.superpowers'), { recursive: true });
   const r = run(root, 'sp-ingest', PLAN_REL); assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /0 statuses from ledger \(no ledger found: kept the previous impl_status of 3 tasks; plan checkboxes are never read as progress\)/);
-  assert.equal(fs.readFileSync(path.join(root, '.brain/tickets.jsonl'), 'utf8'), before);
-  assert.equal(fs.readFileSync(path.join(root, '.brain/findings.jsonl'), 'utf8'), fb);
+  assert.equal(fs.readFileSync(path.join(root, '.plangraph/tickets.jsonl'), 'utf8'), before);
+  assert.equal(fs.readFileSync(path.join(root, '.plangraph/findings.jsonl'), 'utf8'), fb);
 });
 
 test('sp-ingest loud failures: exit 2, one error line, every file unchanged', () => {
@@ -358,7 +358,7 @@ test('sp-ingest of a hostile plan: nothing is executed, stored text is clean, th
   const root = repo({ ledger: 'none', plan: HOSTILE });
   const r = run(root, 'sp-ingest', PLAN_REL); assert.equal(r.status, 0, r.stderr);
   assert.ok(!fs.existsSync(path.join(root, 'PWNED')));
-  for (const f of ['tickets.jsonl', 'findings.jsonl', 'edges.jsonl']) assert.doesNotMatch(fs.readFileSync(path.join(root, '.brain', f), 'utf8'), /\\u001b|\u001b|<\/untrusted>|\\u0007/);
+  for (const f of ['tickets.jsonl', 'findings.jsonl', 'edges.jsonl']) assert.doesNotMatch(fs.readFileSync(path.join(root, '.plangraph', f), 'utf8'), /\\u001b|\u001b|<\/untrusted>|\\u0007/);
   assert.equal(run(root, 'build').status, 0);
   const c = run(root, 'card'); assert.equal(c.status, 0, c.stderr);
   assert.doesNotMatch(c.stdout.replace(/<untrusted n="[0-9a-f]{8}">[^<>\n]*<\/untrusted>/g, (m) => m.replace(/<\/?untrusted[^>]*>/g, '')), /formatter|ignore previous|AAAA|untrusted/);
@@ -493,7 +493,7 @@ test('sp-ingest: a flat ledger whose first line names the plan applies automatic
 });
 
 // ---------- 3. verify, ready and ticket know the sp: namespace ----------
-const placeT1 = (root: string) => put(root, '.brain/schedule.jsonl', '{"version":"current","key":"T-1","owner":"Ana","sprint":1}\n');
+const placeT1 = (root: string) => put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"T-1","owner":"Ana","sprint":1}\n');
 test('verify after sp-ingest without an owner: OK, the count covers every ticket; with --owner/--sprint the tasks are verified (HANDOFF)', () => {
   const root = repo(); placeT1(root);
   assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);
@@ -501,16 +501,16 @@ test('verify after sp-ingest without an owner: OK, the count covers every ticket
   const s = run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '3'); assert.equal(s.status, 0, s.stderr);
   assert.equal(run(root, 'build').status, 0);
   const v2 = run(root, 'verify'); assert.equal(v2.stdout, 'OK plan valid (6 tickets)\n'); assert.equal(v2.status, 0);
-  const sched = fs.readFileSync(path.join(root, '.brain/schedule.jsonl'), 'utf8').replace(`"key":"${K('1')}","owner":"Ana"`, `"key":"${K('1')}","owner":"Ben"`);
-  assert.ok(sched.includes('"owner":"Ben"')); fs.writeFileSync(path.join(root, '.brain/schedule.jsonl'), sched);
+  const sched = fs.readFileSync(path.join(root, '.plangraph/schedule.jsonl'), 'utf8').replace(`"key":"${K('1')}","owner":"Ana"`, `"key":"${K('1')}","owner":"Ben"`);
+  assert.ok(sched.includes('"owner":"Ben"')); fs.writeFileSync(path.join(root, '.plangraph/schedule.jsonl'), sched);
   assert.equal(run(root, 'build').status, 0);
   // K1's impl_status is done: a closed producer satisfies its links wherever it sits (frozen history, lib/frozen.ts)
   const v3 = run(root, 'verify'); assert.deepEqual([v3.status, v3.stdout], [0, 'OK plan valid (6 tickets)\n']);
   // K2 not done (Task 2 out of the ledger), placed with Ben in the same sprint: HANDOFF
   put(root, `.superpowers/sdd/${SLUG}/progress.md`, LEDGER.split('\n').filter((l) => !l.startsWith('Task 2')).join('\n'));
   assert.equal(run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '3').status, 0); assert.equal(run(root, 'build').status, 0);
-  const sched2 = fs.readFileSync(path.join(root, '.brain/schedule.jsonl'), 'utf8').replace(`"key":"${K('2')}","owner":"Ana"`, `"key":"${K('2')}","owner":"Ben"`);
-  assert.ok(sched2.includes(`"key":"${K('2')}","owner":"Ben"`)); fs.writeFileSync(path.join(root, '.brain/schedule.jsonl'), sched2);
+  const sched2 = fs.readFileSync(path.join(root, '.plangraph/schedule.jsonl'), 'utf8').replace(`"key":"${K('2')}","owner":"Ana"`, `"key":"${K('2')}","owner":"Ben"`);
+  assert.ok(sched2.includes(`"key":"${K('2')}","owner":"Ben"`)); fs.writeFileSync(path.join(root, '.plangraph/schedule.jsonl'), sched2);
   assert.equal(run(root, 'build').status, 0);
   const v4 = run(root, 'verify'); assert.equal(v4.status, 1);
   assert.equal(v4.stdout, `HANDOFF ${K('3')} producer ${K('2')} S3 Ben, consumer ${K('3')} S3 Ana, consumer needs >=S4\n`);
@@ -560,18 +560,18 @@ test('open-items --findings accepts a finding on an sp: key', () => {
   const root = repo(); assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);
   put(root, 'f.jsonl', JSON.stringify({ key: K('3'), kind: 'review_gap', text: 'no test for a 413' }) + '\n');
   const r = run(root, 'open-items', '--findings', 'f.jsonl', '--write'); assert.equal(r.status, 0, r.stderr); assert.equal(r.stderr, '');
-  assert.ok(fs.readFileSync(path.join(root, '.brain/open-items.jsonl'), 'utf8').includes(`"key":"${K('3')}","kind":"review_gap"`));
+  assert.ok(fs.readFileSync(path.join(root, '.plangraph/open-items.jsonl'), 'utf8').includes(`"key":"${K('3')}","kind":"review_gap"`));
 });
 
 // ---------- 5. minor fixes ----------
 test('write pre-check: a refusable target (symlink) fails before ANY file is rewritten', () => {
-  const root = repo(); const edges = path.join(root, '.brain/edges.jsonl'), real = path.join(root, '.brain/edges.real');
+  const root = repo(); const edges = path.join(root, '.plangraph/edges.jsonl'), real = path.join(root, '.plangraph/edges.real');
   fs.renameSync(edges, real); fs.symlinkSync(real, edges);
   loud(root, ['sp-ingest', PLAN_REL], /^error: refusing to write edges\.jsonl: it is a symlink \(nothing was written\)\ntry: brain explain sp-ingest\n$/, 4); // REFUSED: exit 4
   fs.rmSync(edges); fs.renameSync(real, edges); // the target is fixed: a plain re-run converges to the full result
   assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0);
   const fresh = repo(); assert.equal(run(fresh, 'sp-ingest', PLAN_REL).status, 0);
-  for (const f of ['tickets.jsonl', 'edges.jsonl', 'findings.jsonl', 'refs.jsonl', 'schedule.jsonl']) assert.equal(fs.readFileSync(path.join(root, '.brain', f), 'utf8'), fs.readFileSync(path.join(fresh, '.brain', f), 'utf8'), f);
+  for (const f of ['tickets.jsonl', 'edges.jsonl', 'findings.jsonl', 'refs.jsonl', 'schedule.jsonl']) assert.equal(fs.readFileSync(path.join(root, '.plangraph', f), 'utf8'), fs.readFileSync(path.join(fresh, '.plangraph', f), 'utf8'), f);
 });
 test('summary counts findings after canonicalization: a re-ingest with an unchanged ledger reports the stored count', () => {
   const root = repo();
@@ -590,7 +590,7 @@ test('--owner and --sprint go together; seeding never clobbers rows and warns wi
   loud(root, ['sp-ingest', PLAN_REL, '--owner', 'Ana'], /--owner and --sprint go together/);
   loud(root, ['sp-ingest', PLAN_REL, '--sprint', '2'], /--owner and --sprint go together/);
   fs.writeFileSync(path.join(root, PLAN_REL), PLAN.replace('### Task 1: CSV formatter\n', '### Task 1: CSV formatter\n\n**Points:** 3\n').replace('### Task 2: Streaming widget query\n', '### Task 2: Streaming widget query\n\n- Points: 5\n'));
-  put(root, '.brain/schedule.jsonl', `{"version":"current","key":"${K('2')}","owner":"Cy","sprint":1}\n`);
+  put(root, '.plangraph/schedule.jsonl', `{"version":"current","key":"${K('2')}","owner":"Cy","sprint":1}\n`);
   const r = run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '2'); assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^warning: seeded 2 tasks for Ana in sprint 2: 3 story points \(capacity is not checked here\)$/m);
   assert.deepEqual(readRecs(root, 'schedule.jsonl').map((x) => [x.key, x.owner, x.sprint]), [[K('1'), 'Ana', 2], [K('2'), 'Cy', 1], [K('3'), 'Ana', 2]]);
@@ -655,7 +655,7 @@ test('an unclosed comment stays a loud failure and a comment opener in a fence o
 test('sp-link: a refs.jsonl record whose plans is not a list is a data error naming the line, never a TypeError; nothing is written', () => {
   const root = repo({ ledger: 'none' });
   for (const plans of ['"oops"', '{"plan":"x"}', '7', '[1, "x"]']) {
-    put(root, '.brain/refs.jsonl', `{"key":"T-0","plans":[]}\n{"key":"T-1","plans":${plans}}\n`);
+    put(root, '.plangraph/refs.jsonl', `{"key":"T-0","plans":[]}\n{"key":"T-1","plans":${plans}}\n`);
     const before = snapshot(root);
     const r = run(root, 'sp-link', 'T-1', PLAN_REL, '--tasks', '1');
     assert.equal(r.status, 2, plans); assert.equal(r.stdout, '');

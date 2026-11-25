@@ -23,11 +23,11 @@ function repo() {
   return d;
 }
 const run = (cwd: string, ...args: string[]) => execFileSync('node', [BRAIN, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_PLUGIN_DATA: DATA } });
-const bdir = (d: string) => path.join(d, '.brain');
+const bdir = (d: string) => path.join(d, '.plangraph');
 const put = (d: string, f: string, recs: readonly unknown[]) => fs.writeFileSync(path.join(bdir(d), f), recs.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n') + '\n');
 const canonTickets = (recs: readonly S.Rec[]) => S.canonFile(recs, S.SCHEMAS['tickets.jsonl']);
 const tk = (key: string, more: S.Rec = {}) => ({ key, summary: 's' + key, epic: 'E', sp: 3, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', verdict_source: 'a', first_verdict: 'READY', ...more });
-const count = (d: string, t: string) => { const db = new DatabaseSync(path.join(bdir(d), 'brain.sqlite'), { readOnly: true }); try { return (db.prepare(`SELECT COUNT(*) c FROM ${t}`).get() as { c: number }).c; } finally { db.close(); } }; // COUNT(*) always returns one row
+const count = (d: string, t: string) => { const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true }); try { return (db.prepare(`SELECT COUNT(*) c FROM ${t}`).get() as { c: number }).c; } finally { db.close(); } }; // COUNT(*) always returns one row
 
 test('(a) unknown scalar, object and array fields build and round-trip byte-stable', () => {
   const d = repo();
@@ -39,7 +39,7 @@ test('(a) unknown scalar, object and array fields build and round-trip byte-stab
   assert.equal(first, text);
   run(d, 'build'); run(d, 'export');
   assert.equal(fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8'), first);
-  const db = new DatabaseSync(path.join(bdir(d), 'brain.sqlite'), { readOnly: true });
+  const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true });
   const x = db.prepare("SELECT key, extra FROM ticket ORDER BY key").all();
   db.close();
   assert.equal(x[0].extra, '{"alpha":{"a":[1,{"x":null,"y":1}],"b":2},"flag":true,"list":[3,1,2],"nothing":null,"zeta":"z"}');
@@ -100,7 +100,7 @@ test('(d) a known text field with an object value is a data error (security revi
   put(d, 'findings.jsonl', [{ key: 'T-1', kind: 'risk', text: 't', sev: { n: 1 } }]);
   put(d, 'evidence.jsonl', [{ key: 'T-1', source: 's', verdict: 'READY', resolution: '', needs: '', conf: 0.5 }]);
   run(d, 'build');
-  const db = new DatabaseSync(path.join(bdir(d), 'brain.sqlite'), { readOnly: true });
+  const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true });
   assert.equal((db.prepare('SELECT summary FROM ticket').get() as Record<string, unknown>).summary, 'sT-1'); // the query has a row
   assert.equal((db.prepare('SELECT extra FROM ticket').get() as Record<string, unknown>).extra, null); // the query has a row
   assert.equal((db.prepare('SELECT extra FROM edge').get() as Record<string, unknown>).extra, '{"weight":2}'); // the query has a row
@@ -118,7 +118,7 @@ test('(d2) learnings and refs keep unknown fields in the index extra column', ()
   put(d, 'learnings.jsonl', [{ id: 'L1', kind: 'rule', topic: 't', text: 'x', why: 'w', source: 's', tag: ['a'] }, { id: 'L2', kind: 'rule', topic: 't', text: 'y' }]);
   put(d, 'refs.jsonl', [{ key: 'T-1', plans: [], files: {}, fp_files: '', jira_updated: '', audited_at: '', note: 'n' }]);
   run(d, 'build');
-  const db = new DatabaseSync(path.join(bdir(d), 'brain.sqlite'), { readOnly: true });
+  const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true });
   assert.equal((db.prepare("SELECT extra FROM learning WHERE id='L1'").get() as Record<string, unknown>).extra, '{"tag":["a"]}'); // the query has a row
   assert.equal((db.prepare("SELECT extra FROM learning WHERE id='L2'").get() as Record<string, unknown>).extra, null); // the query has a row
   assert.equal((db.prepare('SELECT extra FROM ref').get() as Record<string, unknown>).extra, '{"note":"n"}'); // the query has a row

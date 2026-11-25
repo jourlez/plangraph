@@ -107,7 +107,7 @@ claude plugin uninstall plangraph@plangraph-marketplace
 claude plugin marketplace remove plangraph-marketplace
 ```
 
-`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.brain/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=plangraph-jsonl` line in `.gitattributes`, and the `merge.plangraph-jsonl.*` entries in `.git/config`.
+`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the brain directory (`.plangraph/` by default) is plain text that you own. To remove brain from a repository, delete that directory, the `merge=plangraph-jsonl` line in `.gitattributes`, and the `merge.plangraph-jsonl.*` entries in `.git/config`.
 
 ### Turning the session card off
 
@@ -138,16 +138,16 @@ The examples below were run on a small synthetic plan (three invented people, ni
 
    ```console
    $ brain init
-   initialised .brain: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`
+   initialised .plangraph: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `brain build`
    suggested lines for this repo's CLAUDE.md (printed only, nothing written):
    ## Plan questions
-   Use `brain` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl or the index.
+   Use `brain` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.
    Run `brain explain` for the full command list.
    ```
 
-   It writes `config.json`, empty data files, 16 generic learnings, `format.json` and a `.gitignore` for the index, and wires the merge driver (`.gitattributes` plus local git config). Use `.brainrc` (`{"dir": "docs/plan-graph"}`) for another directory.
+   It writes `config.json`, empty data files, 16 generic learnings, `format.json` and a `.gitignore` for the index, and wires the merge driver (`.gitattributes` plus local git config). Use `.plangraphrc` (`{"dir": "docs/plan-graph"}`) for another directory.
 
-2. Set the sprints and capacity in `.brain/config.json` (here `"end_sprint": 4` and `"caps": {"default": 8}`), then add your data, one JSON object per line:
+2. Set the sprints and capacity in `.plangraph/config.json` (here `"end_sprint": 4` and `"caps": {"default": 8}`), then add your data, one JSON object per line:
 
    ```text
    tickets.jsonl   {"key":"DEMO-2","summary":"Session store","epic":"E1","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
@@ -162,7 +162,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
 
    ```console
    $ brain build
-   built .brain/brain.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
+   built .plangraph/plangraph.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
    $ brain check
    tickets 9 | links 8 | strict-rule violations 0 | person-sprints over cap 1 | loop-free true | last sprint 3
    $ brain verify
@@ -179,7 +179,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
    verdicts: <untrusted n="20a6e65f">8 READY, 1 NEEDS_INFO</untrusted>
    over cap: <untrusted n="5f11d001">Ben S2 +2</untrusted>
    findings: <untrusted n="0584fcda">missing_ac 1</untrusted>
-   plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl
+   plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl
    $ brain ready DEMO-8
    NOT READY DEMO-8
    - waits for DEMO-4 (To Do, planned S2 Ben)
@@ -226,10 +226,10 @@ The examples below were run on a small synthetic plan (three invented people, ni
    $ brain check
    tickets 9 | links 8 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 3
    $ brain report
-   wrote .brain/report.md and .brain/report.html (9 tickets, 3 can start, 0 person-sprints over cap); publishing is a separate step
+   wrote .plangraph/report.md and .plangraph/report.html (9 tickets, 3 can start, 0 person-sprints over cap); publishing is a separate step
    ```
 
-   Commit the text files (`git add .brain`). The index `brain.sqlite` is git-ignored and rebuilt by `brain build`.
+   Commit the text files (`git add .plangraph`). The index `plangraph.sqlite` is git-ignored and rebuilt by `brain build`.
 
 7. Check the setup and the companion tools:
 
@@ -254,7 +254,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
 ```console
 $ brain doctor
 data format v0 (legacy: run `brain migrate --write`); tool supports v1
-merge driver: .gitattributes lacks ".brain/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)
+merge driver: .gitattributes lacks ".plangraph/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `brain init` or `brain doctor --fix` in every clone)
 node v24.18.0: ok
 solver runtime: uv found (brain-solve-run will use it)
 $ brain migrate
@@ -267,7 +267,7 @@ merge driver: ok
 node v24.18.0: ok
 solver runtime: uv found (brain-solve-run will use it)
 $ brain build
-built .brain/brain.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 0 learnings
+built .plangraph/plangraph.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 0 learnings
 ```
 
 **Incremental re-audit.** `brain refs-update` records the inputs of each audited verdict (here, the plan task sections of an ingested superpowers plan). After the plan text changes, `brain stale --list` names exactly the verdicts to redo:
@@ -279,7 +279,7 @@ warning: seeded 2 tasks for Caro in sprint 4: 5 story points (capacity is not ch
 $ brain refs-update
 refs.jsonl updated for 3 tickets at 49dca7d (ref HEAD); run `brain build`
 $ brain build
-built .brain/brain.sqlite: 12 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
+built .plangraph/plangraph.sqlite: 12 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
 ```
 
 After a commit that edits the Task 2 heading of the plan:
@@ -297,7 +297,7 @@ Add `--jira snapshot.jsonl` to include Jira changes. The `brain-audit` skill pre
 ### Data model
 
 - **Text in git is the source of truth.** The brain directory holds `tickets.jsonl`, `edges.jsonl`, `schedule.jsonl`, `findings.jsonl`, `evidence.jsonl`, `meta.jsonl`, `refs.jsonl`, `learnings.jsonl`, optional `open-items.jsonl`, `history.jsonl` and `actuals.jsonl`, plus `config.json` and `format.json`. Each file is canonical: one record per line, sorted by primary key, fixed key order, trailing newline. Unknown fields are kept, never interpreted. Details: [docs/FORMAT.md](docs/FORMAT.md).
-- **The SQLite index is a throwaway derived file.** `brain build` writes `brain.sqlite` atomically and records a fingerprint of the text it was built from and a digest of its own rows. When the text changes, queries still answer but say `STALE`; `brain build` rebuilds it in well under a second on a plan of about 1,400 tickets. The index is git-ignored.
+- **The SQLite index is a throwaway derived file.** `brain build` writes `plangraph.sqlite` atomically and records a fingerprint of the text it was built from and a digest of its own rows. When the text changes, queries still answer but say `STALE`; `brain build` rebuilds it in well under a second on a plan of about 1,400 tickets. The index is git-ignored.
 - **Merging.** `brain init` registers a git merge driver (`bin/brain-merge`) for the JSONL files. It merges by primary key and field: edits to different fields of the same ticket merge cleanly; the same field changed to two values is a conflict. A clean merge of `schedule.jsonl` or `edges.jsonl` reminds you to run `brain build` and `brain check`, because a valid merge of records can still break a plan rule.
 - **Format versions.** `format.json` holds `format_version` and `min_reader`. A tool refuses to write to a newer format, and `brain migrate` upgrades an older one.
 
@@ -318,7 +318,7 @@ flowchart LR
   end
   J["Jira<br/>(read-only)"] -->|"brain jira-pull / jira-import"| S["snapshot.jsonl"]
   SP["superpowers plan"] -->|"brain sp-ingest"| T
-  T -->|"brain build"| I[("brain.sqlite<br/>derived, git-ignored")]
+  T -->|"brain build"| I[("plangraph.sqlite<br/>derived, git-ignored")]
   I --> C["brain commands<br/>(terse answers)"]
   I --> H["SessionStart hook<br/>brain card"]
   I --> SK["skills<br/>(call brain)"]
@@ -356,7 +356,7 @@ What the hook does: if the project has a brain index, it prints the plan card (a
 
 `brain` prints the smallest useful answer: counts first, lists capped (`-v` shows more), one line for a yes or no. `--json` prints one versioned envelope (`{"v":2,"cmd","ok","exit","data","fresh","next"}`) on any command. `brain explain` lists the commands from the registry, and `brain explain COMMAND` shows one. Global options: `--json`, `-v`, `--dir DIR`, `--if-present`.
 
-"Writes" is the registry's class: **none** (read-only), **index** (`brain.sqlite` only; run `brain export` to keep it), **text** (files in the brain directory), **file** (an output file you name, or `CARD.md`). `init`, `doctor --fix` and `card --heal` also write git config, `.gitattributes` and the merge shim.
+"Writes" is the registry's class: **none** (read-only), **index** (`plangraph.sqlite` only; run `brain export` to keep it), **text** (files in the brain directory), **file** (an output file you name, or `CARD.md`). `init`, `doctor --fix` and `card --heal` also write git config, `.gitattributes` and the merge shim.
 
 | Command | Purpose | Key arguments and flags | Writes |
 |---|---|---|---|
@@ -443,7 +443,7 @@ The plugin ships eight skills. Claude picks one from its description, or you inv
 
 ### Brain directory
 
-`--dir DIR`, else `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be a relative path inside the repository; an absolute or escaping path is refused with exit 4.
+`--dir DIR`, else `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.plangraphrc` at the repository root, else `.plangraph`. It must be a relative path inside the repository; an absolute or escaping path is refused with exit 4.
 
 ### Environment variables
 
@@ -554,7 +554,7 @@ To run the evaluation on your own plan, see [evals/README.md](evals/README.md) (
 
 ## Security model
 
-**Threat model.** All repository content is untrusted: ticket text, Jira text, plan files, findings, OpenWolf files, `config.json`, `.brainrc`, and even a committed `brain.sqlite`. Teammates, Jira users and other tools can write any of it, including instructions aimed at an AI agent.
+**Threat model.** All repository content is untrusted: ticket text, Jira text, plan files, findings, OpenWolf files, `config.json`, `.plangraphrc`, and even a committed `plangraph.sqlite`. Teammates, Jira users and other tools can write any of it, including instructions aimed at an AI agent.
 
 What is defended, each covered by tests:
 
@@ -572,7 +572,7 @@ What is defended, each covered by tests:
 
 - Hooks and the commands in `bin/` run as you, unsandboxed, with your permissions.
 - Whoever can write the plugin data directory or `bin/brain-merge` can run code as you at the next merge. The shim refuses a data directory that is a symlink, owned by someone else or writable by others, but checks only the final path components.
-- Every open is by path, so an intermediate directory component (for example `.brain` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not detected for reads, and for writes it is detected only when it is the target's own parent directory. To use it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a brain command runs.
+- Every open is by path, so an intermediate directory component (for example `.plangraph` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not detected for reads, and for writes it is detected only when it is the target's own parent directory. To use it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a brain command runs.
 - SQLite opens the index again by path after brain's own check, so a file swapped in between that check and SQLite's open is not detected (Node's SQLite binding cannot take a descriptor).
 - The index digest is unkeyed: it detects direct edits and accidental tools, not a forger who edits rows and recomputes the digest the same way. The text files in git remain the source of truth.
 - A crash in the middle of `schedule-load` or `whatif --write` leaves a real journal, which is refused like a planted one; `brain build` rebuilds from the text, and index-only changes not yet exported are lost.
@@ -622,14 +622,14 @@ What is verified live, and what only against fixtures:
 | The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `PLANGRAPH_CARD`; run `brain card` by hand to see any error |
 | The session starts with `brain: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet, or the data is in an older format | run `brain build`, or `brain migrate --write` first when the line says so |
 | `brain: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/plangraph/bin/brain ...`, or add that `bin/` directory to your PATH |
-| `note: .brain: data format 0 is older than 1` | data written before `format.json` existed | `brain migrate`, then `brain migrate --write` |
+| `note: .plangraph: data format 0 is older than 1` | data written before `format.json` existed | `brain migrate`, then `brain migrate --write` |
 | `STALE: the text files changed since the index was built` | text edited after the last build | `brain build` |
 | `error: the index is stale ... export would overwrite them` | `brain export` over a stale index | `brain build`, then redo the index change |
 | `error: tickets.jsonl: is a symlink, not a regular file` or `error: the index is a symlink` | a symlink where brain expects a regular file (refused by design) | replace the symlink with the real file; for the index, delete it and run `brain build` |
 | `merge driver: ... is not set` in `brain doctor` | a fresh clone (git config is not versioned) or a moved plugin install | `brain doctor --fix` |
 | `brain-solve-run` exits 3 | no uv and no usable Python 3.10 to 3.14 | install uv (recommended), or a Python 3.10 to 3.14 |
 | `MODEL_INVALID: every ticket needs an sp` | a ticket without story points (for example the epic ticket `sp-ingest` creates for a plan) | give every ticket an `sp` value (`0` is allowed) |
-| `error: brain directory is outside the repository` | `--dir`, `PLANGRAPH_DIR` or `.brainrc` names an absolute or escaping path | use a relative path inside the repository |
+| `error: brain directory is outside the repository` | `--dir`, `PLANGRAPH_DIR` or `.plangraphrc` names an absolute or escaping path | use a relative path inside the repository |
 | Errors on Windows | not supported (the merge shim is POSIX shell; untested) | use macOS, Linux or WSL (WSL is also untested) |
 
 ## FAQ

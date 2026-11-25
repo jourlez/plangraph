@@ -3,15 +3,15 @@ exit: 0
 --- stdout
 ingested sp:2026-11-20-widget-export: 3 tasks, 2 edges, 4 findings, 0 statuses from ledger (--ledger none: no impl_status set; plan checkboxes are never read as progress)
 --- stderr
---- file .brain/tickets.jsonl
+--- file .plangraph/tickets.jsonl
 {"key":"sp:2026-11-20-widget-export","summary":"Widget Export","epic":"","sp":0,"jira_status":"","verdict":"","verdict_source":"sp-ingest"}
 {"key":"sp:2026-11-20-widget-export/1","summary":"CSV formatter","epic":"sp:2026-11-20-widget-export","sp":null,"jira_status":"","verdict":"","verdict_source":"sp-ingest"}
 {"key":"sp:2026-11-20-widget-export/2","summary":"Streaming widget query","epic":"sp:2026-11-20-widget-export","sp":null,"jira_status":"","verdict":"","verdict_source":"sp-ingest"}
 {"key":"sp:2026-11-20-widget-export/3","summary":"Export HTTP handler","epic":"sp:2026-11-20-widget-export","sp":null,"jira_status":"","verdict":"","verdict_source":"sp-ingest"}
---- file .brain/edges.jsonl
+--- file .plangraph/edges.jsonl
 {"consumer":"sp:2026-11-20-widget-export/3","producer":"sp:2026-11-20-widget-export/1","kind":"sp_needs","note":"HEADER, formatRow"}
 {"consumer":"sp:2026-11-20-widget-export/3","producer":"sp:2026-11-20-widget-export/2","kind":"sp_needs","note":"streamWidgets"}
---- file .brain/refs.jsonl
+--- file .plangraph/refs.jsonl
 {"key":"sp:2026-11-20-widget-export","plans":[],"files":{"docs/superpowers/specs/2026-11-20-widget-export-design.md":""}}
 {"key":"sp:2026-11-20-widget-export/1","plans":[{"plan":"docs/superpowers/plans/2026-11-20-widget-export.md","task":"1"}],"files":{"src/export/csv.mjs":"","test/export/csv.test.mjs":""}}
 {"key":"sp:2026-11-20-widget-export/2","plans":[{"plan":"docs/superpowers/plans/2026-11-20-widget-export.md","task":"2"}],"files":{"src/store/widgets.mjs":"","test/store/widgets.test.mjs":""}}

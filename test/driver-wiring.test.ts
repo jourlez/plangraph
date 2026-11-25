@@ -31,15 +31,15 @@ function world() {
 const T = S.SCHEMAS['tickets.jsonl'], tk = (key: string, o: S.Rec = {}) => ({ key, summary: 's-' + key, epic: 'E', sp: 1, v2_owner: 'Ana', v2_sprint: 1, ...o });
 // two branches editing different fields of the same record plus adjacent adds: plain git conflicts, the driver merges cleanly
 function mergeScenario(repo: string) {
-  const put = (recs: readonly S.Rec[]) => fs.writeFileSync(path.join(repo, '.brain/tickets.jsonl'), S.canonFile(recs, T)), commit = (m: string) => { git(repo, 'add', '-A'); git(repo, 'commit', '-qm', m); };
+  const put = (recs: readonly S.Rec[]) => fs.writeFileSync(path.join(repo, '.plangraph/tickets.jsonl'), S.canonFile(recs, T)), commit = (m: string) => { git(repo, 'add', '-A'); git(repo, 'commit', '-qm', m); };
   put([tk('T-1'), tk('T-2'), tk('T-3')]); commit('base'); git(repo, 'checkout', '-qb', 'feature');
   put([tk('T-1', { sp: 8 }), tk('T-2'), tk('T-3'), tk('T-31')]); commit('feature'); git(repo, 'checkout', '-q', 'main');
   put([tk('T-1', { summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-32')]); commit('main');
   git(repo, 'merge', '--no-edit', 'feature');
-  return fs.readFileSync(path.join(repo, '.brain/tickets.jsonl'), 'utf8');
+  return fs.readFileSync(path.join(repo, '.plangraph/tickets.jsonl'), 'utf8');
 }
 const WANT = S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31'), tk('T-32')], T);
-const NUDGE = 'brain: plan data found in .brain but no index: run brain build\n'; // the first-use line: brain data, no index yet
+const NUDGE = 'brain: plan data found in .plangraph but no index: run brain build\n'; // the first-use line: brain data, no index yet
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 // bin/brain keeps its private compile cache in the data dir (bin/brain): an optimization, not a command's write, so left out
 const noCache = (names: string[]) => names.filter((f) => f !== 'compile-cache' && !f.startsWith('compile-cache' + path.sep));
@@ -49,7 +49,7 @@ test('(a) init points git config at the stable shim under the data dir, never a 
   const w = world(); ok(w.brain(PLUGIN, ['init']));
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
   assert.ok(w.cfg().startsWith(w.dataDir) && !w.cfg().includes('/plugins/cache/'));
-  assert.match(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), /^\.brain\/\*\.jsonl merge=plangraph-jsonl$/m);
+  assert.match(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), /^\.plangraph\/\*\.jsonl merge=plangraph-jsonl$/m);
   assert.equal(fs.readFileSync(path.join(w.dataDir, 'driver.target'), 'utf8'), path.join(PLUGIN, 'bin/brain-merge') + '\n');
 });
 test('(a2) init run from a copy installed under a plugins/cache path still installs the driver', () => {
@@ -58,7 +58,7 @@ test('(a2) init run from a copy installed under a plugins/cache path still insta
   const r = ok(w.brain(plug, ['init'])); assert.doesNotMatch(r.stderr, /not installed/);
   assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
 });
-test('(b) after init a real git merge of .brain/tickets.jsonl is merged cleanly by the driver', () => {
+test('(b) after init a real git merge of .plangraph/tickets.jsonl is merged cleanly by the driver', () => {
   const w = world(); ok(w.brain(PLUGIN, ['init'])); assert.equal(mergeScenario(w.repo), WANT);
 });
 test('(c) after the plugin moves, doctor reports it, doctor --fix repairs it, and the same git config still merges', () => {
@@ -95,13 +95,13 @@ test('(d3) a healthy setup is left byte-identical, mtimes included (no rewrite)'
   assert.deepEqual(snapshot(w.dataDir), a); assert.deepEqual(snapshot(w.repo), b); assert.deepEqual(fs.readFileSync(path.join(w.repo, '.git/config')), cfg);
 });
 test('(e) --heal with no brain directory, or outside a git work tree, prints nothing, exits 0 and writes nothing', () => {
-  const w = world(); // repo without .brain
+  const w = world(); // repo without .plangraph
   let r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(r.stdout + r.stderr, '');
   assert.deepEqual(noCache(fs.readdirSync(w.dataDir)), []); assert.equal(fs.existsSync(path.join(w.repo, '.gitattributes')), false);
-  const plain = tmp('dw-nogit-'); fs.mkdirSync(path.join(plain, '.brain'));
+  const plain = tmp('dw-nogit-'); fs.mkdirSync(path.join(plain, '.plangraph'));
   const env = { ...w.env, GIT_CEILING_DIRECTORIES: path.dirname(plain) };
   r = ok(w.brain(PLUGIN, ['card', '--if-present', '--heal'], plain, env)); assert.equal(r.stdout + r.stderr, '');
-  assert.deepEqual(noCache(fs.readdirSync(w.dataDir)), []); assert.deepEqual(fs.readdirSync(plain), ['.brain']);
+  assert.deepEqual(noCache(fs.readdirSync(w.dataDir)), []); assert.deepEqual(fs.readdirSync(plain), ['.plangraph']);
 });
 test('(f) hooks.json passes --heal, keeps matcher and timeout; the declared command exits 0 under 1 s', () => {
   const entry = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0];
@@ -125,8 +125,8 @@ test('(h) a non-private data dir: init and doctor print one short line without a
   const r = ok(w.brain(PLUGIN, ['init']));
   assert.match(r.stderr, /^merge driver not installed: data directory is not private/m); assert.doesNotMatch(r.stderr + r.stdout, /\n\s+at |Error:/);
   assert.equal(r.stderr.trim().split('\n').length, 1);
-  assert.ok(fs.existsSync(path.join(w.repo, '.brain/config.json')) && fs.existsSync(path.join(w.repo, '.brain/tickets.jsonl')));
-  assert.match(r.stdout, /^initialised \.brain/);
+  assert.ok(fs.existsSync(path.join(w.repo, '.plangraph/config.json')) && fs.existsSync(path.join(w.repo, '.plangraph/tickets.jsonl')));
+  assert.match(r.stdout, /^initialised \.plangraph/);
   const d = w.brain(PLUGIN, ['doctor', '--fix']); assert.equal(d.status, 1);
   assert.match(d.stdout, /^merge driver not installed: data directory is not private/m); assert.doesNotMatch(d.stdout + d.stderr, /\n\s+at /);
   assert.match(d.stdout, /^node v/m); // the rest of doctor still ran
@@ -147,14 +147,14 @@ test('timing: merge-driver wiring scales linearly with the .gitattributes size (
   const n = 3500, repos = new Map();
   for (const m of [n >> 2, n, 4 * n]) {
     const d = tmp('dw-attr-'); git(d, 'init', '-q');
-    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=plangraph-jsonl\n`);
+    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.plangraph/*.jsonl merge=plangraph-jsonl\n`);
     repos.set(m, d);
   }
   assert.ok(fs.statSync(path.join(repos.get(4 * n), '.gitattributes')).size < S.GITATTRIBUTES_MAX);
   const wire = (m: number) => {
     const d = repos.get(m);
-    S.installMergeDriver(d, { dir: '.brain', driverPath: '/opt/brain/brain-merge' });
-    assert.equal(S.doctorMergeDriver(d, { dir: '.brain' }).attributes, true);
+    S.installMergeDriver(d, { dir: '.plangraph', driverPath: '/opt/brain/brain-merge' });
+    assert.equal(S.doctorMergeDriver(d, { dir: '.plangraph' }).attributes, true);
   };
   const s = scaling(wire, n) as { small: number; large: number; ratio: number; maxRatio: number }; // attempts >= 1, so a result is always set
   console.log(`# wiring ms: ${s.small.toFixed(1)} at ${n} lines, ${s.large.toFixed(1)} at ${4 * n} (ratio ${s.ratio.toFixed(1)})`);
@@ -168,13 +168,13 @@ test('work: merge-driver wiring touches linearly many elements in the .gitattrib
   const n = 2000, repos = new Map<number, string>();
   for (const m of [n, 4 * n]) {
     const d = tmp('dw-work-'); git(d, 'init', '-q');
-    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.brain/*.jsonl merge=plangraph-jsonl\n`);
+    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.plangraph/*.jsonl merge=plangraph-jsonl\n`);
     repos.set(m, d);
   }
   const wire = (m: number) => {
     const d = repos.get(m) as string; // both sizes were created above
-    S.installMergeDriver(d, { dir: '.brain', driverPath: '/opt/brain/brain-merge' });
-    assert.equal(S.doctorMergeDriver(d, { dir: '.brain' }).attributes, true);
+    S.installMergeDriver(d, { dir: '.plangraph', driverPath: '/opt/brain/brain-merge' });
+    assert.equal(S.doctorMergeDriver(d, { dir: '.plangraph' }).attributes, true);
   };
   const s = await workScaling(wire, n);
   console.log(`# wiring work: ${s.small} at ${n} lines, ${s.large} at ${4 * n} (ratio ${s.ratio.toFixed(2)})`);

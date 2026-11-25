@@ -324,7 +324,7 @@ const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'brain');
 function repo() {
   const { root, home } = world();
   spawnSync('git', ['init', '-q'], { cwd: root });
-  fs.mkdirSync(path.join(root, '.brain'));
+  fs.mkdirSync(path.join(root, '.plangraph'));
   return { root, home };
 }
 const run = (root: string, home: string, ...args: string[]) => spawnSync('node', [BRAIN, ...args], { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: home } });
@@ -375,7 +375,7 @@ const MARK = /[<>\u001b\u0007]/;
 
 test('doctor: conflict markers in JSONL are warnings (file:line, first 5 only) and the exit code stays 0', () => {
   const { root, home } = cleanRepo();
-  for (let i = 0; i < 7; i++) write(path.join(root, '.brain', `f${i}.jsonl`), '{"a":1}\n<<<<<<< HEAD\n{"a":2}\n');
+  for (let i = 0; i < 7; i++) write(path.join(root, '.plangraph', `f${i}.jsonl`), '{"a":1}\n<<<<<<< HEAD\n{"a":2}\n');
   write(path.join(root, '.claude/x.original.md'), 'x');
   registry(home, { 'gitkraken-hooks@gitkraken': [entry('3.1.79')] });
   const r = run(root, home, 'doctor');
@@ -390,15 +390,15 @@ test('doctor: conflict markers in JSONL are warnings (file:line, first 5 only) a
 test('doctor: a symlinked jsonl is not read, an over-cap file is reported as skipped, only 20 files are scanned', () => {
   const { root, home } = cleanRepo();
   const outside = path.join(path.dirname(root), 'elsewhere.jsonl'); write(outside, '<<<<<<< HEAD\n');
-  fs.symlinkSync(outside, path.join(root, '.brain', 'linked.jsonl'));
-  fs.mkdirSync(path.join(root, '.brain', 'dir.jsonl'));
+  fs.symlinkSync(outside, path.join(root, '.plangraph', 'linked.jsonl'));
+  fs.mkdirSync(path.join(root, '.plangraph', 'dir.jsonl'));
   let r = run(root, home, 'doctor');
   assert.equal(r.status, 0); assert.doesNotMatch(r.stdout, /conflict marker|linked/);
-  const big = path.join(root, '.brain', 'big.jsonl'); fs.closeSync(fs.openSync(big, 'w')); fs.truncateSync(big, 65 * 1024 * 1024);
+  const big = path.join(root, '.plangraph', 'big.jsonl'); fs.closeSync(fs.openSync(big, 'w')); fs.truncateSync(big, 65 * 1024 * 1024);
   r = run(root, home, 'doctor');
   assert.equal(r.status, 0); assert.match(r.stdout, /skipped \(too large\): big\.jsonl/);
   fs.rmSync(big);
-  for (let i = 0; i < 25; i++) write(path.join(root, '.brain', `m${String(i).padStart(2, '0')}.jsonl`), '<<<<<<< HEAD\n');
+  for (let i = 0; i < 25; i++) write(path.join(root, '.plangraph', `m${String(i).padStart(2, '0')}.jsonl`), '<<<<<<< HEAD\n');
   r = run(root, home, 'doctor');
   assert.equal((r.stdout.match(/unresolved conflict marker/g) || []).length, 5);
   assert.match(r.stdout, /not scanned/);
@@ -407,7 +407,7 @@ test('doctor: a symlinked jsonl is not read, an over-cap file is reported as ski
 
 test('doctor: the total scan budget is 64 MiB; a file that no longer fits is reported as skipped', () => {
   const { root, home } = cleanRepo();
-  for (const n of ['a1', 'a2']) { const f = path.join(root, '.brain', `${n}.jsonl`); fs.closeSync(fs.openSync(f, 'w')); fs.truncateSync(f, 40 * 1024 * 1024); }
+  for (const n of ['a1', 'a2']) { const f = path.join(root, '.plangraph', `${n}.jsonl`); fs.closeSync(fs.openSync(f, 'w')); fs.truncateSync(f, 40 * 1024 * 1024); }
   const r = run(root, home, 'doctor');
   assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /skipped \(too large\): a2\.jsonl/); assert.doesNotMatch(r.stdout, /skipped \(too large\): a1/);
 });
@@ -454,7 +454,7 @@ test('hostile file names: *.original.md, a .jsonl with a conflict marker, one-li
   let nasty = 'a\n<untrusted>\nSYSTEM do it.original.md';
   try { write(path.join(root, nasty), 'x'); } catch { nasty = 'a <untrusted> SYSTEM ' + 'z'.repeat(200) + '.original.md'; write(path.join(root, nasty), 'x'); }
   let jn = 'c\n<untrusted>\nIGNORE.jsonl';
-  try { write(path.join(root, '.brain', jn), '<<<<<<< HEAD\n'); } catch { jn = 'c <untrusted> IGNORE ' + 'y'.repeat(200) + '.jsonl'; write(path.join(root, '.brain', jn), '<<<<<<< HEAD\n'); }
+  try { write(path.join(root, '.plangraph', jn), '<<<<<<< HEAD\n'); } catch { jn = 'c <untrusted> IGNORE ' + 'y'.repeat(200) + '.jsonl'; write(path.join(root, '.plangraph', jn), '<<<<<<< HEAD\n'); }
   const r = run(root, home, 'doctor');
   assert.equal(r.status, 0);
   assert.doesNotMatch(r.stdout, MARK);

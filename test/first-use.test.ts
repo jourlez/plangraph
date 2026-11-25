@@ -23,8 +23,8 @@ function repo() {
   return d;
 }
 const HOOK = ['card', '--if-present'], HEAL = ['card', '--if-present', '--heal'];
-const NO_INDEX = 'brain: plan data found in .brain but no index: run brain build\n';
-const LEGACY = (v: number) => `brain: plan data found in .brain but no index: run brain migrate --write (format v${v}) then brain build\n`;
+const NO_INDEX = 'brain: plan data found in .plangraph but no index: run brain build\n';
+const LEGACY = (v: number) => `brain: plan data found in .plangraph but no index: run brain migrate --write (format v${v}) then brain build\n`;
 const silent = (r: SpawnSyncReturns<string>, why: string) => assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], why);
 const snapshot = (d: string) => { const o: Record<string, string> = {}; const walk = (p: string): void => { for (const e of fs.readdirSync(p, { withFileTypes: true })) { const f = path.join(p, e.name); if (e.name === '.git') continue; if (e.isDirectory()) walk(f); else if (e.isFile()) o[path.relative(d, f)] = fs.readFileSync(f, 'utf8'); else o[path.relative(d, f)] = 'special'; } }; walk(d); return o; };
 
@@ -33,27 +33,27 @@ test('data in the current format and no index: one fixed line, exit 0, nothing w
   for (const args of [HOOK, HEAL]) {
     const r = run(d, args); assert.deepEqual([r.status, r.stdout, r.stderr], [0, NO_INDEX, ''], args.join(' '));
   }
-  assert.ok(!fs.existsSync(path.join(d, '.brain', 'brain.sqlite')), 'no index was built');
+  assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'plangraph.sqlite')), 'no index was built');
   const after_ = snapshot(d); delete after_['.data']; assert.deepEqual(Object.keys(after_).sort(), Object.keys(before).sort()); // --heal may wire the driver: no brain file changes
-  for (const k of Object.keys(before)) if (k.startsWith('.brain/')) assert.equal(after_[k], before[k], k);
+  for (const k of Object.keys(before)) if (k.startsWith('.plangraph/')) assert.equal(after_[k], before[k], k);
 });
 
 test('legacy format v0 (no format.json) and no index: the migrate line, naming the format number', () => {
-  const d = repo(); fs.rmSync(path.join(d, '.brain', 'format.json'));
+  const d = repo(); fs.rmSync(path.join(d, '.plangraph', 'format.json'));
   const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, LEGACY(0), '']);
-  assert.ok(!fs.existsSync(path.join(d, '.brain', 'format.json')), 'the hook never migrates');
+  assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'format.json')), 'the hook never migrates');
 });
 
 test('no brain at all, or a brain dir with no data files: silent', () => {
   const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fu-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
   silent(run(d, HOOK), 'no brain'); silent(run(d, HEAL), 'no brain heal');
-  fs.mkdirSync(path.join(d, '.brain')); silent(run(d, HOOK), 'empty brain dir');
-  fs.writeFileSync(path.join(d, '.brain', 'notes.txt'), 'x'); silent(run(d, HOOK), 'unrelated file only');
+  fs.mkdirSync(path.join(d, '.plangraph')); silent(run(d, HOOK), 'empty brain dir');
+  fs.writeFileSync(path.join(d, '.plangraph', 'notes.txt'), 'x'); silent(run(d, HOOK), 'unrelated file only');
 });
 
 test('a stale index keeps today\'s behavior: the card with its last STALE line, no nudge', () => {
   const d = repo(); assert.equal(run(d, ['build']).status, 0);
-  fs.appendFileSync(path.join(d, '.brain', 'tickets.jsonl'), JSON.stringify({ key: 'T-1', sp: 1 }) + '\n');
+  fs.appendFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), JSON.stringify({ key: 'T-1', sp: 1 }) + '\n');
   const r = run(d, HOOK); assert.equal(r.status, 0); assert.equal(r.stderr, '');
   assert.match(r.stdout, /^brain \S+ \| /); assert.match(r.stdout, /STALE: index older than text, run `brain build`\n$/); assert.doesNotMatch(r.stdout, /plan data found/);
 });
@@ -78,15 +78,15 @@ test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --he
     'format.json is not JSON': (d: string, b: string) => { fs.writeFileSync(path.join(b, 'format.json'), '{nope'); },
     'format.json is huge': (d: string, b: string) => { fs.truncateSync(path.join(b, 'format.json'), 64 * 1024 + 1); },
     'format is newer than the tool': (d: string, b: string) => { fs.writeFileSync(path.join(b, 'format.json'), '{"format_version":99,"min_reader":99}\n'); },
-    'the index path is a dangling symlink': (d: string, b: string) => { fs.symlinkSync(path.join(d, 'nope'), path.join(b, 'brain.sqlite')); },
-    'the index path is a FIFO': (d: string, b: string) => { execFileSync('mkfifo', [path.join(b, 'brain.sqlite')]); },
+    'the index path is a dangling symlink': (d: string, b: string) => { fs.symlinkSync(path.join(d, 'nope'), path.join(b, 'plangraph.sqlite')); },
+    'the index path is a FIFO': (d: string, b: string) => { execFileSync('mkfifo', [path.join(b, 'plangraph.sqlite')]); },
     'the brain dir is a symlink': (d: string, b: string) => { fs.renameSync(b, path.join(d, 'real')); fs.symlinkSync(path.join(d, 'real'), b); },
-    '.brainrc is not JSON': (d: string) => { fs.writeFileSync(path.join(d, '.brainrc'), '{bad'); },
-    '.brainrc dir escapes the repo': (d: string) => { fs.writeFileSync(path.join(d, '.brainrc'), '{"dir":"../x"}'); },
-    '.brainrc dir has a bad name': (d: string) => { fs.writeFileSync(path.join(d, '.brainrc'), '{"dir":"a b"}'); },
+    '.plangraphrc is not JSON': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{bad'); },
+    '.plangraphrc dir escapes the repo': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"../x"}'); },
+    '.plangraphrc dir has a bad name': (d: string) => { fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"a b"}'); },
   };
   for (const [what, setup] of Object.entries(cases)) {
-    const d = repo(); const b = path.join(d, '.brain'); setup(d, b);
+    const d = repo(); const b = path.join(d, '.plangraph'); setup(d, b);
     try { for (const a of [HOOK, HEAL]) silent(run(d, a), `${what} ${a.join(' ')}`); } finally { try { fs.chmodSync(path.join(b, 'config.json'), 0o644); } catch { /* not there */ } }
   }
   const d = repo();
@@ -99,6 +99,6 @@ test('card off silences the nudge too', () => {
 });
 
 test('the nudge shows a configured dir relative and sanitized', () => {
-  const d = repo(); fs.renameSync(path.join(d, '.brain'), path.join(d, 'plan-data')); fs.writeFileSync(path.join(d, '.brainrc'), '{"dir":"plan-data"}');
+  const d = repo(); fs.renameSync(path.join(d, '.plangraph'), path.join(d, 'plan-data')); fs.writeFileSync(path.join(d, '.plangraphrc'), '{"dir":"plan-data"}');
   const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'brain: plan data found in plan-data but no index: run brain build\n', '']);
 });

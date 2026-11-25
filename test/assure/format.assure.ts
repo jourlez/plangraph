@@ -118,7 +118,7 @@ export async function assureBuildExport(lvl: Level): Promise<{ valid: number; in
       if (b.code !== 0) fail(`${file}: build of valid records failed`, { err: b.err, out: b.out });
       const e = await run(root, ['export']);
       if (e.code !== 0) fail(`${file}: export failed`, { err: e.err });
-      const got = fs.readFileSync(path.join(root, '.brain', file), 'utf8');
+      const got = fs.readFileSync(path.join(root, '.plangraph', file), 'utf8');
       // schedule: a row without `version` (absent, or null: model.ts and build both read it with `??`) comes back as "current"
       const want = canonFile(valid.map((x) => (file === 'schedule.jsonl' && x.r.version == null ? { ...x.r, version: 'current' } : x.r)), schema);
       if (got !== want) {

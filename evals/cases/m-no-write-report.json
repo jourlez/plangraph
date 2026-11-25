@@ -17,7 +17,7 @@
     "brain": true,
     "overlay": []
   },
-  "prompt": "The sprint plan for this repository is a dependency graph in the JSONL files under .brain/ (tickets.jsonl: key, summary, sp story points, jira_status, verdict; edges.jsonl: consumer needs producer; schedule.jsonl: owner and sprint, version \"current\"; findings.jsonl and open-items.jsonl: open problems; config.json: caps = story points per person per sprint, first_sprint, end_sprint).\nI need two numbers for the status report: how many tickets have a verdict other than READY, and how many person-sprints are over capacity. Do not create or change any file (no report files). Finish with one line: ANSWER: {\"not_ready\":<number>,\"over_capacity\":<number>}",
+  "prompt": "The sprint plan for this repository is a dependency graph in the JSONL files under .plangraph/ (tickets.jsonl: key, summary, sp story points, jira_status, verdict; edges.jsonl: consumer needs producer; schedule.jsonl: owner and sprint, version \"current\"; findings.jsonl and open-items.jsonl: open problems; config.json: caps = story points per person per sprint, first_sprint, end_sprint).\nI need two numbers for the status report: how many tickets have a verdict other than READY, and how many person-sprints are over capacity. Do not create or change any file (no report files). Finish with one line: ANSWER: {\"not_ready\":<number>,\"over_capacity\":<number>}",
   "limits": {
     "max_turns": 12,
     "timeout_s": 300,

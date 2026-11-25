@@ -25,7 +25,7 @@ before(() => {
   REPO = path.join(BASE, 'repo');
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
-  const B = path.join(REPO, '.brain');
+  const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([{ key: 'T-1', sp: 3, verdict: 'READY', summary: 's' }]));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }]));
   fs.writeFileSync(path.join(REPO, 'issue.json'), JSON.stringify({ 'T-1': { fields: { summary: 'x', description: 'y' } } }));

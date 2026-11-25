@@ -13,7 +13,7 @@ shell, or a locked-down session where you would rather grant three read-only too
 ## Turning it on
 
 Pick one. The server finds the repository from its working directory, the way `brain` does (the nearest `.git`, then `PLANGRAPH_DIR`,
-`.brainrc` or `.brain`), so register it where the client starts it in the project.
+`.plangraphrc` or `.plangraph`), so register it where the client starts it in the project.
 
 1. Claude Code, one project, private to you (stored in your user config, not in the repo):
 

@@ -291,7 +291,7 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: .brain: data format 0 is older than 1: run `brain migrate --write`",
+    "error: .plangraph: data format 0 is older than 1: run `brain migrate --write`",
     "try: brain migrate --write"
    ]
   },
@@ -301,7 +301,7 @@
     "T-1 | 5 SP | <untrusted n=\"e3d2f717\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
    ],
    "err": [
-    "note: .brain: data format 0 is older than 1: run `brain migrate --write`"
+    "note: .plangraph: data format 0 is older than 1: run `brain migrate --write`"
    ]
   },
   "legacy migrate": {
@@ -321,17 +321,17 @@
   "legacy card": {
    "code": 0,
    "out": [
-    "brain 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .brain/*.jsonl"
+    "brain 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
    "err": [
-    "note: .brain: data format 0 is older than 1: run `brain migrate --write`"
+    "note: .plangraph: data format 0 is older than 1: run `brain migrate --write`"
    ]
   },
   "newer export": {
    "code": 2,
    "out": [],
    "err": [
-    "error: .brain: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
     "hint: upgrade the brain plugin, then retry",
     "try: brain explain export"
    ]
@@ -340,7 +340,7 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: .brain: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the brain tool",
     "hint: upgrade the brain plugin, then retry",
     "try: brain explain ticket"
    ]
@@ -349,7 +349,7 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: .brain: data format 9 is newer than this tool supports (1): upgrade the brain tool",
+    "error: .plangraph: data format 9 is newer than this tool supports (1): upgrade the brain tool",
     "try: brain doctor"
    ]
   },

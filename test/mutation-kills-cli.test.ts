@@ -60,7 +60,7 @@ test('writing commands: output and the files they change, each on a fresh copy',
   for (const argv of WRITES) {
     const d = copy();
     // a valid schedule keeps every other ticket where it is (a Done ticket T-3 may not move or vanish: schedule-load refuses that, see frozen-sched.json)
-    const current = fs.readFileSync(path.join(d, '.brain/schedule.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((r) => !r.version || r.version === 'current');
+    const current = fs.readFileSync(path.join(d, '.plangraph/schedule.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((r) => !r.version || r.version === 'current');
     const keep = current.filter((r) => r.key !== 'T-1' && r.key !== 'T-2').map((r) => ({ item: r.key, owner: r.owner, sprint: r.sprint }));
     fs.writeFileSync(path.join(d, 'sched.json'), JSON.stringify([...keep, { item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));
     fs.writeFileSync(path.join(d, 'frozen-sched.json'), JSON.stringify([{ item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));

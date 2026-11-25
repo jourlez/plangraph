@@ -15,7 +15,7 @@ test('jira-text and jira-import write their outputs 0600; init writes config.jso
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-jira-mode-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
   assert.equal(run(dir, ['init']).status, 0);
-  assert.equal(modeOf(path.join(dir, '.brain', 'config.json')), 0o644 & ~process.umask()); // init writes through writeState (the same helper, default mode)
+  assert.equal(modeOf(path.join(dir, '.plangraph', 'config.json')), 0o644 & ~process.umask()); // init writes through writeState (the same helper, default mode)
   fs.copyFileSync(ISSUE, path.join(dir, 'issue.json'));
   const text = run(dir, ['jira-text', 'DEMO-1', '--out', 'jt', '--from-json', 'issue.json']);
   assert.equal(text.status, 0, text.stderr);

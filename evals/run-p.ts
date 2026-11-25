@@ -126,7 +126,7 @@ export function snapshot(ws: string, { headOf = gitHead }: { headOf?: (ws: strin
 function gitHead(ws: string): string | null { const r = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: ws, encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim() : null; }
 // Files the agent created, changed or deleted, minus what is not the agent's write: the derived index always; the session card and the
 // report outputs only when the case does not forbid writing (tag no-write).
-export function changedFiles(before: Map<string, string>, after: Map<string, string>, { brainDir = '.brain', forbidAll = false }: { brainDir?: string; forbidAll?: boolean } = {}): string[] {
+export function changedFiles(before: Map<string, string>, after: Map<string, string>, { brainDir = '.plangraph', forbidAll = false }: { brainDir?: string; forbidAll?: boolean } = {}): string[] {
   const outputs = new Set([`${brainDir}/CARD.md`, `${brainDir}/report.md`, `${brainDir}/report.html`]);
   const keys = new Set([...before.keys(), ...after.keys()]);
   return [...keys].filter((k) => before.get(k) !== after.get(k)).filter((k) => !DERIVED.test(k) && (forbidAll || !outputs.has(k))).sort();
@@ -151,14 +151,14 @@ function writeFixtures(suite: string, fixtures: Record<string, string | Record<s
 const git = (ws: string, args: string[], env: Record<string, string>) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], { cwd: ws, encoding: 'utf8', env });
 /** Build a case workspace (same steps as the native scaffold.sh, plus the merge driver wired before the commit so the plugin's session
  * hook finds nothing to heal, and a .gitignore for the derived index as a real project has). Returns the brain dir relative to ws. */
-export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDir = null, brainDir = '.brain' }: { suite: string; rcDir?: string | null | undefined; brainDir?: string | undefined }): string {
+export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDir = null, brainDir = '.plangraph' }: { suite: string; rcDir?: string | null | undefined; brainDir?: string | undefined }): string {
   const fx = path.join(suite, 'fixtures', c.fixture.size), dir = rcDir || brainDir, brainBin = path.join(suite, 'plugin', 'bin', 'brain');
   const env = { ...childEnv(), CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data'), HOME: process.env.HOME || os.homedir() };
   fs.copyFileSync(path.join(fx, 'plan.md'), path.join(ws, 'plan.md'));
   if (c.fixture.brain) {
     fs.mkdirSync(path.join(ws, dir), { recursive: true });
     for (const n of fs.readdirSync(fx)) if (/\.jsonl$/.test(n) || n === 'config.json' || n === 'format.json') fs.copyFileSync(path.join(fx, n), path.join(ws, dir, n));
-    if (rcDir) fs.writeFileSync(path.join(ws, '.brainrc'), `${JSON.stringify({ dir: rcDir })}\n`);
+    if (rcDir) fs.writeFileSync(path.join(ws, '.plangraphrc'), `${JSON.stringify({ dir: rcDir })}\n`);
     if (c.fixture.overlay.length) applyOverlayToDisk(c.fixture.overlay, dir, ws);
     fs.writeFileSync(path.join(ws, '.gitignore'), '*.sqlite\n*.sqlite-*\n');
   }

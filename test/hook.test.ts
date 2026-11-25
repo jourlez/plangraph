@@ -68,18 +68,18 @@ test('with a brain: stdout starts with the card, exit 0, stderr empty', () => {
 
 test('a brain dir with a corrupt index still exits 0 and prints nothing to stderr', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
-  fs.writeFileSync(path.join(w.repo, '.brain', 'brain.sqlite'), 'not a database'); // the index file (src/db.ts INDEX_FILE)
+  fs.writeFileSync(path.join(w.repo, '.plangraph', 'plangraph.sqlite'), 'not a database'); // the index file (src/db.ts INDEX_FILE)
   const r = w.run(); assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', '']);
   assert.equal(w.brain(['card']).status, 2, 'a manual card reports the corrupt index');
 });
 
-// Every failure before or inside the command (a bad .brainrc, a refused brain dir from PLANGRAPH_DIR or .brainrc, an unknown option) is
+// Every failure before or inside the command (a bad .plangraphrc, a refused brain dir from PLANGRAPH_DIR or .plangraphrc, an unknown option) is
 // thrown and caught in src/cli.ts main(): the hook form returns 0 with no output from that catch; the manual form reports it.
-test('the real hook command stays silent with exit 0 on a bad .brainrc, PLANGRAPH_DIR=/etc, PLANGRAPH_DIR=../x and a .brainrc escaping the repo', () => {
+test('the real hook command stays silent with exit 0 on a bad .plangraphrc, PLANGRAPH_DIR=/etc, PLANGRAPH_DIR=../x and a .plangraphrc escaping the repo', () => {
   const w = world(); ok(w.brain(['init'])); ok(w.brain(['build']));
-  const rc = path.join(w.repo, '.brainrc');
+  const rc = path.join(w.repo, '.plangraphrc');
   const cases = ([
-    ['bad .brainrc', {}, '{bad json'], ['.brainrc dir array', {}, '{"dir": [1]}'], ['.brainrc escaping', {}, '{"dir": "../x"}'],
+    ['bad .plangraphrc', {}, '{bad json'], ['.plangraphrc dir array', {}, '{"dir": [1]}'], ['.plangraphrc escaping', {}, '{"dir": "../x"}'],
     ['PLANGRAPH_DIR=/etc', { PLANGRAPH_DIR: '/etc' }, null], ['PLANGRAPH_DIR=../x', { PLANGRAPH_DIR: '../x' }, null], ['PLANGRAPH_DIR with a space', { PLANGRAPH_DIR: 'a b' }, null],
   ] as Array<[string, Record<string, string>, string | null]>); // a literal list of these tuples
   for (const [what, extra, text] of cases) {
@@ -158,7 +158,7 @@ test('timing: the hook path scales linearly with the plan size (n vs 4n tickets,
   const planned = (n: number) => {
     const w = world(); ok(w.brain(['init']));
     const p = genPlan({ n, people: 5, seed: 3 });
-    for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.brain', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
+    for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.plangraph', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
     ok(w.brain(['build']));
     return w;
   };
@@ -186,7 +186,7 @@ test('work: the hook path touches linearly many elements in the plan size (n vs 
   for (const m of [500, 2000]) {
     const w = world(); ok(w.brain(['init']));
     const p = genPlan({ n: m, people: 5, seed: 3 });
-    for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.brain', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
+    for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.plangraph', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
     ok(w.brain(['build']));
     worlds.set(m, w);
   }

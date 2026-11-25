@@ -1,11 +1,11 @@
 // The one steer toward `brain`, shared by the session card's last line, the CLAUDE.md snippet `brain init` PRINTS (brain never writes a
-// repo's CLAUDE.md) and the `brain doctor` info check. Pure: no I/O. The brain dir is the only input; it comes from .brainrc or PLANGRAPH_DIR
+// repo's CLAUDE.md) and the `brain doctor` info check. Pure: no I/O. The brain dir is the only input; it comes from .plangraphrc or PLANGRAPH_DIR
 // (repo-controlled text), so it is one sanitized capped line before it is printed.
 import { oneLine } from './sanitize.ts';
 
 export const STEER_COMMANDS = 'ticket, ready, whatif, blockers, sprint, person';
-/** The brain dir as printed: one line, forward slashes, no trailing slash, at most 80 characters; empty or `.` means `.brain`. */
-const dirOf = (dir: unknown = undefined) => { const d = oneLine(dir ?? '', 80).replace(/\\/g, '/').replace(/\/+$/, ''); return d && d !== '.' ? d : '.brain'; };
+/** The brain dir as printed: one line, forward slashes, no trailing slash, at most 80 characters; empty or `.` means `.plangraph`. */
+const dirOf = (dir: unknown = undefined) => { const d = oneLine(dir ?? '', 80).replace(/\\/g, '/').replace(/\/+$/, ''); return d && d !== '.' ? d : '.plangraph'; };
 /** The text whose presence `hasSteer` checks: `<dir>/*.jsonl`. */
 const steerMarker = (dir: unknown = undefined): string => `${dirOf(dir)}/*.jsonl`;
 /** The card's last line. */

@@ -19,7 +19,7 @@ Only the latest release receives fixes. The package is distributed through git (
 - State files are written atomically and refuse symlink targets; paths are checked to stay inside the project root (`lib/fsafe.ts`).
 - Git is only called with an argument list (no shell), with refs and paths checked first (`lib/gitsafe.ts`).
 - Reads of repository-controlled files are size-capped and only for regular files.
-- The SQLite index is opened only when its schema is exactly the one `brain build` writes (no view, trigger or extra object or column), since a committed `brain.sqlite` can carry a matching fingerprint; anything else is refused with `brain build` as the fix.
+- The SQLite index is opened only when its schema is exactly the one `brain build` writes (no view, trigger or extra object or column), since a committed `plangraph.sqlite` can carry a matching fingerprint; anything else is refused with `brain build` as the fix.
 - Jira access is read-only (`lib/jira.ts`): https only, a fixed host rule, a read-only method and path allowlist, no redirects followed. A Jira credential is read from your environment, 1Password or keychain; it is never written to a file, logged or accepted as an argument.
 - Companion-tool detection reads files only and starts no process. `brain integrations` spawns nothing. `brain doctor` spawns `uv --version` (solver runtime check) and runs git with an argument list (tracked-index and merge-driver checks; `--fix` also writes git config).
 - Commands named in project config are no longer executed (removed; see CHANGELOG.md).

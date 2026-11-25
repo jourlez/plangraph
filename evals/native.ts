@@ -17,7 +17,7 @@ const READ_TOOLS = ['Read', 'Glob', 'Grep', 'Skill'];
 const yq = (s: unknown) => `'${String(s).replace(/'/g, "''")}'`;
 const shq = (s: unknown) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
-export function nativeFiles(c: EvalCase, { runs, brainDir = '.brain', rcDir = null, nodeBin = 'node' }: NativeOptions): Map<string, string> {
+export function nativeFiles(c: EvalCase, { runs, brainDir = '.plangraph', rcDir = null, nodeBin = 'node' }: NativeOptions): Map<string, string> {
   const node = nodeBin === 'node' ? 'node' : shq(nodeBin);
   const f = new Map<string, string>();
   const tools = [...READ_TOOLS, ...BASH_TOOLS];
@@ -31,7 +31,7 @@ export function nativeFiles(c: EvalCase, { runs, brainDir = '.brain', rcDir = nu
     'cp "$fx/plan.md" plan.md'];
   if (c.fixture.brain) {
     sh.push(`mkdir -p ${shq(dir)}`, `for f in "$fx"/*.jsonl "$fx"/config.json "$fx"/format.json; do cp "$f" ${shq(dir)}/; done`);
-    if (rcDir) sh.push(`printf '%s\\n' ${shq(JSON.stringify({ dir: rcDir }))} > .brainrc`);
+    if (rcDir) sh.push(`printf '%s\\n' ${shq(JSON.stringify({ dir: rcDir }))} > .plangraphrc`);
     if (ov) sh.push(`${node} "$plugin_root/evals/overlay.ts" "$case_dir/overlay.json" ${shq(dir)} .`);
   }
   sh.push('git init -q', 'git -c user.name=eval -c user.email=eval@example.invalid add -A', 'git -c user.name=eval -c user.email=eval@example.invalid commit -qm fixture');
@@ -90,7 +90,7 @@ export function copyPlugin(srcRoot: string, dest: string, { variant = 'full' }: 
 
 // One runnable suite in `dest`: a plugin copy (or ablation variant) whose evals/ holds the fixtures and the case directories.
 // fixtures: { [size]: { [file name]: text } } or { [size]: <directory to copy> }. Returns the plugin directory.
-export function writeSuite(dest: string, { srcRoot, cases, fixtures, runs, brainDir = '.brain', rcDir = null, variant = 'full', root = dest }: { srcRoot: string; cases: EvalCase[]; fixtures: Record<string, string | Record<string, string>>; runs: number; brainDir?: string; rcDir?: string | null; variant?: string; root?: string }): string {
+export function writeSuite(dest: string, { srcRoot, cases, fixtures, runs, brainDir = '.plangraph', rcDir = null, variant = 'full', root = dest }: { srcRoot: string; cases: EvalCase[]; fixtures: Record<string, string | Record<string, string>>; runs: number; brainDir?: string; rcDir?: string | null; variant?: string; root?: string }): string {
   const plugin = copyPlugin(srcRoot, dest, { variant });
   for (const size of new Set(cases.map((c) => c.fixture.size))) {
     const to = path.join(plugin, 'evals', 'fixtures', size), src = fixtures[size];

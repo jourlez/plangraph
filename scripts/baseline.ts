@@ -133,8 +133,8 @@ const clone = (from: string, to: string) => fs.cpSync(from, to, { recursive: tru
 function buildTemplates(work: string, planSrc: string, dataDir: string | undefined): { plan: string; empty: string; legacy: string; vars: Record<string, string>; brainDir: string } {
   const plan = path.join(work, 'tpl-plan'), empty = path.join(work, 'tpl-empty'), legacy = path.join(work, 'tpl-legacy');
   fs.mkdirSync(path.join(empty, 'repo'), { recursive: true }); gitInit(path.join(empty, 'repo'));
-  clone(planSrc, path.join(legacy, 'repo')); fs.rmSync(path.join(legacy, 'repo/.brain/format.json'), { force: true });
-  let vars = { KEY: 'T-3', PERSON: 'Ana', SPRINT: '1' }, brainDir = '.brain';
+  clone(planSrc, path.join(legacy, 'repo')); fs.rmSync(path.join(legacy, 'repo/.plangraph/format.json'), { force: true });
+  let vars = { KEY: 'T-3', PERSON: 'Ana', SPRINT: '1' }, brainDir = '.plangraph';
   if (dataDir) {
     // the owner's directory is copied first and never touched again; commands run against the copy
     fs.mkdirSync(path.join(plan, 'repo'), { recursive: true }); gitInit(path.join(plan, 'repo'));
@@ -340,7 +340,7 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
     // hook, merge driver and MCP session, each on its own copy of the synthetic plan fixture (also when --data is given)
     const copyPlan = () => { const d = path.join(work, `run-${n++}`); clone(planSrc, path.join(d, 'repo')); return path.join(d, 'repo'); };
     const hookRoot = copyPlan(); save('hook.session-start', { id: 'hook', ...runHook(hookRoot) });
-    const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.brain'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-brain', ...runHook(hookAgain) });
+    const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.plangraph'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-brain', ...runHook(hookAgain) });
     for (const variant of ((['clean', 'conflict']) as const)) save(`merge-driver.${variant}`, { id: `merge-driver-${variant}`, ...runMergeDriver(copyPlan(), variant) });
     save('mcp.session', { id: 'mcp', responses: runMcpSession(copyPlan()) });
   } finally { fs.rmSync(work, { recursive: true, force: true }); if (planSrc) fs.rmSync(planSrc, { recursive: true, force: true }); }

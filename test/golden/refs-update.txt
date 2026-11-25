@@ -1,7 +1,7 @@
 $ brain refs-update --ref HEAD
 exit: 0
 --- stdout
-refs.jsonl updated for 1 tickets at c469e6a (ref HEAD); run `brain build`
+refs.jsonl updated for 1 tickets at 78b3d32 (ref HEAD); run `brain build`
 --- stderr
---- file .brain/refs.jsonl
-{"key":"T-1","plans":[{"fp":"94a3472472384bad","plan":"docs/plan.md","task":"1"}],"files":{},"fp_files":"e3b0c44298fc1c14","jira_updated":"","audited_at":"c469e6a","fp_prods":{}}
+--- file .plangraph/refs.jsonl
+{"key":"T-1","plans":[{"fp":"94a3472472384bad","plan":"docs/plan.md","task":"1"}],"files":{},"fp_files":"e3b0c44298fc1c14","jira_updated":"","audited_at":"78b3d32","fp_prods":{}}

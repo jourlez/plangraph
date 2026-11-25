@@ -44,7 +44,7 @@ function makeProject(dir: string, cv: ReturnType<typeof makeCanary>) {
   fs.writeFileSync(path.join(bd, 'open-items.jsonl'), '');
   fs.writeFileSync(path.join(bd, 'evidence.jsonl'), jl([{ key: plan.tickets[0].key, text: `${cv.marker} evidence` }]));
   fs.writeFileSync(path.join(bd, 'config.json'), JSON.stringify(plan.config, null, 1) + '\n');
-  fs.writeFileSync(path.join(dir, '.brainrc'), '{"dir": "docs/plan-graph"}\n');
+  fs.writeFileSync(path.join(dir, '.plangraphrc'), '{"dir": "docs/plan-graph"}\n');
 }
 const hashTree = (d: string): string => { const h = crypto.createHash('sha256'); const walk = (x: string): void => { for (const e of fs.readdirSync(x, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) { const p = path.join(x, e.name); h.update(p.slice(d.length)); if (e.isDirectory()) walk(p); else h.update(fs.readFileSync(p)); } }; walk(d); return h.digest('hex'); };
 // tracked files plus untracked ones that are not ignored: everything that would be committed from evals/
@@ -73,7 +73,7 @@ test('generateReal writes a self-contained suite into a temp directory, with tru
   assert.ok(canary.people.every((p) => all.includes(p)) && all.includes(canary.marker) && all.includes(`${canary.prefix}-`), 'the canaries reach the temp suite: the leak check below is sensitive');
   const man = fs.readFileSync(path.join(out, 'manifest.json'), 'utf8');
   for (const n of needles(canary, [])) assert.ok(!man.includes(n), 'the manifest carries counts only');
-  assert.match(fs.readFileSync(path.join(out, 'plugin/evals/r-lookup/scaffold.sh'), 'utf8'), /\.brainrc/, 'the workspace keeps the project layout (.brainrc)');
+  assert.match(fs.readFileSync(path.join(out, 'plugin/evals/r-lookup/scaffold.sh'), 'utf8'), /\.plangraphrc/, 'the workspace keeps the project layout (.plangraphrc)');
 });
 
 test('the gen-real CLI prints counts only, never names, keys or summaries', () => {
@@ -90,8 +90,8 @@ test('no committable file under evals/ contains a canary name, key or summary ma
   const hit = (ns: string[]) => ns.filter((n) => texts.some((t) => t.includes(n))).length;
   assert.equal(hit(needles(canary, [`${canary.prefix}-`])), 0);
   const real = process.env.PLANGRAPH_REAL_PROJECT;
-  if (real && fs.existsSync(path.join(real, '.brainrc'))) {
-    const dir = JSON.parse(fs.readFileSync(path.join(real, '.brainrc'), 'utf8')).dir;
+  if (real && fs.existsSync(path.join(real, '.plangraphrc'))) {
+    const dir = JSON.parse(fs.readFileSync(path.join(real, '.plangraphrc'), 'utf8')).dir;
     const rows = (n: string): Array<Record<string, unknown>> => fs.readFileSync(path.join(real, dir, n), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
     const people = [...new Set(rows('schedule.jsonl').map((x) => x.owner).filter((x) => typeof x === 'string' && x.length > 3))] as string[]; // the filter keeps only strings
     const keys = rows('tickets.jsonl').map((t) => t.key);

@@ -1,4 +1,4 @@
-// A brain.sqlite that is not a regular file (a FIFO, a directory) is refused on open (DATA, `brain build` hint) before SQLite opens it:
+// A plangraph.sqlite that is not a regular file (a FIFO, a directory) is refused on open (DATA, `brain build` hint) before SQLite opens it:
 // SQLite opens without O_NONBLOCK, so a FIFO with no writer used to block every index command forever and hang the SessionStart hook until
 // its 10 s kill (the hook contract: nothing printed, exit 0, on any failure). openIndex lstats the path, refuses a non-file, then opens it
 // O_RDONLY|O_NONBLOCK|O_NOFOLLOW, requires a regular file by fstat with the lstat's device and inode, closes it, and only then hands the path
@@ -29,13 +29,13 @@ function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-fifo-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
-  const b = path.join(d, '.brain');
+  const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), `${JSON.stringify({ key: 'T-1', summary: 'one', sp: 1, v2_owner: 'Ana', v2_sprint: 1 })}\n`);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
 const NOT_FILE = (e: unknown) => e instanceof BrainError && e.code === 'DATA' && e.message === 'the index is not a regular file' && e.hint === 'run `brain build` to rebuild it';
 
-test('a FIFO at brain.sqlite: the hook (card --if-present --heal) is silent with exit 0 and the commands exit 2 (DATA), all in well under 5 s', { skip: SKIP }, () => {
+test('a FIFO at plangraph.sqlite: the hook (card --if-present --heal) is silent with exit 0 and the commands exit 2 (DATA), all in well under 5 s', { skip: SKIP }, () => {
   const { d, b, file } = repo();
   execFileSync('mkfifo', [file]);
   const hook = run(d, ['card', '--if-present', '--heal']);
@@ -53,7 +53,7 @@ test('a FIFO at brain.sqlite: the hook (card --if-present --heal) is silent with
   assert.equal(run(d, ['ticket', 'T-1']).status, 0);
 });
 
-test('a directory at brain.sqlite is refused the same way (DATA, not a regular file)', () => {
+test('a directory at plangraph.sqlite is refused the same way (DATA, not a regular file)', () => {
   const { b, file } = repo();
   fs.mkdirSync(file);
   assert.throws(() => openIndex(file, { dir: b }), NOT_FILE);

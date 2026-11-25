@@ -1,5 +1,5 @@
 $ brain build
 exit: 0
 --- stdout
-built .brain/brain.sqlite: 40 tickets, 76 links, 2 evidence rows, 5 findings, 16 learnings
+built .plangraph/plangraph.sqlite: 40 tickets, 76 links, 2 evidence rows, 5 findings, 16 learnings
 --- stderr

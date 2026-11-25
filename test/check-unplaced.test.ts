@@ -21,7 +21,7 @@ function plan(tickets: object[], schedule: object[]) {
   const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: repo, env, encoding: 'utf8', timeout: 60000 });
   execFileSync('git', ['init', '-q'], { cwd: repo, env });
   assert.equal(run('init').status, 0);
-  const B = path.join(repo, '.brain');
+  const B = path.join(repo, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(tickets)); fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(schedule));
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
   return run;

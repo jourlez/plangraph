@@ -34,9 +34,9 @@ function repo(): string {
   const brain = (args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd: d, env: { ...BASE_ENV, CLAUDE_PLUGIN_DATA: tmp('cc-data-') }, encoding: 'utf8' });
   assert.equal(brain(['init']).status, 0);
   const p = genPlan({ n: 12, people: 3, seed: 4, cap: 40 });
-  fs.writeFileSync(path.join(d, '.brain', 'tickets.jsonl'), jl(p.tickets));
-  fs.writeFileSync(path.join(d, '.brain', 'edges.jsonl'), jl(p.edges));
-  fs.writeFileSync(path.join(d, '.brain', 'schedule.jsonl'), jl(p.schedule));
+  fs.writeFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), jl(p.tickets));
+  fs.writeFileSync(path.join(d, '.plangraph', 'edges.jsonl'), jl(p.edges));
+  fs.writeFileSync(path.join(d, '.plangraph', 'schedule.jsonl'), jl(p.schedule));
   assert.equal(brain(['build']).status, 0);
   return d;
 }

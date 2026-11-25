@@ -26,8 +26,8 @@ const DRIFT = 'info: OpenWolf STATUS.md mentions an older brain line: run /hando
 function repo(status?: string) {
   const root = tmp(); execFileSync('git', ['init', '-q'], { cwd: root }); fs.mkdirSync(path.join(root, '.home'));
   assert.equal(run(root, 'init').status, 0);
-  put(root, '.brain/tickets.jsonl', '{"key":"SHOP-12","summary":"split","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n');
-  put(root, '.brain/schedule.jsonl', '{"version":"current","key":"SHOP-12","owner":"Ana","sprint":2}\n');
+  put(root, '.plangraph/tickets.jsonl', '{"key":"SHOP-12","summary":"split","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n');
+  put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"SHOP-12","owner":"Ana","sprint":2}\n');
   assert.equal(run(root, 'build').status, 0);
   put(root, '.wolf/cerebrum.md', fx('cerebrum.drifted.md'));
   if (status !== undefined) put(root, '.wolf/STATUS.md', status);
@@ -58,7 +58,7 @@ test('doctor: an older brain line in STATUS.md gives one info line (protocol-onl
   assert.ok(!q.stdout.includes(DRIFT));
   assert.equal(r.stdout.replace(DRIFT + '\n', ''), q.stdout, 'the info line is the only difference');
   // the data changes: the stored line is now older
-  fs.appendFileSync(path.join(root, '.brain/tickets.jsonl'), '{"key":"SHOP-13","summary":"x","epic":"E","sp":1,"jira_status":"To Do","verdict":"READY"}\n');
+  fs.appendFileSync(path.join(root, '.plangraph/tickets.jsonl'), '{"key":"SHOP-13","summary":"x","epic":"E","sp":1,"jira_status":"To Do","verdict":"READY"}\n');
   assert.equal(run(root, 'build').status, 0);
   assert.ok(run(root, 'doctor').stdout.includes(DRIFT));
 });

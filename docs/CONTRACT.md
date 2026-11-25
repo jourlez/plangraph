@@ -88,7 +88,7 @@ schedule row; an `sp:` task is exempt until someone places it). Its one line add
 and `check` saying all is well can no longer both happen.
 
 Session hook: `brain card --if-present` (with or without `--heal`) prints nothing and exits 0 whenever anything fails: a too-old Node, a bad
-`.brainrc`, a refused brain directory (`PLANGRAPH_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
+`.plangraphrc`, a refused brain directory (`PLANGRAPH_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
 thrown error. On success it prints the card (a last `STALE:` line when the index is stale). With no index but brain data present (the brain
 directory resolves inside the repository and holds `tickets.jsonl` or `config.json`) it prints ONE fixed first-use line instead, still exit 0:
 `brain: plan data found in <dir> but no index: run brain build`, or, when `format.json` is older than the tool's (a missing file is format 0),
@@ -169,9 +169,9 @@ whatif stops with STARTED: `no slot: KEY keeps its slot (STARTED: ...)`. Exit 0 
 Session card (`brain card`, the SessionStart hook): a pure function of the data, byte-identical across runs (no clock, no age, no
 modification time): `brain <fp> | N tickets, M links, S<first>-S<last>, P people`, verdicts, over-cap, findings, the steer
 line `plan questions: use brain (ticket, ready, whatif, blockers, sprint, person); do not read <brain dir>/*.jsonl` (lib/steer.ts; the
-directory as the repo configures it, default `.brain`), and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
+directory as the repo configures it, default `.plangraph`), and a last `STALE: index older than text, run \`brain build\`` line only when the fingerprint check fails.
 
-Brain directory: `--dir`, else a non-empty `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.brainrc` at the repository root, else `.brain`. It must be
+Brain directory: `--dir`, else a non-empty `PLANGRAPH_DIR`, else `{"dir": "..."}` in `.plangraphrc` at the repository root, else `.plangraph`. It must be
 a relative path inside the repository: an absolute or escaping directory is refused with exit 4 (`brain directory is outside the repository`), and so is a name with whitespace, a control character or any of `* ? [ ] \ ! # "` (`brain directory name has a character that is not allowed`; the merge driver is only wired for names made of `A-Z a-z 0-9 . _ / -`), except under
 `brain card --if-present`, which stays silent with exit 0.
 
@@ -182,7 +182,7 @@ is not stale; it refuses a stale index (exit 2, hint `brain build`), because wri
 and `whatif --write` change only the index, so export after them goes ahead. `brain forecast` also warns when `open-items.jsonl` is newer than the index; the card uses the fingerprint only (no modification times).
 
 Index integrity: the fingerprint covers the text only, so `brain build` also stores a content digest (sha256 over every row of every
-table of `brain.sqlite`, `index_meta` included except the digest row, in a canonical order: primary key, then every column) in `index_meta`
+table of `plangraph.sqlite`, `index_meta` included except the digest row, in a canonical order: primary key, then every column) in `index_meta`
 under `content_digest`. Every index open (every index-reading command, `whatif --write`, `schedule-load`, `export`, and the session hook's
 card) recomputes it. A mismatch, meaning a row was inserted, deleted or changed inside the sqlite file outside brain, is refused: exit 2,
 `error: the index content does not match its integrity digest (it was edited outside brain)`, `try: brain build`; the hook prints nothing
@@ -194,16 +194,16 @@ measured on the dev machine (Apple silicon, other load present) at 1,400 tickets
 test bounds the 1,400-ticket digest. Limit: the digest is unkeyed, so it detects direct edits and accidental tools, not a forger who edits
 rows and then recomputes the digest the same way; the text files in git remain the source of truth, and `brain build` rebuilds from them.
 
-SQLite sidecars: SQLite replays a hot rollback journal (`brain.sqlite-journal`) into the database on the first read-write open, whatever
+SQLite sidecars: SQLite replays a hot rollback journal (`plangraph.sqlite-journal`) into the database on the first read-write open, whatever
 database it came from, and a read-only open of a database with a hot journal fails. A planted or committed journal holding every page of a
 forged index (digest recomputed as above) would otherwise become the index on the next `schedule-load` or `whatif --write`, and block every
 read until removed by hand. Brain never uses WAL, builds with `journal_mode=OFF` (no journal at all for the temp file), and its own writes
 (journal mode DELETE) remove their journal on commit, so no sidecar is ever legitimately beside the index when a command starts (tested:
 build, reads, `whatif --write`, `schedule-load` and `export` leave none). So: every index open (reads, writes, the hook's card) refuses a
-`brain.sqlite-journal`, `-wal` or `-shm` beside the index before SQLite sees the file: exit 2, `error: the index has a SQLite journal file
-beside it (brain.sqlite-journal); it is never replayed`, `try: brain build` (the hook prints nothing, exit 0). `brain build` removes a
+`plangraph.sqlite-journal`, `-wal` or `-shm` beside the index before SQLite sees the file: exit 2, `error: the index has a SQLite journal file
+beside it (plangraph.sqlite-journal); it is never replayed`, `try: brain build` (the hook prints nothing, exit 0). `brain build` removes a
 regular sidecar of the index and of its own temp name right before the rename (it belongs to a prior or foreign index and is never
-replayed), and refuses a symlinked or non-file sidecar (exit 4, `refusing to build the index: brain.sqlite-wal is a symlink; remove it by
+replayed), and refuses a symlinked or non-file sidecar (exit 4, `refusing to build the index: plangraph.sqlite-wal is a symlink; remove it by
 hand, then run ...`), following and removing nothing. `brain init` writes `*.sqlite`, `*.sqlite-journal`, `*.sqlite-wal` and
 `*.sqlite-shm` to the brain directory's `.gitignore` (appending only the missing lines to an existing one), and `brain doctor` warns about a
 sidecar beside the index, a git-tracked sidecar, and a `.gitignore` without the sidecar lines (warnings, exit code unchanged). Consequences:
@@ -241,7 +241,7 @@ after the check, asserting the outside file is never read or written):
   `lstat`ed again (a symlink is refused) and the temp path must still be the descriptor written (`lstat` against `fstat`); after the rename
   the destination must be that same file. `rename(2)` replaces a symlink at the destination itself, so a swap in the last instant before the
   rename is replaced, not followed (tested).
-- The index: a `brain.sqlite` that is a symlink is refused on open (exit 2, `brain build`); so is one that is not a regular file (a FIFO,
+- The index: a `plangraph.sqlite` that is a symlink is refused on open (exit 2, `brain build`); so is one that is not a regular file (a FIFO,
   a directory, a device: exit 2, `error: the index is not a regular file`, `try: brain build`; the session hook prints nothing, exit 0),
   because SQLite opens without `O_NONBLOCK` and a FIFO with no writer would block every index command and the hook until its 10 s kill.
   Before SQLite sees the path, brain `lstat`s it, opens it itself with `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` (never blocks, never follows), requires
@@ -259,7 +259,7 @@ after the check, asserting the outside file is never read or written):
   (observed, not relied on).
 
 What remains (needs `openat`/`O_BENEATH`-style APIs Node does not expose): every open is by path, so an INTERMEDIATE directory component (for
-example `.brain` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not
+example `.plangraph` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not
 detected for reads, and for writes it is detected only when it is the target's own parent directory (the device and inode check; no
 descriptor of that directory is held, so a directory deleted and recreated on the same filesystem can get its inode number back). To use
 it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a

@@ -1,7 +1,7 @@
 $ brain card --write
 exit: 0
 --- stdout
-wrote .brain/CARD.md (84 est tokens)
+wrote .plangraph/CARD.md (85 est tokens)
 --- stderr
 --- file .wolf/STATUS.md
 ---

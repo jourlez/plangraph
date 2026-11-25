@@ -103,7 +103,7 @@ project, generated at run time.
 ## Real-project data never enters the repository
 
 `node evals/gen-real.ts --from <project root> [--out <empty temp dir>] [--verify]` reads the project's brain directory (through its
-`.brainrc`, read-only) and writes a self-contained suite into a TEMP directory: a private plugin copy, the copied plan as fixture R (no
+`.plangraphrc`, read-only) and writes a self-contained suite into a TEMP directory: a private plugin copy, the copied plan as fixture R (no
 evidence file, no SQLite index; refs re-fingerprinted on a plan.md built from the summaries), the native case directories and
 `cases.json`. It refuses any output inside this repository or the source project (symlinks resolved) and any non-empty directory, and
 prints counts only. `--verify` cross-checks the truth with the brain CLI (zero model calls). Tests generate a stand-in project with a

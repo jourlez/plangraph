@@ -189,7 +189,7 @@ test('stage_order: the default written by `brain init` keeps today\'s order (pea
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'init-')); spawnSync('git', ['init', '-q'], { cwd: repo });
   const ir = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'brain'), 'init'], { cwd: repo, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(tmpRoot, 'brain-data') } }); // private data dir: never the real HOME
   assert.equal(ir.status, 0, ir.stderr);
-  const so = JSON.parse(fs.readFileSync(path.join(repo, '.brain', 'config.json'), 'utf8')).stage_order;
+  const so = JSON.parse(fs.readFileSync(path.join(repo, '.plangraph', 'config.json'), 'utf8')).stage_order;
   assert.deepEqual(so, ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes']);
   const p = plan({ n: 10, people: 3, density: 0.2, seed: 12, cap: 10 }); p.config.balance_load = true; p.config.min_per_sprint = { [people(p)[0]]: 1 };
   const a = solve(p, ['--deterministic']), b = solve({ ...p, config: { ...p.config, stage_order: so } }, ['--deterministic']);
@@ -909,9 +909,9 @@ test('characterization: confinement: --out with .. segments or a double slash th
     assert.equal(r.status, 2, out + '\n' + r.stdout + r.stderr); assert.equal(fs.existsSync(path.join(sibling, 'out.json')), false);
   }
 });
-test('characterization: confinement: a .brainrc dir outside the repository exits 2', { skip: SKIP, timeout: T_MEDIUM }, () => {
+test('characterization: confinement: a .plangraphrc dir outside the repository exits 2', { skip: SKIP, timeout: T_MEDIUM }, () => {
   const repo = fs.mkdtempSync(path.join(tmpRoot, 'repo-')); spawnSync('git', ['init', '-q'], { cwd: repo });
-  fs.writeFileSync(path.join(repo, '.brainrc'), JSON.stringify({ dir: '../../elsewhere' }));
+  fs.writeFileSync(path.join(repo, '.plangraphrc'), JSON.stringify({ dir: '../../elsewhere' }));
   const r = spawnSync(RUN, ['--out', path.join(repo, 'out.json')], { encoding: 'utf8', cwd: repo, timeout: 120000, env: { ...process.env, PLANGRAPH_DIR: '' } });
   assert.equal(r.status, 2, r.stdout + r.stderr); assert.match(r.stdout + r.stderr, /directory outside the repository/);
 });

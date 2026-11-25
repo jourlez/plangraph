@@ -1,7 +1,7 @@
-.brain/*.sqlite
-.brain/*.sqlite-journal
-.brain/*.sqlite-wal
-.brain/*.sqlite-shm
+.plangraph/*.sqlite
+.plangraph/*.sqlite-journal
+.plangraph/*.sqlite-wal
+.plangraph/*.sqlite-shm
 node_modules/
 __pycache__/
 *.sqlite

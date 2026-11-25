@@ -1,4 +1,4 @@
-// Index content integrity: `brain build` stores a sha256 digest of every table of brain.sqlite (canonical row order) in index_meta, and
+// Index content integrity: `brain build` stores a sha256 digest of every table of plangraph.sqlite (canonical row order) in index_meta, and
 // openIndex verifies it, so a row edited directly inside the sqlite file is refused (DATA, exit 2, hint `brain build`) instead of being
 // served. The legitimate index writers (whatif --write, schedule-load, export's fingerprint stamp) re-stamp the digest.
 // NOT covered: a deliberate forger who recomputes the digest after editing (the digest is unkeyed; docs/CONTRACT.md says so).
@@ -23,7 +23,7 @@ function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-integrity-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
-  const b = path.join(d, '.brain');
+  const b = path.join(d, '.plangraph');
   const put = (f: string, rows: object[]) => fs.writeFileSync(path.join(b, f), jl(rows));
   put('tickets.jsonl', [{ key: 'T-1', summary: 'one', sp: 3, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]);
   put('edges.jsonl', [{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]);
@@ -55,7 +55,7 @@ test('every table has a direct-edit case', () => {
 });
 
 for (const [table, sql] of Object.entries(EDITS)) {
-  test(`a direct UPDATE of ${table} inside brain.sqlite is refused on open (DATA, brain build hint), by the CLI (exit 2) and the hook (silent)`, () => {
+  test(`a direct UPDATE of ${table} inside plangraph.sqlite is refused on open (DATA, brain build hint), by the CLI (exit 2) and the hook (silent)`, () => {
     const { d, b, file } = repo();
     { using h = openIndex(file, { dir: b }); assert.equal(h.stale, false); }
     edit(file, sql);
@@ -120,7 +120,7 @@ test('cost: the digest of a 1,400-ticket index is computed in well under the ope
   const { budget } = await import('./helpers/perf.ts');
   const { contentDigest } = await import('../src/db.ts');
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'brain-integrity-')); tmps.push(d);
-  const b = path.join(d, '.brain'); fs.mkdirSync(b);
+  const b = path.join(d, '.plangraph'); fs.mkdirSync(b);
   const t = [], sc = [], e = [];
   for (let i = 0; i < 1400; i++) {
     t.push({ key: `T-${i}`, summary: `ticket ${i}`, sp: 1 + (i % 5), v2_owner: 'Ana', v2_sprint: 1 + (i % 30) });

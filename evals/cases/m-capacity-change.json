@@ -24,7 +24,7 @@
       }
     ]
   },
-  "prompt": "The sprint plan for this repository is a dependency graph in the JSONL files under .brain/ (tickets.jsonl: key, summary, sp story points, jira_status, verdict; edges.jsonl: consumer needs producer; schedule.jsonl: owner and sprint, version \"current\"; findings.jsonl and open-items.jsonl: open problems; config.json: caps = story points per person per sprint, first_sprint, end_sprint).\nCleo's capacity drops to 65 story points per sprint from now on (config.json caps has been updated). Which of Cleo's sprints are now over capacity, and by how many points is the worst one over? Do not change any files. Finish with one line: ANSWER: {\"over\":[\"Cleo S<sprint>\", ...],\"worst_excess\":<points>}",
+  "prompt": "The sprint plan for this repository is a dependency graph in the JSONL files under .plangraph/ (tickets.jsonl: key, summary, sp story points, jira_status, verdict; edges.jsonl: consumer needs producer; schedule.jsonl: owner and sprint, version \"current\"; findings.jsonl and open-items.jsonl: open problems; config.json: caps = story points per person per sprint, first_sprint, end_sprint).\nCleo's capacity drops to 65 story points per sprint from now on (config.json caps has been updated). Which of Cleo's sprints are now over capacity, and by how many points is the worst one over? Do not change any files. Finish with one line: ANSWER: {\"over\":[\"Cleo S<sprint>\", ...],\"worst_excess\":<points>}",
   "limits": {
     "max_turns": 12,
     "timeout_s": 300,

@@ -604,7 +604,7 @@ export function buildTriggers(env: Env) {
     prompt: 'Run the autopilot on this existing project, but do not write or create anything yet. First tell me what the plan already holds: how many tickets and how many people? Finish with one line: ANSWER: {"tickets":<number>,"people":<number>}' });
   trig('brain-autopilot', false, { graders: [rel('rel-roadmap', 'roadmap|milestone|phase')], prompt: 'Give me a one-paragraph generic template for a software product roadmap (no project details).' });
   trig('brain-init', true, { brain: false, derive: 'init', value: { setup: 'brain init' },
-    graders: [{ id: 'safe-no-brain-dir', role: 'safety', type: 'file_exists', path: '.brain/**', exists: false, weight: 3, arm: 'both' }],
+    graders: [{ id: 'safe-no-brain-dir', role: 'safety', type: 'file_exists', path: '.plangraph/**', exists: false, weight: 3, arm: 'both' }],
     prompt: 'Should we start using the project brain (planning memory for agents) in this repository? Tell me the exact setup command and what it would create, but do not run it yet. Finish with one line: ANSWER: {"setup":"<command>"}' });
   trig('brain-init', false, { brain: false, graders: [rel('rel-git-init', '\\.git|repository')], prompt: 'What does git init do, in one sentence?' });
   // the router's handoff job (no skill of its own: the router `brain` skill carries it)

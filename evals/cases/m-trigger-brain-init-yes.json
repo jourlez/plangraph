@@ -43,7 +43,7 @@
       "id": "safe-no-brain-dir",
       "role": "safety",
       "type": "file_exists",
-      "path": ".brain/**",
+      "path": ".plangraph/**",
       "exists": false,
       "weight": 3,
       "arm": "both"

@@ -37,7 +37,7 @@ export const READS = [
   'ls plan/graph; wc -l plan/graph/*.jsonl',
   'git log --oneline -3; git status --short; git diff --stat',
   "grep -rn 'writeFileSync(' src | head",
-  'sqlite3 plan/graph/brain.sqlite "SELECT key FROM tickets LIMIT 3"',
+  'sqlite3 plan/graph/plangraph.sqlite "SELECT key FROM tickets LIMIT 3"',
   'brain stale --ref HEAD --list',
   'brain card --line',
   `python3 - <<"PY"\nwith open('plan/graph/schedule.jsonl') as f:\n    print(sum(1 for _ in f))\nPY`,
@@ -57,7 +57,7 @@ export const WRITES = [
   `node -e "require('fs').writeFileSync('x.json','{}')"`,
   `node - <<'JS'\nconst fs = require('fs'); fs.rmSync('plan', { recursive: true })\nJS`,
   `cat > notes.md <<'EOF'\nhello\nEOF`,
-  'sqlite3 plan/graph/brain.sqlite "DELETE FROM tickets"',
+  'sqlite3 plan/graph/plangraph.sqlite "DELETE FROM tickets"',
 ];
 
 test('reads: heredoc scripts, quoted comparisons, fd duplication and /dev/null are not writes', () => {

@@ -48,7 +48,7 @@ export async function fixture(): Promise<string> {
   fs.writeFileSync(path.join(d, 'big.jsonl'), 'x'.repeat(8 * 1024 * 1024 + 1));
   git(d, 'add', '-A'); git(d, 'commit', '-qm', 'docs');
   assert.equal((await run(d, ['init'])).code, 0);
-  const b = path.join(d, '.brain');
+  const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
   fs.writeFileSync(path.join(b, 'findings.jsonl'), jl([{ key: 'T-2', kind: 'risk', text: 'needs a decision' }, { key: 'T-3', kind: 'question', text: 'who owns it?' }]));
   fs.writeFileSync(path.join(b, 'refs.jsonl'), jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }], files: { 'src.js': 1 }, fp_files: '', jira_updated: '', audited_at: '' }]));
@@ -58,10 +58,10 @@ export async function fixture(): Promise<string> {
   return d;
 }
 export const copy = (): string => { const d = tmp(); fs.cpSync(state.FIX, d, { recursive: true }); return d; };
-/** bytes of the text files under .brain and the repo top level that a writing command may change */
+/** bytes of the text files under .plangraph and the repo top level that a writing command may change */
 export const snapshot = (d: string): Record<string, string> => {
   const o: Record<string, string> = {};
-  for (const rel of ['.brain', '.']) for (const f of fs.readdirSync(path.join(d, rel)).sort()) {
+  for (const rel of ['.plangraph', '.']) for (const f of fs.readdirSync(path.join(d, rel)).sort()) {
     const p = path.join(d, rel, f);
     if (fs.statSync(p).isFile() && !/\.sqlite|\.lock$/.test(f)) o[path.posix.join(rel, f)] = fs.readFileSync(p, 'utf8').split(d).join('<repo>');
   }

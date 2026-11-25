@@ -50,7 +50,7 @@ test('node floor, registry validation, collector and renderer', () => {
   const strict = makeCollector({ strict: true });
   G('collector-strict', () => [outcome(() => strict.out('a\nb')), outcome(() => strict.out('a b')), outcome(() => makeCollector().out('a\rb'))]);
   G('strict-env', () => [strictOutput({ PLANGRAPH_STRICT_OUT: '1' }), strictOutput({ PLANGRAPH_STRICT_OUT: '0' }), strictOutput({})]);
-  G('rel-dir', () => [relDir({ dir: '/r/.brain', root: '/r' }, 'in /r/.brain/x'), relDir({ dir: '/r', root: '/r' }, '/r/y'), relDir(null, 'z'), relDir({ root: '/r' }, '/r/z'), relDir({ dir: '/r/d' }, '/r/d/z')]);
+  G('rel-dir', () => [relDir({ dir: '/r/.plangraph', root: '/r' }, 'in /r/.plangraph/x'), relDir({ dir: '/r', root: '/r' }, '/r/y'), relDir(null, 'z'), relDir({ root: '/r' }, '/r/z'), relDir({ dir: '/r/d' }, '/r/d/z')]);
 });
 
 test('MCP: tool argv, every message shape, framing with oversized and partial lines', async () => {

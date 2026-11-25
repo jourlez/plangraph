@@ -55,7 +55,7 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
       }
       case 'blockers-of': { const r = readyOf(a.key); if (!r || !same(r.waits, v.blockers)) bad('blockers'); break; }
       case 'readySet': {
-        const sched = fs.readFileSync(path.join(sc.ws, c.fixture.size === 'R' ? (fs.readFileSync(path.join(sc.ws, '.brainrc'), 'utf8').match(/"dir":"([^"]+)"/) as RegExpMatchArray)[1] : '.brain', 'schedule.jsonl'), 'utf8'); // as RegExpMatchArray: the scaffold wrote .brainrc with a "dir"
+        const sched = fs.readFileSync(path.join(sc.ws, c.fixture.size === 'R' ? (fs.readFileSync(path.join(sc.ws, '.plangraphrc'), 'utf8').match(/"dir":"([^"]+)"/) as RegExpMatchArray)[1] : '.plangraph', 'schedule.jsonl'), 'utf8'); // as RegExpMatchArray: the scaffold wrote .plangraphrc with a "dir"
         const cell = sched.split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => (r.version ?? 'current') === 'current' && r.owner === a.owner && r.sprint === a.sprint).map((r) => r.key);
         const got = cell.filter((k) => readyOf(k)?.ready === true);
         if (!same(got, v.ready)) bad('ready set');

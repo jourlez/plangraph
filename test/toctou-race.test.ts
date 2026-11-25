@@ -20,9 +20,9 @@ after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true 
 function world() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'race-'))); made.push(root);
   const out = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'race-out-'))); made.push(out);
-  fs.mkdirSync(path.join(root, '.brain'));
+  fs.mkdirSync(path.join(root, '.plangraph'));
   const secret = path.join(out, 'secret.jsonl'); fs.writeFileSync(secret, '{"key":"OUTSIDE"}\n');
-  const data = path.join(root, '.brain', 'tickets.jsonl'); fs.writeFileSync(data, '{"key":"T-1"}\n');
+  const data = path.join(root, '.plangraph', 'tickets.jsonl'); fs.writeFileSync(data, '{"key":"T-1"}\n');
   return { root, out, secret, data, secretBytes: () => fs.readFileSync(secret, 'utf8') };
 }
 // fsImpl that runs `swap` once, right after the nth call of `method` on `target` (the real call's result is returned: the check passed)
@@ -103,7 +103,7 @@ test('read: a symlinked data file is refused before any open (lstat), and O_NOFO
 });
 
 test('read: config.json (the one config reader) swapped right after the lstat is refused as a symlink or as SWAPPED, never read', { skip }, () => {
-  const w = world(), cfg = path.join(w.root, '.brain', 'config.json'), secret = path.join(w.out, 'secret.json');
+  const w = world(), cfg = path.join(w.root, '.plangraph', 'config.json'), secret = path.join(w.out, 'secret.json');
   fs.writeFileSync(secret, '{"SECRET":"s3cr3t"}');
   for (const [swap, code, message] of ([
     [() => { fs.rmSync(cfg); fs.symlinkSync(secret, cfg); }, 'SYMLINK', 'config.json: is a symlink'],
@@ -123,7 +123,7 @@ test('write: the destination swapped for a symlink to an outside file right afte
   const { impl } = hooked('lstatSync', w.data, () => { fs.rmSync(w.data); fs.symlinkSync(w.secret, w.data); });
   assert.throws(() => writeAtomicSafe(w.data, 'NEW\n', { root: w.root, fsImpl: impl }), (e: NodeJS.ErrnoException) => e.code === 'SYMLINK');
   assert.equal(w.secretBytes(), before);
-  assert.deepEqual(fs.readdirSync(path.join(w.root, '.brain')).filter((f) => f.includes('.tmp-')), [], 'the temp file is removed');
+  assert.deepEqual(fs.readdirSync(path.join(w.root, '.plangraph')).filter((f) => f.includes('.tmp-')), [], 'the temp file is removed');
 });
 
 test('write: a swap right after the pre-rename check is replaced by the rename (never followed): the outside file is unchanged', { skip }, () => {
@@ -137,7 +137,7 @@ test('write: a swap right after the pre-rename check is replaced by the rename (
 });
 
 test('write: the parent directory swapped for a symlink to an outside directory after the confinement check is refused', { skip }, () => {
-  const w = world(); const dir = path.join(w.root, '.brain');
+  const w = world(); const dir = path.join(w.root, '.plangraph');
   const { impl } = hooked('statSync', dir, () => { fs.renameSync(dir, `${dir}.moved`); fs.symlinkSync(w.out, dir); });
   assert.throws(() => writeAtomicSafe(path.join(dir, 'tickets.jsonl'), 'NEW\n', { root: w.root, fsImpl: impl }), (e: NodeJS.ErrnoException) => e.code === 'SWAPPED' || e.code === 'OUTSIDE_REPO');
   assert.deepEqual(fs.readdirSync(w.out).sort(), ['secret.jsonl'], 'nothing written in the outside directory');
@@ -148,7 +148,7 @@ test('write: the temp file swapped for a symlink after it was created is detecte
   const w = world(); const before = w.secretBytes(); let tmp = '';
   const impl = { ...fs, fsyncSync: (fd: number) => {
     fs.fsyncSync(fd);
-    if (!tmp) { tmp = fs.readdirSync(path.join(w.root, '.brain')).find((f) => f.includes('.tmp-')) ?? ''; const t = path.join(w.root, '.brain', tmp); fs.rmSync(t); fs.symlinkSync(w.secret, t); }
+    if (!tmp) { tmp = fs.readdirSync(path.join(w.root, '.plangraph')).find((f) => f.includes('.tmp-')) ?? ''; const t = path.join(w.root, '.plangraph', tmp); fs.rmSync(t); fs.symlinkSync(w.secret, t); }
   } };
   assert.throws(() => writeAtomicSafe(w.data, 'NEW\n', { root: w.root, fsImpl: impl }), (e: NodeJS.ErrnoException) => e.code === 'SWAPPED');
   assert.ok(tmp, 'the swap ran');
@@ -161,9 +161,9 @@ test('write: the temp file is created with O_EXCL|O_NOFOLLOW (a pre-planted syml
   assert.match(src, /O_CREAT \| fs\.constants\.O_EXCL \| NOFOLLOW/);
 });
 
-test('index: a brain.sqlite symlink is refused on open, and a planted symlink at the build temp name is refused and left alone', { skip }, async () => {
+test('index: a plangraph.sqlite symlink is refused on open, and a planted symlink at the build temp name is refused and left alone', { skip }, async () => {
   const { buildIndex, openIndex, INDEX_FILE } = await import('../src/db.ts');
-  const w = world(); const dir = path.join(w.root, '.brain'), file = path.join(dir, INDEX_FILE);
+  const w = world(); const dir = path.join(w.root, '.plangraph'), file = path.join(dir, INDEX_FILE);
   const target = path.join(w.out, 'planted.sqlite'); const before = w.secretBytes();
   fs.symlinkSync(w.secret, file);
   assert.throws(() => openIndex(file, { dir }), (e: BrainError) => e.code === 'DATA' && e.message === 'the index is a symlink, not a regular file' && e.hint === 'run `brain build` to rebuild it');
@@ -179,7 +179,7 @@ test('index: a brain.sqlite symlink is refused on open, and a planted symlink at
 
 test('index: the build temp file deleted and recreated after SQLite closed it is refused before the rename (the build holds its fd, so the inode number cannot be reused)', { skip }, async () => {
   const { buildIndex, INDEX_FILE } = await import('../src/db.ts');
-  const w = world(); const dir = path.join(w.root, '.brain'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
+  const w = world(); const dir = path.join(w.root, '.plangraph'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
   const mfs = (fs as unknown as Record<string, unknown>), real = { lstatSync: fs.lstatSync, openSync: fs.openSync, closeSync: fs.closeSync }; // src/db.ts calls node:fs directly
   let swapped = false, tfd = -1, heldAtCheck = false, closed = false;
   // which descriptor the build opens on its temp path, and whether it is still open at the identity check (whatever the filesystem does
@@ -201,13 +201,13 @@ test('index: the build temp file deleted and recreated after SQLite closed it is
   assert.equal(fs.readFileSync(tmp, 'utf8'), 'PLANTED', 'not ours: left in place'); fs.rmSync(tmp);
 });
 
-// docs/CONTRACT.md states exactly this: a REGULAR file at the build's own temp name (`brain.sqlite.tmp-<this pid>`) is a leftover of a
+// docs/CONTRACT.md states exactly this: a REGULAR file at the build's own temp name (`plangraph.sqlite.tmp-<this pid>`) is a leftover of a
 // crashed build (a build runs synchronously, so no live build of this process owns it) and removeStaleTemps unlinks that name (a hard link
 // to an outside file loses only the link); a symlink or other non-file there is refused (exit 4) and left alone; a file that appears at the
 // name after that clean-up, right before the build's O_CREAT|O_EXCL|O_NOFOLLOW open, is refused and left alone too.
 test('index: the temp-name rules are what docs/CONTRACT.md says (own-pid regular file removed as a leftover, symlink or late file refused and kept)', { skip }, async () => {
   const { buildIndex, INDEX_FILE } = await import('../src/db.ts');
-  const w = world(); const dir = path.join(w.root, '.brain'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
+  const w = world(); const dir = path.join(w.root, '.plangraph'), file = path.join(dir, INDEX_FILE), tmp = `${file}.tmp-${process.pid}`;
   const before = w.secretBytes();
   fs.linkSync(w.secret, tmp); // a regular file (hard link to an outside file) at our own temp name: a leftover, unlinked, the outside file kept
   buildIndex({ dir });

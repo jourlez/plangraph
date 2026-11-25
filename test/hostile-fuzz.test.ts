@@ -48,7 +48,7 @@ const run = (cwd: string, args: string[]): Promise<{ status: number | null; stdo
 async function makeFixture(root: string) {
   git(root, 'init', '-q'); git(root, 'checkout', '-q', '-b', 'main');
   assert.equal((await run(root, ['init'])).status, 0);
-  const B = '.brain/', T = (o: Record<string, unknown>) => ({ epic: '', jira_status: 'To Do', verdict: '', ...o });
+  const B = '.plangraph/', T = (o: Record<string, unknown>) => ({ epic: '', jira_status: 'To Do', verdict: '', ...o });
   put(root, B + 'config.json', JSON.stringify({
     _doc: M('doc'), first_sprint: 1, end_sprint: 6, caps: { default: 10, [OWNER]: 0, [M('capname')]: 3 }, min_per_sprint: { [M('minname')]: 1 }, minimize_load_of: M('minload'),
     default_ref: 'HEAD', brain_rules_version: 1, closed_statuses: ['Done', M('closed')], frozen_statuses: ['Done'], ignore_link_kinds: [M('ignorekind')],
@@ -128,7 +128,7 @@ const SHAPES = {
   learn: [['--from-wolf', RULE_TEXT], ['--from-wolf', '@handle']], report: [[]], explain: [[], ['ticket']],
 };
 // Files a command writes for an agent to read, checked like stdout when present after the run.
-const OUTPUT_FILES = ['.brain/report.md', '.brain/report.html', '.brain/OPEN-ITEMS.md', '.brain/CARD.md'];
+const OUTPUT_FILES = ['.plangraph/report.md', '.plangraph/report.html', '.plangraph/OPEN-ITEMS.md', '.plangraph/CARD.md'];
 const OUTPUT_DIRS = ['u', 'u2', 'jtout']; // units (*.md) and jira-text (*.txt)
 
 // Multi-line free text kept by design (plan sections, Jira text, superpowers parser warnings) lives only inside fence() blocks with
@@ -177,7 +177,7 @@ test('hostile fixture: no command forges a line, a fence or a control sequence i
     const dir = path.join(BASE, `run-${n++}`);
     fs.cpSync(FIXTURE, dir, { recursive: true, verbatimSymlinks: true });
     const safe = shape.includes(SAFE_REFS), args = shape.filter((a) => a !== SAFE_REFS).map((a) => (a === '@handle' ? HANDLE : a));
-    if (safe) fs.writeFileSync(path.join(dir, '.brain/refs.jsonl'), safeRefs());
+    if (safe) fs.writeFileSync(path.join(dir, '.plangraph/refs.jsonl'), safeRefs());
     const r = await run(dir, args), label = args.map((a) => JSON.stringify(a).slice(0, 30)).join(' ');
     if (r.status === null || r.status > 4) { crashed++; found.push(`${label}: exit ${r.status} ${r.stderr.slice(0, 300)}`); }
     found.push(...problems(r.stderr, `${label} stderr`));

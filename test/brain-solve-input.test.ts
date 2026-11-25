@@ -49,7 +49,7 @@ function repo() {
   execFileSync('git', ['init', '-q'], { cwd: d });
   const env = { ...process.env, CLAUDE_PLUGIN_DATA: path.join(d, '.git', 'brain-data') }; // private data dir: never the real HOME
   assert.equal(spawnSync(process.execPath, [BRAIN, 'init'], { cwd: d, encoding: 'utf8', env }).status, 0);
-  const b = path.join(d, '.brain');
+  const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'one', sp: 1.5, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two x', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));
   fs.writeFileSync(path.join(b, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));

@@ -100,7 +100,7 @@ export async function main(argv: string[], { registry = defaultRegistry, makeCon
   { registry?: Map<string, Command>; makeContext?: (opts: ContextOptions) => ShellCtx; io?: IO; env?: Record<string, string | undefined>; cwd?: string } = {}): Promise<number> {
   const [name, ...rest] = argv;
   // The SessionStart hook runs `card --if-present [--heal]`: it must never print and never exit non-zero. Any failure there (a bad
-  // .brainrc, a refused brain dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
+  // .plangraphrc, a refused brain dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
   const hook = name === 'card' && rest.includes('--if-present');
   const col = makeCollector({ strict: strictOutput(env) });
   let values: Record<string, unknown> = Object.create(null), code: number, shown: ShellCtx | undefined, command: string | undefined;

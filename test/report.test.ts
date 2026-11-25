@@ -125,10 +125,10 @@ before(() => {
   const tickets: object[] = p.tickets.map((t, i) => ({ ...t, jira_status: status(i), verdict: i % 6 === 3 ? 'BLOCKED' : 'READY' }));
   tickets.push({ key: 'V-1', sp: 1, jira_status: 'To Do', verdict: 'BLOCKED' }, { key: 'V-2', sp: 1, jira_status: 'To Do', verdict: 'READY' }, { key: 'V-3', sp: 1, jira_status: 'To Do', verdict: 'READY' }, { key: 'sp:one', sp: 1, jira_status: 'To Do', verdict: 'READY', impl_status: 'done' }, { key: 'sp:two', sp: 1, jira_status: 'To Do', verdict: 'READY', impl_status: 'todo' }, { key: 'sp:three', sp: 1, jira_status: 'To Do', verdict: 'READY' });
   const edges = [...p.edges.map((e, i) => (i % 4 === 0 ? { ...e, kind: 'soft' } : e)), { consumer: 'sp:two', producer: 'sp:one', kind: 'plan_need', note: '' }, { consumer: 'sp:three', producer: 'sp:two', kind: 'plan_need', note: '' }, { consumer: 'V-2', producer: 'GONE-1', kind: 'plan_need', note: '' }, { consumer: 'T-2', producer: 'sp:one', kind: 'plan_need', note: '' }];
-  put(ROOT, '.brain/tickets.jsonl', jl(tickets)); put(ROOT, '.brain/edges.jsonl', jl(edges));
-  put(ROOT, '.brain/schedule.jsonl', jl([...p.schedule, { version: 'current', key: 'V-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'V-2', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'V-3', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:one', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:two', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'sp:three', owner: 'Ana', sprint: 3 }]));
-  put(ROOT, '.brain/config.json', JSON.stringify({ ...p.config, ignore_link_kinds: ['soft'], caps: { default: 10, Ben: 6 }, closed_statuses: ['Done'] }, null, 2) + '\n');
-  put(ROOT, '.brain/findings.jsonl', jl([{ key: 'T-4', kind: 'external', text: 'x' }, { key: 'T-6', kind: 'plan_text', text: 'y' }, { key: 'T-8', kind: 'note', text: 'z' }, { key: 'T-11', kind: 'note', text: 'w' }, { key: 'V-2', kind: 'note', text: 'closed later' }, { key: 'V-3', kind: 'note', text: 'stays open' }]));
+  put(ROOT, '.plangraph/tickets.jsonl', jl(tickets)); put(ROOT, '.plangraph/edges.jsonl', jl(edges));
+  put(ROOT, '.plangraph/schedule.jsonl', jl([...p.schedule, { version: 'current', key: 'V-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'V-2', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'V-3', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:one', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:two', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'sp:three', owner: 'Ana', sprint: 3 }]));
+  put(ROOT, '.plangraph/config.json', JSON.stringify({ ...p.config, ignore_link_kinds: ['soft'], caps: { default: 10, Ben: 6 }, closed_statuses: ['Done'] }, null, 2) + '\n');
+  put(ROOT, '.plangraph/findings.jsonl', jl([{ key: 'T-4', kind: 'external', text: 'x' }, { key: 'T-6', kind: 'plan_text', text: 'y' }, { key: 'T-8', kind: 'note', text: 'z' }, { key: 'T-11', kind: 'note', text: 'w' }, { key: 'V-2', kind: 'note', text: 'closed later' }, { key: 'V-3', kind: 'note', text: 'stays open' }]));
   put(ROOT, 'snap.json', JSON.stringify(Object.fromEntries(p.tickets.map((t, i) => [t.key, { status: i % 3 === 0 ? 'Done' : 'To Do' }]))));
   let r = brain(ROOT, 'build'); assert.equal(r.status, 0, r.stderr);
   for (const a of [['--register', 'T-13', 'decision', '--owner', 'Ana', '--due', '3', '--text', 'pick'], ['--register', 'T-15', 'followup', '--owner', 'Ben', '--due', '4', '--text', 'ask']]) { r = brain(ROOT, 'open-items', ...a, '--write'); assert.equal(r.status, 0, r.stderr); }
@@ -167,8 +167,8 @@ const readRaw = (dir: string): RawPlan => {
 };
 
 test('oracle: the can-start set equals the tickets `brain ready` accepts and an independent brute-force rule, with and without a Jira snapshot', () => {
-  const model = loadModel(path.join(ROOT, '.brain')), items = parseItems(fs.readFileSync(path.join(ROOT, '.brain/open-items.jsonl'), 'utf8')) as OpenItem[], // parseItems rows are open items
-    raw = readRaw(path.join(ROOT, '.brain'));
+  const model = loadModel(path.join(ROOT, '.plangraph')), items = parseItems(fs.readFileSync(path.join(ROOT, '.plangraph/open-items.jsonl'), 'utf8')) as OpenItem[], // parseItems rows are open items
+    raw = readRaw(path.join(ROOT, '.plangraph'));
   for (const snap of [null, 'snap.json']) {
     const viaCli = [...model.tickets.keys()].sort().filter((k) => { const r = brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])); return r.status === 0 && r.stdout.startsWith('READY TO START'); });
     const doneCli = [...model.tickets.keys()].sort().filter((k) => brain(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])).stdout.startsWith('DONE '));
@@ -219,8 +219,8 @@ test('stale section: the label names the ref when computed (sanitized, escaped),
 });
 
 test('brain report writes exactly report.md and report.html, twice with equal bytes', () => {
-  const dir = path.join(ROOT, '.brain');
-  const r = brain(ROOT, 'report'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /^wrote \.brain\/report\.md and \.brain\/report\.html /);
+  const dir = path.join(ROOT, '.plangraph');
+  const r = brain(ROOT, 'report'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /^wrote \.plangraph\/report\.md and \.plangraph\/report\.html /);
   const md1 = fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), html1 = fs.readFileSync(path.join(dir, 'report.html'), 'utf8');
   assert.equal(brain(ROOT, 'report').status, 0);
   assert.equal(fs.readFileSync(path.join(dir, 'report.md'), 'utf8'), md1); assert.equal(fs.readFileSync(path.join(dir, 'report.html'), 'utf8'), html1);
@@ -231,7 +231,7 @@ test('brain report writes exactly report.md and report.html, twice with equal by
 });
 
 test('brain report failures have fixed messages and write nothing', () => {
-  const dir = path.join(ROOT, '.brain'), before = fs.readFileSync(path.join(dir, 'report.md'), 'utf8');
+  const dir = path.join(ROOT, '.plangraph'), before = fs.readFileSync(path.join(dir, 'report.md'), 'utf8');
   let r = brain(ROOT, 'report', '--jira', 'snap.json'); assert.equal(r.status, 2); assert.match(r.stderr, /--jira and --as-of go together/);
   r = brain(ROOT, 'report', '--jira', 'snap.json', '--as-of', 'yesterday'); assert.equal(r.status, 2); assert.match(r.stderr, /--as-of must be a date/);
   r = brain(ROOT, 'report', '--out', 'nope'); assert.equal(r.status, 2); assert.match(r.stderr, /output directory does not exist/);

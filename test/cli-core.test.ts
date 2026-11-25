@@ -297,22 +297,22 @@ test('main: strict output comes from PLANGRAPH_STRICT_OUT (and node --test); a m
 });
 
 // ---------- context ----------
-test('makeContext resolves the brain dir like bin/brain (flag, env, .brainrc, default) and confines it', () => {
+test('makeContext resolves the brain dir like bin/brain (flag, env, .plangraphrc, default) and confines it', () => {
   const root = tmp(); const sink = io().io;
-  assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, '.brain'));
-  fs.writeFileSync(path.join(root, '.brainrc'), '{"dir":"plan/brain"}');
+  assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, '.plangraph'));
+  fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir":"plan/brain"}');
   assert.equal(makeContext({ root, env: {}, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
   assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: {}, io: sink }).dir, path.join(root, 'e'));
   assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: '' }, flags: {}, io: sink }).dir, path.join(root, 'plan/brain'));
   assert.equal(makeContext({ root, env: { PLANGRAPH_DIR: 'e' }, flags: { dir: 'f' }, io: sink }).dir, path.join(root, 'f'));
   assert.throws(() => makeContext({ root, env: {}, flags: { dir: '../out' }, io: sink }), (e: BrainError) => e instanceof BrainError && e.code === 'REFUSED' && e.exitCode === 4 && e.message === 'brain directory is outside the repository');
   assert.throws(() => makeContext({ root, env: {}, flags: { dir: '/etc' }, io: sink }), (e: BrainError) => e.code === 'REFUSED');
-  fs.writeFileSync(path.join(root, '.brainrc'), '{"dir": SECRET-TEXT');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.brainrc: not valid JSON' && !e.message.includes('SECRET'));
-  fs.writeFileSync(path.join(root, '.brainrc'), '{"dir": 5}');
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.brainrc: "dir" must be a non-empty string');
-  fs.rmSync(path.join(root, '.brainrc')); fs.mkdirSync(path.join(root, '.brainrc'));
-  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.brainrc: not a regular file');
+  fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir": SECRET-TEXT');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: not valid JSON' && !e.message.includes('SECRET'));
+  fs.writeFileSync(path.join(root, '.plangraphrc'), '{"dir": 5}');
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: "dir" must be a non-empty string');
+  fs.rmSync(path.join(root, '.plangraphrc')); fs.mkdirSync(path.join(root, '.plangraphrc'));
+  assert.throws(() => makeContext({ root, env: {}, flags: {}, io: sink }), (e: BrainError) => e.code === 'DATA' && e.message === '.plangraphrc: not a regular file');
 });
 
 test('makeContext: config() is read once, capped, validated; now and io are injected; the result is frozen', () => {
@@ -349,7 +349,7 @@ function brainRepo(files: Record<string, string> = {}) {
   const d = tmp();
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync(process.execPath, [BRAIN, 'init'], { cwd: d, stdio: 'ignore', env: { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', CLAUDE_PLUGIN_DATA: DATA } });
-  const dir = path.join(d, '.brain');
+  const dir = path.join(d, '.plangraph');
   for (const [f, t] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), t);
   return { root: d, dir, ctx: makeContext({ root: d, env: {}, flags: {}, io: io().io }) };
 }

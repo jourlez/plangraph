@@ -89,7 +89,7 @@ function brainRepo(tickets: Ticket[], edges: Edge[], schedule: ScheduleRow[], co
   const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: repo, env, encoding: 'utf8', timeout: 60000 });
   execFileSync('git', ['init', '-q'], { cwd: repo, env });
   assert.equal(run('init').status, 0);
-  const B = path.join(repo, '.brain'), jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
+  const B = path.join(repo, '.plangraph'), jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(tickets.map((t) => ({ verdict: 'READY', ...t }))));
   fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(edges));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(schedule.map((r) => ({ version: 'current', ...r }))));

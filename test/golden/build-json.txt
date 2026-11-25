@@ -1,5 +1,5 @@
 $ brain build --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"build","ok":true,"exit":0,"data":{"lines":["built .brain/brain.sqlite: 40 tickets, 76 links, 2 evidence rows, 5 findings, 16 learnings"]},"fresh":null,"next":[]}
+{"v":2,"cmd":"build","ok":true,"exit":0,"data":{"lines":["built .plangraph/plangraph.sqlite: 40 tickets, 76 links, 2 evidence rows, 5 findings, 16 learnings"]},"fresh":null,"next":[]}
 --- stderr

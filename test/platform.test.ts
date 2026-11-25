@@ -44,7 +44,7 @@ function repo() {
   const run = (...a: string[]) => spawnSync('node', [BRAIN, ...a], { cwd: tmp.path, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(tmp.path, '.git', 'brain-data') } });
   spawnSync('git', ['init', '-q'], { cwd: tmp.path });
   assert.equal(run('init').status, 0);
-  return { tmp, dir: path.join(tmp.path, '.brain'), run, [Symbol.dispose]() { tmp[Symbol.dispose](); } };
+  return { tmp, dir: path.join(tmp.path, '.plangraph'), run, [Symbol.dispose]() { tmp[Symbol.dispose](); } };
 }
 const snapshot = (d: string): string => fs.readdirSync(d).sort().map((f) => { const p = path.join(d, f), st = fs.lstatSync(p); return [f, st.isFile() ? fs.readFileSync(p, 'hex') : 'x'].join(':'); }).join('|');
 
@@ -75,7 +75,7 @@ test('(2) build refuses a symlinked or non-regular source file (exit 2, base nam
   assert.match(o.stderr, /findings\.jsonl/);
   assert.ok(!o.stderr.includes(outside.path) && !o.stderr.includes('secret'), o.stderr);
   assert.equal(snapshot(r.dir), before);
-  assert.ok(!fs.existsSync(path.join(r.dir, 'brain.sqlite')));
+  assert.ok(!fs.existsSync(path.join(r.dir, 'plangraph.sqlite')));
 });
 
 test('(3) loadModel reads config.json capped and refuses a symlink', () => {

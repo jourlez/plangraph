@@ -104,8 +104,8 @@ test('integrity: the hash diff sees edits, creations and deletions, ignores the 
   const snap = () => snapshot(ws, { headOf: () => head });
   const before = snap();
   fs.writeFileSync(path.join(ws, 'plan', 'graph', 'schedule.jsonl'), '{"key":"ZED-1","sprint":2}\n'); // same size class, new content
-  fs.writeFileSync(path.join(ws, 'plan', 'graph', 'brain.sqlite'), 'db');
-  fs.writeFileSync(path.join(ws, 'plan', 'graph', 'brain.sqlite-wal'), 'db');
+  fs.writeFileSync(path.join(ws, 'plan', 'graph', 'plangraph.sqlite'), 'db');
+  fs.writeFileSync(path.join(ws, 'plan', 'graph', 'plangraph.sqlite-wal'), 'db');
   fs.writeFileSync(path.join(ws, 'plan', 'graph', 'CARD.md'), 'card');
   fs.writeFileSync(path.join(ws, 'notes.md'), 'n');
   fs.rmSync(path.join(ws, 'gone.txt'));
@@ -120,7 +120,7 @@ test('integrity: the hash diff sees edits, creations and deletions, ignores the 
   // the no-write grader over the hash list
   const c = byId('m-no-write-report');
   assert.ok(grade(c, { message: '', files: changedFiles(before, after, { brainDir: 'plan/graph', forbidAll: true }) }).failed.includes('safe-no-new-files'));
-  assert.ok(!grade(c, { message: '', files: ['plan/graph/brain.sqlite'] }).failed.includes('safe-no-new-files'));
+  assert.ok(!grade(c, { message: '', files: ['plan/graph/plangraph.sqlite'] }).failed.includes('safe-no-new-files'));
 });
 
 test('claude command line: both arms identical except --plugin-dir; isolation flags present; brain is granted', () => {
@@ -181,16 +181,16 @@ test('jobs: one per case x style x arm x run, unique keys, per-run budget clampe
 
 test('natural prompts: no file layout or rule text, same ANSWER contract and truth, valid cases; layout-told is the committed prompt', () => {
   for (const c of cases) {
-    assert.equal(styledPrompt(c, 'layout-told', '.brain'), c.prompt);
-    const p = styledPrompt(c, 'natural', '.brain');
-    assert.ok(!/\.jsonl\b|config\.json\b|\.brain\//.test(p), c.id);
+    assert.equal(styledPrompt(c, 'layout-told', '.plangraph'), c.prompt);
+    const p = styledPrompt(c, 'natural', '.plangraph');
+    assert.ok(!/\.jsonl\b|config\.json\b|\.plangraph\//.test(p), c.id);
     assert.ok(!p.includes('Rules: a consumer') && !p.includes('A ticket may start now when'), c.id);
     assert.equal(p.includes('ANSWER:'), c.prompt.includes('ANSWER:'), c.id);
     assert.deepEqual(validateCase({ ...c, prompt: p }), [], c.id);
     if (c.prompt.startsWith('The sprint plan for this repository')) assert.ok(p.startsWith('About the sprint plan in this repo: '), c.id);
     if (/"codes"/.test(c.prompt) && c.prompt.includes('Rules: a consumer')) assert.match(p, /PRODUCER_LATE, CONSUMER_EARLY, CAPACITY, OUT_OF_RANGE, STARTED/);
   }
-  assert.throws(() => styledPrompt(cases[0], 'other', '.brain'));
+  assert.throws(() => styledPrompt(cases[0], 'other', '.plangraph'));
   // a real project's brain dir (any path) is stripped the same way
   const files = Object.fromEntries(fs.readdirSync(path.join(root, 'evals/fixtures/M')).filter((n) => /\.jsonl$|config\.json$/.test(n)).map((n) => [n, fs.readFileSync(path.join(root, 'evals/fixtures/M', n), 'utf8')]));
   const built = buildFamilies({ prefix: 'x', size: 'R', seed: null, dir: 'docs/plan/graph', files, stale: null }, ['lookup', 'forecast-thin', 'whatif-yes', 'ready-no']).cases;
@@ -234,11 +234,11 @@ test('scaffold: a git workspace with the plan, the merge driver wired and commit
   fs.cpSync(path.join(root, 'evals/fixtures/S'), path.join(suite, 'fixtures', 'S'), { recursive: true });
   const c = byId('s-lookup');
   const dir = scaffold(ws, c, { suite });
-  assert.equal(dir, '.brain');
-  assert.ok(fs.existsSync(path.join(ws, '.brain', 'brain.sqlite')));
+  assert.equal(dir, '.plangraph');
+  assert.ok(fs.existsSync(path.join(ws, '.plangraph', 'plangraph.sqlite')));
   const st = spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' });
   assert.equal(st.stdout, '', 'the workspace is clean after the scaffold (index ignored, everything committed)');
-  assert.match(fs.readFileSync(path.join(ws, '.gitattributes'), 'utf8'), /\.brain\/\*\.jsonl merge=/);
+  assert.match(fs.readFileSync(path.join(ws, '.gitattributes'), 'utf8'), /\.plangraph\/\*\.jsonl merge=/);
   const card = spawnSync(process.execPath, [path.join(suite, 'plugin', 'bin', 'brain'), 'card', '--if-present', '--heal'], { cwd: ws, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data') } });
   assert.equal(card.status, 0);
   assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' }).stdout, '', 'the session hook finds nothing to heal: no file changes in arm A from the hook');

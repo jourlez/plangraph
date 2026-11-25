@@ -1,4 +1,4 @@
-// In-process CLI runs for the stratified CLI properties: a throwaway repository (mkdtemp, a `.git` directory, `.brain/*.jsonl`) and
+// In-process CLI runs for the stratified CLI properties: a throwaway repository (mkdtemp, a `.git` directory, `.plangraph/*.jsonl`) and
 // src/cli.ts main() with a captured io, which is the whole CLI except the bin/brain Node-floor shim (spawned separately on a few cases).
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,7 +9,7 @@ const line = (o: object): string => JSON.stringify(o);
 export function makeRepo(base: string, files: Record<string, string | object[]>): string {
   const root = fs.mkdtempSync(path.join(base, 'r-'));
   fs.mkdirSync(path.join(root, '.git'));
-  const dir = path.join(root, '.brain');
+  const dir = path.join(root, '.plangraph');
   fs.mkdirSync(dir);
   for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), Array.isArray(content) ? content.map(line).join('\n') + (content.length ? '\n' : '') : content);
   return root;
