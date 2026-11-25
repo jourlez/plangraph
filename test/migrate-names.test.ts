@@ -10,7 +10,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import type { TestContext } from 'node:test';
 import * as S from '../lib/store.ts';
 import { loadRegistry } from '../src/jira-tenant.ts';
-import { planMigration, report, rewriteLine, oldConfigDir } from '../lib/migrate-names.ts';
+import { planMigration, report, rewriteLine, oldConfigDir, applyMigration } from '../lib/migrate-names.ts';
+import { realFs } from '../src/commands/migrate-names.ts';
 import type { Entry, MigrateInput } from '../lib/migrate-names.ts';
 
 const test = (name: string, fn: (t: TestContext) => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
@@ -46,11 +47,15 @@ function oldWorld({ rcDir }: { rcDir?: string } = {}) {
 }
 /** Every file under the given roots with its mode and bytes, plus the repository's git config: a dry run must leave all of it as it was.
  * The launcher's compile cache in the data dir is an optimization of bin/plangraph, not a write of the command, so it is left out. */
-const snapshot = (...roots: string[]) => Object.fromEntries(roots.flatMap((r) => (fs.readdirSync(r, { recursive: true }) as string[]).filter((f) => (!f.startsWith('.git' + path.sep) || f === path.join('.git', 'config')) && !f.startsWith('compile-cache')).map((f) => path.join(r, f)).filter((p) => fs.lstatSync(p).isFile() || fs.lstatSync(p).isSymbolicLink()).map((p) => [p, `${fs.lstatSync(p).mode}:${fs.lstatSync(p).isSymbolicLink() ? fs.readlinkSync(p) : fs.readFileSync(p, 'latin1')}`])));
+const snapshot = (...roots: string[]) => Object.fromEntries(roots.flatMap((r) => (fs.readdirSync(r, { recursive: true }) as string[]).filter((f) => (!f.startsWith('.git' + path.sep) || f === path.join('.git', 'config') || f === path.join('.git', 'index') || f.startsWith(path.join('.git', 'refs') + path.sep)) && !f.startsWith('compile-cache')).map((f) => path.join(r, f)).filter((p) => fs.lstatSync(p).isFile() || fs.lstatSync(p).isSymbolicLink()).map((p) => [p, `${fs.lstatSync(p).mode}:${fs.lstatSync(p).isSymbolicLink() ? fs.readlinkSync(p) : fs.readFileSync(p, 'latin1')}`])));
 const mode = (p: string) => (fs.statSync(p).mode & 0o777).toString(8);
 
 test('dry run (the default) lists every change and changes nothing, in HOME, the repository or its git config', () => {
-  const w = oldWorld(), before = snapshot(w.home, w.repo, w.data);
+  const w = oldWorld();
+  // make every tracked file's stat data stale, so a `git status` that may refresh the index would rewrite .git/index (the dry run must not)
+  const later = new Date(Date.now() + 5000); for (const f of ['.gitattributes', '.gitignore', 'CLAUDE.md']) fs.utimesSync(path.join(w.repo, f), later, later);
+  const before = snapshot(w.home, w.repo, w.data);
+  assert.ok(Object.keys(before).some((k) => k.endsWith(path.join('.git', 'index'))), 'the snapshot covers .git/index');
   const r = w.run([]);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(snapshot(w.home, w.repo, w.data), before);
@@ -163,7 +168,7 @@ test('a directory named by the rc file keeps its path; only the rc file, the dri
   assert.equal(fs.readFileSync(path.join(w.repo, '.gitignore'), 'utf8'), 'node_modules/\ndocs/plan-graph/*.sqlite\ndocs/plan-graph/plangraph.sqlite-journal\n');
   // the CLI now finds the directory through .plangraphrc
   const t = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'doctor'], { cwd: w.repo, env: w.env, encoding: 'utf8' });
-  assert.match(t.stdout, /merge driver: ok|merge driver installed|data format/);
+  assert.match(t.stdout, /^merge driver: ok$/m);
   assert.doesNotMatch(t.stdout + t.stderr, /lacks/);
 });
 
@@ -198,6 +203,99 @@ test('permission rules naming the old command are named, never edited', () => {
   const r = w.run(['--apply']);
   assert.ok(r.stdout.includes('note: .claude/settings.json: 2 permission rule(s) start with Bash(brain: change them to Bash(plangraph (printed only, not edited)'), r.stdout);
   assert.match(fs.readFileSync(f, 'utf8'), /Bash\(brain ticket/);
+});
+
+test('a global or included merge-driver section of the old name is not the repository\'s: nothing found, nothing fails midway', () => {
+  const w = oldWorld();
+  assert.equal(w.run(['--apply']).status, 0); git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'migrate names');
+  fs.rmSync(w.od, { recursive: true });
+  const g = path.join(tmp('mn-gcfg-'), 'gitconfig'); fs.writeFileSync(g, `[merge "${OLD_DRIVER}"]\n\tname = global\n\tdriver = /global/shim %O %A %B %P\n`);
+  const env = { ...w.env, GIT_CONFIG_GLOBAL: g };
+  for (const args of [[], ['--apply']]) {
+    const r = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'migrate-names', ...args], { cwd: w.repo, env, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.equal(r.stdout, 'migrate-names: no old names found, nothing to do\n');
+  }
+  assert.match(fs.readFileSync(g, 'utf8'), /\/global\/shim/, 'the global file is untouched');
+});
+
+test('a failed --apply prints done: for the finished steps and failed: for the step that broke, then exits 5', () => {
+  const w = oldWorld();
+  fs.writeFileSync(path.join(w.repo, '.git', 'config.lock'), ''); // the last step (git config) cannot lock the config
+  const r = w.run(['--apply']);
+  assert.equal(r.status, 5, r.stdout + r.stderr);
+  assert.match(r.stdout, /^done: copy ~\/\.config\/.+jira-sites\.json to ~\/\.config\/plangraph\/jira-sites\.json \(mode 0600\)$/m);
+  assert.ok(r.stdout.includes(`done: git mv ${OLD_DIR} .plangraph`), r.stdout);
+  assert.match(r.stdout, /^failed: git config: set merge\.plangraph-jsonl\.name and \.driver .*: git config merge\.plangraph-jsonl\.name failed$/m);
+  assert.match(r.stdout, /^failed after 5 of 6 change\(s\)/m);
+  assert.doesNotMatch(r.stdout, /^applied /m);
+  fs.rmSync(path.join(w.repo, '.git', 'config.lock'));
+  git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'partly migrated');
+  const again = w.run(['--apply']); // the retry finishes what is left
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.equal(git(w.repo, 'config', '--get', 'merge.plangraph-jsonl.driver').trim(), `${path.join(w.data, 'bin', 'plangraph-merge')} %O %A %B %P`);
+});
+
+test('a copy that fails after the exclusive create removes its partial file, so the retry works; a replaced file is left alone', () => {
+  const d = tmp('mn-copy-'), src = path.join(d, 'src.json'), dst = path.join(d, 'dst.json');
+  fs.writeFileSync(src, SITES);
+  const failing = { ...fs, writeSync: () => { throw new Error('disk full'); } } as unknown as typeof fs;
+  assert.throws(() => realFs(null, failing).copyPrivate(src, dst), /disk full/);
+  assert.ok(!fs.existsSync(dst), 'no partial destination');
+  realFs(null).copyPrivate(src, dst);
+  assert.equal(fs.readFileSync(dst, 'utf8'), SITES);
+  // another process swapped dst for its own file between the create and the failure: fstat no longer matches, so it is not removed
+  fs.rmSync(dst);
+  const swapping = { ...fs, writeSync: () => { fs.rmSync(dst); fs.writeFileSync(dst, 'theirs'); throw new Error('disk full'); } } as unknown as typeof fs;
+  assert.throws(() => realFs(null, swapping).copyPrivate(src, dst), /disk full/);
+  assert.equal(fs.readFileSync(dst, 'utf8'), 'theirs');
+});
+
+test('a symlinked destination config folder is refused through the real CLI and nothing is written through it', () => {
+  const w = oldWorld(), real = tmp('mn-realnew-');
+  fs.mkdirSync(path.dirname(w.nd), { recursive: true }); fs.symlinkSync(real, w.nd);
+  const r = w.run(['--apply']);
+  assert.equal(r.status, 4, r.stdout + r.stderr);
+  assert.ok(r.stdout.includes('refused: ~/.config/plangraph is not a directory (a symlink is refused): nothing copied'), r.stdout);
+  assert.deepEqual(fs.readdirSync(real), []);
+});
+
+test('a symlinked .brain directory and a symlinked .brainrc are refused and left in place', () => {
+  const w = oldWorld(), other = tmp('mn-other-');
+  fs.cpSync(path.join(w.repo, OLD_DIR), other, { recursive: true }); fs.rmSync(path.join(w.repo, OLD_DIR), { recursive: true }); fs.symlinkSync(other, path.join(w.repo, OLD_DIR));
+  const rcTarget = path.join(other, 'rc.json'); fs.writeFileSync(rcTarget, '{}\n'); fs.symlinkSync(rcTarget, path.join(w.repo, OLD_RC));
+  git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'symlinks');
+  const r = w.run(['--apply']);
+  assert.equal(r.status, 4, r.stdout + r.stderr);
+  assert.ok(r.stdout.includes(`refused: ${OLD_DIR} is not a directory (a symlink is refused): not moved`), r.stdout);
+  assert.ok(r.stdout.includes(`refused: ${OLD_RC} is not a regular file (a symlink is refused): not renamed`), r.stdout);
+  assert.ok(fs.lstatSync(path.join(w.repo, OLD_DIR)).isSymbolicLink() && fs.lstatSync(path.join(w.repo, OLD_RC)).isSymbolicLink());
+  assert.ok(!fs.existsSync(path.join(w.repo, '.plangraph')) && !fs.existsSync(path.join(w.repo, '.plangraphrc')));
+});
+
+test('.gitignore: a negated pattern and a **/ pattern for the moved directory are rewritten; a line still naming the old directory is noted', () => {
+  assert.equal(rewriteLine(`!${OLD_DIR}/tickets.jsonl`, true), '!.plangraph/tickets.jsonl');
+  assert.equal(rewriteLine(`**/${OLD_DIR}/brain.sqlite`, true), '**/.plangraph/plangraph.sqlite');
+  assert.equal(rewriteLine(`!**/${OLD_DIR}/`, true), '!**/.plangraph/');
+  assert.equal(rewriteLine(`!/${OLD_DIR}`, true), '!/.plangraph');
+  assert.equal(rewriteLine(`!${OLD_DIR}/x`, false), `!${OLD_DIR}/x`);
+  const w = oldWorld();
+  fs.writeFileSync(path.join(w.repo, '.gitignore'), `node_modules/\n${OLD_DIR}/*.sqlite\n!${OLD_DIR}/tickets.jsonl\n**/${OLD_DIR}/tmp/\nsub/${OLD_DIR}/cache\n# ${OLD_DIR} is the old directory\n`);
+  git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'ignore');
+  const r = w.run(['--apply']);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(fs.readFileSync(path.join(w.repo, '.gitignore'), 'utf8'), `node_modules/\n.plangraph/*.sqlite\n!.plangraph/tickets.jsonl\n**/.plangraph/tmp/\nsub/${OLD_DIR}/cache\n# ${OLD_DIR} is the old directory\n`);
+  assert.ok(r.stdout.includes(`note: .gitignore line 5 still names ${OLD_DIR} after the rewrite`), r.stdout);
+  assert.doesNotMatch(r.stdout, /line 6 still/, 'a comment is not a pattern');
+});
+
+test('planner: applyMigration stops at the first failing step and says which; report names done, failed and not run', () => {
+  const input = fakeInput({ '/h/.config/old': { kind: 'dir', size: 0 }, '/h/.config/old/jira-sites.json': { kind: 'file', size: 3 }, '/h/.config/old/autopilot.json': { kind: 'file', size: 3 } });
+  let n = 0; input.fs.copyPrivate = () => { if (++n === 2) throw new Error('boom'); };
+  const p = planMigration(input), res = applyMigration(p);
+  assert.deepEqual(res, { done: 1, failed: { text: p.steps[1]?.text as string, error: 'boom' } });
+  const lines = report(p, { apply: true, home: '/h', result: res });
+  assert.match(lines[0] as string, /^done: copy/); assert.match(lines[1] as string, /^failed: copy .*autopilot\.json.*: boom$/);
 });
 
 // ---- the pure planner, with an injected file system and git ----

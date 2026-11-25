@@ -56,9 +56,10 @@ const token = (s: string): RegExp => new RegExp(`(?<![\\w.-])${escapeRe(s)}(?!\\
 /** One line's rewrite for .gitattributes and .gitignore: the driver and index names, and the default directory when it moves. */
 export function rewriteLine(line: string, dirMoved: boolean): string {
   let l = line.replace(new RegExp(`merge=${escapeRe(OLD.driver)}(?![\\w-])`, 'g'), `merge=${NEW.driver}`).replace(token(OLD.index), NEW.index);
-  if (dirMoved) l = l.replace(new RegExp(`^(\\s*/?)${escapeRe(OLD.dir)}(?=/|\\s|$)`), `$1${NEW.dir}`);
+  if (dirMoved) l = l.replace(new RegExp(`^(\\s*!?(?:\\*\\*/)?/?)${escapeRe(OLD.dir)}(?=/|\\s|$)`), `$1${NEW.dir}`); // an optional negation, an optional **/ and an optional anchoring slash come first
   return l;
 }
+const stillNamesDir = (line: string): boolean => !line.trimStart().startsWith('#') && new RegExp(`(?<![\\w.-])${escapeRe(OLD.dir)}(?!\\w)`).test(line);
 const rewriteText = (text: string, dirMoved: boolean): string => text.split('\n').map((l) => rewriteLine(l, dirMoved)).join('\n');
 
 function userPart(input: MigrateInput, plan: MigratePlan): void {
@@ -102,7 +103,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
     return { text: fs.read(at(name), MAX_TEXT) };
   };
   const ga = textOf('.gitattributes'), gi = textOf('.gitignore');
-  const cfgOld = git(['config', '--get-regexp', `^merge\\.${escapeRe(OLD.driver)}\\.`]);
+  const cfgOld = git(['config', '--local', '--get-regexp', `^merge\\.${escapeRe(OLD.driver)}\\.`]);
   const rcDir = rcOld?.kind === 'file' ? RC_DIR(input, at(OLD.rc)) : rcNew?.kind === 'file' ? RC_DIR(input, at(NEW.rc)) : undefined;
   const defaultDir = rcDir === undefined;
   const oldDriverLine = (t: string | null) => t !== null && new RegExp(`merge=${escapeRe(OLD.driver)}(?![\\w-])`).test(t);
@@ -136,6 +137,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
   for (const [name, t] of [['.gitattributes', ga.text], ['.gitignore', gi.text]] as const) {
     if (t === null) continue;
     const next = rewriteText(t, moved);
+    if (moved) next.split('\n').forEach((l, i) => { if (stillNamesDir(l)) plan.notes.push(`${name} line ${i + 1} still names ${OLD.dir} after the rewrite: change it by hand to ${NEW.dir} (printed only, not edited)`); });
     if (next === t) continue;
     const changed = t.split('\n').map((l, i) => [l, next.split('\n')[i] as string] as const).filter(([a, b]) => a !== b).map(([a, b]) => `${a.trim()} to ${b.trim()}`);
     plan.steps.push({ text: `${name}: ${changed.join('; ')}`, run: () => fs.write(at(name), next) });
@@ -145,7 +147,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
     plan.steps.push({ text: `git config: set merge.${NEW.driver}.name and .driver (the stable merge shim)${hasOldCfg ? `, remove merge.${OLD.driver}` : ''}`, run: () => {
       const cmd = input.driverCommand();
       for (const [k, v] of [['name', 'plangraph jsonl three-way merge'], ['driver', cmd]] as const) if (!git(['config', `merge.${NEW.driver}.${k}`, v]).ok) throw new Error(`git config merge.${NEW.driver}.${k} failed`);
-      if (hasOldCfg && !git(['config', '--remove-section', `merge.${OLD.driver}`]).ok) throw new Error(`git config --remove-section merge.${OLD.driver} failed`);
+      if (hasOldCfg && !git(['config', '--local', '--remove-section', `merge.${OLD.driver}`]).ok) throw new Error(`git config --remove-section merge.${OLD.driver} failed`);
     } });
   }
   const marker = `${OLD.dir}/*.jsonl`;
@@ -166,17 +168,22 @@ export function planMigration(input: MigrateInput): MigratePlan {
 }
 
 /** The lines the command prints for a plan; `applied` says whether the steps were run. */
-export function report(plan: MigratePlan, { apply, home }: { apply: boolean; home: string }): string[] {
+export function report(plan: MigratePlan, { apply, home, result }: { apply: boolean; home: string; result?: ApplyResult }): string[] {
   if (!plan.found) return ['migrate-names: no old names found, nothing to do'];
   if (!plan.steps.length && !plan.refused.length) return [`migrate-names: already migrated, nothing to do (${tilde(plan.oldConfigDir, home)} can be deleted once you no longer need it)`];
-  const lines = [...plan.steps.map((s) => `${apply ? 'done' : 'would'}: ${s.text}`), ...plan.refused.map((r) => `refused: ${r}`), ...plan.notes.map((n) => `note: ${n}`)];
+  const lines = [...plan.steps.map((s, i) => (result && i >= result.done ? (i === result.done && result.failed ? `failed: ${s.text}: ${result.failed.error}` : `not run: ${s.text}`) : `${apply ? 'done' : 'would'}: ${s.text}`)), ...plan.refused.map((r) => `refused: ${r}`), ...plan.notes.map((n) => `note: ${n}`)];
   lines.push(`keychain: never read or written here; if a Jira token is stored under ${OLD.keychain}[:host], re-save it as ${NEW.keychain}[:host] (macOS: security add-generic-password -s ${NEW.keychain} -a "$JIRA_EMAIL" -w)`);
   if (plan.copied) lines.push(`the old folder ${tilde(plan.oldConfigDir, home)} is left in place and is safe to delete${apply ? '' : ' after --apply'}`);
-  lines.push(apply ? `applied ${plan.steps.length} change(s)` : `dry run: nothing changed; run \`plangraph migrate-names --apply\` to apply ${plan.steps.length} change(s)`);
+  lines.push(result?.failed ? `failed after ${result.done} of ${plan.steps.length} change(s): fix the cause, commit what was already changed, then run \`plangraph migrate-names --apply\` again` : apply ? `applied ${plan.steps.length} change(s)` : `dry run: nothing changed; run \`plangraph migrate-names --apply\` to apply ${plan.steps.length} change(s)`);
   return lines;
 }
 
-/** Run the planned steps in order (user copies first, then the repository). Throws on the first failure. */
-export function applyMigration(plan: MigratePlan): void {
-  for (const s of plan.steps) s.run();
+/** What running the steps did: the steps completed in order, and the first one that failed (the rest were not run). */
+export interface ApplyResult { done: number; failed: { text: string; error: string } | null }
+/** Run the planned steps in order (user copies first, then the repository). Stops at the first failure and says which step it was; never throws. */
+export function applyMigration(plan: MigratePlan): ApplyResult {
+  for (const [i, s] of plan.steps.entries()) {
+    try { s.run(); } catch (e) { return { done: i, failed: { text: s.text, error: e instanceof Error ? e.message : String(e) } }; }
+  }
+  return { done: plan.steps.length, failed: null };
 }

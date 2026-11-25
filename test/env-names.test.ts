@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { makeContext } from '../src/context.ts';
-import { configDir } from '../src/jira-tenant.ts';
+import { configDir, resolveTenant } from '../src/jira-tenant.ts';
 import { dcHostsFromEnv, siteHostsFromEnv, validateBase } from '../lib/jira.ts';
 import { strictOutput } from '../src/cli.ts';
 import { run, tmp, made } from './helpers/cli-fixture.ts';
@@ -72,4 +72,32 @@ test('PLANGRAPH_SOLVE_SCRIPT overrides the solver script of the launcher; the ol
   const launch = (env: Record<string, string>) => { fs.rmSync(log, { force: true }); spawnSync(path.join(import.meta.dirname, '../bin/plangraph-solve-run'), ['--out', path.join(d, 'o.json')], { cwd: d, encoding: 'utf8', env: { PATH: bin, HOME: d, CLAUDE_PLUGIN_DATA: path.join(d, 'data'), PLANGRAPH_SOLVE_LAUNCH: 'uv-run', ...env }, timeout: 30000 }); return fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''; };
   assert.match(launch({ PLANGRAPH_SOLVE_SCRIPT: stub }), /stub\.py/);
   assert.doesNotMatch(launch({ [OLD('SOLVE_SCRIPT')]: stub }), /stub\.py/);
+});
+
+test('the old JIRA_SITES variable pins nothing: resolveTenant keeps the generic credentials off for a committed site', () => {
+  const committed = { base_url: 'https://acme.atlassian.net', auth: { mode: 'site-token' } } as const;
+  const home = tmp(), env = (extra: Record<string, string>) => ({ HOME: home, ...extra });
+  assert.equal(resolveTenant(committed, home, env({ PLANGRAPH_JIRA_SITES: 'acme.atlassian.net' })).allowGeneric, true, 'the new variable pins the site');
+  const t = resolveTenant(committed, home, env({ [OLD('JIRA_SITES')]: 'acme.atlassian.net' }));
+  assert.equal(t.pinned, false); assert.equal(t.allowGeneric, false);
+});
+
+test('the old SOLVE_LAUNCH variable does not force the uv run fallback (the shell launcher still tries uv sync first)', { skip: process.platform === 'win32' }, () => {
+  const d = repo(), bin = path.join(d, 'fakebin'), log = path.join(d, 'uv.log');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'uv'), `#!/bin/sh\necho "$1" >> '${log}'\n[ "$1 $2" = "python find" ] && echo /bin/sh\n[ "$1" = sync ] && exit 1\nexit 0\n`, { mode: 0o755 });
+  for (const sh of ['dirname']) { const p = execFileSync('sh', ['-c', `command -v ${sh}`], { encoding: 'utf8' }).trim(); if (p) fs.symlinkSync(p, path.join(bin, sh)); }
+  const calls = (env: Record<string, string>) => { fs.rmSync(log, { force: true }); spawnSync(path.join(import.meta.dirname, '../bin/plangraph-solve-run'), ['--out', path.join(d, 'o.json')], { cwd: d, encoding: 'utf8', env: { PATH: bin, HOME: d, CLAUDE_PLUGIN_DATA: path.join(d, 'data'), ...env }, timeout: 30000 }); return fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n').filter(Boolean) : []; };
+  assert.ok(!calls({ PLANGRAPH_SOLVE_LAUNCH: 'uv-run' }).includes('sync'), 'the new variable skips sync');
+  assert.ok(calls({ [OLD('SOLVE_LAUNCH')]: 'uv-run' }).includes('sync'), 'the old variable does not');
+});
+
+test('the old SOLVE_WATCH_PARENT variable does not start the Python solver\'s parent watch', { skip: HAVE_PY3 ? false : 'no python3' }, () => {
+  const body = "import importlib.machinery, importlib.util, sys, threading\nl = importlib.machinery.SourceFileLoader('s', sys.argv[1]); m = importlib.util.module_from_spec(importlib.util.spec_from_loader('s', l)); l.exec_module(m)\nm.watch_parent()\nprint('plangraph-solve-parent-watch' in [t.name for t in threading.enumerate()])\n";
+  const watching = (env: Record<string, string>) => {
+    const r = spawnSync('python3', ['-I', '-c', body, path.join(import.meta.dirname, '../bin/plangraph-solve')], { encoding: 'utf8', env: { PATH: process.env.PATH ?? '', ...env }, timeout: 15000 });
+    assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
+  };
+  assert.equal(watching({ PLANGRAPH_SOLVE_WATCH_PARENT: '1' }), 'True');
+  assert.equal(watching({ [OLD('SOLVE_WATCH_PARENT')]: '1' }), 'False');
 });
