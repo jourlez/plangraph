@@ -134,6 +134,15 @@ Rulings:
 8. Untrusted imported text (tickets, issues, PR titles) is never placed in a tool argument or shell command unchecked and never reaches the card; write and egress tools stay separate from tools that read imported text (the lethal-trifecta rule). Already the design of section 3.5.
 
 
+### 3.14 Guardrails against the four design risks (enforced by tests and gates, not by intent)
+
+1. Complexity creep. A budget file `docs/BUDGETS.md` plus tests: the card stays at or under its token bound; `tools/list` stays at or under 2,600 bytes; every command's default output has a golden token bound; the number of committed file types and of core node types and relations is a frozen list in `lib/graph/files.ts` and changing it needs a decision record (`docs/decisions/NNNN-title.md`: need, rule that reads it, merge key, fuzz test, token cost). A new concept that no rule reads is info-only and costs zero tokens by default.
+2. Drift into a generic knowledge graph. A non-goals charter in `docs/CONTRACT.md`: no embeddings, no LLM extraction of nodes, no code parsing (code is linked through references), no free-text memory store. Acceptance test: every core relation has a named reader (blockers, capacity, whatif, readiness, touches) or is declared info-only; a test fails when a relation has no entry in `REL_SEMANTICS`; default outputs never print info relations.
+3. Solver at your scale. Synthetic plan sized to the owner's real project (about 1,400 tickets, 10,000 links, 4 people, 11 sprints) in the slow CI job with a time bound and the independent `verify` check on every solver result (exists); greedy or heuristic results stay labelled upper bounds; shadow mode on the real project: the solver proposes, the owner's actual placement is compared, and feasibility rate, differences and time are recorded in the scorecard (task 7C).
+4. Unproven value. Task 7C, a dogfood scorecard defined before building the feature it measures: five daily questions (can it start, what does a move break, who is overloaded, which repos does it touch, is the sprint feasible), each timed and counted in tokens against the baseline of reading the tracker and files by hand, run on the owner's real project for two weeks with a local-only command log; outcome recorded in `docs/SCORECARD.md`. The format benchmark (7B) covers answer correctness and tokens; 7C covers real use.
+5. Single maintainer. Zero runtime dependencies stay; every behavior has a test that can fail; every non-obvious choice has a decision record; `docs/TEAM.md` and `CONTRIBUTING.md` stay current (checked by tests that every named command exists).
+
+
 ## 4. Rulings on defects found in the graph plan
 
 1. Rename: every `brain` command, `.brain`, `brain.sqlite`, `bin/brain-solve` and `brain-jsonl` in the graph plan reads as its plangraph name from the rename map of `2026-11-25-plangraph-0.3.0-revised.md` section 3. `.baseline/pre-040` is captured on the renamed 0.3.0 tree.
@@ -162,6 +171,7 @@ Rulings:
 | 5 | `graph` KEY accepts `pg:` URIs; `--json` ids in URI form; xrefs printed fenced. |
 | 6, 6A, 7 | Unchanged; Task 7's audit adds the forward-compatibility fixture (section 6). |
 | 7B (new) | Format benchmark `evals/graph-format` (section 3.11); the default answer format is set from its result before 0.4.0 ships. |
+| 7C (new) | Dogfood scorecard (section 3.14): five daily questions timed and counted against the by-hand baseline on the owner's real project, shadow-mode solver comparison, `docs/SCORECARD.md`; plus `docs/BUDGETS.md` and its budget tests. |
 | 8 | Becomes `plangraph graph materialize` (no format bump) per D23. |
 | 9 (0.5.0) | Provider seam, `jira`, `sp` and `generic` providers, `plangraph import --sys`, `obs` table, cache git-ignore. |
 | 10 (0.5.0) | `lib/graph/drift.ts`, `plangraph sync --plan`. |
