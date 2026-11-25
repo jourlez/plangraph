@@ -55,12 +55,14 @@ test('dry run (the default) lists every change and changes nothing, in HOME, the
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(snapshot(w.home, w.repo, w.data), before);
   for (const want of ['would: copy ~/.config/' + OLD_FOLDER + '/jira-sites.json to ~/.config/plangraph/jira-sites.json (mode 0600)', 'would: copy ~/.config/' + OLD_FOLDER + '/autopilot.json', `would: git mv ${OLD_DIR} .plangraph`, `would: .gitattributes: ${OLD_DIR}/*.jsonl merge=${OLD_DRIVER} to .plangraph/*.jsonl merge=plangraph-jsonl`, `would: .gitignore: ${OLD_DIR}/*.sqlite to .plangraph/*.sqlite; ${OLD_DIR}/brain.sqlite-journal to .plangraph/plangraph.sqlite-journal`, `would: git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim), remove merge.${OLD_DRIVER}`, 'keychain: never read or written here', 'dry run: nothing changed']) assert.ok(r.stdout.includes(want), `missing ${want}\n${r.stdout}`);
+  assert.doesNotMatch(r.stdout, /the old index/, 'no old index in this repository, so no note about one');
   assert.match(r.stdout, /note: CLAUDE\.md names \.brain\/\*\.jsonl: change it to \.plangraph\/\*\.jsonl/);
   assert.ok(fs.existsSync(path.join(w.repo, OLD_DIR)) && !fs.existsSync(w.nd));
 });
 
 test('--apply copies user state 0600, renames the default directory, rewrites the attribute and ignore lines, rewires git; a real merge then uses plangraph-jsonl', () => {
   const w = oldWorld();
+  fs.writeFileSync(path.join(w.repo, OLD_DIR, 'brain.sqlite'), 'old index'); // git-ignored, so the tree stays clean
   const r = w.run(['--apply']);
   assert.equal(r.status, 0, r.stderr);
   for (const f of ['jira-sites.json', 'autopilot.json']) { assert.equal(mode(path.join(w.nd, f)), '600', f); assert.equal(fs.readFileSync(path.join(w.nd, f), 'utf8'), fs.readFileSync(path.join(w.od, f), 'utf8')); }
@@ -73,6 +75,7 @@ test('--apply copies user state 0600, renames the default directory, rewrites th
   assert.notEqual(tryGit(w.repo, 'config', '--get-regexp', `^merge\\.${OLD_DRIVER}\\.`).status, 0, 'the old driver section is removed');
   assert.match(fs.readFileSync(path.join(w.repo, 'CLAUDE.md'), 'utf8'), /\.brain\/\*\.jsonl/, 'CLAUDE.md is never edited');
   assert.match(r.stdout, /^applied 6 change\(s\)$/m);
+  assert.match(r.stdout, /^note: the old index \.plangraph\/brain\.sqlite can be deleted: `brain build` writes \.plangraph\/plangraph\.sqlite$/m);
   assert.ok(r.stdout.includes(`the old folder ~/.config/${OLD_FOLDER} is left in place and is safe to delete`));
   // a real three-way merge through the new driver name: two branches edit different fields of T-1 and add a ticket each
   git(w.repo, 'add', '-A'); git(w.repo, 'commit', '-qm', 'migrate names'); git(w.repo, 'checkout', '-qb', 'feature');

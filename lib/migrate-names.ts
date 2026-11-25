@@ -131,7 +131,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
   else if (dirOld) {
     if (dirOld.kind !== 'dir') plan.refused.push(`${OLD.dir} is not a directory (a symlink is refused): not moved`);
     else if (dirNew) plan.refused.push(`${NEW.dir} exists: ${OLD.dir} not moved`);
-    else { move(OLD.dir, NEW.dir, ''); moved = true; plan.notes.push(`the old index ${NEW.dir}/${OLD.index} can be deleted: \`brain build\` writes ${NEW.dir}/${NEW.index}`); }
+    else { move(OLD.dir, NEW.dir, ''); moved = true; if (fs.lstat(at(path.join(OLD.dir, OLD.index)))) plan.notes.push(`the old index ${NEW.dir}/${OLD.index} can be deleted: \`brain build\` writes ${NEW.dir}/${NEW.index}`); }
   }
   for (const [name, t] of [['.gitattributes', ga.text], ['.gitignore', gi.text]] as const) {
     if (t === null) continue;
