@@ -4,7 +4,9 @@
 import path from 'node:path';
 import type fs from 'node:fs';
 import type { CapacityRow, Sprint } from './graph/files.ts';
-import { readJsonl, readDataCapped, IngestError } from './jsonl.ts';
+import { readDataCapped, IngestError } from './jsonl.ts';
+import { readStoreAt } from './planstore.ts';
+import type { Kind } from './planstore.ts';
 
 /** What the config reader's catch reads from a thrown value (whatever was thrown is read the same way as before). */
 type Coded = Error & { code?: string };
@@ -111,6 +113,6 @@ export function readConfig(f: string, { fsImpl }: { fsImpl?: typeof fs } = {}): 
 }
 /** config: an already-read config (the CLI passes ctx.config()). */
 export function loadModel(dir: string, { config }: { config?: PlanConfig } = {}): Model {
-  const j = (n: string) => readJsonl(path.join(dir, n));
-  return buildModel({ tickets: j('tickets.jsonl') as Ticket[], edges: j('edges.jsonl') as Edge[], schedule: j('schedule.jsonl') as ScheduleRow[], config: config ?? readConfig(path.join(dir, 'config.json')), findings: j('findings.jsonl'), evidence: j('evidence.jsonl'), learnings: j('learnings.jsonl'), refs: j('refs.jsonl') }); // readJsonl validates each known file with its lib/schema validator (required fields are strings)
+  const st = readStoreAt(dir), j = (k: Kind) => st.readValidated(k);
+  return buildModel({ tickets: j('ticket') as Ticket[], edges: j('edge') as Edge[], schedule: j('schedule') as ScheduleRow[], config: config ?? readConfig(path.join(dir, 'config.json')), findings: j('finding'), evidence: j('evidence'), learnings: j('learning'), refs: j('ref') }); // readJsonl validates each known file with its lib/schema validator (required fields are strings)
 }

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readCapped } from '../../lib/jsonl.ts';
+import { openStore } from '../../lib/planstore.ts';
 import { oneLine } from '../../lib/sanitize.ts';
 import { STALE_WARNING } from '../context.ts';
 import { CUR, MAX_DATA, capOf, dbFile, verbose, dataError, modelFromDb } from './shared.ts';
@@ -15,7 +16,7 @@ interface PlaceRow { key: string; owner: string; sprint: number }
 // than the index (1 s slack) makes the answer STALE too. Only one warning is printed either way.
 const SLACK_MS = 1000;
 function openItemsNewer(ctx: Ctx): boolean {
-  try { return fs.statSync(path.join(ctx.dir, 'open-items.jsonl')).mtimeMs > fs.statSync(dbFile(ctx)).mtimeMs + SLACK_MS; } catch { return false; }
+  try { const m = openStore(ctx).mtimeMs('openitem'); return m !== null && m > fs.statSync(dbFile(ctx)).mtimeMs + SLACK_MS; } catch { return false; }
 }
 
 async function forecast(ctx: Ctx, args: Args<{ seed?: number }>): Promise<number> {

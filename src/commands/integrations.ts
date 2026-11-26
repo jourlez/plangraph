@@ -5,12 +5,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { readJsonl, parseJsonl } from '../../lib/jsonl.ts';
+import { openStore } from '../../lib/planstore.ts';
+import type { Kind } from '../../lib/planstore.ts';
 import { oneLine, fence } from '../../lib/sanitize.ts';
 import { assertInside } from '../../lib/fsafe.ts';
 import { checkRepoPath, makeGit } from '../../lib/gitsafe.ts';
 import { PlangraphError } from '../errors.ts';
-import { verbose, usage, needBrain, precheckTargets, writeState, refuseWrite } from './shared.ts';
+import { verbose, usage, needBrain, refuseWrite } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { BudgetItem } from '../../lib/integrations/detect.ts';
@@ -76,23 +77,13 @@ function spFile(ctx: Ctx, arg: string | undefined, what: string): { real: string
   const real = readInside(ctx.root, path.resolve(ctx.cwd ?? process.cwd(), arg));
   return { real, rel: checkRepoPath(path.relative(fs.realpathSync.native(ctx.root), real).split(path.sep).join('/')) };
 }
-const spRead = (ctx: Ctx, f: string, validate?: (r: Rec) => string | null) => readJsonl(path.join(ctx.dir, f), { validate });
+const spRead = (ctx: Ctx, kind: Kind, validate?: (r: Rec) => string | null) => openStore(ctx).readValidated(kind, { validate });
 // A file the command reads and may then rewrite: a symlinked target is REFUSED (exit 4, nothing written) before it is read, instead of the
 // read's own symlink refusal (exit 2), so the contract for write targets holds.
-const spReadTarget = (ctx: Ctx, f: string, validate?: (r: Rec) => string | null) => { precheckTargets(ctx, [path.join(ctx.dir, f)]); return spRead(ctx, f, validate); };
-// next: [[file, records, old records]]; validate every file, then write only the ones whose canonical text changed.
-async function spWrite(ctx: Ctx, next: Array<[string, Rec[], Rec[]]>): Promise<number> {
-  const S = await import('../../lib/store.ts'), { validators } = await import('../../lib/schema.ts');
-  const out: Array<[string, string]> = [];
-  for (const [f, recs, old] of next) {
-    const text = S.canonFile(recs, S.SCHEMAS[f]); parseJsonl(text, f, { validate: validators[f] } as { validate?: (r: Rec) => string | null }); // learnings.jsonl has no validator: parseJsonl destructures validate, so undefined acts as absent
-    if (text !== S.canonFile(old, S.SCHEMAS[f])) out.push([f, text]);
-  }
-  // Pre-check every target before the first write, so a refusable target (symlink, directory, outside the repo) fails with nothing written.
-  // Refusals are REFUSED errors (exit 4); spErrors passes a PlangraphError through unchanged.
-  precheckTargets(ctx, out.map(([f]) => path.join(ctx.dir, f)));
-  for (const [f, text] of out) writeState(ctx, path.join(ctx.dir, f), text);
-  return out.length;
+const spReadTarget = (ctx: Ctx, kind: Kind, validate?: (r: Rec) => string | null) => { openStore(ctx).precheck([kind]); return spRead(ctx, kind, validate); };
+// next: [[kind, records, old records]]; validate every kind, then write only the ones whose canonical rows changed (one precheck of every target first).
+function spWrite(ctx: Ctx, next: Array<[Kind, Rec[], Rec[]]>): number {
+  return openStore(ctx).writeChanged(next.map(([kind, rows, old]) => ({ kind, rows, old })), { validate: true });
 }
 
 async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; sprint?: string }>): Promise<number> {
@@ -118,10 +109,10 @@ async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; 
     const owner = v.owner, sprintArg = v.sprint;
     if (owner !== undefined && (!owner || owner.startsWith('--') || owner.length > 80 || oneLine(owner, 80) !== owner)) throw usage('--owner needs a plain name (at most 80 characters)');
     if (sprintArg !== undefined && !/^\d{1,4}$/.test(sprintArg)) throw usage('--sprint needs a whole number');
-    const names = { tickets: 'tickets.jsonl', edges: 'edges.jsonl', findings: 'findings.jsonl', refs: 'refs.jsonl', schedule: 'schedule.jsonl' };
-    const existing = Object.fromEntries(Object.entries(names).map(([k, f]) => [k, spReadTarget(ctx, f)]));
+    const names: Record<'tickets' | 'edges' | 'findings' | 'refs' | 'schedule', Kind> = { tickets: 'ticket', edges: 'edge', findings: 'finding', refs: 'ref', schedule: 'schedule' };
+    const existing = Object.fromEntries(Object.entries(names).map(([k, kind]) => [k, spReadTarget(ctx, kind)]));
     const r = SP.ingestPlan({ plan: parsed, ledger, existing, owner, sprint: sprintArg !== undefined ? +sprintArg : undefined } as IngestOpts); // ingestPlan destructures owner and sprint without defaults: undefined and absent read the same
-    await spWrite(ctx, Object.entries(names).map(([k, f]) => [f, r[k as keyof typeof names], existing[k]] as [string, Rec[], Rec[]])); // k is a key of names; ingestPlan returns one record list per name
+    spWrite(ctx, Object.entries(names).map(([k, kind]) => [kind, r[k as keyof typeof names], existing[k]] as [Kind, Rec[], Rec[]])); // k is a key of names; ingestPlan returns one record list per name
     const p = r.report, n = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`, extra: string[] = [];
     if (p.unclassified) extra.push(`${n(p.unclassified, 'unclassified ledger line')} (first: line ${p.firstUnclassified})`);
     if (p.removed) extra.push(`removed ${n(p.removed, 'task')} no longer in the plan`);
@@ -147,14 +138,14 @@ async function spTrack(ctx: Ctx, key: string, jira: string, tasks: string | unde
   needBrain(ctx);
   if (!/^sp:[A-Za-z0-9][A-Za-z0-9._:/-]{0,115}$/.test(key) || key.includes('..')) throw usage('--track needs an sp: ticket (sp:SLUG/N) as the first argument');
   if (!/^[A-Z][A-Z0-9_]{0,23}-\d{1,9}$/.test(jira)) throw usage('--track needs a Jira key such as ABC-123');
-  if (!spRead(ctx, 'tickets.jsonl').some((t) => t.key === key)) throw usage(`unknown ticket ${oneLine(key, 120)}: not in tickets.jsonl`);
-  const xrefs = spReadTarget(ctx, 'xrefs.jsonl'), jiraSys = (r: Rec) => String(r.sys).split(':')[0] === 'jira';
+  if (!spRead(ctx, 'ticket').some((t) => t.key === key)) throw usage(`unknown ticket ${oneLine(key, 120)}: not in tickets.jsonl`);
+  const xrefs = spReadTarget(ctx, 'xref'), jiraSys = (r: Rec) => String(r.sys).split(':')[0] === 'jira';
   if (xrefs.some((r) => r.type === 'ticket' && r.id === key && r.sys === 'jira' && r.xid === jira)) { ctx.io.out(`${oneLine(key, 120)} already tracks ${jira}, nothing written`); return; }
   const mine = xrefs.find((r) => r.type === 'ticket' && r.id === key && jiraSys(r));
   if (mine) throw usage(`${oneLine(key, 120)} already tracks ${oneLine(String(mine.xid), 60)}: one work item is one Jira ticket (edit xrefs.jsonl to change it)`);
   const other = xrefs.find((r) => r.type === 'ticket' && r.sys === 'jira' && r.xid === jira);
   if (other) throw usage(`${jira} is already tracked by ${oneLine(String(other.id), 120)}: one Jira ticket is one work item (edit xrefs.jsonl to change it)`);
-  await spWrite(ctx, [['xrefs.jsonl', [...xrefs, { type: 'ticket', id: key, sys: 'jira', xid: jira }], xrefs]]);
+  spWrite(ctx, [['xref', [...xrefs, { type: 'ticket', id: key, sys: 'jira', xid: jira }], xrefs]]);
   ctx.io.out(`linked ${oneLine(key, 120)} to ${jira} (tracked_by): keep only one of the two placed in the schedule`);
 }
 
@@ -171,7 +162,7 @@ async function spLink(ctx: Ctx, args: Args<{ tasks?: string; track?: string }>):
     if (!key || !planArg) throw usage('usage: plangraph sp-link TICKET PLAN [--tasks 1,3] | sp-link sp:SLUG/N --track ABC-123');
     needBrain(ctx);
     if (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/.test(key) || key.includes('..')) throw usage('invalid ticket key');
-    if (!spRead(ctx, 'tickets.jsonl').some((t) => t.key === key)) throw usage(`unknown ticket ${key}: not in tickets.jsonl`);
+    if (!spRead(ctx, 'ticket').some((t) => t.key === key)) throw usage(`unknown ticket ${key}: not in tickets.jsonl`);
     const plan = spFile(ctx, planArg, 'plan'), text = SP.readSpFile(plan.real, { max: SP.LIMITS.planBytes });
     const parsed = SP.parsePlan(text, plan.rel), ids = parsed.tasks.map((t) => t.id);
     const want = v.tasks !== undefined ? [...new Set(String(v.tasks || '').split(',').map((x) => x.trim()).filter(Boolean))] : ids;
@@ -181,10 +172,10 @@ async function spLink(ctx: Ctx, args: Args<{ tasks?: string; track?: string }>):
     // refs.jsonl is read with its validator plus one rule of sp-link's own: every entry of "plans" is an object (a data error names the line)
     const { validators } = await import('../../lib/schema.ts'), refsRule = validators['refs.jsonl'] as (r: Rec) => string | null;
     const plansRule = (r: Rec) => refsRule(r) ?? (Array.isArray(r.plans) && r.plans.some((x) => x === null || typeof x !== 'object' || Array.isArray(x)) ? '"plans" must be a list of objects' : null);
-    const refs = spReadTarget(ctx, 'refs.jsonl', plansRule), prev = refs.find((r) => r.key === key) || { key, plans: [], files: {} };
+    const refs = spReadTarget(ctx, 'ref', plansRule), prev = refs.find((r) => r.key === key) || { key, plans: [], files: {} };
     const have = (id: string) => ((prev.plans || []) as Array<{ plan?: unknown; task?: unknown }>).some((x) => x.plan === plan.rel && String(x.task) === id); // plansRule: plans is absent, null or a list of objects
     const rec = { ...prev, plans: [...((prev.plans || []) as unknown[]), ...want.filter((id) => !have(id)).map((id) => ({ plan: plan.rel, task: id }))] };
-    await spWrite(ctx, [['refs.jsonl', [...refs.filter((r) => r.key !== key), rec], refs]]);
+    spWrite(ctx, [['ref', [...refs.filter((r) => r.key !== key), rec], refs]]);
     ctx.io.out(`linked ${oneLine(key, 120)} to ${oneLine(plan.rel, 200)}: ${want.length} task${want.length === 1 ? '' : 's'}${unmatched ? `; ${unmatched} not matched by ref_heading (plangraph stale cannot fingerprint them)` : ''}`);
   } catch (e) { spErrors(e); }
   return 0;
@@ -211,11 +202,11 @@ async function learn(ctx: Ctx, args: Args<{ 'from-wolf'?: string }>): Promise<nu
       if (hits.length > 1) throw usage('that text matches more than one repo rule (nothing written)');
       entry = hits[0] as RepoRule; // hits.length is 1: both other cases threw above
     }
-    const text = oneLine(entry.text, 500), old = spReadTarget(ctx, 'learnings.jsonl');
+    const text = oneLine(entry.text, 500), old = spReadTarget(ctx, 'learning');
     if (old.some((x) => typeof x.text === 'string' && oneLine(x.text, 500) === text)) { ctx.io.out('already present, nothing written'); return 0; }
     let n = 0; for (const x of old) { const m = /^W-(\d{1,9})$/.exec(String(x.id)); if (m) n = Math.max(n, +(m[1] as string)); } // group 1 is not optional: it is set in every match
     const rec = { id: `W-${n + 1}`, kind: 'rule', topic: 'repo', text, why: '', source: 'openwolf:cerebrum' };
-    await spWrite(ctx, [['learnings.jsonl', [...old, rec], old]]);
+    spWrite(ctx, [['learning', [...old, rec], old]]);
     ctx.io.out(`copied repo rule ${oneLine(entry.handle, 20)} to learnings.jsonl as ${oneLine(rec.id, 20)} (kind rule, topic repo, source openwolf:cerebrum); run \`plangraph build\``);
     ctx.io.outBlock(W.fenceWolf('wolf-cerebrum', text).split('\n'));
   } catch (e) { spErrors(e); }

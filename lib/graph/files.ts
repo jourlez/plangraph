@@ -3,7 +3,9 @@
 // relations, ids, endpoints, and duplicate keys. Extension types (`x-<sys>.<kind>`), extension relations (`x-<sys>/<rel>`) and unknown
 // `sys` values of xrefs are accepted and counted, never an error: a newer tool may write them, an older one must still read the directory.
 import path from 'node:path';
-import { parseJsonl, presentDataFile, readDataCapped, IngestError, DATA_REFUSALS } from '../jsonl.ts';
+import { parseJsonl, IngestError } from '../jsonl.ts';
+import { readStoreAt, kindOfFile } from '../planstore.ts';
+import type { Kind } from '../planstore.ts';
 import { validators } from '../schema.ts';
 import type { Rec } from '../schema.ts';
 import { canonLine } from '../store.ts';
@@ -164,12 +166,10 @@ const CAP = 64 * 1024 * 1024;
 /** Every graph file of a plan directory (a missing file gives no rows; a symlink or a non-regular file is refused, as for the v1 files). */
 export function readGraphFiles(dir: string): GraphFiles {
   const notes: GraphNotes = { warnings: [], ext: 0 }, got: Record<string, readonly Rec[]> = {};
+  const st = readStoreAt(dir);
   for (const f of GRAPH_FILES) {
-    const p = path.join(dir, f);
-    if (!presentDataFile(p)) { got[f] = []; continue; }
-    let text: string;
-    try { text = readDataCapped(p, CAP); } catch (e) { if (DATA_REFUSALS.has((e as { code?: string }).code as string)) throw new IngestError(`${f}: ${(e as Error).message}`); throw e; } // whatever was thrown: its code is read
-    got[f] = parseGraphFile(f, text, notes);
+    const text = st.readText(kindOfFile(f) as Kind, { maxBytes: CAP }); // GRAPH_FILES are the graph kinds' own file names; a missing file gives no rows, a symlink or a refusal throws
+    got[f] = text === null ? [] : parseGraphFile(f, text, notes);
   }
   const of = <T>(f: string): readonly T[] => got[f] as unknown as readonly T[]; // parseGraphFile returned rows of that file, shape-checked
   return { people: of('people.jsonl'), sprints: of('sprints.jsonl'), epics: of('epics.jsonl'), repos: of('repos.jsonl'), capacity: of('capacity.jsonl'), links: of('links.jsonl'), xrefs: of('xrefs.jsonl'), ext: notes.ext, warnings: notes.warnings };

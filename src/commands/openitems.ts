@@ -2,9 +2,10 @@
 // file or stdin, and --suggest-from-status (prints suggested --register lines from .wolf/STATUS.md; registers nothing).
 // `--close KEY KIND`, `--reopen KEY KIND` and `--register KEY KIND` take the two positionals; only one of them per run.
 import path from 'node:path';
-import { readJsonl, readCapped } from '../../lib/jsonl.ts';
+import { readCapped } from '../../lib/jsonl.ts';
+import { openStore } from '../../lib/planstore.ts';
 import { oneLine, sanitizeText } from '../../lib/sanitize.ts';
-import { verbose, usage, modelFromDb, readItems, precheckTargets, writeState, fenceBlock } from './shared.ts';
+import { verbose, usage, modelFromDb, readItems, writeState, fenceBlock } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 /** The options of open-items (see `commands` below), as parse() gives them. */
@@ -20,8 +21,8 @@ async function suggestFromStatus(ctx: Ctx, args: Args<OpenItemsValues>): Promise
   if (v.write || v.register || v.close || v.reopen) throw usage('--suggest-from-status only prints; it cannot be combined with --write, --register, --close or --reopen');
   const W = await import('../../lib/integrations/openwolf.ts'), out = ctx.io.out, r = W.readWolfFile(ctx.root, 'STATUS.md');
   if (!r.ok) { out(r.missing ? 'no suggestions: .wolf/STATUS.md not found' : `warning: ${r.warning}`); return 0; }
-  const known = new Set(readJsonl(path.join(ctx.dir, 'tickets.jsonl')).map((t) => t.key));
-  const openPairs = new Set(readJsonl(path.join(ctx.dir, 'open-items.jsonl')).filter((x) => x && x.status !== 'done').map((x) => `${x.key}|${x.kind}`));
+  const store = openStore(ctx), known = new Set(store.readValidated('ticket').map((t) => t.key));
+  const openPairs = new Set(store.readValidated('openitem').filter((x) => x && x.status !== 'done').map((x) => `${x.key}|${x.kind}`));
   const unknown = new Set<string>(), seen = new Set<string>(), lines: string[] = [];
   for (const b of W.parseStatus(r.text).bullets) {
     if (b.section === 'done') continue;
@@ -81,9 +82,9 @@ async function openItems(ctx: Ctx, args: Args<OpenItemsValues>): Promise<number>
     if (act === 'register') items = OI.registerItem(items, { key, kind, owner: v.owner, due_sprint: v.due ?? null, text: v.text ?? '' } as NonNullable<Parameters<typeof OI.registerItem>[1]>); // an act needs exactly 2 positionals (checked above); registerItem destructures owner without a default: undefined reads as absent
   } catch (e) { throw usage(oneLine((e as Error).message, 200)); } // lib/openitems.ts throws an Error with a fixed message
   if (v.write || act) {
-    const files: [string, string] = [path.join(ctx.dir, 'open-items.jsonl'), path.join(ctx.dir, 'OPEN-ITEMS.md')];
-    precheckTargets(ctx, files);
-    writeState(ctx, files[0], OI.serializeItems(items)); writeState(ctx, files[1], OI.renderOpenItems(items));
+    const store = openStore(ctx), md = path.join(ctx.dir, 'OPEN-ITEMS.md');
+    store.precheck(['openitem'], [md]);
+    store.writeText('openitem', OI.serializeItems(items)); writeState(ctx, md, OI.renderOpenItems(items));
     ctx.io.out(`open-items.jsonl and OPEN-ITEMS.md written (${items.filter((i) => i.status !== 'done').length} open)`);
     return 0;
   }

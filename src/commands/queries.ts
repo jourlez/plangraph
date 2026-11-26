@@ -3,14 +3,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readDataCapped, presentDataFile } from '../../lib/jsonl.ts';
+import { readDataCapped } from '../../lib/jsonl.ts';
+import { openStore, kindFile, SRC_KINDS, GRAPH_KINDS } from '../../lib/planstore.ts';
 import { oneLine, fenceInline } from '../../lib/sanitize.ts';
 import { makeGit } from '../../lib/gitsafe.ts';
 import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
 import { reach } from '../../lib/graph/views.ts';
-import { BIN, CUR, SRC_FILES, GRAPH_SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
+import { BIN, CUR, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { IndexHandle } from '../db.ts';
@@ -368,17 +369,15 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
   needBrain(ctx);
   const { loadModel, CONFIG_MAX } = await import('../../lib/model.ts'), V = await import('../../lib/verify.ts');
   const model = loadModel(ctx.dir, { config: ctx.config() }), h = crypto.createHash('sha256'); let last = 0;
-  for (const f of ['config.json', ...SRC_FILES]) {
-    let b = '';
-    if (f !== 'config.json' && !presentDataFile(path.join(ctx.dir, f))) { h.update(`${f}\0${b.length}\0${b}\0`); continue; } // a symlinked data file is refused
-    try { b = readDataCapped(path.join(ctx.dir, f), f === 'config.json' ? CONFIG_MAX : MAX_DATA); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // O_NOFOLLOW + dev/ino: no symlink, no swap; fs errno errors
-    h.update(`${f}\0${b.length}\0${b}\0`);
+  const store = openStore(ctx), enoent = (e: unknown) => { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }; // fs errno errors
+  { let b = ''; try { b = readDataCapped(path.join(ctx.dir, 'config.json'), CONFIG_MAX); } catch (e) { enoent(e); } h.update(`config.json\0${b.length}\0${b}\0`); }
+  for (const k of SRC_KINDS) {
+    let b = ''; try { b = store.readText(k, { maxBytes: MAX_DATA, bare: true }) ?? ''; } catch (e) { enoent(e); } // a symlinked data file is refused; O_NOFOLLOW + dev/ino: no swap
+    h.update(`${kindFile(k)}\0${b.length}\0${b}\0`);
   }
-  for (const f of GRAPH_SRC_FILES) { // a graph file counts only when it is there: a directory without one keeps its 0.3.0 digest
-    if (!presentDataFile(path.join(ctx.dir, f))) continue;
-    let b = '';
-    try { b = readDataCapped(path.join(ctx.dir, f), MAX_DATA); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // as above: O_NOFOLLOW + dev/ino; fs errno errors
-    h.update(`${f}\0${b.length}\0${b}\0`);
+  for (const k of GRAPH_KINDS) { // a graph file counts only when it is there: a directory without one keeps its 0.3.0 digest
+    let b: string | null = ''; try { b = store.readText(k, { maxBytes: MAX_DATA, bare: true }); } catch (e) { enoent(e); } // as above
+    if (b !== null) h.update(`${kindFile(k)}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && (s.sprint as number) > last) last = (s.sprint as number); // Number.isInteger is the check
   return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).filter((x) => !x.warn).length} violations @${h.digest('hex').slice(0, 8)}`;
@@ -396,12 +395,18 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
   if (!dir || !dir.isDirectory()) return null;
   if (lst(path.join(ctx.dir, INDEX_FILE))) return null; // something is at the index path: not "no index" (dangling symlink, FIFO, ...)
   let data = false;
-  for (const [f, cap] of ([['config.json', CONFIG_MAX], [FORMAT_FILE, CONFIG_MAX], ...SRC_FILES.map((x) => [x, MAX_DATA])] as Array<[string, number]>)) { // a literal list of these tuples
+  for (const [f, cap] of ([['config.json', CONFIG_MAX], [FORMAT_FILE, CONFIG_MAX]] as Array<[string, number]>)) { // a literal list of these tuples
     const p = path.join(ctx.dir, f), st = lst(p);
     if (!st) continue;
     if (!st.isFile() || st.size > cap) return null;
     try { fs.accessSync(p, fs.constants.R_OK); } catch { return null; }
-    if (f === 'config.json' || f === 'tickets.jsonl') data = true;
+    if (f === 'config.json') data = true;
+  }
+  const store = openStore(ctx);
+  for (const k of SRC_KINDS) {
+    const state = store.probe(k, MAX_DATA);
+    if (state === 'unsafe') return null;
+    if (state === 'ok' && k === 'ticket') data = true;
   }
   if (!data) return null;
   const relDir = rel(ctx, ctx.dir), where = SAFE_ATTR_DIR.test(relDir) && relDir.length <= 40 ? relDir : 'the plan directory', head = `plangraph: plan data found in ${where} but no index: run`;

@@ -32,6 +32,8 @@ import { SCHEMAS } from '../lib/store.ts';
 import type { Schema } from '../lib/store.ts';
 import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.ts';
 import { validators } from '../lib/schema.ts';
+import { readStoreAt, kindFile, kindOfFile } from '../lib/planstore.ts';
+import type { Kind } from '../lib/planstore.ts';
 import { GRAPH_FILES, parseGraphFile } from '../lib/graph/files.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
 import { CACHE_FILES, OBS_COLUMNS, obsProblem } from '../lib/graph/obs.ts';
@@ -47,26 +49,26 @@ const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 
 const OBS_FILE = 'cache/obs'; // the name of the table's source in TABLES; the real files are CACHE_FILES
-// [table, file, primary key, INTEGER columns, upsert]. learnings and refs are INSERT OR REPLACE (a later line with the same id wins),
+// [table (a plan kind, or obs), primary key, INTEGER columns, upsert]. learnings and refs are INSERT OR REPLACE (a later line with the same id wins),
 // as in bin/plangraph; the other tables refuse a duplicate primary key.
-const DEFS: Array<[string, string, string[], string[], boolean]> = [
-  ['ticket', 'tickets.jsonl', ['key'], ['sp', 'v2_sprint'], false],
-  ['schedule', 'schedule.jsonl', ['version', 'key'], ['sprint'], false],
-  ['edge', 'edges.jsonl', ['consumer', 'producer'], [], false],
-  ['evidence', 'evidence.jsonl', [], [], false],
-  ['finding', 'findings.jsonl', [], [], false],
-  ['meta', 'meta.jsonl', ['k'], [], false],
-  ['learning', 'learnings.jsonl', ['id'], [], true],
-  ['ref', 'refs.jsonl', ['key'], [], true],
+const DEFS: Array<[Kind | 'obs', string[], string[], boolean]> = [
+  ['ticket', ['key'], ['sp', 'v2_sprint'], false],
+  ['schedule', ['version', 'key'], ['sprint'], false],
+  ['edge', ['consumer', 'producer'], [], false],
+  ['evidence', [], [], false],
+  ['finding', [], [], false],
+  ['meta', ['k'], [], false],
+  ['learning', ['id'], [], true],
+  ['ref', ['key'], [], true],
   // graph files: nodes keyed per file, links a set (no key), xrefs keyed by the whole reference
-  ['person', 'people.jsonl', ['id'], [], false],
-  ['sprint', 'sprints.jsonl', ['n'], ['n'], false],
-  ['epic', 'epics.jsonl', ['id'], [], false],
-  ['repo', 'repos.jsonl', ['id'], [], false],
-  ['capacity', 'capacity.jsonl', ['person', 'sprint'], ['sprint', 'sp', 'review_h'], false], // sp and review_h keep INTEGER affinity (a fractional value stays a number, as ticket.sp)
-  ['link', 'links.jsonl', [], [], false],
-  ['xref', 'xrefs.jsonl', ['type', 'id', 'sys', 'xid'], [], false],
-  ['obs', OBS_FILE, ['sys', 'xid'], [], false], // rows of every cache/<provider>.jsonl; no file of its own, so it is never exported
+  ['person', ['id'], [], false],
+  ['sprint', ['n'], ['n'], false],
+  ['epic', ['id'], [], false],
+  ['repo', ['id'], [], false],
+  ['capacity', ['person', 'sprint'], ['sprint', 'sp', 'review_h'], false], // sp and review_h keep INTEGER affinity (a fractional value stays a number, as ticket.sp)
+  ['link', [], [], false],
+  ['xref', ['type', 'id', 'sys', 'xid'], [], false],
+  ['obs', ['sys', 'xid'], [], false], // rows of every cache/<provider>.jsonl; no file of its own, so it is never exported
 ];
 const V1_TABLE_COUNT = 8; // the first eight rows of DEFS are the tables of format 1 (an index built by 0.3.0 holds exactly these)
 const q = (c: string): string => `"${c}"`; // every column name in SQL is quoted
@@ -86,7 +88,7 @@ const PREP = new Map<string, Prep>([
   ['link', [keep, canonConv]],
   ['repo', [keep, canonConv]],
   ['obs', [keep, canonConv]],
-  ['schedule', [(r) => ({ ...r, version: r.version ?? (SCHEMAS['schedule.jsonl'] as Schema).defaults.version }), toObj]], // a key SCHEMAS literally declares
+  ['schedule', [(r) => ({ ...r, version: r.version ?? (SCHEMAS[kindFile('schedule')] as Schema).defaults.version }), toObj]], // a key SCHEMAS literally declares
   ['learning', [(r) => ({ ...r, why: r.why || '', source: r.source || '' }), same]],
   ['ref', [(r) => ({ ...r, plans: JSON.stringify(r.plans || []), files: JSON.stringify(r.files || {}), fp_files: r.fp_files || '', jira_updated: r.jira_updated || '', audited_at: r.audited_at || '' }), same]],
 ]);
@@ -95,7 +97,8 @@ export interface TableSpec { name: string; file: string; columns: readonly strin
   columnList: string; placeholders: string; ddl: string; prep: Prep; order: string }
 // Columns whose record values are converted by PREP before the insert (refs.plans is an array, refs.files an object): not scalar-checked.
 const PREPPED = new Map([['ref', new Set(['plans', 'files'])], ['person', new Set(['active'])], ['link', new Set(['attrs'])], ['repo', new Set(['langs', 'frameworks', 'cmds', 'entry', 'owners', 'paths'])], ['obs', new Set(['fields', 'links'])]]);
-export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, file, pk, ints, upsert]) => {
+export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, ints, upsert]) => {
+  const file = name === 'obs' ? OBS_FILE : kindFile(name); // a plan table is named by its kind
   const columns = Object.freeze(file === OBS_FILE ? [...OBS_COLUMNS] : [...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
   for (const c of [name, ...columns]) if (!IDENT.test(c) || c === 'extra') throw new Error(`bad identifier in schema: ${c}`);
   const all = [...columns, 'extra'];
@@ -185,7 +188,10 @@ const validatorOf = (t: Readonly<TableSpec>): ((r: Record<string, unknown>) => s
 // ---------- sources and fingerprint ----------
 // Reads every index source once (capped, regular files only). Missing file -> null. Returns [[file, text|null]] sorted by file name.
 function readSources(dir: string): Array<[string, string | null]> {
+  const store = readStoreAt(dir);
   return SOURCE_FILES.map((f) => {
+    const kind = kindOfFile(f);
+    if (kind) return [f, store.readSource(kind, MAX_SOURCE_BYTES)]; // a plan kind: the store's capped, symlink-refusing read
     // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
     if (f.startsWith('cache/')) { let c = null; try { c = fs.lstatSync(path.join(dir, 'cache')); } catch { /* no cache */ } if (c?.isSymbolicLink()) throw new IngestError('cache: is a symlink, not a directory'); } // the cache directory itself is never followed
     let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors

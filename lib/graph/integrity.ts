@@ -1,8 +1,7 @@
 // Referential integrity of the graph files (docs/FORMAT.md section 6). integrity() returns what parseGraphFile cannot see: a link or xref
 // that names no node, one external id on two nodes, a half-dated sprints file, and one work item placed twice. Field shapes, unknown
 // relations and duplicate keys are parse errors (exit 2), never returned here. A directory with no graph file has no violation.
-import path from 'node:path';
-import { readJsonl } from '../jsonl.ts';
+import { readStoreAt } from '../planstore.ts';
 import { readGraphFiles, EXT_TYPE_RE } from './files.ts';
 import type { GraphFiles } from './files.ts';
 import { loadModel } from '../model.ts';
@@ -66,5 +65,5 @@ export function integrityOf(dir: string, config: PlanConfig, items: readonly Ope
   const files = readGraphFiles(dir);
   if (!files.people.length && !files.sprints.length && !files.epics.length && !files.repos.length && !files.capacity.length && !files.links.length && !files.xrefs.length) return { files, violations: [] };
   const m = loadModel(dir, { config });
-  return { files, violations: integrity(files, { tickets: [...m.tickets.values()], schedule: readJsonl(path.join(dir, 'schedule.jsonl')) as ScheduleRow[], refs: m.refs, config }, items) };
+  return { files, violations: integrity(files, { tickets: [...m.tickets.values()], schedule: readStoreAt(dir).readValidated('schedule') as ScheduleRow[], refs: m.refs, config }, items) };
 }

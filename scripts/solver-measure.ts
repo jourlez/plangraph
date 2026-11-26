@@ -7,6 +7,7 @@
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { spawnSync } from 'node:child_process';
 import { genPlan } from '../test/fixtures/gen.ts';
 import { listSchedule } from '../lib/heuristic.ts';
+import { openStore } from '../lib/planstore.ts';
 import { keepVariant } from '../lib/solver-measure.ts';
 import type { Run } from '../lib/solver-measure.ts';
 
@@ -16,8 +17,8 @@ const work = fs.mkdtempSync(path.join(os.tmpdir(), 'solver-measure-'));
 process.on('exit', () => fs.rmSync(work, { recursive: true, force: true }));
 const g = genPlan({ n: Number(N), people: 4, density: 0.1, seed: 7, cap: Number(process.env.CAP || 60) });
 const dir = path.join(work, 'plan'); fs.mkdirSync(dir);
-const wjl = (f: string, rows: object[]) => fs.writeFileSync(path.join(dir, f), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
-wjl('tickets.jsonl', g.tickets); wjl('edges.jsonl', g.edges); wjl('schedule.jsonl', g.schedule); fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(g.config));
+const store = openStore({ dir, root: work });
+store.writeKind('ticket', g.tickets); store.writeKind('edge', g.edges); store.writeKind('schedule', g.schedule); fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(g.config));
 
 const run = (extra: string[], seed: number): Run & { end: number | null } => {
   const out = path.join(work, `out-${extra.join('_').replace(/\W/g, '')}-${seed}.json`);
