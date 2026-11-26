@@ -10,6 +10,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { parseCerebrum, parseStatus, scanKeys, anatomyLookup, readAnatomyIndex, readWolfFile, repoRuleList, renderRepoRules, handleOf } from '../lib/integrations/openwolf.ts';
 import type { RepoRule } from '../lib/integrations/openwolf.ts';
 import { canonFile, SCHEMAS } from '../lib/store.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 // Fixtures are the synthetic ones from docs/research/integrations/openwolf.md section 7 (invented names, no real data).
 const HERE = import.meta.dirname;
@@ -41,6 +42,7 @@ function repo({ wolf = { 'cerebrum.md': fx('cerebrum.drifted.md'), 'STATUS.md': 
   execFileSync('git', ['init', '-q'], { cwd: root });
   const r = run(root, 'init'); assert.equal(r.status, 0, r.stderr);
   put(root, '.plangraph/tickets.jsonl', TICKETS); put(root, '.plangraph/schedule.jsonl', SCHEDULE);
+  adoptPlanDir(path.join(root, '.plangraph'));
   for (const [n, t] of Object.entries(wolf)) put(root, `.wolf/${n}`, t);
   return root;
 }
@@ -369,16 +371,19 @@ test('card --line: one deterministic line under 40 tokens, no text from any othe
   put(root, '.wolf/cerebrum.md', '## Do-Not-Repeat\n- changed\n');
   assert.equal(run(root, 'card', '--line').stdout, r.stdout, 'a .wolf change does not move the fingerprint');
   put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"SHOP-12","owner":"Ana","sprint":5}\n{"version":"current","key":"SHOP-31","owner":"Ben","sprint":4}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   const r2 = run(root, 'card', '--line');
   assert.match(r2.stdout, /^plangraph: 2 tickets, last sprint 5, 0 violations @[0-9a-f]{8}\n$/);
   assert.notEqual(r2.stdout.slice(-10), r.stdout.slice(-10), 'fingerprint changed with the schedule');
   put(root, '.plangraph/edges.jsonl', '{"consumer":"SHOP-31","producer":"SHOP-12","kind":"plan_need","note":""}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   assert.match(run(root, 'card', '--line').stdout, /^plangraph: 2 tickets, last sprint 5, 1 violations @/);
 });
 
 test('open-items --suggest-from-status prints --register lines for open bullets naming plan tickets and registers nothing', () => {
   const root = repo({ wolf: { 'STATUS.md': fx('status.handoff.md') + '\n## Next\n- DEM-404 unknown key and SHOP-31 again with a \'quote\' and $(touch PWNED) and a very long tail that goes on and on past eighty characters\n' } });
   put(root, '.plangraph/open-items.jsonl', '{"key":"SHOP-12","kind":"decision","owner":"Ana","due_sprint":2,"status":"open","text":"keep"}\n{"key":"SHOP-31","kind":"blocker","owner":"Ben","due_sprint":3,"status":"done","text":"closed"}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   put(root, '.plangraph/OPEN-ITEMS.md', '# keep\n');
   const before = { wolf: walk(path.join(root, '.wolf')), plangraph: walk(path.join(root, '.plangraph')) };
   const r = run(root, 'open-items', '--suggest-from-status');
@@ -423,7 +428,7 @@ test('real-file smoke: a drifted real cerebrum.md and STATUS.md parse without th
 test('open-items --suggest-from-status skips a ticket and kind that already has an OPEN item, but not a closed one', () => {
   const st = '## Next\n- SHOP-31 follow up on refunds\n\n### Open decisions\n- SHOP-31 decide partial refunds\n\n## Blockers\n- SHOP-31 waiting on bank\n';
   const root = repo({ wolf: { 'STATUS.md': st } });
-  const items = (rows: object[]) => put(root, '.plangraph/open-items.jsonl', rows.map((r) => JSON.stringify({ owner: 'Ana', due_sprint: 2, text: 't', ...r })).join('\n') + '\n');
+  const items = (rows: object[]) => { put(root, '.plangraph/open-items.jsonl', rows.map((r) => JSON.stringify({ owner: 'Ana', due_sprint: 2, text: 't', ...r })).join('\n') + '\n'); adoptPlanDir(path.join(root, '.plangraph')); };
   items([{ key: 'SHOP-31', kind: 'decision', status: 'open' }, { key: 'SHOP-31', kind: 'blocker', status: 'done' }]);
   const before = walk(path.join(root, '.plangraph'));
   const r = run(root, 'open-items', '--suggest-from-status'); assert.equal(r.status, 0, r.stderr);

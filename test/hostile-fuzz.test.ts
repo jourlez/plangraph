@@ -15,6 +15,7 @@ import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { registry } from '../src/registry.ts';
 import { guardOutput, oneLine } from '../lib/sanitize.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const FX = path.join(import.meta.dirname, 'fixtures');
@@ -87,6 +88,7 @@ async function makeFixture(root: string) {
   put(root, 'issue.json', JSON.stringify({ issues: [{ key: 'H-1', fields: { summary: M('jsummary'), status: { name: M('jstatus') }, description: M('jdesc'), assignee: { displayName: M('jassignee') }, updated: '2026-11-20T10:00:00.000+0000' } }], 'H-1': { key: 'H-1', fields: { summary: M('jsummary2'), description: M('jdesc2'), status: { name: M('jstatus2') } } } }));
   put(root, 'snap.json', JSON.stringify({ 'H-1': { status: M('snapstatus') }, [KEY]: { status: 'Done' } }));
   put(root, 'f.jsonl', jl([{ key: 'H-3', kind: 'late', text: M('findingsfile') }]));
+  adoptPlanDir(path.join(root, '.plangraph'));
   put(root, '.wolf/cerebrum.md', fs.readFileSync(path.join(FX, 'openwolf/cerebrum.template.md'), 'utf8')
     .replace('## Key Learnings\n', `## Key Learnings\n\n- Learned ${M('wolflearn')}\n`)
     .replace('## Do-Not-Repeat\n', `## Do-Not-Repeat\n\n[2026-01-02] ${RULE_TEXT}\n`));
@@ -179,6 +181,7 @@ test('hostile fixture: no command forges a line, a fence or a control sequence i
     fs.cpSync(FIXTURE, dir, { recursive: true, verbatimSymlinks: true });
     const safe = shape.includes(SAFE_REFS), args = shape.filter((a) => a !== SAFE_REFS).map((a) => (a === '@handle' ? HANDLE : a));
     if (safe) fs.writeFileSync(path.join(dir, '.plangraph/refs.jsonl'), safeRefs());
+    adoptPlanDir(path.join(dir, '.plangraph'));
     const r = await run(dir, args), label = args.map((a) => JSON.stringify(a).slice(0, 30)).join(' ');
     if (r.status === null || r.status > 4) { crashed++; found.push(`${label}: exit ${r.status} ${r.stderr.slice(0, 300)}`); }
     found.push(...problems(r.stderr, `${label} stderr`));

@@ -11,6 +11,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { buildIndex, openIndex, INDEX_FILE, CONTENT_KEY, TABLES } from '../src/db.ts';
 import { PlangraphError } from '../src/errors.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -42,6 +43,7 @@ function repo() {
   put('xrefs.jsonl', [{ type: 'ticket', id: 'T-1', sys: 'jira:acme', xid: 'ABC-1', note: 'n' }]);
   fs.mkdirSync(path.join(b, 'cache'));
   put('cache/generic.jsonl', [{ sys: 'x-demo', xid: 'item-1', type: 'x-demo.item', fields: { state: 'open' }, links: [], fp: '0123456789abcdef', seen: '2026-11-26' }]);
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
@@ -144,6 +146,7 @@ test('the digest of a 1,400-ticket index is the full digest, the same on every r
     if (i) e.push({ consumer: `T-${i}`, producer: `T-${(i * 7919) % i}`, kind: 'plan_need' });
   }
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(t)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(sc)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(e));
+  adoptPlanDir(b);
   const r = buildIndex({ dir: b });
   using h = openIndex(r.file, { dir: b });
   for (let k = 0; k < 3; k++) assert.equal(contentDigest(h), r.digest);

@@ -12,6 +12,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { openIndex, INDEX_FILE } from '../src/db.ts';
 import { PlangraphError } from '../src/errors.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -31,6 +32,7 @@ function repo() {
   assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), `${JSON.stringify({ key: 'T-1', summary: 'one', sp: 1, v2_owner: 'Ana', v2_sprint: 1 })}\n`);
+  adoptPlanDir(b);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
 const NOT_FILE = (e: unknown) => e instanceof PlangraphError && e.code === 'DATA' && e.message === 'the index is not a regular file' && e.hint === 'run `plangraph build` to rebuild it';

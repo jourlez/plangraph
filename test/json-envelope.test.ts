@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { registry } from '../src/registry.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph'), FX = path.join(import.meta.dirname, 'fixtures');
 let BASE = '', FIXTURE = '', EMPTY = '';
@@ -37,6 +38,7 @@ before(async () => {
   put(FIXTURE, '.plangraph/history.jsonl', jl([30, 34, 28, 36].map((d, i) => ({ sprint: i + 1, planned: 40, done: d }))));
   put(FIXTURE, 'docs/plan.md', '# Plan\n\n### Task 1: first\nbuild a\n');
   put(FIXTURE, '.plangraph/refs.jsonl', jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }], files: {}, fp_files: '', jira_updated: '', audited_at: 'base' }]));
+  adoptPlanDir(path.join(FIXTURE, '.plangraph'));
   put(FIXTURE, 'sched.json', JSON.stringify([{ item: 'T-1', owner: 'Ana', sprint: 1 }, { item: 'T-2', owner: 'Ana', sprint: 2 }, { item: 'T-3', owner: 'Ben', sprint: 2 }]));
   put(FIXTURE, 'issue.json', JSON.stringify({ 'T-1': { key: 'T-1', fields: { summary: 's', status: { name: 'Done' } } } }));
   put(FIXTURE, 'batch.json', JSON.stringify({ schema: 'plangraph-ext-batch@1', sys: 'x-demo', observations: [{ xid: 'item-1', type: 'x-demo.item', fields: { state: 'open' }, links: [] }] }));

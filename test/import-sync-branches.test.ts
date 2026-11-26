@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { contentDigest, TABLES } from '../src/db.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
@@ -20,6 +21,7 @@ const repo = (tickets: readonly object[] = [{ key: 'T-1', sp: 1 }]): string => {
   const d = path.join(BASE, `r-${n++}`); fs.mkdirSync(d); execFileSync('git', ['init', '-q'], { cwd: d, env: env() });
   assert.equal(run(d, ['init']).status, 0);
   put(d, '.plangraph/tickets.jsonl', jl(tickets));
+  adoptPlanDir(path.join(d, '.plangraph'));
   return d;
 };
 const batch = (...xids: string[]) => JSON.stringify({ schema: 'plangraph-ext-batch@1', sys: 'x-demo', observations: xids.map((xid) => ({ xid, type: 'x-demo.item', fields: { state: 'open' }, links: [] })) });
@@ -176,6 +178,7 @@ function syncRepo(tickets: readonly object[], sched: readonly object[], obs: rea
   put(d, '.plangraph/schedule.jsonl', jl(sched));
   for (const f of ['jira', 'sp']) { const mine = obs.filter((o) => String((o as { sys: string }).sys).split(':')[0] === f); if (mine.length) put(d, `.plangraph/cache/${f}.jsonl`, jl(mine)); }
   if (config) put(d, '.plangraph/config.json', JSON.stringify(config));
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0); void b;
   return d;
 }
@@ -234,6 +237,7 @@ test('sync --plan: long reports are capped at 40 lines and 20 push lines; -v lif
 test('sync --plan: an orphaned xref prints a bare line (no plan value, no observed text) and a null observed in JSON', () => {
   const d = syncRepo([{ key: 'T-1', sp: 1 }], [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }], [row('ABC-2', {})]);
   put(d, '.plangraph/xrefs.jsonl', jl([{ type: 'ticket', id: 'T-1', sys: 'jira:acme', xid: 'ABC-9', src: 'hand', seen: '2026-11-22' }]));
+  adoptPlanDir(path.join(d, '.plangraph'));
   assert.equal(run(d, ['build']).status, 0);
   const r = run(d, ['sync', '--plan']);
   assert.equal(r.status, 0, r.stderr);

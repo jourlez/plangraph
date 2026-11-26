@@ -16,6 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { TABLES, SIDECARS, EXPECTED_COLUMNS, EXPECTED_INDEXES, INDEX_FILE } from '../src/db.ts';
 import { G_LINKS_SQL, G_NODES_SQL } from '../lib/graph/views.ts';
 import { downgradeToV1 } from './helpers/older-index.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const SOLVE = path.join(import.meta.dirname, '../bin/plangraph-solve');
@@ -56,6 +57,7 @@ function repo() {
   fs.writeFileSync(path.join(b, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
   fs.writeFileSync(path.join(b, 'learnings.jsonl'), '');
+  adoptPlanDir(b);
   const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: d, encoding: 'utf8', env }); assert.equal(bl.status, 0, bl.stderr);
   return { d, b, env, db: path.join(b, INDEX_FILE), cfg: path.join(b, 'config.json') };
 }
@@ -82,6 +84,7 @@ test('the solver loads an index built by this tree with graph files present (sev
   fs.writeFileSync(path.join(r.b, 'links.jsonl'), jl([{ from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'repo:web', to_type: 'repo', attrs: { why: 'x' } }, { from: 'pr-1', from_type: 'x-github.pr', rel: 'x-github/closes', to: 'T-2', to_type: 'ticket' }]));
   fs.writeFileSync(path.join(r.b, 'xrefs.jsonl'), jl([{ type: 'ticket', id: 'T-1', sys: 'jira:acme', xid: 'ABC-1' }]));
   fs.writeFileSync(path.join(r.b, 'capacity.jsonl'), jl([{ person: 'Ana', sprint: 1, sp: 2.5 }]));
+  adoptPlanDir(r.b);
   const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(bl.status, 0, bl.stderr);
   assert.deepEqual(py(r.d, fromDb(r)), { ok: true, tickets: ['T-1', 'T-2'], edges: 1 });
 });
@@ -174,6 +177,7 @@ test('index mode keeps impl_status, so a done sp: task is closed history for the
   ]));
   fs.writeFileSync(path.join(r.b, 'edges.jsonl'), '');
   fs.writeFileSync(path.join(r.b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'sp:plan/1', owner: 'Ana', sprint: 1 }]));
+  adoptPlanDir(r.b);
   const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(bl.status, 0, bl.stderr);
   const body = `a = types.SimpleNamespace(jsonl_dir=None, config=${JSON.stringify(r.cfg)}, db=${JSON.stringify(r.db)})
 t, e, s, c = m.load_raw(a)

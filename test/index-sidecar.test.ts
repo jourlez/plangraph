@@ -16,6 +16,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { buildIndex, openIndex, stampContent, IndexHandle, INDEX_FILE } from '../src/db.ts';
 import { PlangraphError } from '../src/errors.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -33,6 +34,7 @@ function repo() {
   const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'one', sp: 3, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
@@ -110,6 +112,7 @@ test('build refuses (exit 4) a symlinked or non-file sidecar, follows nothing, r
     if (kind === 'symlink') fs.symlinkSync(victim, p); else fs.mkdirSync(p);
     const before = fs.readFileSync(file);
     fs.appendFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-3', summary: 'three', sp: 1, v2_owner: 'Ana', v2_sprint: 1 }]));
+    adoptPlanDir(b);
     const r = run(d, ['build']);
     assert.equal(r.status, 4, r.stderr);
     assert.equal(r.stderr, `error: refusing to build the index: ${INDEX_FILE}${s} is ${kind === 'symlink' ? 'a symlink' : 'not a regular file'}; remove it by hand, then run \`plangraph build\`\ntry: plangraph explain build\n`);
