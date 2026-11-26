@@ -182,3 +182,12 @@ test('429 answers: Retry-After, reset header, quota and wait limits give exact e
   for (const rnd of [0, 1]) { r = counting((n) => (n === 1 ? json({}, 429) : json({}))); await cloud({ fetchImpl: r.fetchImpl, sleep, backoffMs: 1000, random: () => rnd }).request('GET', '/rest/api/3/myself'); }
   assert.deepEqual(sleeps, [700, 1300]);
 });
+
+test('a 429 without a usable Retry-After sleeps only the backoff, which may be zero', async () => {
+  const sleeps: number[] = [];
+  for (const header of [undefined, 'soon', '-3', 'Infinity']) {
+    const r = counting((n) => (n === 1 ? json({}, 429, header === undefined ? {} : { 'retry-after': header }) : json({})));
+    await cloud({ fetchImpl: r.fetchImpl, sleep: async (ms: number) => { sleeps.push(ms); }, backoffMs: 0, random: () => 0.5 }).request('GET', '/rest/api/3/myself');
+  }
+  assert.deepEqual(sleeps, [0, 0, 0, 0]);
+});
