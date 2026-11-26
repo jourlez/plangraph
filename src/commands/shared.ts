@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { readCapped, readDataCapped, presentDataFile } from '../../lib/jsonl.ts';
 import { oneLine, fence } from '../../lib/sanitize.ts';
 import { buildModel } from '../../lib/model.ts';
-import { assertInside, writeAtomicSafe } from '../../lib/fsafe.ts';
+import { assertInside } from '../../lib/fsafe.ts';
 import { PlangraphError, errText } from '../errors.ts';
 import { INDEX_FILE, NO_PLANGRAPH_MESSAGE } from '../db.ts';
 import { hasSteer } from '../../lib/steer.ts';
@@ -159,21 +159,4 @@ export async function recordHealConsent(ctx: Ctx): Promise<void> {
 }
 
 // ---------- confined state writes ----------
-/** A refused write target (symlink, outside the repository) is a REFUSED error (exit 4); anything else is rethrown. */
-export function refuseWrite(e: unknown): never {
-  if ((e as NodeJS.ErrnoException | undefined)?.code === 'SYMLINK' || (e as NodeJS.ErrnoException | undefined)?.code === 'OUTSIDE_REPO') throw new PlangraphError('REFUSED', `refusing to write: ${oneLine((e as Error).message, 200)} (nothing was written)`, { cause: e }); // lib/fsafe.ts throws coded Errors
-  throw e;
-}
-/** Check every target before the first write, so a refusable one (symlink, directory, outside the repository) fails with nothing written. */
-export function precheckTargets(ctx: Ctx, files: string[]): void {
-  for (const f of files) {
-    let st = null;
-    try { st = fs.lstatSync(f); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
-    if (st && !st.isFile()) throw new PlangraphError('REFUSED', `refusing to write ${oneLine(path.basename(f), 80)}: ${st.isSymbolicLink() ? 'it is a symlink' : 'not a regular file'} (nothing was written)`);
-    try { assertInside(ctx.root, f); } catch (e) { refuseWrite(e); }
-  }
-}
-/** Atomic write (temp file, fsync, rename) confined to the repository; symlink targets refused. */
-export function writeState(ctx: Ctx, file: string, text: string): void {
-  try { writeAtomicSafe(file, text, { root: ctx.root }); } catch (e) { refuseWrite(e); }
-}
+export { refuseWrite, precheckTargets, writeState } from '../../lib/planstore.ts'; // the confined write helpers live with the PlanStore
