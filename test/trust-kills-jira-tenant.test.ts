@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { loadRegistry, approveAlias, resolutionOf, effectiveJira, registryFile, configDir } from '../src/jira-tenant.ts';
+import { loadRegistry, approveAlias, resolutionOf, effectiveJira, registryFile, configDir, resolveTenant, tenantCredentials, clientBase } from '../src/jira-tenant.ts';
+import type { TenantResolution } from '../src/jira-tenant.ts';
 import type { JiraError } from '../lib/jira.ts';
 
 const posix = process.platform !== 'win32';
@@ -102,4 +103,67 @@ test('approveAlias refuses an unusable file or alias with the reason, and writes
   notDefined('null', 'work'); notDefined('5', 'work'); notDefined('{}', 'work'); notDefined('{"aliases":null}', 'work'); notDefined('{"aliases":"work"}', 'work'); notDefined('{"aliases":5}', 'work');
   notDefined('{"aliases":{"work":null}}', 'work'); notDefined('{"aliases":{"work":"x"}}', 'work'); notDefined('{"aliases":{"work":5}}', 'work'); notDefined('{"aliases":{"constructor":{"cloud_id":"c"}}}', 'constructor');
   notDefined('[]', 'work'); notDefined('{"aliases":[]}', 'work');
+});
+
+test('resolveTenant: a bad mode is refused with its reason; the trust is frozen and carries exact booleans', { skip: !posix }, () => {
+  const w = world();
+  assert.throws(() => resolveTenant({ auth: { mode: 'bogus' } } as never, '/r', w.env), bad('bad_config', 'auth.mode must be scoped, site-token or datacenter'));
+  for (const mode of ['Scoped', ' scoped', '']) assert.throws(() => resolveTenant({ auth: { mode } } as never, '/r', w.env), bad('bad_config', 'auth.mode must be scoped, site-token or datacenter'), mode);
+  const r = resolveTenant({ cloud_id: 'CID-Committed-1' }, '/r', w.env);
+  assert.ok(Object.isFrozen(r.trust)); assert.deepEqual({ ...r.trust }, { tenant: 'cid-committed-1', allowGeneric: true, pinned: false, userTenant: false });
+  assert.strictEqual(r.trust.userTenant, false); assert.strictEqual(r.trust.pinned, false); assert.equal(resolutionOf(r.trust), r);
+  const user = world('{"projects":{"/r":{"cloud_id":"cid-user-0001"}}}');
+  const u = resolveTenant({ cloud_id: 'cid-committed-1' }, '/r', user.env);
+  assert.deepEqual({ ...u.trust }, { tenant: 'cid-user-0001', allowGeneric: true, pinned: false, userTenant: true });
+  assert.strictEqual(u.jira.userTenant, true);
+});
+
+test('resolveTenant: pinning is by the exact tenant host in PLANGRAPH_JIRA_SITES, never by a placeholder', { skip: !posix }, () => {
+  const w = world();
+  const scoped = (cloud: string, sites?: string) => resolveTenant({ cloud_id: cloud }, '/r', { ...w.env, ...(sites === undefined ? {} : { PLANGRAPH_JIRA_SITES: sites }) });
+  assert.strictEqual(scoped('mutant').pinned, false); assert.strictEqual(scoped('mutant', '').pinned, false);
+  assert.strictEqual(scoped('mutant', 'mutant').pinned, true); assert.strictEqual(scoped('mutant', 'other, MUTANT ,x').pinned, true);
+  assert.strictEqual(scoped('mutant', 'other').pinned, false);
+  const site = (url: string, sites: string) => resolveTenant({ auth: { mode: 'site-token' }, base_url: url }, '/r', { ...w.env, PLANGRAPH_JIRA_SITES: sites });
+  assert.strictEqual(site('https://acme.atlassian.net', 'acme.atlassian.net').pinned, true);
+  assert.strictEqual(site('https://acme.atlassian.net:8443', 'acme.atlassian.net').pinned, true, 'the port is not part of the pin');
+  assert.strictEqual(site('https://acme.atlassian.net', 'other.atlassian.net').allowGeneric, false);
+  assert.strictEqual(site('https://acme.atlassian.net', 'acme.atlassian.net').allowGeneric, true);
+  const empty = resolveTenant({ auth: { mode: 'site-token' } }, '/r', { ...w.env, PLANGRAPH_JIRA_SITES: ',' });
+  assert.deepEqual([empty.tenant, empty.pinned, empty.allowGeneric], ['', false, false]);
+});
+
+const hand = (over: Partial<TenantResolution> & { jira?: Record<string, unknown> }) => ({ aliasProblem: null, tenant: '', mode: 'scoped', jira: {}, entry: null, allowGeneric: false, ...over }) as unknown as TenantResolution;
+
+test('tenantCredentials: an empty tenant is refused before any helper, with the reason for its mode', async () => {
+  const calls: string[] = [];
+  const exec = async (f: string) => { calls.push(f); throw new Error('no'); };
+  const t = (r: TenantResolution, env: Record<string, string> = {}) => tenantCredentials(r, env, { exec, platform: 'darwin' });
+  await assert.rejects(() => t(hand({ aliasProblem: 'alias x is not approved' })), bad('bad_config', 'alias x is not approved'));
+  await assert.rejects(() => t(hand({})), bad('bad_config', 'scoped mode needs a cloud_id (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ jira: { base_url: 'https://a.atlassian.net' } })), bad('bad_config', 'scoped mode (the default auth.mode) needs cloud_id; for a site URL alone add "auth": {"mode": "site-token"} (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({}), { JIRA_BASE_URL: 'https://a.atlassian.net' }), bad('bad_config', 'scoped mode (the default auth.mode) needs cloud_id; for a site URL alone add "auth": {"mode": "site-token"} (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token' })), bad('bad_host', 'base URL rejected: empty (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token', jira: { base_url: 'https://evil.example' } })), bad('bad_host', 'base URL rejected: host is not on the Atlassian allowlist (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token', jira: { base_url: 'https://evil.example' } }), { JIRA_BASE_URL: '' }), bad('bad_host', 'base URL rejected: host is not on the Atlassian allowlist (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token' }), { JIRA_BASE_URL: 'https://evil.example' }), bad('bad_host', 'base URL rejected: host is not on the Atlassian allowlist (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token', jira: { base_url: 'https://acme.atlassian.net' } })), bad('bad_host', 'base URL rejected: no host (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'datacenter', jira: { base_url: 'https://jira.corp:8443' } }), { PLANGRAPH_JIRA_DC_HOSTS: 'other.corp' }), bad('bad_host', 'base URL rejected: host is not in the user-level Data Center allowlist (PLANGRAPH_JIRA_DC_HOSTS) (see docs/JIRA.md)'));
+  await assert.rejects(() => t(hand({ mode: 'site-token', jira: { base_url: 'https://acme.atlassian.net' } }), { PLANGRAPH_JIRA_SITES: 'other.atlassian.net' }), bad('bad_host', 'base URL rejected: site is not in the user-level site allowlist (PLANGRAPH_JIRA_SITES) (see docs/JIRA.md)'));
+  assert.deepEqual(calls, [], 'no credential helper ran');
+});
+
+test('tenantCredentials: the registry entry is bound to the tenant, generic credentials only when allowed; clientBase prefers the environment URL', async () => {
+  const exec = async () => { throw new Error('no'); };
+  const entry = { token_env: 'MY_T' };
+  const c = await tenantCredentials(hand({ tenant: 'acme.atlassian.net', mode: 'site-token', entry }), { MY_T: 'tok-for-the-tenant-123', JIRA_EMAIL: 'a@b.co' }, { exec, platform: 'win32' });
+  assert.equal(c.source, 'registry acme.atlassian.net:env');
+  await assert.rejects(() => tenantCredentials(hand({ tenant: 'acme.atlassian.net', mode: 'site-token', entry: null }), { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: 'generic-token-12345' }, { exec, platform: 'win32' }), bad('no_credentials', /^no credentials bound to acme\.atlassian\.net/));
+  const g = await tenantCredentials(hand({ tenant: 'acme.atlassian.net', mode: 'site-token', allowGeneric: true }), { JIRA_EMAIL: 'a@b.co', JIRA_API_TOKEN: 'generic-token-12345' }, { exec, platform: 'win32' });
+  assert.equal(g.source, 'generic:env');
+  const t = hand({ jira: { auth: { mode: 'site-token' }, cloud_id: 'c', base_url: 'https://file.example' } });
+  assert.deepEqual(clientBase(t), { auth: { mode: 'site-token' }, cloudId: 'c', baseUrl: 'https://file.example' });
+  assert.equal(clientBase(t, { JIRA_BASE_URL: 'https://env.example' }).baseUrl, 'https://env.example');
+  assert.equal(clientBase(hand({ jira: { base_url: '' } })).baseUrl, undefined);
+  assert.equal(clientBase(hand({ jira: {} }), { JIRA_BASE_URL: '' }).baseUrl, undefined);
 });

@@ -167,12 +167,11 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
   const meta: SnapshotMeta = { jql: base, fetched_at: client.now().toISOString(), mode: client.mode, ...client.identity, expected_count: expected, received_count: issues.length, count_drift: drift, complete: true, content_hash: hash(issues), pull: delta ? 'delta' : 'full', delta_runs: delta ? ((prev as Snapshot).meta.delta_runs || 0) + 1 : 0 }; // delta implies prev
   const snapshot: Snapshot = { schema: SCHEMA, meta, issues };
   const r: Unsummarized<PullSuccess> = { ok: true, complete: true, snapshot, mode: meta.pull as string, changedKeys, removedKeys, received: rows, warnings, windowMinutes: overlapMinutes, reason };
-  r.summary = summarize(r as PullSuccess); // summarize does not read summary on a success
+  r.summary = summarize(r as PullSuccess); // summarize reads only what a success carries (summary is not one of those)
   return r as PullSuccess; // summary was set on the line above
 }
 
-function summarize(r: PullResult): string {
-  if (!r.ok) return r.summary;
+function summarize(r: PullSuccess): string {
   const m = r.snapshot.meta;
   const how = r.mode === 'delta' ? `delta ${r.changedKeys.length}, window ${r.windowMinutes}m` : `full${r.removedKeys.length ? `, removed ${r.removedKeys.length}` : ''}`;
   return `pulled ${m.received_count} issues (${how}), drift ${m.count_drift ?? 'n/a'}, complete, hash ${(m.content_hash as string).slice(0, 6)}${r.warnings.length ? `, WARN ${r.warnings.join('+')}` : ''}`; // a successful pull always sets content_hash

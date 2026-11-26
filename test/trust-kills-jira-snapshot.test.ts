@@ -385,3 +385,87 @@ test('snapshot JSONL: head line, one issue per line, round trip, refusals; legac
   ] } as never);
   assert.deepEqual(legacy, { 'AB-1': { summary: 's', status: 'Open', assignee: 'a', updated: 'u', resolved: 'r', blockedBy: ['X-1', 'X-3'] } });
 });
+
+// ---------------------------------------------------------------- second round
+test('same-key issues across pages: an unreadable time never beats a readable newer one', async () => {
+  const { client } = mkClient([
+    { issues: [rawIssue('AB-1', '2026-03-01T10:00:00.000Z', { summary: 'valid' })], cursor: 'c', last: false },
+    { issues: [rawIssue('AB-1', '1999-garbage', { summary: 'garbage' })], last: true },
+  ]);
+  const r = await pullSnapshot(client, { jql: 'project = AB' });
+  assert.ok(r.ok && r.snapshot.issues[0]?.summary === 'valid');
+  const both = mkClient([{ issues: [rawIssue('AB-1', 'b-text', { summary: 'first' }), rawIssue('AB-1', 'a-text', { summary: 'second' })], last: true }]);
+  const r2 = await pullSnapshot(both.client, { jql: 'project = AB' });
+  assert.ok(r2.ok && r2.snapshot.issues[0]?.summary === 'first', 'two unreadable times compare as text');
+});
+
+test('sprints: ordering by id is exact for legacy strings, ties keep their order, and the caps are exact', () => {
+  const sprints = (v: unknown) => normalizeIssue(raw({}, { customfield_1: v }), { sprintField: 'customfield_1' })?.sprint;
+  assert.deepEqual(sprints(['id=9,name=nine', 'id=3,name=three', { id: 5, name: 'five' }]), [{ id: 3, name: 'three', state: '' }, { id: 5, name: 'five', state: '' }, { id: 9, name: 'nine', state: '' }]);
+  assert.deepEqual((sprints(Array.from({ length: 6 }, (_, i) => ({ id: 7, name: `n${i}` }))) ?? []).map((s) => s.name), ['n0', 'n1', 'n2', 'n3', 'n4', 'n5']);
+  assert.deepEqual((sprints([...Array.from({ length: 4 }, (_, i) => ({ id: 7, name: `t${i}` })), { id: 2, name: 'lo' }, { id: 9, name: 'hi' }]) ?? []).map((s) => s.name), ['lo', 't0', 't1', 't2', 't3', 'hi']);
+  assert.equal(sprints([`${'x'.repeat(3997)}id=5`, 'id=2,name=b'])?.map((s) => s.id).join(), '0,2', 'an id that starts past the first 4000 characters is not read');
+  assert.equal(sprints([`id=${'4'.repeat(10)}`])?.[0]?.id, 4444444444);
+  const legacy = sprints(['id=1,name=' + 'n'.repeat(81) + ',state=' + 's'.repeat(21)]);
+  assert.deepEqual(legacy, [{ id: 1, name: `${'n'.repeat(80)}…[+1 chars]`, state: `${'s'.repeat(20)}…[+1 chars]` }]);
+  assert.deepEqual(sprints(['id=1,name=' + 'n'.repeat(80) + ',state=' + 's'.repeat(20)]), [{ id: 1, name: 'n'.repeat(80), state: 's'.repeat(20) }]);
+});
+
+test('custom fields: prototype-ish names and array containers are ignored; an id match counts as found on import', () => {
+  const sp = { id: 3, name: 'S3', state: 'active' };
+  const via = (cf: unknown) => normalizeIssue(raw({}, { customFields: cf }), { sprintField: 'customfield_5' })?.sprint;
+  assert.deepEqual(via(JSON.parse(`{"__proto__":{"id":"customfield_5","value":[${JSON.stringify(sp)}]}}`)), []);
+  assert.deepEqual(via({ prototype: { id: 'customfield_5', value: [sp] } }), []);
+  assert.deepEqual(via({ constructor: { id: 'customfield_5', value: [sp] } }), []);
+  assert.deepEqual(via([{ id: 'customfield_5', value: [sp] }]), []);
+  assert.deepEqual(via({ Mine: { id: 'customfield_5', value: [sp] } }), [sp]);
+  assert.deepEqual(via('text'), []);
+  // import: an id match with an empty list replaces the known sprint (it was found), while an absent field keeps it
+  const known = { schema: 1, meta: {}, issues: [{ ...normalizeIssue(raw()), sprint: [sp] }] } as never;
+  const found = importIssues(known, [{ key: 'AB-1', fields: { customFields: { Mine: { id: 'customfield_5', value: [] } } } }] as never, { sprintField: 'customfield_5' });
+  assert.deepEqual(found.snapshot.issues[0]?.sprint, []);
+  const absent = importIssues(known, [{ key: 'AB-1', fields: { summary: 'S' } }] as never, { sprintField: 'customfield_5' });
+  assert.deepEqual(absent.snapshot.issues[0]?.sprint, [sp]);
+});
+
+test('a slim import keeps every known field it leaves out, each on its own', () => {
+  const full = { key: 'AB-1', summary: 'Sum', status: 'Open', assignee: 'Ann', updated: '2026-03-01T10:00:00.000Z', resolutiondate: '2026-03-02T00:00:00.000Z', issuelinks: [] };
+  const known = { schema: 1, meta: {}, issues: [full] } as never;
+  for (const field of ['summary', 'status', 'assignee', 'updated', 'resolutiondate']) {
+    const fields: Record<string, unknown> = { summary: 'New', status: { name: 'New' }, assignee: { displayName: 'New' }, updated: '2026-03-01T11:00:00.000Z', resolutiondate: '2026-04-01T00:00:00.000Z' };
+    delete fields[field];
+    const issue = importIssues(known, [{ key: 'AB-1', fields }] as never).snapshot.issues[0] as unknown as Record<string, unknown>;
+    assert.equal(issue[field], (full as Record<string, unknown>)[field], `${field} is kept`);
+  }
+});
+
+test('a full pull over an identical previous snapshot changes nothing; a delta without delta_runs counts its first run', async () => {
+  const same = mkClient([{ issues: [A, B], last: true }]);
+  const r = await pullSnapshot(same.client, { jql: 'project = AB', previous: prevSnap(), full: true });
+  assert.ok(r.ok && r.changedKeys.length === 0 && r.removedKeys.length === 0 && r.complete === true);
+  const d = mkClient([{ issues: [], last: true }]);
+  const noRuns = await pullSnapshot(d.client, { jql: 'project = AB', previous: prevSnap({}, { delta_runs: undefined }) });
+  assert.ok(noRuns.ok && noRuns.mode === 'delta' && noRuns.snapshot.meta.delta_runs === 1);
+  const e = mkClient([{ issues: [], last: true }]);
+  const two = await pullSnapshot(e.client, { jql: 'project = AB', previous: prevSnap({}, { delta_runs: undefined }), fullReconcileEvery: 2 });
+  assert.ok(two.ok && two.reason === '' && two.mode === 'delta');
+});
+
+test('limits: JQL of exactly 20000 characters passes, 2000 pages is the default bound (counted requests)', async () => {
+  const exact = mkClient([{ issues: [], last: true }]);
+  assert.ok((await pullSnapshot(exact.client, { jql: `${'x'.repeat(19996)} = 1` })).ok);
+  assert.equal(`${'x'.repeat(19996)} = 1`.length, 20000);
+  let calls = 0;
+  const plain = { mode: 'scoped', identity: { cloud_id: 'cid' }, now: () => new Date(T0), verify: async () => ({ timeZone: 'UTC' }), count: async () => 1,
+    search: async () => { calls++; if (calls > 2500) throw new Error('runaway paging'); return { issues: [rawIssue(`AB-${calls}`, '2026-03-01T10:00:00.000Z')], cursor: `c${calls}`, last: false }; } } as never;
+  const r = await pullSnapshot(plain, { jql: 'project = AB' });
+  assert.ok(!r.ok && r.code === 'too_many_pages' && r.error === 'stopped after 2000 pages'); assert.equal(calls, 2000);
+});
+
+test('several warnings are joined by + in the summary', async () => {
+  const { client } = mkClient([{ issues: [A, { key: 'bad' }], last: true }], { count: async () => 99 });
+  const r = await pullSnapshot(client, { jql: 'project = AB' });
+  assert.ok(r.ok); if (!r.ok) return;
+  assert.deepEqual(r.warnings, ['invalid_key_dropped:1', 'count_drift']);
+  assert.match(r.summary, /, WARN invalid_key_dropped:1\+count_drift$/);
+});
