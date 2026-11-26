@@ -12,7 +12,8 @@ import { INDEX_FILE, NO_PLANGRAPH_MESSAGE } from '../db.ts';
 import { hasSteer } from '../../lib/steer.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { Model, Ticket, Edge, ScheduleRow, PlanRecord } from '../../lib/model.ts';
-import type { LegacyIssue } from '../../lib/jira.ts';
+import { parseSnapshotJsonl, toLegacyMap } from '../../lib/tracker.ts';
+import type { LegacyIssue } from '../../lib/tracker.ts';
 import type { OpenItem } from '../../lib/openitems.ts';
 /** A Map that the code reads only with keys it holds (built from the same key list, or checked with has() first): get() is never undefined. */
 export type Dense<K, V> = Omit<Map<K, V>, 'get'> & { get(key: K): V };
@@ -114,11 +115,10 @@ export async function readItems(ctx: Ctx) {
 
 /** A Jira snapshot file: .jsonl (current format) or the legacy JSON map. */
 export async function loadJiraSnap(file: string): Promise<Record<string, LegacyIssue>> {
-  const J = await import('../../lib/jira.ts');
   if (/\.jsonl$/.test(file)) {
     let text: string;
     try { text = readCapped(file, MAX_DATA); } catch { throw dataError(`cannot read the Jira snapshot ${oneLine(path.basename(file), 80)}`, 'check the --jira path'); }
-    return J.toLegacyMap(J.parseSnapshotJsonl(text));
+    return toLegacyMap(parseSnapshotJsonl(text));
   }
   return readJsonInput(file, 'Jira snapshot') as Record<string, LegacyIssue>; // the legacy JSON map: unchecked (pre-existing), as bin/plangraph read it
 }

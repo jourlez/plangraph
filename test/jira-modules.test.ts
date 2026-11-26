@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DIR = path.join(ROOT, 'lib/jira');
-const MODULES = ['types', 'redact', 'error', 'host', 'registry', 'credentials', 'client', 'snapshot', 'render', 'index'];
+const MODULES = ['types', 'redact', 'error', 'host', 'registry', 'credentials', 'client', 'snapshot', 'render', 'provider', 'index'];
 const read = (m: string) => fs.readFileSync(path.join(DIR, `${m}.ts`), 'utf8');
 
 interface SiblingImport { from: string; typeOnly: boolean }
@@ -23,7 +23,7 @@ function siblingImports(m: string): SiblingImport[] {
 const siblings = (m: string) => [...new Set(siblingImports(m).map((i) => i.from))].sort();
 const valueSiblings = (m: string) => [...new Set(siblingImports(m).filter((i) => !i.typeOnly).map((i) => i.from))].sort();
 
-test('the directory holds exactly the ten modules', () => {
+test('the directory holds exactly the eleven modules', () => {
   assert.deepEqual(fs.readdirSync(DIR).sort(), MODULES.map((m) => `${m}.ts`).sort());
 });
 
@@ -34,7 +34,7 @@ test('each module imports alone in a child process', () => {
   }
 });
 
-test('every sibling import names one of the ten modules', () => {
+test('every sibling import names one of the eleven modules', () => {
   for (const m of MODULES) for (const s of siblings(m)) assert.ok(MODULES.includes(s) && s !== 'index', `${m} imports ./${s}.ts`);
 });
 
@@ -114,4 +114,20 @@ test('str returns a string unchanged and an empty string for any other value', a
   assert.equal(str('x y'), 'x y');
   assert.equal(str(''), '');
   for (const v of [undefined, null, 0, 1, true, {}, [], ['a'], new String('s')]) assert.equal(str(v), '');
+});
+
+test('no src/commands file imports lib/jira, statically or through import()', () => {
+  const dir = path.join(ROOT, 'src/commands');
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.ts'))) {
+    const text = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.ok(!/(?:from\s*|import\s*\(\s*)['"`][^'"`]*lib\/jira(?:\.ts|\/)/.test(text), `${f} imports lib/jira`);
+  }
+});
+
+test('lib/tracker.ts has no value import from src/', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'lib/tracker.ts'), 'utf8');
+  for (const m of text.matchAll(/^(import|export)\s+(type\s+)?[^;]*?\sfrom\s+'([^']+)';/gms)) if (m[3]?.includes('/src/')) assert.ok(m[2], `value import from ${m[3]}`);
+  assert.ok(!/import\(/.test(text));
+  const prov = fs.readFileSync(path.join(DIR, 'provider.ts'), 'utf8');
+  for (const m of prov.matchAll(/^(import|export)\s+(type\s+)?[^;]*?\sfrom\s+'([^']+)';/gms)) if (m[3]?.includes('/src/')) assert.ok(m[2], `provider value import from ${m[3]}`);
 });

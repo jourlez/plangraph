@@ -329,6 +329,29 @@ export const PROBES: Probe[] = [
     const snap = await attempt(() => pullSnapshot(client, { jql: 'project = TST', pageSize: 2 }));
     return { snap, log };
   } },
+  { id: 'provider-default', run: async () => {
+    const { createTracker } = await lib('src/tracker-factory.ts');
+    const t = createTracker({ config: () => ({}), env: {} });
+    return { kind: t.kind, tenant: t.tenantId({ cloud_id: 'AbCd-1234-xx' }), same: t.tenantId({ cloud_id: 'AbCd-1234-xx' }) === 'abcd-1234-xx' };
+  } },
+  { id: 'provider-unknown-kind', run: async () => {
+    const { createTracker } = await lib('src/tracker-factory.ts');
+    const r = await attempt(() => createTracker({ config: () => ({ tracker: { kind: 'nope' } }), env: {} })) as { exitCode: number; message: string };
+    return { code: r.exitCode, message: r.message };
+  } },
+  { id: 'provider-fake-pull', run: async () => {
+    const { main } = await lib('src/cli.ts'), { makeContext } = await lib('src/context.ts'), { snapshotToJsonl } = await lib('lib/tracker.ts');
+    const w = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'baseline-pp-')));
+    try {
+      fs.mkdirSync(path.join(w, '.git')); fs.mkdirSync(path.join(w, '.plangraph')); fs.writeFileSync(path.join(w, '.plangraph', 'config.json'), '{}');
+      const snapshot = { schema: 1, meta: { jql: 'project = TST', complete: true }, issues: [{ key: 'TST-1', summary: 'one', status: 'To Do', assignee: '', updated: '2026-01-01T00:00:00.000Z', resolutiondate: '', issuelinks: [] }] };
+      const fake = { kind: 'fake', pull: async () => ({ ok: true, complete: true, snapshot, mode: 'full', windowMinutes: 0, reason: 'fake', received: 1, warnings: [], changedKeys: [], removedKeys: [], summary: 'fake pull: 1 issue' }) };
+      const out = path.join(w, 'snap.jsonl'), lines: string[] = [];
+      const io = { out: (l: string) => lines.push(l), err: (l: string) => lines.push(l), raw: (l: string) => lines.push(l) };
+      const code = await main(['jira-pull', '--out', out], { io, env: { PLANGRAPH_CONFIG_DIR: path.join(w, 'cfg') }, cwd: w, makeContext: (o: object) => makeContext({ ...o, tracker: fake }) });
+      return { code, lines, file: fs.readFileSync(out, 'utf8'), expected: snapshotToJsonl(snapshot) };
+    } finally { fs.rmSync(w, { recursive: true, force: true }); }
+  } },
   { id: 'migrate-names', run: () => {
     // a user and a repository as 0.2.x left them; dry run, --apply, then a second run (the no-op line)
     const w = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'baseline-mn-'))), home = path.join(w, 'home'), repo = path.join(w, 'repo');
