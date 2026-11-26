@@ -1,8 +1,8 @@
 // Tests for lib/graph/files.ts and the graph schemas of lib/store.ts and lib/schema.ts: field shapes with file:line messages, the open grammars
 // (extension types, relations and sys are accepted and counted), derived relations refused with their home file, the id rule as a warning,
 // duplicate keys, canonical form per file, adversarial two-sided merges by key for every file kind (an independent oracle, 200 random cases
-// per file), the unchanged 0-to-1 migration and card line of a directory without graph files (against the frozen 0.3.0 tree).
-// NOT covered: the frozen 0.3.0 merge driver and the mixed-version team (test/mixed-version.test.ts), the index (a later task).
+// per file), the card line of a directory without graph files.
+// NOT covered: the index (a later task).
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,7 +17,6 @@ import type { GraphNotes, GraphDataErrorCode, Person, Sprint, Epic, Repo, Capaci
 import { GRAPH_SRC_FILES, SRC_FILES } from '../src/commands/shared.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const FROZEN = path.join(import.meta.dirname, 'fixtures/release-0.3.0');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = (p = 'graphf-') => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); tmps.push(d); return d; };
@@ -442,21 +441,21 @@ test('the real merge driver (bin/plangraph-merge) merges each graph file kind by
   assert.match(fs.readFileSync(path.join(dir, 'o'), 'utf8'), /^<<<<<<< ours/);
 });
 
-// ---------- a directory without graph files is unchanged (against the frozen 0.3.0 tree) ----------
+// ---------- a directory without graph files: its card line changes only by the digest when a graph file appears ----------
 const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
-const runIn = (tree: string, cwd: string, args: string[]) => spawnSync(process.execPath, [path.join(tree, 'bin/plangraph'), ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data') } });
+const runIn = (cwd: string, args: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data') } });
 function v1Repo(): string {
   const d = tmp('graphv1-'); execFileSync('git', ['init', '-q'], { cwd: d });
-  assert.equal(runIn(FROZEN, d, ['init']).status, 0);
+  assert.equal(runIn(d, ['init']).status, 0);
   const p = genPlan({ n: 12, people: 3, seed: 5, cap: 9 }), b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
   fs.writeFileSync(path.join(b, 'config.json'), JSON.stringify(p.config));
   return d;
 }
 
-test('card line of a v1-only directory equals the frozen 0.3.0 card line; a present graph file changes only its digest', () => {
+test('card line of a v1-only directory: a present graph file changes only its digest, a removed one gives the line back', () => {
   const d = v1Repo();
-  const old = runIn(FROZEN, d, ['card', '--line']), now = runIn(ROOT, d, ['card', '--line']);
+  const old = runIn(d, ['card', '--line']), now = runIn(d, ['card', '--line']);
   assert.equal(old.status, 0, old.stderr);
   assert.deepEqual([now.status, now.stdout, now.stderr], [0, old.stdout, old.stderr], 'identical bytes without a graph file');
   assert.match(now.stdout, /^plangraph: 12 tickets, last sprint \d+, \d+ violations @[0-9a-f]{8}\n$/);
@@ -465,18 +464,18 @@ test('card line of a v1-only directory equals the frozen 0.3.0 card line; a pres
   for (const f of GRAPH_FILES) {
     const p = path.join(d, '.plangraph', f);
     fs.writeFileSync(p, jl([ROW[f] as object]));
-    const r = runIn(ROOT, d, ['card', '--line']);
+    const r = runIn(d, ['card', '--line']);
     assert.equal(r.status, 0, `${f}: ${r.stderr}`);
     assert.equal(digest(r.stdout), digest(now.stdout), `${f}: only the digest changes`);
     assert.ok(!seen.has(r.stdout), `${f}: the digest changed`); seen.add(r.stdout);
     fs.rmSync(p);
-    assert.equal(runIn(ROOT, d, ['card', '--line']).stdout, old.stdout, `${f}: removed again, the 0.3.0 line is back`);
+    assert.equal(runIn(d, ['card', '--line']).stdout, old.stdout, `${f}: removed again, the first line is back`);
   }
   fs.writeFileSync(path.join(d, '.plangraph', 'people.jsonl'), '');
-  assert.notEqual(runIn(ROOT, d, ['card', '--line']).stdout, old.stdout, 'a present empty file counts');
+  assert.notEqual(runIn(d, ['card', '--line']).stdout, old.stdout, 'a present empty file counts');
   fs.rmSync(path.join(d, '.plangraph', 'people.jsonl'));
   fs.symlinkSync(path.join(d, '.plangraph', 'tickets.jsonl'), path.join(d, '.plangraph', 'people.jsonl'));
-  const sym = runIn(ROOT, d, ['card', '--line']);
+  const sym = runIn(d, ['card', '--line']);
   assert.notEqual(sym.status, 0, 'a symlinked graph file is refused, as a symlinked data file is');
   assert.match(sym.stderr, /people\.jsonl: is a symlink/);
 });

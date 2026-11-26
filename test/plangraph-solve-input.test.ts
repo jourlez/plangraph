@@ -15,10 +15,10 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { TABLES, SIDECARS, EXPECTED_COLUMNS, EXPECTED_INDEXES, INDEX_FILE } from '../src/db.ts';
 import { G_LINKS_SQL, G_NODES_SQL } from '../lib/graph/views.ts';
+import { downgradeToV1 } from './helpers/older-index.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const SOLVE = path.join(import.meta.dirname, '../bin/plangraph-solve');
-const FROZEN = path.join(import.meta.dirname, 'fixtures/release-0.3.0');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const HAVE_PY3 = spawnSync('python3', ['--version'], { stdio: 'ignore' }).status === 0;
@@ -86,9 +86,10 @@ test('the solver loads an index built by this tree with graph files present (sev
   assert.deepEqual(py(r.d, fromDb(r)), { ok: true, tickets: ['T-1', 'T-2'], edges: 1 });
 });
 
-test('the solver refuses an index built by the frozen 0.3.0 tree with the older-plangraph message, not the tampering message', { skip: SKIP }, () => {
+test('the solver refuses an index in the 0.3.0 shape with the older-plangraph message, not the tampering message', { skip: SKIP }, () => {
   const r = repo();
-  const old = spawnSync(process.execPath, [path.join(FROZEN, 'bin/plangraph'), 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(old.status, 0, old.stderr);
+  const first = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(first.status, 0, first.stderr);
+  downgradeToV1(r.db);
   assert.deepEqual(py(r.d, fromDb(r)), { ok: false, status: 'MODEL_INVALID', msg: 'the index was built by an older plangraph: run `plangraph build`', code: 2 });
   assert.equal(spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }).status, 0);
   assert.equal(py(r.d, fromDb(r)).ok, true);

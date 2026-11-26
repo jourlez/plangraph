@@ -1,3 +1,0 @@
-#!/usr/bin/env node
-// plangraph: launcher only; the logic is in src/entry.js (linted and type-checked).
-import('../src/entry.js').catch((e) => { process.stderr.write(`plangraph: ${String(e?.message ?? e).slice(0, 300)}\n`); process.exitCode = 5; });

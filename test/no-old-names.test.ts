@@ -46,7 +46,7 @@ test('the scan can fail: it flags the word, the variable prefix and the old conf
   assert.deepEqual(strays(`ok\nrun ${W} doctor\n.${W}/x\nhow ${W.toUpperCase()}_DIR is read\n~/.config/project-${W}/y\nmerge=${W}-jsonl\n`), [2, 3, 4, 5, 6]);
   assert.deepEqual(strays(`${W}storming ${W}_rules_version no${W} ${W}Dir resolve${W[0].toUpperCase()}${W.slice(1)}Dir plangraph\n`), []);
   assert.equal(exempt('src/cli.ts'), false);
-  assert.equal(exempt('test/fixtures/release-0.3.0/lib/migrate-names.ts'), true);
+  assert.equal(exempt('test/fixtures/release-1.0.0/lib/x.ts'), true);
   assert.equal(exempt('docs/superpowers/plans/2026-11-25-plangraph-0.3.0-revised.md'), true);
   assert.equal(exempt('docs/superpowers/plans/2026-11-26-later.md'), false);
   assert.equal(exempt('docs/ADOPT.md'), false);

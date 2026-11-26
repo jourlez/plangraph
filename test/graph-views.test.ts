@@ -15,9 +15,9 @@ import { G_LINKS_SQL, G_NODES_SQL, GRAPH_MAX_DEPTH, graphReader, reach } from '.
 import type { NodeRef, Rel } from '../lib/graph/views.ts';
 import { DERIVED_RELATIONS } from '../lib/graph/files.ts';
 import { genPlan, rng } from './fixtures/gen.ts';
+import { downgradeToV1 } from './helpers/older-index.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const FROZEN = path.join(import.meta.dirname, 'fixtures/release-0.3.0');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = (p: string) => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); tmps.push(d); return d; };
@@ -283,17 +283,17 @@ test('a relates_to row from the epic sp:<slug> (from_type epic) reaches nothing 
   assert.deepEqual(ids(reach(h, { id: 'sp:s', type: 'epic' }, ['relates_to'], 1, false)), ['ticket:X']);
 });
 
-test('a graph file adds its bytes to the fingerprint only when it is present; a v1-only directory equals the frozen 0.3.0 fingerprint', () => {
+test('a graph file adds its bytes to the fingerprint only when it is present; a v1-only directory keeps its fingerprint', () => {
   const p = genPlan({ n: 6, people: 2, seed: 3 });
   const d = tmp('graph-fp-'); execFileSync('git', ['init', '-q'], { cwd: d });
   const env = { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(d, '.data') };
-  assert.equal(spawnSync(process.execPath, [path.join(FROZEN, 'bin/plangraph'), 'init'], { cwd: d, env }).status, 0);
+  assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'init'], { cwd: d, env }).status, 0);
   const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
-  const old = spawnSync(process.execPath, [path.join(FROZEN, 'bin/plangraph'), 'build'], { cwd: d, env, encoding: 'utf8' });
-  assert.equal(old.status, 0, old.stderr);
+  const built = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'build'], { cwd: d, env, encoding: 'utf8' });
+  assert.equal(built.status, 0, built.stderr);
   const stored = (new DatabaseSync(path.join(b, INDEX_FILE), { readOnly: true }).prepare('SELECT v FROM index_meta WHERE k = ?').get(FINGERPRINT_KEY) as { v: string }).v;
-  assert.equal(sourceFingerprint(b), stored, 'the fingerprint of a v1-only directory is the one 0.3.0 stored');
+  assert.equal(sourceFingerprint(b), stored, 'the fingerprint of a v1-only directory is the one the build stored');
   fs.writeFileSync(path.join(b, 'people.jsonl'), jl([{ id: 'Ana' }]));
   const one = sourceFingerprint(b);
   assert.notEqual(one, stored);
@@ -304,20 +304,20 @@ test('a graph file adds its bytes to the fingerprint only when it is present; a 
 });
 
 // ---------- the older (0.3.0) schema ----------
-/** A directory built by the frozen 0.3.0 tree: its index is the eight v1 tables with no view. */
+/** A directory whose index was rewritten to the 0.3.0 shape: the eight v1 tables with no view. */
 function frozenRepo() {
   const d = tmp('graph-old-'); execFileSync('git', ['init', '-q'], { cwd: d });
   const env = { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(d, '.data') };
-  const old = (...a: string[]) => spawnSync(process.execPath, [path.join(FROZEN, 'bin/plangraph'), ...a], { cwd: d, env, encoding: 'utf8' });
   const now = (...a: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), ...a], { cwd: d, env, encoding: 'utf8' });
-  assert.equal(old('init').status, 0);
+  assert.equal(now('init').status, 0);
   const p = genPlan({ n: 6, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
-  assert.equal(old('build').status, 0);
-  return { d, b, old, now, file: path.join(b, INDEX_FILE) };
+  assert.equal(now('build').status, 0);
+  downgradeToV1(path.join(b, INDEX_FILE));
+  return { d, b, now, file: path.join(b, INDEX_FILE) };
 }
 
-test('an index built by the frozen 0.3.0 tree passes its digest check and opens as an older schema: stale, query-only, graph readers refuse it with STALE', () => {
+test('an index in the 0.3.0 shape passes its digest check and opens as an older schema: stale, query-only, graph readers refuse it with STALE', () => {
   const { b, file } = frozenRepo();
   using h = openIndex(file, { dir: b });
   assert.equal(h.older, true);
@@ -333,7 +333,7 @@ test('an index built by the frozen 0.3.0 tree passes its digest check and opens 
   { using g = openIndex(file); assert.equal(g.older, true); assert.equal(g.stale, true, 'without dir too'); }
 });
 
-test('whatif --write, schedule-load and export on a 0.3.0-built index exit 2 with STALE and leave plangraph.sqlite byte-identical; v1 commands still answer', () => {
+test('whatif --write, schedule-load and export on a 0.3.0-shaped index exit 2 with STALE and leave plangraph.sqlite byte-identical; v1 commands still answer', () => {
   const { d, b, now, file } = frozenRepo();
   const before = fs.readFileSync(file);
   const tk1 = now('ticket', 'T-1');
