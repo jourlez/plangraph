@@ -218,7 +218,7 @@ export class EntityStore implements PlanStore {
       } else if (kind === 'link') {
         clear((p) => { p.links = []; });
         for (const r of rows) {
-          const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'a link from')), line = without(r, ['from', 'from_type']);
+          const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'the from field of a link')), line = without(r, ['from', 'from_type']);
           m.at(t.dir, t.id).parts.links.push(r.rel === 'needs' ? { ...line, k: 'link' } : line); // a stored `needs` line is an edge; a link row with that relation is marked
         }
       } else if (kind === 'xref') {
