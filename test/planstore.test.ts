@@ -38,7 +38,7 @@ test('every kind has a file name and a schema, and the list is closed', () => {
   assert.deepEqual(Object.keys(ROWS).sort(), [...P.KINDS].sort());
   for (const k of P.KINDS) { const f = P.kindFile(k); assert.ok(S.SCHEMAS[f], `${k}: no schema for ${f}`); assert.equal(P.kindOfFile(f), k); }
   assert.equal(P.kindOfFile('config.json'), undefined);
-  assert.equal(P.SRC_KINDS.length + P.GRAPH_KINDS.length, P.KINDS.length - 0);
+  assert.equal(P.SRC_KINDS.length + P.GRAPH_KINDS.length, P.KINDS.length);
 });
 
 test('writeKind writes the bytes the old writer wrote, readKind reads them back', () => {
@@ -115,11 +115,10 @@ const EXCEPTIONS: Array<{ file: string; line: RegExp; reason: string }> = [
   { file: 'lib/jsonl.ts', line: /readJsonl/, reason: 'definition of the validated file reader the JsonlStore wraps' },
   { file: 'src/commands/shared.ts', line: /writeState/, reason: 'writeState re-export for files that are not plan kinds (config.json, .gitignore, CARD.md, report files)' },
   { file: 'src/commands/plan.ts', line: /writeState|canonFile/, reason: 'init writes config.json and .gitignore, which are not plan kinds' },
+  { file: 'src/commands/openitems.ts', line: /writeState/, reason: 'open-items --write also writes OPEN-ITEMS.md, a rendered document and not a plan kind' },
   { file: 'src/commands/queries.ts', line: /writeState/, reason: 'card --write writes CARD.md, not a plan kind' },
   { file: 'src/commands/report.ts', line: /writeState/, reason: 'report writes REPORT.md and REPORT.html, not plan kinds' },
   { file: 'src/commands/import.ts', line: /canonFile/, reason: 'cache/obs.jsonl is an observation cache, not a plan kind (it has its own column order)' },
-  { file: 'src/commands/audit.ts', line: /readCapped|writeState/, reason: 'jira-pull snapshot and refs text files, not plan kinds' },
-  { file: 'lib/jira/snapshot.ts', line: /readJsonl/, reason: 'Jira snapshot file, not a plan kind' },
 ];
 const CALLS = /\b(readRecords|canonFile|canonText|writeState|readJsonl)\b/;
 const SKIP_DIRS = ['lib', 'src', 'scripts', 'mcp', 'evals', 'bin'];

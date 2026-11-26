@@ -6,10 +6,10 @@ import path from 'node:path';
 import { makeGit } from '../../lib/gitsafe.ts';
 import { oneLine } from '../../lib/sanitize.ts';
 import { isoDay } from '../../lib/clock.ts';
-import { canonFile, readRecords, SCHEMAS } from '../../lib/store.ts';
+import { openStore } from '../../lib/planstore.ts';
 import { MAX_FILE, isScanFile, mergeRow, scanRepo, slugOf } from '../../lib/graph/repo.ts';
 import type { ScanFile, Row } from '../../lib/graph/repo.ts';
-import { needBrain, precheckTargets, usage, writeState } from './shared.ts';
+import { needBrain, usage } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 
@@ -47,8 +47,8 @@ async function repo(ctx: Ctx, args: Args<{ all?: boolean; check?: boolean }>): P
     dirs = [base];
   }
   needBrain(ctx);
-  const file = path.join(ctx.dir, 'repos.jsonl'), existing = readRecords(ctx.dir, 'repos.jsonl', { defaults: false });
-  const people = new Set(readRecords(ctx.dir, 'people.jsonl', { defaults: false }).map((p) => p.id).filter((i): i is string => typeof i === 'string'));
+  const store = openStore(ctx), existing = store.readKind('repo', { defaults: false });
+  const people = new Set(store.readKind('person', { defaults: false }).map((p) => p.id).filter((i): i is string => typeof i === 'string'));
   const day = isoDay(ctx.now());
   const rows = new Map<string, Row>(existing.map((r) => [String(r.id), r])), seen = new Set<string>();
   let drift = 0;
@@ -72,8 +72,7 @@ async function repo(ctx: Ctx, args: Args<{ all?: boolean; check?: boolean }>): P
     ctx.io.out(`${id}: scanned (fp ${String(row.fp).slice(0, 8)})`);
   }
   if (check) return drift ? 1 : 0;
-  precheckTargets(ctx, [file]);
-  writeState(ctx, file, canonFile([...rows.values()], SCHEMAS['repos.jsonl']));
+  store.writeKind('repo', [...rows.values()], { precheck: true });
   return 0;
 }
 

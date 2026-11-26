@@ -3,7 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { readCapped, readDataCapped, presentDataFile } from '../../lib/jsonl.ts';
+import { readCapped } from '../../lib/jsonl.ts';
+import { openStore, kindFile, SRC_KINDS, GRAPH_KINDS } from '../../lib/planstore.ts';
 import { oneLine, fence } from '../../lib/sanitize.ts';
 import { buildModel } from '../../lib/model.ts';
 import { assertInside } from '../../lib/fsafe.ts';
@@ -26,10 +27,10 @@ export const CUR = "version='current'";
 export const KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/;
 export const MAX_DATA = 64 * 1024 * 1024;
 // Every file the index and the open-items list are derived from (the card's freshness line and `card --line` use the same list).
-export const SRC_FILES = Object.freeze(['tickets', 'edges', 'schedule', 'evidence', 'findings', 'meta', 'learnings', 'refs', 'open-items'].map((n) => `${n}.jsonl`));
+export const SRC_FILES = Object.freeze(SRC_KINDS.map(kindFile));
 /** The seven graph files (the same list as GRAPH_FILES in lib/graph/files.ts, which a test pins; a literal here keeps that module off the start-up path).
  * Kept apart from SRC_FILES: a graph file adds to the card digest only when it is present, so a directory without one keeps its 0.3.0 digest. */
-export const GRAPH_SRC_FILES = Object.freeze(['people', 'sprints', 'epics', 'repos', 'capacity', 'links', 'xrefs'].map((n) => `${n}.jsonl`));
+export const GRAPH_SRC_FILES = Object.freeze(GRAPH_KINDS.map(kindFile));
 
 export const dbFile = (ctx: Ctx): string => path.join(ctx.dir, INDEX_FILE);
 export const rel = (ctx: Ctx, p: string): string => path.relative(ctx.root, p) || '.';
@@ -113,8 +114,8 @@ export function modelFromDb(ctx: Ctx): Model {
 /** open-items.jsonl (capped read; absent -> no items). */
 export async function readItems(ctx: Ctx) {
   const OI = await import('../../lib/openitems.ts');
-  const f = path.join(ctx.dir, 'open-items.jsonl');
-  return { OI, items: presentDataFile(f) ? OI.parseItems(readDataCapped(f, MAX_DATA)) as OpenItem[] : [] }; // a symlink is refused, as in build (also one swapped in); the open-items.jsonl validator makes key and kind strings, owner a string or absent and status a non-empty string; the other OpenItem fields are unchecked (pre-existing)
+  const text = openStore(ctx).readText('openitem', { maxBytes: MAX_DATA, bare: true });
+  return { OI, items: text !== null ? OI.parseItems(text) as OpenItem[] : [] }; // a symlink is refused, as in build (also one swapped in); the open-items.jsonl validator makes key and kind strings, owner a string or absent and status a non-empty string; the other OpenItem fields are unchecked (pre-existing)
 }
 
 /** A Jira snapshot file: .jsonl (current format) or the legacy JSON map. */

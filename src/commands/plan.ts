@@ -5,9 +5,11 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { readCapped } from '../../lib/jsonl.ts';
+import { openStore, kindFile } from '../../lib/planstore.ts';
+import type { Kind } from '../../lib/planstore.ts';
 import { oneLine } from '../../lib/sanitize.ts';
 import { PlangraphError } from '../errors.ts';
-import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABLES, INDEX_FILE, SIDECARS } from '../db.ts';
+import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, INDEX_FILE, SIDECARS } from '../db.ts';
 import { checkRepoPath } from '../../lib/gitsafe.ts';
 import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
@@ -16,7 +18,6 @@ import { siteTag } from '../../lib/tracker.ts';
 import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, readItems, capOf, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
-import type { TableSpec } from '../db.ts';
 import type { Model, PlanRecord } from '../../lib/model.ts';
 import type { JiraSettings } from '../jira-tenant.ts';
 import type { MoveRequest } from '../../lib/whatif.ts';
@@ -165,19 +166,17 @@ async function scheduleLoad(ctx: Ctx, args: Args): Promise<number> {
 }
 
 // ---- text <-> index ----
-const EXPORT: Array<[string, string]> = [['ticket', 'key'], ['schedule', 'version,key'], ['edge', 'consumer,producer'], ['evidence', 'key,source,rowid'], ['finding', 'key,kind,text'], ['meta', 'k']];
+const EXPORT: Array<[Kind, string]> = [['ticket', 'key'], ['schedule', 'version,key'], ['edge', 'consumer,producer'], ['evidence', 'key,source,rowid'], ['finding', 'key,kind,text'], ['meta', 'k']];
 async function exportText(ctx: Ctx): Promise<number> {
-  const S = await import('../../lib/store.ts'), file = dbFile(ctx);
-  const targets = EXPORT.map(([t]) => path.join(ctx.dir, (TABLES.get(t) as TableSpec).file)); // EXPORT names TABLES' own tables
-  precheckTargets(ctx, targets);
-  const texts: Array<[string, string]> = [];
+  const file = dbFile(ctx), store = openStore(ctx);
+  store.precheck(EXPORT.map(([t]) => t)); // EXPORT names plan kinds, which are also TABLES' own table names
+  const exported: Array<[Kind, Array<Record<string, unknown>>]> = [];
   {
     using d = openIndex(file, { readOnly: true, dir: ctx.dir });
     // A stale index means the text was edited after the build: exporting would silently overwrite those edits with the older index.
     // (schedule-load and whatif --write change only the index, so the fingerprint still matches and export goes ahead.)
     if (d.stale) throw dataError('the index is stale: the text files changed since it was built, and export would overwrite them', 'run `plangraph build` first (it reads the text), then export');
     for (const [t, order] of EXPORT) {
-      const { file: fn } = (TABLES.get(t) as TableSpec); // EXPORT names TABLES' own tables
       const rows = (d.all(`SELECT * FROM ${t} ORDER BY ${order}`) as Array<Record<string, unknown>>).map((row) => { // one object per row
         // NULL in a known column means the field was absent: it stays absent. `extra` holds unknown fields and the exact values a column could
         // not keep (an explicit null, a number in a text column), which win over the column (src/db.ts rowOf).
@@ -186,10 +185,10 @@ async function exportText(ctx: Ctx): Promise<number> {
         if (extra != null) { const o = JSON.parse(extra as string); for (const k of Object.keys(o)) Object.defineProperty(r, k, { value: o[k], enumerable: true, writable: true, configurable: true }); } // extra is TEXT: build wrote canonical JSON there
         return r;
       });
-      texts.push([path.join(ctx.dir, fn), S.canonFile(rows, S.SCHEMAS[fn])]);
+      exported.push([t, rows]);
     }
   }
-  for (const [f, text] of texts) writeState(ctx, f, text);
+  for (const [t, rows] of exported) store.writeKind(t, rows);
   stampFingerprint(file, ctx.dir); // the index is current with the text it just wrote: the next query is not stale
   ctx.io.out('exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)');
   return 0;
@@ -222,11 +221,10 @@ async function init(ctx: Ctx): Promise<number> {
   precheckTargets(ctx, [fmt]); // a symlinked format.json (even a dangling one) is REFUSED (exit 4) before anything is written
   fs.mkdirSync(dir, { recursive: true });
   const missing = (f: string) => !fs.existsSync(f), gi = path.join(dir, '.gitignore'), changes: string[] = [];
-  const existing = !missing(cfg) || !missing(path.join(dir, 'tickets.jsonl')); // a plangraph that was set up before: init must not read as a first set-up
+  const store = openStore(ctx), existing = !missing(cfg) || store.exists('ticket'); // a plangraph that was set up before: init must not read as a first set-up
   precheckTargets(ctx, [gi]);
   if (missing(cfg)) writeState(ctx, cfg, `${JSON.stringify(CONFIG, null, 2)}\n`);
-  const dst = path.join(dir, 'learnings.jsonl');
-  if (missing(dst) && fs.existsSync(SEED)) writeState(ctx, dst, readCapped(SEED, 1024 * 1024));
+  if (!store.exists('learning') && fs.existsSync(SEED)) store.writeText('learning', readCapped(SEED, 1024 * 1024));
   // Only ADD the lines init needs (the index and its SQLite sidecars): every user line in an existing .gitignore stays, in order, byte for
   // byte; the missing lines are appended in IGNORE_LINES order with the file's own line ending; nothing is written when all are there.
   const old = missing(gi) ? null : readCapped(gi, 1024 * 1024);
@@ -238,7 +236,7 @@ async function init(ctx: Ctx): Promise<number> {
       writeState(ctx, gi, `${old}${old === '' || old.endsWith('\n') ? '' : eol}${add.map((l) => l + eol).join('')}`); changes.push(`added ${add.join(', ')} to .gitignore`);
     }
   }
-  for (const [t] of EXPORT) { const f = path.join(dir, (TABLES.get(t) as TableSpec).file); if (missing(f)) { writeState(ctx, f, ''); changes.push(`created ${(TABLES.get(t) as TableSpec).file}`); } } // EXPORT names TABLES' own tables
+  for (const [t] of EXPORT) { if (!store.exists(t)) { store.writeKind(t, []); changes.push(`created ${kindFile(t)}`); } } // an empty kind is an empty file
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
   try { await wireMergeDriver(ctx, { consent: true }); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`plangraph doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
   if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);

@@ -5,10 +5,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readCapped } from '../../lib/jsonl.ts';
+import { openStore } from '../../lib/planstore.ts';
 import { oneLine, sanitizeText, fence, guardOutput } from '../../lib/sanitize.ts';
 import { writeAtomicSafe, assertInside } from '../../lib/fsafe.ts';
 import { checkRef, checkRepoPath } from '../../lib/gitsafe.ts';
-import { CUR, KEY_RE, MAX_DATA, needBrain, usage, dataError, readJsonInput, loadJiraSnap, jiraErrors, refuseWrite, precheckTargets, writeState, fenceLines } from './shared.ts';
+import { CUR, KEY_RE, MAX_DATA, needBrain, usage, dataError, readJsonInput, loadJiraSnap, jiraErrors, refuseWrite, fenceLines } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import { parseSnapshotJsonl, snapshotToJsonl } from '../../lib/tracker.ts';
@@ -51,12 +52,10 @@ async function stale(ctx: Ctx, args: Args<StaleValues & { list?: boolean }>): Pr
 }
 async function refsUpdate(ctx: Ctx, args: Args<StaleValues>): Promise<number> {
   const { S, model, ref, deps, sopts } = await staleSetup(ctx, args);
-  const keys = args.positionals.filter((a) => KEY_RE.test(a)), St = await import('../../lib/store.ts');
+  const keys = args.positionals.filter((a) => KEY_RE.test(a));
   let r: ReturnType<typeof S.refsUpdate>, commit: string;
   try { commit = deps.commit(ref); r = S.refsUpdate(model, model.refs, deps, { ...sopts, commit }, keys.length ? keys : null); } catch (e) { gitErrors(e); }
-  const file = path.join(ctx.dir, 'refs.jsonl');
-  precheckTargets(ctx, [file]);
-  writeState(ctx, file, St.canonFile(r.rows, St.SCHEMAS['refs.jsonl']));
+  openStore(ctx).writeKind('ref', r.rows, { precheck: true });
   ctx.io.out(`refs.jsonl updated for ${r.updated?.length ?? keys.length ?? '?'} tickets at ${oneLine(commit, 64)} (ref ${oneLine(ref, 200)}); run \`plangraph build\``);
   return 0;
 }
