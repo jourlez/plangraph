@@ -221,21 +221,24 @@ test('trust: a reported objective that differs from the schedule, or a bound the
   }
 });
 
-test('trust: the solver verify() flags BLOCKED and SPRINT_CLOSED rows exactly as plangraph verify does', { skip: SKIP, timeout: 300000 }, () => {
+test('trust: the solver verify() flags SPRINT_CLOSED rows exactly as plangraph verify does and ignores BLOCKED', { skip: SKIP, timeout: 300000 }, () => {
   const p = genPlan({ n: 4, people: 2, density: 0, seed: 3, cap: 99 }), dir = writePlan(p);
-  const [t1, t2, t3, t4] = p.tickets.map((t) => t.key as string);
-  const owner = p.schedule[0].owner;
-  fs.writeFileSync(path.join(dir, 'tickets.jsonl'), p.tickets.map((t) => JSON.stringify(t.key === t2 ? { ...t, verdict: 'NOT_READY' } : t)).join('\n') + '\n');
-  wjl(path.join(dir, 'open-items.jsonl'), [{ key: t1, kind: 'decision', owner, due_sprint: 1, status: 'open', text: 'x' }, { key: t4, kind: 'fix', owner, due_sprint: 1, status: 'done', text: 'x' }]);
-  wjl(path.join(dir, 'findings.jsonl'), [{ key: t4, kind: 'fix', text: 'x' }]);
+  const [t1, t2, t3, t4] = p.tickets.map((t) => t.key as string), owner = p.schedule[0].owner;
   wjl(path.join(dir, 'sprints.jsonl'), [{ n: 2, state: 'closed' }]);
-  const rows = new Map<string, [string, number]>([[t1, [owner, 1]], [t2, [owner, 1]], [t3, [owner, 2]], [t4, [owner, 1]]]);
-  const ts = verifyPlan(buildModel({ tickets: p.tickets.map((t) => (t.key === t2 ? { ...t, verdict: 'NOT_READY' } : t)), edges: p.edges, config: p.config, sprints: [{ n: 2, state: 'closed' }],
-    schedule: [...rows].map(([key, [o, sprint]]) => ({ key, owner: o, sprint })) }), undefined, { items: [{ key: t1, kind: 'decision', owner, due_sprint: 1, status: 'open', text: 'x' }, { key: t4, kind: 'fix', owner, due_sprint: 1, status: 'done', text: 'x' }] })
-    .filter((v) => v.code === 'BLOCKED' || v.code === 'SPRINT_CLOSED').map((v) => `${v.code} ${v.key}`).sort();
-  assert.deepEqual(ts, [`BLOCKED ${t1}`, `BLOCKED ${t2}`, `SPRINT_CLOSED ${t3}`]);
+  const rows = new Map<string, [string, number]>([[t1, [owner, 1]], [t2, [owner, 2]], [t3, [owner, 3]], [t4, [owner, 1]]]);
   const r = drive('verify', [dir, JSON.stringify(Object.fromEntries(rows))]);
   assert.equal(r.status, 0, r.stderr);
-  const py = (JSON.parse(r.stdout) as string[]).map((l) => (l.includes('blocked') ? `BLOCKED ${l.split(' ')[0]}` : l.includes('closed') ? `SPRINT_CLOSED ${l.split(' ')[0]}` : l)).sort();
-  assert.deepEqual(py, ts);
+  assert.deepEqual(JSON.parse(r.stdout), [`${t2} sprint 2 is closed`]);
+});
+
+test('trust: with an open item on a ticket and a closed sprint, the solver schedule passes verify (BLOCKED only a warning) and avoids the closed sprint', { skip: SKIP, timeout: 300000 }, () => {
+  const p = genPlan({ n: 6, people: 2, density: 0.3, seed: 5, cap: 99 }), dir = writePlan(p);
+  const item = { key: 'T-1', kind: 'decision', owner: p.schedule[0].owner, due_sprint: 1, status: 'open', text: 'x' };
+  wjl(path.join(dir, 'open-items.jsonl'), [item]);
+  wjl(path.join(dir, 'sprints.jsonl'), [{ n: 1, state: 'active' }, { n: 2, state: 'closed' }]);
+  const r = solve('nohint', dir);
+  assert.equal(r.code, 0, `${r.stdout}${r.stderr}`);
+  assert.ok(r.schedule.length === p.tickets.length && r.schedule.every((x) => x.sprint !== 2), `a row sits in the closed sprint: ${r.raw}`);
+  const v = verifyPlan(buildModel({ tickets: p.tickets, edges: p.edges, config: p.config, sprints: [{ n: 2, state: 'closed' }], schedule: r.schedule.map((x) => ({ key: x.item, owner: x.owner, sprint: x.sprint })) }), undefined, { items: [item] });
+  assert.deepEqual(v.filter((x) => !x.warn), []);
 });

@@ -2,7 +2,7 @@
 // verifyPlan(model, sched = model.sched, opts) -> [{code,key,detail}] sorted by (code order, key, detail); [] means the plan is valid.
 // opts: { frozen: Map key->{owner,sprint}, enforceMin: bool }. O(V+E).
 // Conventions: HANDOFF key = consumer; CAPACITY/MINLOAD key = "Person S<n>"; CYCLE key = smallest ticket key on the cycle, detail = path;
-// BEFORE_FIRST key = ticket; SPRINT_CLOSED and BLOCKED key = ticket (a not-done, not-frozen row at or after first_sprint in a closed sprint; an open gate or a verdict other than READY); CONFIG key = the config field.
+// BEFORE_FIRST key = ticket; SPRINT_CLOSED (an error) and BLOCKED (a warning unless opts.strict) key = ticket: a not-done, not-frozen row at or after first_sprint in a closed sprint; an open gate or a verdict other than READY; CONFIG key = the config field.
 // Frozen history (lib/frozen.ts states the rule once; bin/plangraph-solve verify() applies the same): frozen = closed (Done, closed_statuses, an
 // sp: task with impl_status done), jira_status in config.frozen_statuses, a key of opts.frozen, or current sprint below
 // config.frozen_before_sprint. A constraint exists only where at least one side is free: no HANDOFF when the producer is closed or both ends
@@ -20,15 +20,15 @@ import type { PlanRecord } from './model.ts';
 
 /** The violation codes, in report order (ORDER). */
 export type ViolationCode = 'CONFIG' | 'UNKNOWN_TICKET' | 'UNPLACED' | 'BEFORE_FIRST' | 'SPRINT_CLOSED' | 'BLOCKED' | 'HANDOFF' | 'CAPACITY' | 'FROZEN_MOVED' | 'MINLOAD' | 'CYCLE';
-/** One violation, discriminated on its code (the key conventions per code are in the header comment). */
-export type Violation = { [C in ViolationCode]: { code: C; key: string; detail: string } }[ViolationCode];
+/** One violation, discriminated on its code (the key conventions per code are in the header comment). warn: a BLOCKED row, which is an error only under opts.strict. */
+export type Violation = { [C in ViolationCode]: { code: C; key: string; detail: string; warn?: true } }[ViolationCode];
 /** A schedule to verify: key -> placement (model.sched, or a candidate plan). */
 export type Sched = ReadonlyMap<string, Placement>;
 /** A placement that passed placed(): a non-empty owner and an integer sprint. */
 interface Placed { owner: string; sprint: number }
 /** frozen: key -> the slot it must keep (only its owner and sprint are compared). */
-/** items: the open-items rows, so an open held_by item makes its row BLOCKED (without them only a verdict does). */
-export interface VerifyOptions { frozen?: ReadonlyMap<string, { owner?: unknown; sprint?: unknown }>; enforceMin?: boolean; items?: readonly PlanRecord[] }
+/** items: the open-items rows, so an open held_by item makes its row BLOCKED (without them only a verdict does); strict: BLOCKED is an error, not a warning. */
+export interface VerifyOptions { frozen?: ReadonlyMap<string, { owner?: unknown; sprint?: unknown }>; enforceMin?: boolean; items?: readonly PlanRecord[]; strict?: boolean }
 
 const ORDER: ViolationCode[] = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'SPRINT_CLOSED', 'BLOCKED', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];
 const MAX_SPAN = 1000; // MINLOAD checks at most this many sprints after first_sprint
@@ -70,7 +70,7 @@ export function verifyPlan(model: Model, sched: Sched = model.sched, opts: Verif
     const p = at(k); if (!p) continue;
     if (closedSprintRow(model, k, p.sprint, { frozen })) add('SPRINT_CLOSED', k, `S${p.sprint} is closed`);
     const b = blockedRow(model, k, p.sprint, { frozen, items: opts.items ?? [] });
-    if (b) add('BLOCKED', k, b.detail);
+    if (b) out.push({ code: 'BLOCKED', key: k, detail: b.detail, ...(opts.strict ? {} : { warn: true as const }) }); // planned but not ready is normal: a warning unless strict
   }
 
   for (const [c, ps] of model.prods) {

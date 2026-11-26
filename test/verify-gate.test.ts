@@ -1,5 +1,5 @@
-// verify enforces the two schedule gates (lib/graph/blockers.ts blockedRow, closedSprintRow): BLOCKED (an open held_by item or a verdict other
-// than READY) and SPRINT_CLOSED (a row in a closed sprint), for rows that are open, not frozen and at or after first_sprint. whatif reports the
+// verify checks the two schedule gates (lib/graph/blockers.ts blockedRow, closedSprintRow): BLOCKED (an open held_by item or a verdict other
+// than READY: a warning, an error under strict) and SPRINT_CLOSED (a row in a closed sprint: an error), for rows that are open, not frozen and at or after first_sprint. whatif reports the
 // same codes for the same move; the Python mirror is compared in test/solver-trust.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +17,8 @@ const codes = (m: ReturnType<typeof model>, items: readonly Record<string, unkno
 
 test('an open held_by item blocks the row of an open ticket in the current sprint', () => {
   const m = model([ticket('T-1')], [['T-1', 1]]);
-  assert.deepEqual(verifyPlan(m, m.sched, { items: held }), [{ code: 'BLOCKED', key: 'T-1', detail: 'open decision' }]);
+  assert.deepEqual(verifyPlan(m, m.sched, { items: held }), [{ code: 'BLOCKED', key: 'T-1', detail: 'open decision', warn: true }]);
+  assert.deepEqual(verifyPlan(m, m.sched, { items: held, strict: true }), [{ code: 'BLOCKED', key: 'T-1', detail: 'open decision' }]);
   assert.deepEqual(codes(m, [{ ...held[0], status: 'done' }]), []);
   assert.deepEqual(codes(m), []);
 });
@@ -47,17 +48,20 @@ test('rows before first_sprint and frozen rows are not checked', () => {
   assert.deepEqual(codes(frozen), []);
 });
 
-test('whatif and verify give the same codes for the same move', () => {
+test('whatif and verify give the same codes and the same severity for the same move, with and without strict', () => {
   const sprints = [{ n: 3, state: 'closed' }];
   const m = model([ticket('T-1'), ticket('T-2')], [['T-1', 1], ['T-2', 1]], { sprints });
-  for (const [sprint, want] of [[2, ['BLOCKED']], [3, ['BLOCKED', 'SPRINT_CLOSED']]] as const) {
-    const w = whatif(m, { key: 'T-1', sprint }, { items: held, strict: true }).reasons.map((r) => r.code).filter((c) => c === 'BLOCKED' || c === 'SPRINT_CLOSED').sort();
+  const gate = (c: string) => c === 'BLOCKED' || c === 'SPRINT_CLOSED';
+  for (const strict of [false, true]) for (const [sprint, want] of [[2, ['BLOCKED']], [3, ['BLOCKED', 'SPRINT_CLOSED']]] as const) {
+    const w = whatif(m, { key: 'T-1', sprint }, { items: held, strict }).reasons.filter((r) => gate(r.code));
     const moved = new Map(m.sched); moved.set('T-1', { owner: 'Ana', sprint });
-    const v = verifyPlan(m, moved, { items: held }).map((x) => x.code).filter((c) => c === 'BLOCKED' || c === 'SPRINT_CLOSED').sort();
-    assert.deepEqual(w, want);
-    assert.deepEqual(v, w);
+    const v = verifyPlan(m, moved, { items: held, strict }).filter((x) => gate(x.code));
+    assert.deepEqual(w.map((r) => r.code).sort(), want);
+    assert.deepEqual(v.map((x) => x.code).sort(), want);
+    // BLOCKED is a warning in both unless strict; SPRINT_CLOSED is an error in both
+    assert.deepEqual(w.map((r) => `${r.code}${r.code === 'BLOCKED' && !r.warn ? ' error' : ''}`).sort(), v.map((x) => `${x.code}${x.code === 'BLOCKED' && !x.warn ? ' error' : ''}`).sort());
+    assert.equal(w.find((r) => r.code === 'BLOCKED')?.warn === true, !strict);
+    assert.equal(v.find((x) => x.code === 'BLOCKED')?.warn === true, !strict);
+    assert.equal(v.find((x) => x.code === 'SPRINT_CLOSED')?.warn, undefined);
   }
-  // not strict: BLOCKED stays a warning in whatif, SPRINT_CLOSED stops
-  const soft = whatif(m, { key: 'T-1', sprint: 2 }, { items: held });
-  assert.equal(soft.reasons.find((r) => r.code === 'BLOCKED')?.warn, true);
 });

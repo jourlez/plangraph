@@ -402,7 +402,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph stale` | which verdicts no longer match their inputs | `--list`, `--ref R`, `--jira SNAPSHOT`, `--full` | none |
 | `plangraph ticket` | one ticket: size, status, verdict, placement, needs, findings, evidence | `KEY` (`-v` for detail) | none |
 | `plangraph units` | audit units (bundles plus input lists) for agents, with a cost preview | `--stale` or `--keys A,B`, `--size N`, `--text DIR`, `--out DIR`, `--jira SNAPSHOT` | file |
-| `plangraph verify` | independent plan verifier (exit 1 on a violation) | `[FILE]` to check a schedule file; `--enforce-min` | none |
+| `plangraph verify` | independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless `--strict`) | `[FILE]` to check a schedule file; `--enforce-min`; `--strict` | none |
 | `plangraph whatif` | dry run of one move or reassignment (exit 1 when unsafe) | `KEY --to NAME --sprint N`; `--apply-plan [--write]` repairs and saves to the index; `--relieve NAME --sprint N` (smallest set of moves to get under cap); `KEY --find` (every valid slot, ranked); `--earlier`, `--owner-change`, `--slip`, `--strict` | index (only with `--write`) |
 
 Two more executables ship in `bin/`:
