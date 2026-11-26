@@ -1,0 +1,15 @@
+{
+  "id": "attrs-classvar-forward-ref",
+  "repo": "https://github.com/python-attrs/attrs",
+  "commit": "6851ab593cd25f3c14393e9355d57d22bec2a074",
+  "task": "attrs does not recognise a string forward reference to ClassVar (for example \"ClassVar[int]\" or \"typing.ClassVar\") as a class variable, and turns it into an attribute. Fix the detection of ClassVar annotations given as strings.",
+  "hiddenTests": {
+    "fromCommit": "97f8d175656bc03c373a1c9038048a4d312c307c",
+    "files": [
+      "tests/test_annotations.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_annotations.py"
+  },
+  "language": "python",
+  "validated": false
+}

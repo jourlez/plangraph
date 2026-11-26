@@ -1,0 +1,15 @@
+{
+  "id": "marshmallow-url-fragment",
+  "repo": "https://github.com/marshmallow-code/marshmallow",
+  "commit": "3207be31474530f7c0685dfbd7b4faca5b35fbf5",
+  "task": "marshmallow URL validation rejects a URL whose fragment follows an empty path, such as \"http://example.com#frag\". Fix the validator so this valid URL is accepted.",
+  "hiddenTests": {
+    "fromCommit": "902f99c4151d1f0c4c3b8e8dfbafc7b6a76aeaa6",
+    "files": [
+      "tests/test_validate.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_validate.py"
+  },
+  "language": "python",
+  "validated": false
+}

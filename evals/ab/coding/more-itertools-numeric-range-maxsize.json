@@ -1,0 +1,15 @@
+{
+  "id": "more-itertools-numeric-range-maxsize",
+  "repo": "https://github.com/more-itertools/more-itertools",
+  "commit": "08dca284ba5446a026afdc34067b658f9da989eb",
+  "task": "numeric_range objects compare or hash incorrectly for values above sys.maxsize. Fix equality and hashing so equal ranges compare equal and hash the same at large sizes.",
+  "hiddenTests": {
+    "fromCommit": "c629214760c78c0a2235e896d335cccfb3a64466",
+    "files": [
+      "tests/test_more.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_more.py"
+  },
+  "language": "python",
+  "validated": false
+}

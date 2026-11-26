@@ -1,0 +1,15 @@
+{
+  "id": "rich-split-graphemes-loop",
+  "repo": "https://github.com/Textualize/rich",
+  "commit": "27701029082052c6541031b6f139097230253900",
+  "task": "The grapheme splitting helper in rich.cells can loop forever for some input strings. Find the input class that triggers the infinite loop and make the function always terminate with correct splitting.",
+  "hiddenTests": {
+    "fromCommit": "60b064a70a9db813e96955b7b344f61f62817f4c",
+    "files": [
+      "tests/test_cells.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_cells.py"
+  },
+  "language": "python",
+  "validated": false
+}

@@ -1,0 +1,16 @@
+{
+  "id": "packaging-defer-parse-messages",
+  "repo": "https://github.com/pypa/packaging",
+  "commit": "dec6213e562b69ffb680d5b9a82a899fafe4dc02",
+  "task": "Parse errors for markers and requirements format their messages eagerly, which costs time and can raise secondary errors for bad input. Defer message formatting until the exception text is needed.",
+  "hiddenTests": {
+    "fromCommit": "f91ea7931fa551eb498ca2cdf5644dbbf20bcbc6",
+    "files": [
+      "tests/test_markers.py",
+      "tests/test_requirements.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_markers.py tests/test_requirements.py"
+  },
+  "language": "python",
+  "validated": false
+}

@@ -15,7 +15,9 @@ export const CARD_BUDGET = 250;
 
 // Token estimate used everywhere in the project: ceil(chars / 4). A convention, not a tokenizer: the real count of the current Claude
 // tokenizer is UNVERIFIED for this output (test/token-calibration.json keeps factor 1.0 until count_tokens is run; docs/TOKENS.md).
-export const estTokens = (s: unknown): number => Math.ceil(String(s).length / 4);
+/** Characters per token. 4 until `countTokens` in evals/ab/run.ts (EVAL_LIVE, owner API key) measures the real value; then set it here from `calibrate`. */
+export const CHARS_PER_TOKEN = 4;
+export const estTokens = (s: unknown): number => Math.ceil(String(s).length / CHARS_PER_TOKEN);
 
 // Strip escape sequences and invisible/control characters (sanitizeText), trailing spaces/tabs on every line and trailing blank lines.
 export const clean = (text: unknown): string => sanitizeText(text, { max: Infinity }).split('\n').map((l) => l.replace(/[ \t\r]+$/, '')).join('\n').replace(/\n+$/, '');

@@ -1,0 +1,15 @@
+{
+  "id": "packaging-free-threaded-tags",
+  "repo": "https://github.com/pypa/packaging",
+  "commit": "f91ea7931fa551eb498ca2cdf5644dbbf20bcbc6",
+  "task": "packaging.tags generates wrong free-threaded wheel tags when the interpreter reports a generic ABI before the free-threaded one. Fix the tag generation so the expected cp-t tags are produced.",
+  "hiddenTests": {
+    "fromCommit": "cf2cdf099375f7e208168cd2d8880699aeef0583",
+    "files": [
+      "tests/test_tags.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_tags.py"
+  },
+  "language": "python",
+  "validated": false
+}

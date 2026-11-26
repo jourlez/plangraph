@@ -1,0 +1,15 @@
+{
+  "id": "requests-prepare-body-wrapper",
+  "repo": "https://github.com/psf/requests",
+  "commit": "0b401c76b6e80a4eecf3c690085b2553f6e261ca",
+  "task": "Passing a file wrapper that forwards attributes through __getattr__ as the request data is not detected as a stream when the body is prepared, so it is handled as the wrong body type. Fix stream detection in body preparation.",
+  "hiddenTests": {
+    "fromCommit": "6404f345e562d962abe6700a1c357ec1e7e18232",
+    "files": [
+      "tests/test_requests.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_requests.py"
+  },
+  "language": "python",
+  "validated": false
+}

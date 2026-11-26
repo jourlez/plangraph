@@ -1,0 +1,15 @@
+{
+  "id": "more-itertools-chunked-even-size",
+  "repo": "https://github.com/more-itertools/more-itertools",
+  "commit": "4aeb4338ae1407d8da9723e86da99efeb446f719",
+  "task": "chunked_even does not validate the chunk size, so zero or negative sizes give confusing results or errors deep inside. Validate the size up front and raise a clear ValueError.",
+  "hiddenTests": {
+    "fromCommit": "fbd55137fe47b44f55190c3714c75f1b21bf834d",
+    "files": [
+      "tests/test_more.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_more.py"
+  },
+  "language": "python",
+  "validated": false
+}

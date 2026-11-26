@@ -1,0 +1,15 @@
+{
+  "id": "commander-option-source-undefined",
+  "repo": "https://github.com/tj/commander.js",
+  "commit": "c807ce933836d0d99719bac82ee477f3d7eb4268",
+  "task": "In commander, optsWithGlobals can mask an option value when the source of the value on a subcommand is unknown (undefined). Fix the merge so a known source from a parent is not overridden by an undefined source.",
+  "hiddenTests": {
+    "fromCommit": "1536d5bb9da38d1d94926aedfa31c8ece1f7dce5",
+    "files": [
+      "tests/options.optsWithGlobals.test.js"
+    ],
+    "command": "npx jest tests/options.optsWithGlobals.test.js"
+  },
+  "language": "javascript",
+  "validated": false
+}

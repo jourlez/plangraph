@@ -1,0 +1,15 @@
+{
+  "id": "tomlkit-supertable-aot",
+  "repo": "https://github.com/python-poetry/tomlkit",
+  "commit": "669d4d625168998312f733a34bcb93d870a39d5a",
+  "task": "tomlkit emits super tables in the wrong order when they are separated by an array of tables, so dumping a parsed document changes its layout. Fix container ordering so the round trip preserves the original order.",
+  "hiddenTests": {
+    "fromCommit": "29c31d2d08f6e6070345e07c8e0a0b9bb8a2ed85",
+    "files": [
+      "tests/test_toml_document.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_toml_document.py"
+  },
+  "language": "python",
+  "validated": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "jmespath-cache-eviction-race",
+  "repo": "https://github.com/jmespath/jmespath.py",
+  "commit": "1c0f538a82fbdea49a9df6b0710367dd7f401533",
+  "task": "The jmespath parser cache can raise when two threads evict entries at the same time. Make cache eviction safe under concurrent parsing.",
+  "hiddenTests": {
+    "fromCommit": "c50175160605c4a4a5bc77bdd460061822416fa6",
+    "files": [
+      "tests/test_parser.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_parser.py"
+  },
+  "language": "python",
+  "validated": false
+}

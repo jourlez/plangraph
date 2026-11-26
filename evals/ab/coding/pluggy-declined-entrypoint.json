@@ -1,0 +1,15 @@
+{
+  "id": "pluggy-declined-entrypoint",
+  "repo": "https://github.com/pytest-dev/pluggy",
+  "commit": "0224f79fc75efadaafe24dbab9deee2ff616ecd7",
+  "task": "PluginManager.load_setuptools_entrypoints tracks distributions for entry point plugins that were declined (registration returned nothing), so they show up as loaded. Fix the tracking so declined plugins are not recorded.",
+  "hiddenTests": {
+    "fromCommit": "4d6b10d28b7af1b0a64e19cd2a709d519f2e06f4",
+    "files": [
+      "testing/test_pluginmanager.py"
+    ],
+    "command": "python -m pytest -x -q testing/test_pluginmanager.py"
+  },
+  "language": "python",
+  "validated": false
+}

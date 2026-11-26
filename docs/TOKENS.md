@@ -124,3 +124,9 @@ full sentences for human-facing text).
 | plangraph (router, unchanged) | ~1.7k | ~1.7k |
 
 A saving of about 120 to 130 tok each time one of those four skills fires.
+
+## Calibration harness (task 4)
+
+`calibrate(samples)` in `evals/ab/report.ts` turns `count_tokens` results into a characters-per-token constant, and `countTokens` in
+`evals/ab/run.ts` collects the samples (guarded by `EVAL_LIVE=1`, key from `ANTHROPIC_API_KEY`, never written anywhere). The constant is
+`CHARS_PER_TOKEN` in `lib/render.ts`; it stays 4 until the owner runs the measurement. Output budgets stay stated in estimated tokens.
