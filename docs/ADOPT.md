@@ -23,7 +23,6 @@ Rules: never write to Jira, never write or print a credential, never edit anothe
 1. Detect: run `plangraph integrations` and `plangraph doctor`. Tell me what is installed (superpowers, OpenWolf, connectors) and any problem found. If `plangraph` is not found, tell me the plugin is not enabled in this session and stop.
 2. Find existing plan data. Check for: an existing plan dir (`.plangraph/` or whatever `.plangraphrc` names), superpowers plan files (docs/superpowers/plans/*.md), a Jira project I use, or nothing. Tell me which you found.
 3. Use the `plangraph:onboard` skill to bring that data in:
-   - existing plan data in an older format: run `plangraph migrate --write` [ASK first], then `plangraph build`;
    - superpowers plans: `plangraph sp-ingest <plan.md>` for each plan;
    - Jira: prefer the Atlassian connector for single tickets; for a bulk import tell me what `docs/JIRA.md` in the plugin says to set up (a scoped read-only token in MY shell, never in a file) [ASK]; then `plangraph jira-import`;
    - nothing yet: run `plangraph init`, and show me the tickets.jsonl, edges.jsonl and schedule.jsonl format from `plangraph explain` so we can fill them.

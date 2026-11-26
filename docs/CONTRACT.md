@@ -88,7 +88,7 @@ Exit codes:
 |---|---|
 | 0 | ok |
 | 1 | a negative verdict: `check`, `verify`, `ready`, `whatif`, `doctor` found a problem |
-| 2 | usage or data error: unknown command or option, missing or bad argument, unreadable or invalid input file, no index, corrupt index, `export` over a stale index, data format too new or needing migration for a writing command |
+| 2 | usage or data error: unknown command or option, missing or bad argument, unreadable or invalid input file, no index, corrupt index, `export` over a stale index, data format too new for a writing command |
 | 3 | environment missing: Node older than 24.15 (with `--if-present`, any command: exit 0 and one line `plangraph: needs Node >= 24.15, found <v>; install Node 24` instead), Jira credentials or configuration missing or rejected |
 | 4 | refused: a plan directory outside the repository (absolute, or escaping it through `..` or a symlink), a write target that is a symlink, not a regular file or outside the repository (nothing is written), a whatif write that would add violations |
 | 5 | unexpected internal error (`error: internal error: ...`) |
@@ -108,10 +108,9 @@ Session hook: `plangraph card --if-present` (with or without `--heal`) prints no
 `.plangraphrc`, a refused plan directory (`PLANGRAPH_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
 thrown error. On success it prints the card (a last `STALE:` line when the index is stale). With no index but plan data present (the plangraph
 directory resolves inside the repository and holds `tickets.jsonl` or `config.json`) it prints ONE fixed first-use line instead, still exit 0:
-`plangraph: plan data found in <dir> but no index: run plangraph build`, or, when `format.json` is older than the tool's (a missing file is format 0),
-`plangraph: plan data found in <dir> but no index: run plangraph migrate --write (format v<N>) then plangraph build` (`<dir>` is the plan directory relative
+`plangraph: plan data found in <dir> but no index: run plangraph build` (`<dir>` is the plan directory relative
 to the repository, one sanitized line; nothing from the data files is in it). The line is decided from `lstat` and sizes only, with no git process;
-the hook never writes, migrates or builds. It stays silent (exit 0) for no plangraph, a plan directory with no data file, a newer format, and every
+the hook never writes or builds. It stays silent (exit 0) for no plangraph, a plan directory with no data file, a newer format, and every
 refusal above plus a symlink, FIFO, directory, unreadable or over-cap data file, `config.json` or `format.json`, a bad `format.json`, and anything
 at the index path. A manual `plangraph card` is unchanged (`error: no index`, exit 2). Only `card` has
 this guarantee: other commands given `--if-present` still report errors (it only suppresses their STALE warning).
@@ -245,7 +244,7 @@ while another process is inside an index write sees that writer's journal and is
 What is closed (tests: `test/toctou-race.test.ts`, each race forced at an exact point by an injected `fsImpl` that swaps the file right
 after the check, asserting the outside file is never read or written):
 
-- Reading a plan data file (the index sources (eight v1 files and up to seven graph files), `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
+- Reading a plan data file (the index sources (eight v1 files and up to seven graph files), `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`,
   the `card --line` hash inputs, and the OpenWolf files read by `rules --repo` and `doctor`: `.wolf/cerebrum.md`, `.wolf/STATUS.md`,
   `.wolf/anatomy-index.json`) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
   swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device,

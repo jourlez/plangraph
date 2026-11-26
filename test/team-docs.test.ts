@@ -17,7 +17,7 @@ const scriptsIn = (text: string): string[] => [...text.matchAll(/npm run ([A-Za-
 
 test('docs/TEAM.md exists and covers the second-teammate path', () => {
   const t = read('docs/TEAM.md');
-  for (const needle of ['--scope project', 'plangraph doctor --fix', 'consent', 'JIRA.md', '.gitattributes', 'plangraph.sqlite', '0.5.0', 'v0.3.0', 'conflict']) {
+  for (const needle of ['--scope project', 'plangraph doctor --fix', 'consent', 'JIRA.md', '.gitattributes', 'plangraph.sqlite', 'v0.3.0', 'conflict']) {
     assert.ok(t.includes(needle), `TEAM.md does not mention ${needle}`);
   }
 });

@@ -134,7 +134,7 @@ Adopting it in another project takes one install and one pasted prompt: see [doc
 
 ## Quickstart
 
-The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/plangraph:init` skill wraps `plangraph init`. The commands used here are `plangraph init`, `plangraph build`, `plangraph check`, `plangraph verify`, `plangraph card`, `plangraph ready`, `plangraph blockers`, `plangraph whatif`, `plangraph export`, `plangraph report`, `plangraph doctor`, `plangraph integrations`, `plangraph migrate`, `plangraph sp-ingest`, `plangraph refs-update` and `plangraph stale`.
+The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/plangraph:init` skill wraps `plangraph init`. The commands used here are `plangraph init`, `plangraph build`, `plangraph check`, `plangraph verify`, `plangraph card`, `plangraph ready`, `plangraph blockers`, `plangraph whatif`, `plangraph export`, `plangraph report`, `plangraph doctor`, `plangraph integrations`, `plangraph sp-ingest`, `plangraph refs-update` and `plangraph stale`.
 
 ### A new plan in five minutes
 
@@ -253,18 +253,14 @@ The examples below were run on a small synthetic plan (three invented people, ni
 
 ### An existing plan
 
-**Legacy data without `format.json`.** Files written before the format version existed load as version 0. `plangraph doctor` says so; `plangraph migrate` is a dry run and `--write` applies it. `plangraph doctor --fix` wires the merge driver in a fresh clone (git config is not versioned, so every clone needs it once).
+**A fresh clone.** `plangraph doctor --fix` wires the merge driver (git config is not versioned, so every clone needs it once).
 
 ```console
 $ plangraph doctor
-data format v0 (legacy: run `plangraph migrate --write`); tool supports v1
+data format v1; tool supports v1
 merge driver: .gitattributes lacks ".plangraph/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `plangraph init` or `plangraph doctor --fix` in every clone)
 node v24.18.0: ok
 solver runtime: uv found (plangraph-solve-run will use it)
-$ plangraph migrate
-0->1: tickets.jsonl (dry run, use --write)
-$ plangraph migrate --write
-0->1: tickets.jsonl (applied)
 $ plangraph doctor --fix
 data format v1; tool supports v1
 merge driver: ok
@@ -303,7 +299,7 @@ Add `--jira snapshot.jsonl` to include Jira changes. The `plangraph:audit` skill
 - **Text in git is the source of truth.** The plan directory holds `tickets.jsonl`, `edges.jsonl`, `schedule.jsonl`, `findings.jsonl`, `evidence.jsonl`, `meta.jsonl`, `refs.jsonl`, `learnings.jsonl`, optional `open-items.jsonl`, `history.jsonl` and `actuals.jsonl`, plus `config.json` and `format.json`. Each file is canonical: one record per line, sorted by primary key, fixed key order, trailing newline. Unknown fields are kept, never interpreted. Details: [docs/FORMAT.md](docs/FORMAT.md).
 - **The SQLite index is a throwaway derived file.** `plangraph build` writes `plangraph.sqlite` atomically and records a fingerprint of the text it was built from and a digest of its own rows. When the text changes, queries still answer but say `STALE`; `plangraph build` rebuilds it in well under a second on a plan of about 1,400 tickets. The index is git-ignored.
 - **Merging.** `plangraph init` registers a git merge driver (`bin/plangraph-merge`) for the JSONL files. It merges by primary key and field: edits to different fields of the same ticket merge cleanly; the same field changed to two values is a conflict. A clean merge of `schedule.jsonl` or `edges.jsonl` reminds you to run `plangraph build` and `plangraph check`, because a valid merge of records can still break a plan rule.
-- **Format versions.** `format.json` holds `format_version` and `min_reader`. A tool refuses to write to a newer format, and `plangraph migrate` upgrades an older one.
+- **Format versions.** `format.json` holds `format_version` and `min_reader`. A tool refuses to write to a newer format.
 
 ### The two rules
 
@@ -385,7 +381,6 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph jira-pull` | read-only Jira snapshot (delta by default) | `--out FILE`, `--full` | file |
 | `plangraph jira-text` | full description and comments of tickets as text files (read-only) | `KEY...`, `--out DIR`, `--from-json FILE` | file |
 | `plangraph learn` | copy one OpenWolf repo rule into `learnings.jsonl` | `--from-wolf HANDLE\|"text"` | text |
-| `plangraph migrate` | upgrade the data format (dry run unless `--write`) | `--write` | text |
 | `plangraph neighbors` | what a ticket needs and what needs it, to a depth | `KEY [DEPTH]` | none |
 | `plangraph open-items` | open items from findings: compact view, close, reopen, register | `--close KEY KIND`, `--reopen KEY KIND`, `--register KEY KIND --owner O --due N --text T`, `--findings FILE\|-`, `--mine`, `--write`, `--suggest-from-status` | text |
 | `plangraph person` | one person's load per sprint | `NAME` | none |
@@ -628,9 +623,8 @@ What is verified live, and what only against fixtures:
 | Symptom | Cause | Fix |
 |---|---|---|
 | The session card never appears | the card is turned off, the project has no plan data, or the hook failed (it never reports a failure) | check the `card` option and `PLANGRAPH_CARD`; run `plangraph card` by hand to see any error |
-| The session starts with `plangraph: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet, or the data is in an older format | run `plangraph build`, or `plangraph migrate --write` first when the line says so |
+| The session starts with `plangraph: plan data found in <dir> but no index` | the plan data exists but nothing has built the index yet | run `plangraph build` |
 | `plangraph: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/plangraph/bin/plangraph ...`, or add that `bin/` directory to your PATH |
-| `note: .plangraph: data format 0 is older than 1` | data written before `format.json` existed | `plangraph migrate`, then `plangraph migrate --write` |
 | `STALE: the text files changed since the index was built` | text edited after the last build | `plangraph build` |
 | `error: the index is stale ... export would overwrite them` | `plangraph export` over a stale index | `plangraph build`, then redo the index change |
 | `error: tickets.jsonl: is a symlink, not a regular file` or `error: the index is a symlink` | a symlink where plangraph expects a regular file (refused by design) | replace the symlink with the real file; for the index, delete it and run `plangraph build` |

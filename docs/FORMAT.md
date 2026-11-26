@@ -33,28 +33,25 @@ Implemented in `lib/store.ts`, `lib/merge.ts`, `bin/plangraph-merge`. Text files
 
 Defaults for missing optional fields are applied on read (`readRecords`, `withDefaults`), never written, so they cause no churn (the one exception is the schedule `version`, see the table).
 
-## 2. Format version and migrations
+## 2. Format version
 
-`<plan dir>/format.json`: `{"format_version":N,"min_reader":M}`. No file = legacy v0. This tool writes `FORMAT_VERSION = 1`, reads `MIN_FORMAT = 1`.
+`<plan dir>/format.json`: `{"format_version":N,"min_reader":M}`. This tool writes `FORMAT_VERSION = 1`. A directory without the file reads as format 0 and is accepted for now.
 
-Reader rules (`checkFormat(dir, {version,min}, {mode})`):
+Reader rules (`checkFormat(dir, {version}, {mode})`):
 - Unknown fields are ignored and preserved (including in `format.json`). Missing optional fields get defaults.
 - Directory newer than the tool: hard error `TOO_NEW` ("upgrade the plangraph tool"). In `mode:'read'` it is allowed when `min_reader <= tool version` (additive changes only); writing to a newer directory is never allowed.
-- Directory older than the tool minimum: `NEEDS_MIGRATION` ("run `plangraph migrate --write`").
 
-Migration framework: `migrations = [{from, to, min_reader?, plan(dir, read) -> [{file,text}]}]`. `plan` is pure and lists only files whose text changes. `planMigration(dir)` is the dry run (steps and files, writes nothing). `runMigration(dir, {write})` is dry-run unless `write`; per step it writes each changed file atomically (temp file in the same directory, fsync, rename), then bumps `format.json` LAST, all under `.migrate.lock`. A crash leaves a valid old-format directory; re-running re-plans from disk and converges to the same bytes; a finished directory plans nothing. Any unparsable file aborts before the first write. Shipped: 0 to 1 = add `format.json` and canonicalize every known jsonl file.
-
-### Expand / migrate / contract (many repos, one shared tool)
+### Expand / migrate / contract (many repos, one shared tool; how a future format version ships)
 
 Repos upgrade at different times, so a change ships in three releases, never one:
 1. Expand: tool N+1 reads and writes both shapes (new optional field, or new file alongside the old). `format_version` stays; `min_reader` stays. Old tools keep working (unknown fields preserved).
 2. Migrate: once every repo runs N+1, a migration `N to N+1` rewrites data to the new shape. Raise `min_reader` only if old tools would misread the new shape; that turns old tools into a clear "upgrade" error instead of silent damage.
-3. Contract: a later release drops the old-shape reading code. Its `MIN_FORMAT` rises; repos still on the old format get `NEEDS_MIGRATION` and `plangraph migrate` runs the retained migration.
+3. Contract: a later release drops the old-shape reading code. The tool then refuses a directory still on the old format with a clear message.
 Rules: never reuse or repurpose a field; never remove a migration; renames are expand (write both) then contract; every migration is idempotent and tested with crash injection.
 
 ## 3. Locks (`withLock`)
 
-Used by `runMigration` (`.migrate.lock`). The lock file is created exclusively and holds `{pid, token}`. A lock is stolen only when its owner pid is dead (`process.kill(pid, 0)` fails with `ESRCH`; `EPERM` means alive) AND the file is older than `staleMs` (default 30 s); content that does not parse counts as stale by age alone. Release removes the file only if the token is still the caller's. If the lock cannot be taken after `retries`, the error says `locked`.
+Used by `withLock`. The lock file is created exclusively and holds `{pid, token}`. A lock is stolen only when its owner pid is dead (`process.kill(pid, 0)` fails with `ESRCH`; `EPERM` means alive) AND the file is older than `staleMs` (default 30 s); content that does not parse counts as stale by age alone. Release removes the file only if the token is still the caller's. If the lock cannot be taken after `retries`, the error says `locked`.
 
 - The lock path is only examined with `lstat` / `O_NOFOLLOW`: a symlink there (dangling or not) is an error, `lock path is a symlink`, never followed. The "file vanished, try again" path counts against `retries`; a successful steal retries without consuming one (it is progress), so only an adversary that keeps re-creating stale locks could extend the loop.
 - Stealing is serialized by a short-lived guard file `<lock>.steal` and done as a rename to `<lock>.stale-<pid>-<hex>`, a re-read that must still describe the dead owner (inode, pid, token), and only then a remove. A live owner's file that was moved by mistake is put back with a no-clobber link and never deleted by this code, but the put-back is best-effort: if another process created the lock path in the meantime the link fails, the moved file stays behind as `<lock>.stale-*` (a leaked orphan) and an overlap is possible. That needs something to swap the lock file between the guard's re-check and the rename (a hand deletion, or a process running an older unguarded version). A guard left by a crashed stealer is removed once it is older than `staleMs` and its pid is dead; clearing it is itself not atomic (lstat, then remove), so a crashed holder plus a tight race can briefly let two stealers run. The optional `onStealDecision` callback is test-only.

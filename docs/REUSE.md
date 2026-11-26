@@ -29,7 +29,7 @@ Bar: build only if nothing equally good exists, or it is strictly required, or o
 | `lib/verify`, `lib/whatif`, `bin/plangraph-solve` (strict handoff, capacity, safe reassignment, exact schedule) | Jira Plans (team-level capacity only, no per-person, no handoff rule); OR-Tools is reused as the engine | **Keep** | Surveyed 70+ tools: none verifies or repairs per-person, handoff-aware plans. |
 | `lib/stale` (fingerprint re-audit with transitive propagation) | Bazel/Nx do the same for builds, not for tickets | **Keep** | 400-stream differential test against a from-scratch oracle: 0 stale hits. |
 | `lib/merge`, `bin/plangraph-merge`, canonical format | git's own merge-driver mechanism (reused); beads/git-bug use other stores | **Keep, reuse git** | Plain git cannot merge same-line field edits; the driver is the platform's own extension point. |
-| `lib/store` format version and `migrate` | none | **Keep** | Needed for many repos sharing one tool. |
+| `lib/store` format version | none | **Keep** | Needed for many repos sharing one tool. |
 | `lib/sanitize`, `lib/gitsafe`, `lib/fsafe` | none in the host; Claude does not sanitize tool output | **Keep** | Verified injection, symlink and ReDoS findings. |
 | `lib/render`, card, `explain` | none | **Keep** | Token contract; measured; see docs/TOKENS.md. |
 | `lib/openitems` register | Jira (flags, sub-tasks, comments) for human items | **Keep, shrink** | Findings come from audits, not humans (102 on the real plan); `ready` needs them. Command execution removed (see below). |

@@ -47,7 +47,7 @@ claude plugin update plangraph@plangraph-marketplace
 plangraph doctor
 ```
 
-Then restart Claude Code. Do this together before the 0.5.0 materialize and format steps: an older reader of a newer data format refuses it rather than guessing, and one teammate on the old version means a plain text merge for that person. After a rename release, the repository's `.gitattributes` line changes; update first, then pull.
+Then restart Claude Code. An older reader of a newer data format refuses it rather than guessing, and one teammate on the old version means a plain text merge for that person.
 
 ## 6. Pin a release by tag
 

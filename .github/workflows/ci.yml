@@ -181,7 +181,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['24.15.0', '26'] # the floor of 0.3.0 and the newest major
+        node: ['24.15.0', '26'] # the floor and the newest major
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
