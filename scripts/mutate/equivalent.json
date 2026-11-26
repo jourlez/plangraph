@@ -1261,21 +1261,9 @@
  },
  {
   "file": "lib/store.ts",
-  "line": "export function checkFormat(dir: string, supported: { version: number; min: number } = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {",
-  "mutated": "export function checkFormat(dir: string, supported: { version: number; min: number } = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = '' }: { mode?: 'read' | 'write' } = {}): FormatCheck {",
+  "line": "export function checkFormat(dir: string, supported: { version: number } = { version: FORMAT_VERSION }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {",
+  "mutated": "export function checkFormat(dir: string, supported: { version: number } = { version: FORMAT_VERSION }, { mode = '' }: { mode?: 'read' | 'write' } = {}): FormatCheck {",
   "why": "checkFormat only tests mode === read; any other value, empty included, is the write mode"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 1));",
-  "mutated": "const ops = m.plan(dir, read).sort((a, b) => (a.file <= b.file ? -1 : 1));",
-  "why": "migration plans list each file once, so the tie branch is never taken"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 1));",
-  "mutated": "const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 0));",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so returning 0 instead of 1 for a > b cannot change the order"
  },
  {
   "file": "lib/store.ts",

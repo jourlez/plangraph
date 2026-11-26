@@ -288,44 +288,32 @@
  },
  "gates": {
   "legacy export": {
-   "code": 2,
-   "out": [],
-   "err": [
-    "error: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`",
-    "try: plangraph migrate --write"
-   ]
+   "code": 0,
+   "out": [
+    "exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)"
+   ],
+   "err": []
   },
   "legacy ticket T-1": {
    "code": 0,
    "out": [
     "T-1 | 5 SP | <untrusted n=\"e3d2f717\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
    ],
-   "err": [
-    "note: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`"
-   ]
-  },
-  "legacy migrate": {
-   "code": 0,
-   "out": [
-    "0->1: edges.jsonl schedule.jsonl tickets.jsonl (dry run, use --write)"
-   ],
    "err": []
   },
   "legacy doctor": {
-   "code": 1,
+   "code": 0,
    "out": [
-    "data format v0 (legacy: run `plangraph migrate --write`); tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
+    "data format v0; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": []
   },
   "legacy card": {
    "code": 0,
    "out": [
-    "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
+    "plangraph 2bbd3ff6 | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
-   "err": [
-    "note: .plangraph: data format 0 is older than 1: run `plangraph migrate --write`"
-   ]
+   "err": []
   },
   "newer export": {
    "code": 2,
@@ -343,14 +331,6 @@
     "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the plangraph tool",
     "hint: upgrade the plangraph plugin, then retry",
     "try: plangraph explain ticket"
-   ]
-  },
-  "newer migrate --write": {
-   "code": 2,
-   "out": [],
-   "err": [
-    "error: .plangraph: data format 9 is newer than this tool supports (1): upgrade the plangraph tool",
-    "try: plangraph doctor"
    ]
   },
   "empty card": {

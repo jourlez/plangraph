@@ -200,37 +200,33 @@
    "missing",
    {
     "format_version": 0,
+    "min_reader": 0
+   },
+   {
+    "version": 0,
     "min_reader": 0,
-    "legacy": true
+    "status": "ok"
    },
    {
-    "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
-    "code": "NEEDS_MIGRATION"
-   },
-   {
-    "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
-    "code": "NEEDS_MIGRATION"
+    "version": 0,
+    "min_reader": 0,
+    "status": "ok"
    }
   ],
   [
    "ok",
    {
     "format_version": 1,
-    "min_reader": 1,
-    "legacy": false
+    "min_reader": 1
    },
    {
     "version": 1,
     "min_reader": 1,
-    "legacy": false,
     "status": "ok"
    },
    {
     "version": 1,
     "min_reader": 1,
-    "legacy": false,
     "status": "ok"
    }
   ],
@@ -239,19 +235,16 @@
    {
     "format_version": 1,
     "min_reader": 0,
-    "x": 1,
-    "legacy": false
+    "x": 1
    },
    {
     "version": 1,
     "min_reader": 0,
-    "legacy": false,
     "status": "ok"
    },
    {
     "version": 1,
     "min_reader": 0,
-    "legacy": false,
     "status": "ok"
    }
   ],
@@ -385,8 +378,7 @@
    "newer",
    {
     "format_version": 3,
-    "min_reader": 1,
-    "legacy": false
+    "min_reader": 1
    },
    {
     "(error)": "FormatError",
@@ -396,7 +388,6 @@
    {
     "version": 3,
     "min_reader": 1,
-    "legacy": false,
     "status": "newer-readable"
    }
   ],
@@ -404,8 +395,7 @@
    "newer-hard",
    {
     "format_version": 3,
-    "min_reader": 3,
-    "legacy": false
+    "min_reader": 3
    },
    {
     "(error)": "FormatError",
@@ -422,18 +412,17 @@
    "old",
    {
     "format_version": 0,
+    "min_reader": 0
+   },
+   {
+    "version": 0,
     "min_reader": 0,
-    "legacy": false
+    "status": "ok"
    },
    {
-    "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
-    "code": "NEEDS_MIGRATION"
-   },
-   {
-    "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 0 is older than 1: run `plangraph migrate --write`",
-    "code": "NEEDS_MIGRATION"
+    "version": 0,
+    "min_reader": 0,
+    "status": "ok"
    }
   ]
  ],
