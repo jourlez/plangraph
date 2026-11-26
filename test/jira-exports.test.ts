@@ -14,7 +14,7 @@ const FROZEN_VALUES = [
 ];
 
 const FROZEN_TYPES = [
-  'AuthMode', 'ChangelogClient', 'ChangelogEntry', 'ClientOptions', 'CredentialOptions', 'Exec', 'FetchLike', 'ImportResult', 'IssueTextClient',
+  'AliasEntry', 'AuthMode', 'ChangelogClient', 'ChangelogEntry', 'ClientOptions', 'CredentialOptions', 'Exec', 'FetchLike', 'ImportResult', 'IssueTextClient',
   'JiraClient', 'JiraCredentials', 'JiraErrorCode', 'JiraIssue', 'JiraSprint', 'LegacyIssue', 'ParsedRegistry', 'ProjectEntry', 'PullOptions',
   'PullResult', 'RawAdf', 'RawImport', 'RawIssue', 'SearchPage', 'SearchQuery', 'SiteEntry', 'Snapshot', 'SnapshotClient', 'ValidateOptions',
   'ValidatedBase',
