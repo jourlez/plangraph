@@ -2,7 +2,7 @@
   "id": "packaging-free-threaded-tags",
   "repo": "https://github.com/pypa/packaging",
   "commit": "f91ea7931fa551eb498ca2cdf5644dbbf20bcbc6",
-  "task": "packaging.tags generates wrong free-threaded wheel tags when the interpreter reports a generic ABI before the free-threaded one. Fix the tag generation so the expected cp-t tags are produced.",
+  "task": "With a free-threaded interpreter, packaging.tags.cpython_tags gives wrong tags when the list of ABIs starts with a generic entry before the free-threaded one, e.g. abis=['none', 'cp316t']. GIL-only cp316-abi3 tags are generated although the interpreter is free-threaded. Expected: only cp316t, none and abi3t style tags, since the free-threaded ABI should be detected wherever it appears in the list.",
   "hiddenTests": {
     "fromCommit": "cf2cdf099375f7e208168cd2d8880699aeef0583",
     "files": [
@@ -11,5 +11,12 @@
     "command": "python -m pytest -x -q tests/test_tags.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest hypothesis pretend tomli_w coverage pip",
+    "uv pip install -e . --no-deps"
+  ],
+  "timeoutSec": 180
 }

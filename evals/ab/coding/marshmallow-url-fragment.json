@@ -2,7 +2,7 @@
   "id": "marshmallow-url-fragment",
   "repo": "https://github.com/marshmallow-code/marshmallow",
   "commit": "3207be31474530f7c0685dfbd7b4faca5b35fbf5",
-  "task": "marshmallow URL validation rejects a URL whose fragment follows an empty path, such as \"http://example.com#frag\". Fix the validator so this valid URL is accepted.",
+  "task": "validate.URL() rejects absolute URLs whose fragment directly follows the host with no path or query, for example \"http://example.org#fragment\" fails with ValidationError: Not a valid URL. Such URLs are valid under RFC 3986 and a fragment after a bare host should be accepted, as \"http://example.org/#fragment\" already is.",
   "hiddenTests": {
     "fromCommit": "902f99c4151d1f0c4c3b8e8dfbafc7b6a76aeaa6",
     "files": [
@@ -11,5 +11,12 @@
     "command": "python -m pytest -x -q tests/test_validate.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest simplejson",
+    "uv pip install -e . --no-deps"
+  ],
+  "timeoutSec": 120
 }
