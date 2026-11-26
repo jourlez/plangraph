@@ -1,0 +1,11 @@
+{
+  "repo": "acme/web",
+  "projects": ["ABC", "XY"],
+  "prs": [
+    { "number": 12, "title": "ABC-101 add retry to uploads", "headRefName": "feature/abc-101-retry", "state": "OPEN", "author": { "login": "someone", "email": "someone@example.invalid" }, "url": "https://example.invalid/pr/12" },
+    { "number": 13, "title": "bump utf-8 handling", "headRefName": "chore/utf-8", "state": "MERGED" },
+    { "number": 14, "title": "XY-7 and ABC-9 and ABC-9 again", "head": "fix/xy-7", "state": "CLOSED" },
+    { "number": "x", "title": "bad number" }
+  ],
+  "branches": ["abc-205-cleanup", "feature/abc-101-retry", "no-key-here", 42]
+}

@@ -8,6 +8,7 @@ import { importIssues } from '../jira/snapshot.ts';
 import { parseLedger, parsePlan } from '../integrations/superpowers.ts';
 import { EXT_REL_RE, EXT_TYPE_RE, isNodeType, sysOk, xidOk } from './files.ts';
 import type { NodeType } from './files.ts';
+import { readGithub } from './github.ts';
 import { FIELD_KEY, MAX_FIELDS, MAX_LINKS, TEXT } from './obs.ts';
 export { CACHE_FILES, OBS_COLUMNS, obsProblem } from './obs.ts';
 
@@ -144,6 +145,19 @@ const sp: GraphProvider = {
   },
 };
 
+// ---------- github: PRs and branches whose name or title carries a ticket key ----------
+// Input shape: lib/graph/github.ts. The cache holds the link and a few enums; nothing else about the PR.
+const github: GraphProvider = {
+  sys: 'github', schema: 1, input: 'json', validXid: xidOk,
+  normalize(input, opts) {
+    const r = readGithub(input, opts.tenant), b = batch();
+    b.dropped = r.dropped;
+    for (const w of r.warnings) warn(b, w);
+    for (const o of r.observations) add(b, build(r.sys, o.xid, o.type, o.fields, o.links));
+    return b;
+  },
+};
+
 /** The built-in providers (nothing loads dynamically): frozen, null-prototype; look up with providerOf (Object.hasOwn), never by a bare key. */
-export const PROVIDERS: Readonly<Record<string, GraphProvider>> = Object.freeze(Object.assign(Object.create(null) as Record<string, GraphProvider>, { jira, sp, generic }));
+export const PROVIDERS: Readonly<Record<string, GraphProvider>> = Object.freeze(Object.assign(Object.create(null) as Record<string, GraphProvider>, { jira, sp, generic, github }));
 export const providerOf = (name: string): GraphProvider | null => (Object.hasOwn(PROVIDERS, name) ? (PROVIDERS[name] as GraphProvider) : null);
