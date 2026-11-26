@@ -335,7 +335,9 @@ async function healMergeDriver(ctx: Ctx): Promise<string | null> {
     const dir = rel(ctx, ctx.dir);
     if (!S.doctorMergeDriver(ctx.root, { dir, target: path.join(BIN, 'plangraph-merge') }).problems.length) return null;
     if (consent) { await wireMergeDriver(ctx); return null; }
-    return `plangraph: merge driver not set up in this clone; merges of ${oneLine(dir, 80)}/*.jsonl conflict until the user runs plangraph doctor --fix`;
+    // dir may come from a committed .plangraphrc: hook output names it only when it is a plain short name.
+    const files = S.SAFE_ATTR_DIR.test(dir) && dir.length <= 40 ? `${dir}/*.jsonl` : '*.jsonl files in the plan directory';
+    return `plangraph: merge driver not set up in this clone; merges of ${files} conflict until the user runs plangraph doctor --fix`;
   } catch { return null; /* the hook must never fail */ }
 }
 
