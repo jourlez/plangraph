@@ -2,7 +2,7 @@
   "id": "more-itertools-numeric-range-maxsize",
   "repo": "https://github.com/more-itertools/more-itertools",
   "commit": "08dca284ba5446a026afdc34067b658f9da989eb",
-  "task": "numeric_range objects compare or hash incorrectly for values above sys.maxsize. Fix equality and hashing so equal ranges compare equal and hash the same at large sizes.",
+  "task": "Comparing two numeric_range objects with == fails with OverflowError: cannot fit 'int' into an index-sized integer when the range has more elements than sys.maxsize, for example numeric_range(0, 10**30, 1). hash() of such a range fails the same way. Equal huge ranges should compare equal, different ones unequal, and hashing should work and agree for equal ranges.",
   "hiddenTests": {
     "fromCommit": "c629214760c78c0a2235e896d335cccfb3a64466",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_more.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest hypothesis"
+  ],
+  "timeoutSec": 120
 }

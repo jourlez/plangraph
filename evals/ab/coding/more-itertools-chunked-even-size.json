@@ -2,7 +2,7 @@
   "id": "more-itertools-chunked-even-size",
   "repo": "https://github.com/more-itertools/more-itertools",
   "commit": "4aeb4338ae1407d8da9723e86da99efeb446f719",
-  "task": "chunked_even does not validate the chunk size, so zero or negative sizes give confusing results or errors deep inside. Validate the size up front and raise a clear ValueError.",
+  "task": "more_itertools.chunked_even gives confusing results for invalid chunk sizes. With a negative n it leaks an unrelated error from itertools.islice (\"Indices for islice() must be None or an integer\"), and with n=0 it errors after consuming source items. Expected: n < 0 raises ValueError('n must be at least 0') before anything is pulled from the iterable, and n == 0 yields nothing and leaves the iterable untouched.",
   "hiddenTests": {
     "fromCommit": "fbd55137fe47b44f55190c3714c75f1b21bf834d",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_more.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest hypothesis"
+  ],
+  "timeoutSec": 120
 }

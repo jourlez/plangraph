@@ -2,7 +2,7 @@
   "id": "loguru-size-exponent",
   "repo": "https://github.com/Delgan/loguru",
   "commit": "54a8986954c0d611606e7ce10f22a9c07192daeb",
-  "task": "loguru size strings like \"1EB\" are parsed as a number with an exponent marker (1E followed by B) instead of one exabyte. Fix the size parser so the unit suffix is recognised.",
+  "task": "Passing a size string written in scientific notation with a unit, such as rotation=\"1.5e1EB\", to logger.add() raises ValueError: Invalid float value while parsing size: '1.5e1E'. The trailing E in the exabyte unit is read as part of the number. Such a size should be accepted and mean 1.5e1 exabytes.",
   "hiddenTests": {
     "fromCommit": "58e8b7318efee74eb226b516ac626fcca54cacfe",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_string_parsers.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest freezegun colorama"
+  ],
+  "timeoutSec": 120
 }
