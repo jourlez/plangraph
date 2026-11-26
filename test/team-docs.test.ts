@@ -58,6 +58,10 @@ test('SECURITY.md carries one honest response line and no timeline table', () =>
   assert.match(t, /private vulnerability reporting/i);
   assert.doesNotMatch(t, /\|\s*(days?|hours?)\s*\|/i);
 });
+test('SECURITY.md states the design limits of token redaction under "Limits you should know"', () => {
+  const limits = read('SECURITY.md').split('## Limits you should know')[1]?.split(/\n## /)[0] ?? '';
+  for (const re of [/Redaction of the Jira API token/, /case-changed piece of the token shorter than 16 characters/, /case-changed token shorter than 12 characters/, /case-changed derived form/, /percent-encoding or JSON escaping/]) assert.match(limits, re);
+});
 
 test('CHANGELOG: one [Unreleased] heading with the 0.3.0 Added section; history untouched in count', () => {
   const t = read('CHANGELOG.md');
