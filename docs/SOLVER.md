@@ -276,10 +276,13 @@ Input guards (`load_raw`; tests: `test/plangraph-solve-input.test.ts`, Python un
 gets the same guards as the CLI's `openIndex` (`src/db.ts`): it must be a regular file (lstat, then the solver's own
 `O_RDONLY|O_NONBLOCK|O_NOFOLLOW` open and fstat with the same device and inode: a symlink or a FIFO is refused, never followed or blocked
 on), no SQLite sidecar (`-journal`, `-wal`, `-shm`) may sit beside it (a hot journal would be replayed), it is opened read-only
-(`file:...?mode=ro` plus `PRAGMA query_only`), its `sqlite_master` must pass the same schema allowlist as `schemaOk` (a planted view, for
-example over an infinite `WITH RECURSIVE`, is refused before any query; the Python lists are compared with `src/db.ts` by a test), and its
-content digest must match (the same canonical rows as `contentDigest`; the JSON row text comes from SQLite itself; an index without a digest
-is refused). Each refusal exits 2 `MODEL_INVALID: <what>: run \`plangraph build\``. JSONL files and the plan dir's `config.json` are read like
+(`file:...?mode=ro` plus `PRAGMA query_only`), its `sqlite_master` must pass the same schema allowlist as `schemaOk` (the fifteen tables, with every column
+name double-quoted in the SQL the solver builds; exactly the two views `g_nodes` and `g_links` with `sql` byte-equal to `lib/graph/views.ts`;
+any other view, for example one over an infinite `WITH RECURSIVE`, and any trigger are refused before any query; the Python lists and view
+SQL are compared with `src/db.ts` by a test), and its content digest must match (the same canonical rows as `contentDigest`; the JSON row text
+comes from SQLite itself; an index without a digest is refused). An index with exactly the eight tables of 0.3.0 and no view passes the schema
+and digest checks over that table list and is then refused as `the index was built by an older plangraph` (the solver reads only v1 tables, but
+the whole tool treats an index of the older schema as out of date, so a stale answer is never mistaken for a current one). Each refusal exits 2 `MODEL_INVALID: <what>: run \`plangraph build\``. JSONL files and the plan dir's `config.json` are read like
 `readDataCapped`: lstat (a symlink is refused), `O_NOFOLLOW|O_NONBLOCK` open, fstat must be a regular file with the lstat's device, inode and
 ctime, at most 64 MiB; errors name the base name only. A `--config` named on the command line may be a symlink (it is still regular-file
 only and capped). Residual: SQLite opens the index again by path after the check, as in `openIndex`; `.plangraphrc` is still read with a plain

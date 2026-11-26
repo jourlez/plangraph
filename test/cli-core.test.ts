@@ -359,8 +359,10 @@ function dump(file: string): Record<string, Row[]> {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
     const out: Record<string, Row[]> = {};
-    for (const t of TABLES.values()) out[t.name] = db.prepare(`SELECT * FROM ${t.name} ORDER BY ${[...t.columns, 'extra'].join(',')}`).all().map((r) => ({ ...r }));
-    out.schema = db.prepare("SELECT type,name,tbl_name FROM sqlite_master WHERE tbl_name <> 'index_meta' ORDER BY name").all().map((r) => ({ ...r }));
+    // the eight tables of format 1 (the legacy build has no graph tables and no views); the graph tables are covered by test/graph-views.test.ts
+    const legacy = [...TABLES.values()].filter((t) => Object.hasOwn(KNOWN, t.name));
+    for (const t of legacy) out[t.name] = db.prepare(`SELECT * FROM ${t.name} ORDER BY ${[...t.columns, 'extra'].join(',')}`).all().map((r) => ({ ...r }));
+    out.schema = db.prepare(`SELECT type,name,tbl_name FROM sqlite_master WHERE tbl_name <> 'index_meta' AND tbl_name IN (${legacy.map((t) => `'${t.name}'`).join(',')}) ORDER BY name`).all().map((r) => ({ ...r }));
     return out;
   } finally { db.close(); }
 }
@@ -383,8 +385,9 @@ function fixtureFiles() {
 
 test('the table columns come from lib/store.ts SCHEMAS and match the legacy DDL', () => {
   const ddl = KNOWN;
-  assert.deepEqual([...TABLES.keys()].toSorted(), Object.keys(ddl).toSorted());
+  assert.deepEqual([...TABLES.keys()].filter((k) => Object.hasOwn(ddl, k)).toSorted(), Object.keys(ddl).toSorted()); // the graph tables are not in the legacy DDL
   for (const t of TABLES.values()) {
+    if (!Object.hasOwn(ddl, t.name)) continue;
     assert.deepEqual(t.columns, ddl[t.name], t.name);
     assert.deepEqual(t.columns, S.SCHEMAS[t.file].order, t.name);
     assert.ok(Object.isFrozen(t.columns));

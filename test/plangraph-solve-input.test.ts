@@ -14,9 +14,11 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { TABLES, SIDECARS, EXPECTED_COLUMNS, EXPECTED_INDEXES, INDEX_FILE } from '../src/db.ts';
+import { G_LINKS_SQL, G_NODES_SQL } from '../lib/graph/views.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const SOLVE = path.join(import.meta.dirname, '../bin/plangraph-solve');
+const FROZEN = path.join(import.meta.dirname, 'fixtures/release-0.3.0');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const HAVE_PY3 = spawnSync('python3', ['--version'], { stdio: 'ignore' }).status === 0;
@@ -62,13 +64,49 @@ const fromDir = (r: { b: string }) => `print(json.dumps(load(jsonl_dir=${JSON.st
 
 test('the Python schema allowlist, table order and sidecar list are the same as src/db.ts', { skip: SKIP }, () => {
   const r = spawnSync('python3', ['-I', '-c', `${HEAD}
-print(json.dumps({'cols': m.EXPECTED_COLUMNS, 'idx': m.EXPECTED_INDEXES, 'order': [[t, m.index_order(t)] for t in m.INDEX_TABLES], 'side': list(m.SIDECARS)}))`, SOLVE], { encoding: 'utf8' });
+print(json.dumps({'cols': m.EXPECTED_COLUMNS, 'idx': m.EXPECTED_INDEXES, 'order': [[t, m.index_order(t)] for t in m.INDEX_TABLES], 'side': list(m.SIDECARS), 'views': m.GRAPH_VIEWS, 'v1': list(m.V1_TABLES)}))`, SOLVE], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const got = JSON.parse(r.stdout);
   assert.deepEqual(got.cols, Object.fromEntries(EXPECTED_COLUMNS));
   assert.deepEqual(got.idx, Object.fromEntries(EXPECTED_INDEXES));
   assert.deepEqual(got.order, [...TABLES.values()].map((t) => [t.name, t.order]));
   assert.deepEqual(got.side, [...SIDECARS]);
+  assert.deepEqual(got.views, { g_nodes: G_NODES_SQL, g_links: G_LINKS_SQL }, 'the Python view SQL equals src/db.ts');
+  assert.deepEqual(got.v1, [...TABLES.keys()].slice(0, 8), 'the 0.3.0 table list');
+});
+
+test('the solver loads an index built by this tree with graph files present (seven graph tables, two views, digest verified)', { skip: SKIP }, () => {
+  const r = repo();
+  fs.writeFileSync(path.join(r.b, 'people.jsonl'), jl([{ id: 'Ana', active: true }]));
+  fs.writeFileSync(path.join(r.b, 'repos.jsonl'), jl([{ id: 'repo:web', cmds: { test: 't' }, owners: ['Ana'] }]));
+  fs.writeFileSync(path.join(r.b, 'links.jsonl'), jl([{ from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'repo:web', to_type: 'repo', attrs: { why: 'x' } }, { from: 'pr-1', from_type: 'x-github.pr', rel: 'x-github/closes', to: 'T-2', to_type: 'ticket' }]));
+  fs.writeFileSync(path.join(r.b, 'xrefs.jsonl'), jl([{ type: 'ticket', id: 'T-1', sys: 'jira:acme', xid: 'ABC-1' }]));
+  fs.writeFileSync(path.join(r.b, 'capacity.jsonl'), jl([{ person: 'Ana', sprint: 1, sp: 2.5 }]));
+  const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(bl.status, 0, bl.stderr);
+  assert.deepEqual(py(r.d, fromDb(r)), { ok: true, tickets: ['T-1', 'T-2'], edges: 1 });
+});
+
+test('the solver refuses an index built by the frozen 0.3.0 tree with the older-plangraph message, not the tampering message', { skip: SKIP }, () => {
+  const r = repo();
+  const old = spawnSync(process.execPath, [path.join(FROZEN, 'bin/plangraph'), 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }); assert.equal(old.status, 0, old.stderr);
+  assert.deepEqual(py(r.d, fromDb(r)), { ok: false, status: 'MODEL_INVALID', msg: 'the index was built by an older plangraph: run `plangraph build`', code: 2 });
+  assert.equal(spawnSync(process.execPath, [BRAIN, 'build'], { cwd: r.d, encoding: 'utf8', env: r.env }).status, 0);
+  assert.equal(py(r.d, fromDb(r)).ok, true);
+});
+
+test('a planted g_links with a different body, a planted g_nodes, an extra view, a trigger and a dropped view are each refused by the solver', { skip: SKIP }, () => {
+  const refuse = { ok: false, status: 'MODEL_INVALID', msg: 'the index has an unexpected schema (not built by plangraph build): run `plangraph build`', code: 2 };
+  for (const sql of [
+    "DROP VIEW g_links; CREATE VIEW g_links(src, src_type, rel, dst, dst_type, version, kind) AS SELECT 'T-2', 'ticket', 'needs', 'T-1', 'ticket', NULL, NULL",
+    "DROP VIEW g_nodes; CREATE VIEW g_nodes(id, type) AS SELECT 'T-1', 'ticket'",
+    'CREATE VIEW extra_v AS SELECT 1 x',
+    'CREATE TRIGGER trg AFTER INSERT ON meta BEGIN SELECT 1; END',
+    'DROP VIEW g_nodes',
+  ]) {
+    const r = repo();
+    { const h = new DatabaseSync(r.db); h.exec(sql); h.close(); }
+    assert.deepEqual(py(r.d, fromDb(r)), refuse, sql);
+  }
 });
 
 test('a legitimate index loads read-only (digest verified like the CLI) and is left byte-identical with no sidecar', { skip: SKIP }, () => {

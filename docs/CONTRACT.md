@@ -178,7 +178,7 @@ Plan directory: `--dir`, else a non-empty `PLANGRAPH_DIR`, else `{"dir": "..."}`
 a relative path inside the repository: an absolute or escaping directory is refused with exit 4 (`plan directory is outside the repository`), and so is a name with whitespace, a control character or any of `* ? [ ] \ ! # "` (`plan directory name has a character that is not allowed`; the merge driver is only wired for names made of `A-Z a-z 0-9 . _ / -`), except under
 `plangraph card --if-present`, which stays silent with exit 0.
 
-Staleness: the index stores a source fingerprint (sha256 of the eight text files it is built from). When the text no longer matches,
+Staleness: the index stores a source fingerprint (sha256 of the index source files: the eight text files of format 1, always, and each of the seven graph files of `docs/FORMAT.md` section 7 that is present; a missing graph file adds no bytes, so a directory without graph files keeps the fingerprint 0.3.0 computed). When the text no longer matches,
 index-reading commands still answer, and print `STALE: the text files changed since the index was built; run \`plangraph build\`` on stderr
 (once), unless `--if-present` is given. `plangraph export` rewrites the text from the index and records the new fingerprint, so the next query
 is not stale; it refuses a stale index (exit 2, hint `plangraph build`), because writing it would overwrite the edited text. `schedule-load`
@@ -196,6 +196,16 @@ measured on the dev machine (Apple silicon, other load present) at 1,400 tickets
 (533k rows, 39 MB index) open 0.43 to 0.50 s, digest 0.40 to 0.50 s (build 1.8 to 3.3 s). Stated budget: under 1 s at 100,000 tickets; a
 test bounds the 1,400-ticket digest. Limit: the digest is unkeyed, so it detects direct edits and accidental tools, not a forger who edits
 rows and then recomputes the digest the same way; the text files in git remain the source of truth, and `plangraph build` rebuilds from them.
+
+Graph views: the index holds the seven graph tables (`person`, `sprint`, `epic`, `repo`, `capacity`, `link`, `xref`) next to the eight tables of
+format 1, and exactly two views, `g_nodes(id, type)` and `g_links(src, src_type, rel, dst, dst_type, version, kind)` (`lib/graph/views.ts`). A
+view holds no rows, so the content digest still covers tables only; instead the schema check compares the `sql` of each view byte for byte with
+the DDL this build writes, so a planted or changed view, an extra view and any trigger are refused like any other unexpected schema (exit 2,
+`plangraph build`; the solver does the same). Every column name in SQL is double-quoted (`from` and `to` are keywords). An index built by 0.3.0 (the
+eight v1 tables, no view) is a known older schema: its digest is checked over the 0.3.0 table list, it opens stale and query-only, the commands that
+read only v1 tables answer with the STALE line, `schedule-load`, `whatif --write` and the fingerprint stamp refuse it (exit 2, `STALE`, `try:
+plangraph build`), and every reader of `g_nodes` or `g_links` refuses it with the same error (the solver: `the index was built by an older
+plangraph`). Run `plangraph build` once after upgrading from 0.3.0.
 
 SQLite sidecars: SQLite replays a hot rollback journal (`plangraph.sqlite-journal`) into the database on the first read-write open, whatever
 database it came from, and a read-only open of a database with a hot journal fails. A planted or committed journal holding every page of a
@@ -221,7 +231,7 @@ while another process is inside an index write sees that writer's journal and is
 What is closed (tests: `test/toctou-race.test.ts`, each race forced at an exact point by an injected `fsImpl` that swaps the file right
 after the check, asserting the outside file is never read or written):
 
-- Reading a plan data file (the eight index sources, `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
+- Reading a plan data file (the index sources (eight v1 files and up to seven graph files), `config.json`, `format.json`, `.gitattributes`, `open-items.jsonl`, migration inputs,
   the `card --line` hash inputs, and the OpenWolf files read by `rules --repo` and `doctor`: `.wolf/cerebrum.md`, `.wolf/STATUS.md`,
   `.wolf/anatomy-index.json`) goes through `readDataCapped`: `lstat` (a symlink is refused), then `open` with `O_NOFOLLOW` (a symlink
   swapped in after the `lstat` fails the open, refused as a symlink), then the `fstat` of the opened descriptor must have the `lstat`'s device,
