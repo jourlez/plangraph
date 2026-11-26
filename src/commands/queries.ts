@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { readDataCapped, presentDataFile } from '../../lib/jsonl.ts';
 import { oneLine, fenceInline } from '../../lib/sanitize.ts';
 import { makeGit } from '../../lib/gitsafe.ts';
+import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
 import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
@@ -377,7 +378,7 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
     if (f === 'config.json' || f === 'tickets.jsonl') data = true;
   }
   if (!data) return null;
-  const where = oneLine(rel(ctx, ctx.dir), 80), head = `plangraph: plan data found in ${where} but no index: run`;
+  const relDir = rel(ctx, ctx.dir), where = SAFE_ATTR_DIR.test(relDir) && relDir.length <= 40 ? relDir : 'the plan directory', head = `plangraph: plan data found in ${where} but no index: run`;
   try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch (e) {
     if (!(e instanceof FormatError) || e.code !== 'NEEDS_MIGRATION') return null;
     return `${head} plangraph migrate --write (format v${readFormat(ctx.dir).format_version}) then plangraph build`;
