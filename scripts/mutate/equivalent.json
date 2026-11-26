@@ -1492,5 +1492,329 @@
   "line": "return { dead: true };",
   "mutated": "return { dead: false };",
   "why": "unreachable: the loop above always returns first (see the 100000 bound on line 231)"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "const RULES: Record<'cloud' | 'datacenter', Array<[string, RegExp]>> = {",
+  "mutated": "const RULES: Record<'' | 'datacenter', Array<[string, RegExp]>> = {",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "const RULES: Record<'cloud' | 'datacenter', Array<[string, RegExp]>> = {",
+  "mutated": "const RULES: Record<'cloud' | '', Array<[string, RegExp]>> = {",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "if (!/^[A-Za-z0-9-]{8,64}$/.test(String(baseConfig.cloudId || ''))) throw new JiraError('bad_config', 'scoped mode needs a cloudId (see docs/JIRA.md)');",
+  "mutated": "if (!/^[A-Za-z0-9-]{8,64}$/.test(String(baseConfig.cloudId || 'mutant'))) throw new JiraError('bad_config', 'scoped mode needs a cloudId (see docs/JIRA.md)');",
+  "why": "'mutant' fails the 8-character cloud id pattern exactly as '' does"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "const token = String(creds.token), email = String(creds.email || '');",
+  "mutated": "const token = String(creds.token), email = String(creds.email || 'mutant');",
+  "why": "the email is read only for Basic auth, where a non-empty email was required two lines earlier; a Data Center token never uses it"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "const reason = String(res.headers.get('ratelimit-reason') || '').toLowerCase();",
+  "mutated": "const reason = String(res.headers.get('ratelimit-reason') || 'mutant').toLowerCase();",
+  "why": "'mutant' contains no 'quota', exactly as '' does"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "if (raOk && ra > maxSleepSeconds) throw new JiraError('rate_limit_wait', `rate limited, Retry-After ${ra}s exceeds the ${maxSleepSeconds}s limit; stopping${resetAt ? `, retry after ${resetAt}` : ''}`, { status: 429, resetAt });",
+  "mutated": "if (raOk && ra > maxSleepSeconds) throw new JiraError('rate_limit_wait', `rate limited, Retry-After ${ra}s exceeds the ${maxSleepSeconds}s limit; stopping${resetAt ? `, retry after ${resetAt}` : 'mutant'}`, { status: 429, resetAt });",
+  "why": "resetAt is always set when this throw is reached (Retry-After was a valid number), so the empty branch cannot run"
+ },
+ {
+  "file": "lib/jira/client.ts",
+  "line": "return { issues, cursor: next, last: issues.length === 0 || next >= Number(j.total ?? 0) };",
+  "mutated": "return { issues, cursor: next, last: issues.length === 0 || next >= Number(j.total ?? 1) };",
+  "why": "issues is never empty when this comparison matters (an empty page is last by the first test), so next is at least 1 and 0 or 1 as the default total gives the same last"
+ },
+ {
+  "file": "lib/jira/credentials.ts",
+  "line": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10000, maxBuffer: 65536, windowsHide: true }, (e, out) => (e ? reject(new Error('helper failed')) : resolve(String(out)))));",
+  "mutated": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10001, maxBuffer: 65536, windowsHide: true }, (e, out) => (e ? reject(new Error('helper failed')) : resolve(String(out)))));",
+  "why": "the helper options and message are not observable without a clock or a real helper: a 1 ms timeout change, windowsHide off Windows, and an error text both callers discard"
+ },
+ {
+  "file": "lib/jira/credentials.ts",
+  "line": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10000, maxBuffer: 65536, windowsHide: true }, (e, out) => (e ? reject(new Error('helper failed')) : resolve(String(out)))));",
+  "mutated": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10000, maxBuffer: 65536, windowsHide: false }, (e, out) => (e ? reject(new Error('helper failed')) : resolve(String(out)))));",
+  "why": "the helper options and message are not observable without a clock or a real helper: a 1 ms timeout change, windowsHide off Windows, and an error text both callers discard"
+ },
+ {
+  "file": "lib/jira/credentials.ts",
+  "line": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10000, maxBuffer: 65536, windowsHide: true }, (e, out) => (e ? reject(new Error('helper failed')) : resolve(String(out)))));",
+  "mutated": "return new Promise<string>((resolve, reject) => execFile(file, args, { timeout: 10000, maxBuffer: 65536, windowsHide: true }, (e, out) => (e ? reject(new Error('')) : resolve(String(out)))));",
+  "why": "the helper options and message are not observable without a clock or a real helper: a 1 ms timeout change, windowsHide off Windows, and an error text both callers discard"
+ },
+ {
+  "file": "lib/jira/credentials.ts",
+  "line": "if (!TOKEN_RE.test(token || '')) throw new JiraError('bad_credentials', `token from ${source} is malformed (8+ printable characters, no spaces)`);",
+  "mutated": "if (!TOKEN_RE.test(token || 'mutant')) throw new JiraError('bad_credentials', `token from ${source} is malformed (8+ printable characters, no spaces)`);",
+  "why": "'mutant' has 6 characters and fails the 8-character token pattern exactly as '' does"
+ },
+ {
+  "file": "lib/jira/credentials.ts",
+  "line": "const i = s.indexOf(':'); const email = i > 0 ? s.slice(0, i) : envEmail, token = i > 0 ? s.slice(i + 1) : s;",
+  "mutated": "const i = s.indexOf(':'); const email = i > 0 ? s.slice(0, i) : envEmail, token = i > 1 ? s.slice(i + 1) : s;",
+  "why": "a one-character prefix before the colon can never be a valid email, so the email check rejects the secret whichever side takes the token"
+ },
+ {
+  "file": "lib/jira/host.ts",
+  "line": "const host = u.hostname; let kind: ValidatedBase['kind'];",
+  "mutated": "const host = u.hostname; let kind: ValidatedBase[''];",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/host.ts",
+  "line": "return { origin: `${u.protocol}//${u.host}`, host, kind, basePath: u.pathname === '/' ? '' : u.pathname.replace(/\\/$/, '') };",
+  "mutated": "return { origin: `${u.protocol}//${u.host}`, host, kind, basePath: u.pathname === '' ? '' : u.pathname.replace(/\\/$/, '') };",
+  "why": "u.pathname is never '' (the URL parser gives '/'), and '/' with its slash removed is '' anyway"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "for (let k = 0; k < 3; k++) {",
+  "mutated": "for (let k = 0; k <= 3; k++) {",
+  "why": "offset 3 repeats offset 0 (three zero bytes shift the encoding by exactly four characters), so one more or one fewer pass over the same core registers nothing new"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "for (let k = 0; k < 3; k++) {",
+  "mutated": "for (let k = 0; k < 4; k++) {",
+  "why": "offset 3 repeats offset 0 (three zero bytes shift the encoding by exactly four characters), so one more or one fewer pass over the same core registers nothing new"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "const core = Buffer.concat([Buffer.alloc(k), b]).toString('base64').slice(Math.ceil((8 * k) / 6), Math.floor((8 * (k + b.length)) / 6));",
+  "mutated": "const core = Buffer.concat([Buffer.alloc(k), b]).toString('base64').slice(Math.ceil((9 * k) / 6), Math.floor((8 * (k + b.length)) / 6));",
+  "why": "ceil(8k/6) is 0, 2, 3 for k = 0, 1, 2 whatever the constants 8/6 or 9/6 or 8/7 give, and k never leaves 0 to 2"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "const core = Buffer.concat([Buffer.alloc(k), b]).toString('base64').slice(Math.ceil((8 * k) / 6), Math.floor((8 * (k + b.length)) / 6));",
+  "mutated": "const core = Buffer.concat([Buffer.alloc(k), b]).toString('base64').slice(Math.ceil((8 * k) / 7), Math.floor((8 * (k + b.length)) / 6));",
+  "why": "ceil(8k/6) is 0, 2, 3 for k = 0, 1, 2 whatever the constants 8/6 or 9/6 or 8/7 give, and k never leaves 0 to 2"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "if (f.length >= WINDOW) {",
+  "mutated": "if (f.length > WINDOW) {",
+  "why": "a token of exactly 16 characters is one window or one short token: both redact exactly the same text"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "if (!rawWindows.size && !rawShort.size) return [];",
+  "mutated": "if (false) return [];",
+  "why": "an early return of an empty list that the loops below would also produce"
+ },
+ {
+  "file": "lib/jira/redact.ts",
+  "line": "if (!ranges.length) return s;",
+  "mutated": "if (false) return s;",
+  "why": "an early return of the text unchanged that the loop below would also produce when there is no range"
+ },
+ {
+  "file": "lib/jira/registry.ts",
+  "line": "function tenantFields(e: NonNullable<RawRegistryFile['projects']>[string] & object, o: ProjectEntry): void {",
+  "mutated": "function tenantFields(e: NonNullable<RawRegistryFile['']>[string] & object, o: ProjectEntry): void {",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/registry.ts",
+  "line": "function tenantFields(e: NonNullable<RawRegistryFile['projects']>[string] & object, o: ProjectEntry): void {",
+  "mutated": "function tenantFields(e: NonNullable<RawRegistryFile['projects']>=[string] & object, o: ProjectEntry): void {",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "if (n > 0 && /[\\uD800-\\uDBFF]/.test(s[n - 1] as string)) n--; // RegExp.test stringifies undefined, as before",
+  "mutated": "if (n >= 0 && /[\\uD800-\\uDBFF]/.test(s[n - 1] as string)) n--; // RegExp.test stringifies undefined, as before",
+  "why": "at n = 0 the character read is undefined (no match), and at n = 1 the first character of an issue text is \"#\", never a surrogate"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "if (n > 0 && /[\\uD800-\\uDBFF]/.test(s[n - 1] as string)) n--; // RegExp.test stringifies undefined, as before",
+  "mutated": "if (n > 1 && /[\\uD800-\\uDBFF]/.test(s[n - 1] as string)) n--; // RegExp.test stringifies undefined, as before",
+  "why": "at n = 0 the character read is undefined (no match), and at n = 1 the first character of an issue text is \"#\", never a surrogate"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "if (lt >= 0) { const tail = t.slice(lt); if ('</untrusted>'.startsWith(tail) || '<untrusted '.startsWith(tail) || /^<untrusted [^>\\n]*$/.test(tail)) t = t.slice(0, lt); }",
+  "mutated": "if (lt > 0) { const tail = t.slice(lt); if ('</untrusted>'.startsWith(tail) || '<untrusted '.startsWith(tail) || /^<untrusted [^>\\n]*$/.test(tail)) t = t.slice(0, lt); }",
+  "why": "the text always starts with \"#\", so a \"<\" is never at index 0; a start of 0 or 1 is not reachable"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "if (lt >= 0) { const tail = t.slice(lt); if ('</untrusted>'.startsWith(tail) || '<untrusted '.startsWith(tail) || /^<untrusted [^>\\n]*$/.test(tail)) t = t.slice(0, lt); }",
+  "mutated": "if (lt >= 1) { const tail = t.slice(lt); if ('</untrusted>'.startsWith(tail) || '<untrusted '.startsWith(tail) || /^<untrusted [^>\\n]*$/.test(tail)) t = t.slice(0, lt); }",
+  "why": "the text always starts with \"#\", so a \"<\" is never at index 0; a start of 0 or 1 is not reachable"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('summary', summary, { src, max: 300 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('description', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "mutated": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('', summary, { src, max: 300 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('description', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "why": "fence() uses its label only when it has no src, and src is always set here; the 300 cap is already applied by the idempotent cap of the line before"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('summary', summary, { src, max: 300 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('description', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "mutated": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('summary', summary, { src, max: 301 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('description', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "why": "fence() uses its label only when it has no src, and src is always set here; the 300 cap is already applied by the idempotent cap of the line before"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('summary', summary, { src, max: 300 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('description', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "mutated": "let out = `# ${key}\\nStatus: ${line(f.status?.name || '')} | updated ${line(f.updated || '')}\\n\\n## Summary\\n${summary ? fence('summary', summary, { src, max: 300 }) : '(empty)'}\\n\\n## Description\\n${desc ? fence('', desc, { src, max: maxChars }) : '(empty)'}\\n\\n## Comments (${cs.length})\\n`;",
+  "why": "fence() uses its label only when it has no src, and src is always set here; the 300 cap is already applied by the idempotent cap of the line before"
+ },
+ {
+  "file": "lib/jira/render.ts",
+  "line": "for (const c of cs) out += `- [${line(c.author?.displayName || 'unknown')}, ${line(c.created)}]:\\n${fence('comment', adfToText(c.body).trim().replace(/\\n+/g, ' '), { src, max: 5000 })}\\n`;",
+  "mutated": "for (const c of cs) out += `- [${line(c.author?.displayName || 'unknown')}, ${line(c.created)}]:\\n${fence('', adfToText(c.body).trim().replace(/\\n+/g, ' '), { src, max: 5000 })}\\n`;",
+  "why": "fence() uses its label only when it has no src, and src is always set here"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "mutated": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '').padEnd(3, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "why": "Date.parse reads a fraction of 1 to 9 digits the same as its first three, so padding with another string or keeping a fourth digit changes no result"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "mutated": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(4, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "why": "Date.parse reads a fraction of 1 to 9 digits the same as its first three, so padding with another string or keeping a fourth digit changes no result"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "mutated": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "why": "Date.parse reads a fraction of 1 to 9 digits the same as its first three, so padding with another string or keeping a fourth digit changes no result"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '0').slice(0, 3)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "mutated": "return Date.parse(`${m[1]}T${m[2]}.${(m[3] || '0').padEnd(3, '0').slice(0, 4)}${m[4] === 'Z' ? 'Z' : `${m[4]}:${m[5] || '00'}`}`);",
+  "why": "Date.parse reads a fraction of 1 to 9 digits the same as its first three, so padding with another string or keeping a fourth digit changes no result"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "if (!tz || !Number.isFinite(ms)) return null;",
+  "mutated": "if (!tz || !Number.isFinite(ms)) return 0;",
+  "why": "0 and null are both falsy where the result is read (a missing clause)"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "} catch { return null; }",
+  "mutated": "} catch { return 0; }",
+  "why": "0 and null are both falsy where the result is read (a missing clause)"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "const keyed = arr.map((s, i) => [idOf(s), i] as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(-MAX_SPRINTS);",
+  "mutated": "const keyed = arr.map((s, i) => [idOf(s), i] as [number, number]).sort((a, b) => a[0] - b[0] || a[1] + b[1]).slice(-MAX_SPRINTS);",
+  "why": "for ties a[1] + b[1] is positive, which under the stable sort of V8 leaves ties in their original order exactly as a[1] - b[1] does (the tie tests show no difference)"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "for (const [dir, side, rel] of [['in', l?.inwardIssue, l?.type?.inward], ['out', l?.outwardIssue, l?.type?.outward]] as Array<['in' | 'out', { key?: unknown } | null | undefined, unknown]>) if (side && KEY_RE.test(str(side.key))) links.push({ key: side.key as string, type: oneLine(str(l.type?.name), 80), dir, rel: oneLine(str(rel), 80) }); // KEY_RE passed, so key is a string",
+  "mutated": "for (const [dir, side, rel] of [['in', l?.inwardIssue, l?.type?.inward], ['out', l?.outwardIssue, l?.type?.outward]] as Array<['' | 'out', { key?: unknown } | null | undefined, unknown]>) if (side && KEY_RE.test(str(side.key))) links.push({ key: side.key as string, type: oneLine(str(l.type?.name), 80), dir, rel: oneLine(str(rel), 80) }); // KEY_RE passed, so key is a string",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/snapshot.ts",
+  "line": "for (const [dir, side, rel] of [['in', l?.inwardIssue, l?.type?.inward], ['out', l?.outwardIssue, l?.type?.outward]] as Array<['in' | 'out', { key?: unknown } | null | undefined, unknown]>) if (side && KEY_RE.test(str(side.key))) links.push({ key: side.key as string, type: oneLine(str(l.type?.name), 80), dir, rel: oneLine(str(rel), 80) }); // KEY_RE passed, so key is a string",
+  "mutated": "for (const [dir, side, rel] of [['in', l?.inwardIssue, l?.type?.inward], ['out', l?.outwardIssue, l?.type?.outward]] as Array<['in' | '', { key?: unknown } | null | undefined, unknown]>) if (side && KEY_RE.test(str(side.key))) links.push({ key: side.key as string, type: oneLine(str(l.type?.name), 80), dir, rel: oneLine(str(rel), 80) }); // KEY_RE passed, so key is a string",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/types.ts",
+  "line": "export const AUTH_MODES: { readonly SCOPED: 'scoped'; readonly SITE_TOKEN: 'site-token'; readonly DATACENTER: 'datacenter' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "mutated": "export const AUTH_MODES: { readonly SCOPED: ''; readonly SITE_TOKEN: 'site-token'; readonly DATACENTER: 'datacenter' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/types.ts",
+  "line": "export const AUTH_MODES: { readonly SCOPED: 'scoped'; readonly SITE_TOKEN: 'site-token'; readonly DATACENTER: 'datacenter' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "mutated": "export const AUTH_MODES: { readonly SCOPED: 'scoped'; readonly SITE_TOKEN: ''; readonly DATACENTER: 'datacenter' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/jira/types.ts",
+  "line": "export const AUTH_MODES: { readonly SCOPED: 'scoped'; readonly SITE_TOKEN: 'site-token'; readonly DATACENTER: 'datacenter' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "mutated": "export const AUTH_MODES: { readonly SCOPED: 'scoped'; readonly SITE_TOKEN: 'site-token'; readonly DATACENTER: '' } = Object.freeze({ SCOPED: 'scoped', SITE_TOKEN: 'site-token', DATACENTER: 'datacenter' });",
+  "why": "a string or comparison inside a TypeScript type annotation: erased when the types are stripped, so no run can see it"
+ },
+ {
+  "file": "lib/fsafe.ts",
+  "line": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 0; // 0 on Windows: the identity checks are the guard there",
+  "mutated": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 1; // 0 on Windows: the identity checks are the guard there",
+  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant"
+ },
+ {
+  "file": "lib/fsafe.ts",
+  "line": "try { if (f.lstatSync(tmp).isFile()) f.rmSync(tmp, { force: true }); } catch { /* gone */ } // never remove what we did not create",
+  "mutated": "try { if (f.lstatSync(tmp).isFile()) f.rmSync(tmp, { force: false }); } catch { /* gone */ } // never remove what we did not create",
+  "why": "rmSync with force off only differs for a path that vanished since the lstat one line earlier, and that error is swallowed by the catch around it"
+ },
+ {
+  "file": "lib/jsonl.ts",
+  "line": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 0;",
+  "mutated": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 1;",
+  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant"
+ },
+ {
+  "file": "lib/driver.ts",
+  "line": "if (process.platform === 'win32') return false;",
+  "mutated": "if (process.platform === '') return false;",
+  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
+ },
+ {
+  "file": "lib/driver.ts",
+  "line": "if (process.platform === 'win32') return false;",
+  "mutated": "if (process.platform === 'win32') return true;",
+  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
+ },
+ {
+  "file": "lib/driver.ts",
+  "line": "if (process.platform === 'win32') return false;",
+  "mutated": "if (process.platform === 'win32') return null;",
+  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
+ },
+ {
+  "file": "lib/driver.ts",
+  "line": "export const hasConsent = (commonDir: string): boolean => CONSENT_VALUE.test(localConfigValue(commonDir, CONSENT_KEY) ?? '');",
+  "mutated": "export const hasConsent = (commonDir: string): boolean => CONSENT_VALUE.test(localConfigValue(commonDir, CONSENT_KEY) ?? 'mutant');",
+  "why": "'mutant' fails the version pattern exactly as '' does"
+ },
+ {
+  "file": "src/jira-tenant.ts",
+  "line": "const { reg, projects, aliases, problems } = parseSiteRegistry(fs.readFileSync(file, 'utf8'));",
+  "mutated": "const { reg, projects, aliases, problems } = parseSiteRegistry(fs.readFileSync(file, ''));",
+  "why": "JSON.parse reads a Buffer exactly as its utf8 text, so the encoding argument changes nothing"
+ },
+ {
+  "file": "src/jira-tenant.ts",
+  "line": "export function effectiveJira(committed: JiraSettings = {}, root = '', env: Record<string, string | undefined> = {}, via: { alias?: ProjectEntry; blocked?: boolean } = {}, registry: LoadedRegistry = loadRegistry(env)): JiraSettings {",
+  "mutated": "export function effectiveJira(committed: JiraSettings = {}, root = 'mutant', env: Record<string, string | undefined> = {}, via: { alias?: ProjectEntry; blocked?: boolean } = {}, registry: LoadedRegistry = loadRegistry(env)): JiraSettings {",
+  "why": "no project root can be 'mutant' (a registry root must start with a slash), so the default root finds no entry either way"
+ },
+ {
+  "file": "src/jira-tenant.ts",
+  "line": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
+  "mutated": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error(''); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
+  "why": "the message of the error thrown inside the try is never shown (the catch throws its own), and a Buffer parses as its utf8 text"
+ },
+ {
+  "file": "src/jira-tenant.ts",
+  "line": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
+  "mutated": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, '')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
+  "why": "the message of the error thrown inside the try is never shown (the catch throws its own), and a Buffer parses as its utf8 text"
  }
 ]
