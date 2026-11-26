@@ -1,7 +1,7 @@
 // Audit preparation and Jira: stale refs-update units bundle jira-pull jira-text jira-import.
 // Git runs through execFile argv (no shell) with checked refs and repo paths. Untrusted text (summaries, findings, plan sections, Jira
 // text) reaches a bundle only inside <untrusted> fences, with every piece bounded. Only jira-pull and jira-text (without --from-json)
-// reach the network, via lib/jira.ts.
+// reach the network, through ctx.tracker() (lib/tracker.ts).
 import fs from 'node:fs';
 import path from 'node:path';
 import { readCapped } from '../../lib/jsonl.ts';
@@ -11,9 +11,10 @@ import { checkRef, checkRepoPath } from '../../lib/gitsafe.ts';
 import { CUR, KEY_RE, MAX_DATA, needBrain, usage, dataError, readJsonInput, loadJiraSnap, jiraErrors, refuseWrite, precheckTargets, writeState, fenceLines } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
-import type { Snapshot, RawIssue, RawImport } from '../../lib/jira.ts';
+import { parseSnapshotJsonl, snapshotToJsonl } from '../../lib/tracker.ts';
+import type { Snapshot, RawIssue, RawImport, PullOptions } from '../../lib/tracker.ts';
+import type { Trust } from '../jira-tenant.ts';
 import type { JiraSettings } from '../jira-tenant.ts';
-import type { PullOptions } from '../../lib/jira.ts';
 import type { GitDepsExtra, JiraSnapEntry, StaleOpts } from '../../lib/stale.ts';
 /** The options that select the stale inputs (stale, refs-update, units). */
 type StaleValues = { ref?: string; jira?: string; full?: boolean };
@@ -61,14 +62,12 @@ async function refsUpdate(ctx: Ctx, args: Args<StaleValues>): Promise<number> {
 }
 
 // ---- Jira (read-only) ----
-async function jiraClient(ctx: Ctx) {
-  const J = await import('../../lib/jira.ts'), T = await import('../jira-tenant.ts'), env = ctx.env;
+/** The tenant decision of this project: throws bad_config for an unknown auth.mode before any credential helper runs. The Trust it mints is
+ * what every networked tracker member requires. */
+async function jiraTrust(ctx: Ctx): Promise<{ cfg: JiraSettings; trust: Trust }> {
+  const T = await import('../jira-tenant.ts');
   const committed = ctx.config().jira as JiraSettings | undefined; // config.json's jira block: PlanConfig does not type it (concern)
-  try {
-    const t = T.resolveTenant(committed, ctx.root, env), cfg = t.jira; // throws bad_config for an unknown auth.mode before any credential helper runs
-    const creds = await T.tenantCredentials(t, env); // an empty tenant is refused here, before any credential helper runs
-    return { J, cfg, client: J.makeClient({ baseConfig: T.clientBase(t, env), creds, dcHosts: J.dcHostsFromEnv(env), siteHosts: J.siteHostsFromEnv(env), now: ctx.now }) };
-  } catch (e) { return jiraErrors(e); }
+  try { const t = T.resolveTenant(committed, ctx.root, ctx.env); return { cfg: t.jira, trust: t.trust }; } catch (e) { return jiraErrors(e); }
 }
 /** A file the user named as output (snapshot, text dir): written atomically, a symlink refused; not confined to the repository. Mode 0600:
  * Jira data stays private to the user on a shared host. */
@@ -81,44 +80,44 @@ function readSnapshotText(file: string): string {
 async function jiraPull(ctx: Ctx, args: Args<{ out?: string; full?: boolean }>): Promise<number> {
   const out = args.values.out, full = Boolean(args.values.full);
   if (!out) throw usage('needs --out <file.jsonl>');
-  const { J, cfg, client } = await jiraClient(ctx);
+  const { cfg, trust } = await jiraTrust(ctx), tracker = ctx.tracker();
   let previous = null;
-  if (!full && fs.existsSync(out)) { try { previous = J.parseSnapshotJsonl(readSnapshotText(out)); } catch { previous = null; } }
-  let r: Awaited<ReturnType<typeof J.pullSnapshot>>;
-  try { r = await J.pullSnapshot(client, { jql: cfg.jql, previous, full, sprintField: cfg.sprint_field, fullReconcileEvery: cfg.full_reconcile_every } as PullOptions); } catch (e) { jiraErrors(e); } // pullSnapshot destructures with defaults, so an undefined sprintField or fullReconcileEvery acts as an absent one
+  if (!full && fs.existsSync(out)) { try { previous = parseSnapshotJsonl(readSnapshotText(out)); } catch { previous = null; } }
+  let r: Awaited<ReturnType<typeof tracker.pull>>;
+  try { r = await tracker.pull(trust, { jql: cfg.jql, previous, full, sprintField: cfg.sprint_field, fullReconcileEvery: cfg.full_reconcile_every } as PullOptions); } catch (e) { jiraErrors(e); } // pull destructures with defaults, so an undefined sprintField or fullReconcileEvery acts as an absent one
   ctx.io.out(r.summary);
   if (!r.ok) return 2; // never write a partial snapshot
-  writeOutput(out, J.snapshotToJsonl(r.snapshot));
+  writeOutput(out, snapshotToJsonl(r.snapshot));
   return 0;
 }
 async function jiraImport(ctx: Ctx, args: Args<{ out?: string }>): Promise<number> {
-  const J = await import('../../lib/jira.ts'), out = args.values.out, files = args.positionals;
+  const out = args.values.out, files = args.positionals;
   if (!files.length || !out) throw usage('usage: plangraph jira-import FILE... --out snapshot.jsonl');
   try {
-    let snap = fs.existsSync(out) ? J.parseSnapshotJsonl(readSnapshotText(out)) : null, imported = 0, dropped = 0; const changed = new Set<string>();
+    let snap = fs.existsSync(out) ? parseSnapshotJsonl(readSnapshotText(out)) : null, imported = 0, dropped = 0; const changed = new Set<string>();
     for (const f of files) {
-      const r = J.importIssues(snap, readJsonInput(f, 'issue file') as RawImport, { sprintField: (await import('../jira-tenant.ts')).effectiveJira(ctx.config().jira as JiraSettings | undefined, ctx.root, ctx.env).sprint_field, now: ctx.now }); // the importer tests every field; jira block as above; no tenant (and no auth.mode check) is needed offline
+      const r = ctx.tracker().importIssues(snap, readJsonInput(f, 'issue file') as RawImport, { sprintField: (await import('../jira-tenant.ts')).effectiveJira(ctx.config().jira as JiraSettings | undefined, ctx.root, ctx.env).sprint_field, now: ctx.now }); // the importer tests every field; jira block as above; no tenant (and no auth.mode check) is needed offline
       snap = r.snapshot; imported += r.imported; dropped += r.dropped; for (const k of r.changedKeys) changed.add(k);
     }
-    writeOutput(out, J.snapshotToJsonl((snap as Snapshot))); // files is not empty (checked above), so the loop set snap
+    writeOutput(out, snapshotToJsonl((snap as Snapshot))); // files is not empty (checked above), so the loop set snap
     ctx.io.out(`imported ${imported} issue(s) from ${files.length} file(s) (changed ${changed.size}, dropped ${dropped}); snapshot now ${(snap as Snapshot).issues.length} issues, partial`); // set by the loop, as above
   } catch (e) { jiraErrors(e); }
   return 0;
 }
 async function jiraText(ctx: Ctx, args: Args<{ out?: string; 'from-json'?: string }>): Promise<number> {
-  const J = await import('../../lib/jira.ts'), out = args.values.out, from = args.values['from-json'];
-  const keys = args.positionals.filter((a) => J.KEY_RE.test(a));
+  const out = args.values.out, from = args.values['from-json'];
+  const keys = args.positionals.filter((a) => KEY_RE.test(a));
   if (!keys.length || !out) throw usage('usage: plangraph jira-text KEY... --out DIR [--from-json FILE]');
   fs.mkdirSync(out, { recursive: true });
   try {
     if (from !== undefined) {
       const j = readJsonInput(from, 'issue file');
-      for (const k of keys) writeOutput(path.join(out, `${k}.txt`), J.renderIssue(k, (j && typeof j === 'object' && Object.hasOwn(j, k) ? (j as Record<string, unknown>)[k] : j) as RawIssue)); // an object: checked on this line; renderIssue tests every field
+      for (const k of keys) writeOutput(path.join(out, `${k}.txt`), ctx.tracker().renderIssue(k, (j && typeof j === 'object' && Object.hasOwn(j, k) ? (j as Record<string, unknown>)[k] : j) as RawIssue)); // an object: checked on this line; renderIssue tests every field
       ctx.io.out(`wrote ${keys.length} files`);
       return 0;
     }
-    const { client } = await jiraClient(ctx);
-    for (const k of keys) writeOutput(path.join(out, `${k}.txt`), await J.fetchIssueText(client, k));
+    const { trust } = await jiraTrust(ctx);
+    for (const k of keys) writeOutput(path.join(out, `${k}.txt`), await ctx.tracker().fetchIssueText(trust, k));
   } catch (e) { jiraErrors(e); }
   ctx.io.out(`wrote ${keys.length} files to ${oneLine(out, 200)}`);
   return 0;

@@ -17,7 +17,22 @@ export interface JiraSettings extends ProjectEntry {
 /** The user-level registry as read from disk; `exists` is false when there is no file (then every map is empty). */
 export interface LoadedRegistry { file: string; exists: boolean; reg: Record<string, SiteEntry>; projects: Record<string, ProjectEntry>; problems: string[] }
 /** The one trust decision for a project: which tenant, which mode, and whether generic credentials may be sent there. */
-export interface TenantResolution { jira: JiraSettings; tenant: string; mode: AuthMode; registry: LoadedRegistry; entry: SiteEntry | null; pinned: boolean; allowGeneric: boolean }
+export interface TenantResolution { jira: JiraSettings; tenant: string; mode: AuthMode; registry: LoadedRegistry; entry: SiteEntry | null; pinned: boolean; allowGeneric: boolean; trust: Trust }
+
+declare const TRUST: unique symbol; // module-private and type-only: no object can carry the brand without a cast
+/** The decision of resolveTenant as a token a networked tracker member requires. The tenant is part of the decision, so a trust minted for one
+ * site cannot be presented for another. Type-level brand only: isMintedTrust is the runtime check (a cast or a spread copy is not minted). */
+export type Trust = { readonly tenant: string; readonly allowGeneric: boolean; readonly pinned: boolean; readonly userTenant: boolean; readonly [TRUST]: true };
+// Every trust resolveTenant minted, with the resolution it stands for. A WeakMap keyed by identity: a copy of a trust is not in it.
+const MINTED = new WeakMap<object, TenantResolution>();
+/** true only for an object resolveTenant minted (not for a hand-built object, a cast, or a copy of a minted trust). */
+export function isMintedTrust(t: unknown): t is Trust { return typeof t === 'object' && t !== null && MINTED.has(t); }
+/** The resolution a minted trust stands for. @throws JiraError bad_config for anything else, before any helper runs. */
+export function resolutionOf(t: Trust): TenantResolution {
+  const r = isMintedTrust(t) ? MINTED.get(t) : undefined;
+  if (!r) throw new JiraError('bad_config', 'the tracker needs a tenant decision minted by resolveTenant');
+  return r;
+}
 
 const MAX_REGISTRY = 64 * 1024;
 
@@ -87,7 +102,10 @@ export function resolveTenant(committed: JiraSettings | undefined, root: string,
   // the fixed scoped gateway, the ONLY host of the user-level Data Center allowlist (with several, a committed config could pick any of
   // them: a registry or per-host binding is required), a site the user pinned, or the tenant field the user named in their own file.
   const allowGeneric = mode === AUTH_MODES.SCOPED || (mode === AUTH_MODES.DATACENTER && dcHosts.length === 1 && dcHosts[0] === tenant) || pinned || jira.userTenant === true;
-  return { jira, tenant, mode, registry, entry, pinned, allowGeneric };
+  const trust = Object.freeze({ tenant, allowGeneric, pinned, userTenant: jira.userTenant === true }) as Trust; // as Trust: the brand is type-only; minted here and recorded in MINTED
+  const res: TenantResolution = { jira, tenant, mode, registry, entry, pinned, allowGeneric, trust };
+  MINTED.set(trust, res);
+  return res;
 }
 
 /**

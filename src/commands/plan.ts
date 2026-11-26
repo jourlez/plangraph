@@ -12,7 +12,7 @@ import { checkRepoPath } from '../../lib/gitsafe.ts';
 import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
 import { resolveTenant } from '../jira-tenant.ts';
-import { siteTag } from '../../lib/jira.ts';
+import { siteTag } from '../../lib/tracker.ts';
 import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';

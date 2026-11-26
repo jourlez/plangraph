@@ -11,7 +11,10 @@ import { sourceNow } from '../lib/clock.ts';
 import { PlangraphError } from './errors.ts';
 import { openIndex, INDEX_FILE } from './db.ts';
 import type { IndexHandle } from './db.ts';
+import { createTracker } from './tracker-factory.ts';
 import type { PlanConfig } from '../lib/model.ts';
+import type { TrackerProvider } from '../lib/tracker.ts';
+import type { Exec, FetchLike } from '../lib/jira.ts';
 
 // IO: out(line) takes exactly ONE line (src/cli.ts makeCollector: a line break is a programmer error); outBlock(lines) is the explicit
 // multi-line form (an array of single lines, such as a fence block); raw(text) is prepared text printed as is (card, bundle).
@@ -26,11 +29,17 @@ export interface Ctx {
   root: string; dir: string; cwd?: string; config(): PlanConfig; env: Record<string, string | undefined>;
   io: IO & { raw(text: string): void; outBlock(lines: string[]): void }; git: GitRun; now(): Date; stdin: Stdin;
   db(): IndexHandle; flags: Record<string, unknown>;
+  /** the tracker provider (tracker.kind of config.json, default jira); memoized, replaceable only through makeContext({ tracker }) */
+  tracker(): TrackerProvider;
+  /** credential-helper seam (op, security, secret-tool): absent means the real process runner */
+  exec?: Exec;
+  /** network seam of the tracker client: absent means globalThis.fetch */
+  fetch?: FetchLike;
 }
 /** What the shell (src/cli.ts) may also use of a context: the --json `fresh` object and disposal; a test double may omit both. */
 export type ShellCtx = Ctx & { fresh?(): { fp: string; built: string | null } | null; [Symbol.dispose]?(): void };
 export interface ContextOptions { cwd?: string; env?: Record<string, string | undefined>; flags?: Record<string, unknown>; io?: IO; now?: () => Date; root?: string;
-  git?: (root: string) => GitRun; stdin?: Stdin }
+  git?: (root: string) => GitRun; stdin?: Stdin; tracker?: TrackerProvider; exec?: Exec; fetch?: FetchLike }
 
 const RC_MAX = 64 * 1024;
 
@@ -99,20 +108,22 @@ const processStdin = (): Stdin => ({
   read: (max: number) => readStreamCapped(0, max),
 });
 
-export function makeContext({ cwd = process.cwd(), env = process.env, flags = {}, io, now = () => sourceNow(env), root, git = makeGit, stdin = processStdin() }: ContextOptions = {}): Ctx & { cwd: string; fresh(): { fp: string; built: string | null } | null; [Symbol.dispose](): void } {
+export function makeContext({ cwd = process.cwd(), env = process.env, flags = {}, io, now = () => sourceNow(env), root, git = makeGit, stdin = processStdin(), tracker, exec, fetch }: ContextOptions = {}): Ctx & { cwd: string; fresh(): { fp: string; built: string | null } | null; [Symbol.dispose](): void } {
   root ??= findRoot(cwd, git, env);
   const dir = brainDir(root, flags, env);
   const run = git(root);
-  let cfg: PlanConfig | undefined, handle: IndexHandle | undefined;
+  let cfg: PlanConfig | undefined, handle: IndexHandle | undefined, trk: TrackerProvider | undefined = tracker;
   const warnStale = (h: IndexHandle) => { if (h.stale && !flags['if-present']) (io as IO).err(STALE_WARNING); return h; }; // a command that opens the index runs with an io
-  return Object.freeze({
-    root, dir, cwd, env, flags, io: (withBlock(io) as Ctx['io']), now, stdin, // the shell always passes an io with raw(); withBlock adds outBlock
+  const ctx: Ctx & { cwd: string; fresh(): { fp: string; built: string | null } | null; [Symbol.dispose](): void } = Object.freeze({
+    root, dir, cwd, env, flags, ...(exec ? { exec } : {}), ...(fetch ? { fetch } : {}), io: (withBlock(io) as Ctx['io']), now, stdin, // the shell always passes an io with raw(); withBlock adds outBlock
     git: (...args: string[]) => run(...args), // execFile argv, no shell; callers check refs and paths with lib/gitsafe.ts
     config: () => (cfg ??= configOf(dir)),
     db: () => (handle ??= warnStale(openIndex(path.join(dir, INDEX_FILE), { readOnly: true, dir }))),
     // The `fresh` object of the --json envelope: first 8 hex of the fingerprint of the text now (fp) and of the text the index was
     // built from (built; null for an index without one). null when this run opened no index.
     fresh: () => (handle?.fingerprint ? { fp: handle.fingerprint.slice(0, 8), built: handle.builtFingerprint ? String(handle.builtFingerprint).slice(0, 8) : null } : null),
+    tracker: () => (trk ??= createTracker(ctx)),
     [Symbol.dispose]() { handle?.close(); },
   });
+  return ctx;
 }

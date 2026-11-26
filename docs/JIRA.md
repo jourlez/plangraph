@@ -116,3 +116,11 @@ A public project must not have to commit its company's Jira site, cloud id or JQ
 Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. An entry that names any tenant field (`auth`, `base_url` or `cloud_id`) decides the WHOLE tenant: the committed `auth`, `base_url` and `cloud_id` are then ignored, so give the mode and its tenant field together (`auth.mode` defaults to `scoped`, which needs `cloud_id`; `site-token` and `datacenter` need `base_url`). The committed `jql`, `sprint_field` and `full_reconcile_every` still apply unless the entry sets them. The tenant field named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `PLANGRAPH_JIRA_SITES` pin.
 
 Output files of `plangraph jira-pull --out`, `plangraph jira-import --out` and `plangraph jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.
+
+## The tracker provider and the trust binding (for contributors)
+
+Commands never call `lib/jira.ts`. They call `ctx.tracker()`, a `TrackerProvider` (`lib/tracker.ts`) chosen by `tracker.kind` in `config.json` (default `jira`; an unknown kind, including `__proto__` and `constructor`, is a data error, exit 2, and names the known kinds).
+
+The networked members (`credentials`, `pull`, `fetchIssueText`) take a `Trust`. Only `resolveTenant` (`src/jira-tenant.ts`) mints one, and it records each in a module-private `WeakMap`. The type brand is erased at runtime, so the provider also asks the registry: a hand-built object, a cast, or a spread copy with another tenant is not in it and is refused with `bad_config` before any credential helper or request. The client is built only for the tenant of that decision, and it is refused again if the environment moved the site since. `importIssues` and `renderIssue` are offline and need no trust.
+
+Tests inject `makeContext({ tracker, exec, fetch })`: a fake provider, a recording credential-helper runner, and a stub fetch.
