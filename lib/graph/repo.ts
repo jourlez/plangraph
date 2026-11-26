@@ -6,7 +6,7 @@ import { parseCatalogInfo } from './catalog.ts';
 
 export const MAX_FILE = 256 * 1024;
 const SCANNER = 'plangraph-scan/1';
-const FIXED = new Set(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.nvmrc', '.node-version', '.python-version', '.tool-versions', 'CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS', 'Dockerfile', 'catalog-info.yaml']);
+const FIXED = new Set(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.nvmrc', '.node-version', '.python-version', '.tool-versions', 'CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS', 'Dockerfile', 'catalog-info.yaml', 'pnpm-workspace.yaml', 'go.work', '.env.example']);
 /** True for a repo-relative path the scan may read. */
 export const isScanFile = (p: string): boolean => FIXED.has(p);
 
@@ -20,6 +20,7 @@ export const fingerprint = (files: readonly { path: string; sha: string }[]): st
 const NAME = /^[a-z0-9][a-z0-9@/._-]{0,99}$/;
 const PATHLIKE = /^[A-Za-z0-9._][A-Za-z0-9._/-]{0,99}$/;
 const SUB = /^[a-z0-9][a-z0-9._-]{0,39}$/;
+const CMD = /^[A-Za-z0-9][A-Za-z0-9 ._:/@=,+-]{0,199}$/; // a plain command: no shell metacharacter, quote, newline or control character
 const VERSION = /^v?(\d{1,4}(?:\.\d{1,4}){0,2})$/;
 export const slugOf = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 
@@ -47,6 +48,10 @@ function parsePackageJson(text: string): Row {
   const fw = Object.keys(FRAMEWORKS).filter((k) => Object.hasOwn(deps, k)).map((k) => FRAMEWORKS[k] as string);
   if (fw.length) out.frameworks = fw;
   if (isObj(j.scripts)) { const cmds: Record<string, string> = {}; for (const k of ['build', 'test', 'lint']) if (typeof j.scripts[k] === 'string') cmds[k] = k; if (Object.keys(cmds).length) out.cmds = cmds; } // the script NAME, never its body
+  if (isObj(j.scripts)) { // command strings, copied only from allowlisted script names (never `postinstall` or any lifecycle hook) and only when they are one short plain line
+    const pick = (...names: string[]): string | undefined => { for (const n of names) { const v = (j.scripts as Record<string, unknown>)[n]; if (typeof v === 'string' && CMD.test(v)) return v; } return undefined; };
+    for (const [field, names] of [['test', ['test']], ['lint', ['lint']], ['build', ['build']], ['run', ['start', 'dev']]] as const) { const v = pick(...names); if (v !== undefined) out[field] = v; }
+  }
   const bins = typeof j.bin === 'string' ? [j.bin] : isObj(j.bin) ? Object.values(j.bin) : [];
   const entry = [j.main, ...bins].filter((p): p is string => typeof p === 'string' && PATHLIKE.test(p) && !p.split('/').includes('..'));
   if (entry.length) out.entry = [...new Set(entry)].sort().slice(0, 3);
@@ -69,6 +74,51 @@ export function subUnits(workspaces: unknown, paths: readonly string[]): Array<{
     }
   }
   return [...out].map(([sub, glob]) => ({ glob, sub })).sort((a, b) => (a.sub < b.sub ? -1 : 1)).slice(0, 50);
+}
+
+const GLOB_ENTRY = /^\.?\/?([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)(\/\*{1,2})?\/?$/;
+const MANIFEST_OF = ['package.json', 'Cargo.toml', 'go.mod'];
+/** Workspace package directories: each entry is a literal directory or `dir/*` (`dir/**`); a glob keeps the child directories holding a manifest, a literal any directory with a tracked file. */
+export function pkgDirs(entries: readonly string[], paths: readonly string[]): string[] {
+  const out = new Set<string>(), skip = new Set(entries.filter((e) => e.startsWith('!')).map((e) => e.slice(1).replace(/^\.?\//, '').replace(/\/$/, '')));
+  for (const raw of entries.slice(0, 50)) {
+    const m = GLOB_ENTRY.exec(raw.trim()); if (!m || raw.includes('..') || raw.startsWith('!')) continue;
+    const dir = m[1] as string;
+    if (m[2]) { for (const p of paths) { const parts = p.split('/'), n = dir.split('/').length; if (parts.length === n + 2 && p.startsWith(`${dir}/`) && MANIFEST_OF.includes(parts[n + 1] as string) && SUB.test(parts[n] as string)) out.add(`${dir}/${parts[n]}`); } }
+    else if (paths.some((p) => p.startsWith(`${dir}/`))) out.add(dir);
+  }
+  return [...out].filter((d) => !skip.has(d)).sort().slice(0, 100);
+}
+const quoted = (text: string): string[] => [...text.matchAll(/["']([^"'\n]{1,100})["']/g)].map((x) => x[1] as string);
+/** Entries of the workspace lists of pnpm-workspace.yaml (`packages:` items), Cargo.toml (`[workspace] members`) and go.work (`use`). */
+function workspaceEntries(texts: ReadonlyMap<string, string>): string[] {
+  const out: string[] = [];
+  const pnpm = texts.get('pnpm-workspace.yaml');
+  if (pnpm !== undefined) { let on = false; for (const l of pnpm.split('\n').slice(0, 300)) { if (/^packages:\s*$/.test(l)) on = true; else if (/^\S/.test(l)) on = false; else if (on) { const m = /^\s*-\s+["']?([^"'#\s]{1,100})/.exec(l); if (m) out.push(m[1] as string); } } }
+  const cargo = texts.get('Cargo.toml'), ws = cargo !== undefined ? /\[workspace\][^[]*?members\s*=\s*\[([^\]]*)\]/s.exec(cargo) : null;
+  if (ws) out.push(...quoted(ws[1] as string));
+  const gw = texts.get('go.work');
+  if (gw !== undefined) { let blk = false; for (const raw of gw.split('\n').slice(0, 300)) { const l = raw.replace(/\/\/.*$/, '').trim(); if (blk) { if (l === ')') blk = false; else if (l) out.push(l); } else if (/^use\s*\($/.test(l)) blk = true; else { const m = /^use\s+(\S{1,100})$/.exec(l); if (m) out.push(m[1] as string); } } }
+  return out;
+}
+const ENV_NAME = /^[A-Z_][A-Z0-9_]{0,63}$/;
+/** Environment variable NAMES from `.env.example` and Dockerfile `ENV`; a value is never read into the result. */
+export function envNames(example: string | undefined, dockerfile: string | undefined): string[] {
+  const out = new Set<string>();
+  for (const l of (example ?? '').split('\n').slice(0, 2000)) { const m = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(l); if (m && ENV_NAME.test(m[1] as string)) out.add(m[1] as string); }
+  for (const l of (dockerfile ?? '').split('\n').slice(0, 2000)) {
+    const m = /^\s*ENV\s+(.+)$/i.exec(l); if (!m) continue;
+    const body = m[1] as string, pairs = [...body.matchAll(/(?:^|\s)([A-Z_][A-Z0-9_]*)=/g)];
+    if (pairs.length) for (const x of pairs) { if (ENV_NAME.test(x[1] as string)) out.add(x[1] as string); }
+    else { const k = /^([A-Z_][A-Z0-9_]*)\s/.exec(body); if (k && ENV_NAME.test(k[1] as string)) out.add(k[1] as string); }
+  }
+  return [...out].sort().slice(0, 100);
+}
+/** Team ids from CODEOWNERS group handles (`@org/platform` gives `platform`): the handle only, never the organisation. */
+export function teamIds(rules: readonly Rule[]): string[] {
+  const out = new Set<string>();
+  for (const r of rules) for (const o of r.owners) { const m = /^@[A-Za-z0-9][A-Za-z0-9-]{0,38}\/([A-Za-z0-9][A-Za-z0-9_.-]{0,59})$/.exec(o); if (m) out.add((m[1] as string).toLowerCase()); }
+  return [...out].sort().slice(0, 20);
 }
 
 function tomlSections(text: string): Map<string, Map<string, string>> {
@@ -150,21 +200,27 @@ export function scanRepo({ slug, files, paths, people }: ScanInput): ScanResult 
   for (const [file, parse] of MANIFESTS) { const t = texts.get(file); if (t !== undefined) { m = { ...parse(t), ...m }; } } // the first manifest in MANIFESTS order wins a field
   const vr = versioned(texts), fam = typeof m.runtime === 'string' ? m.runtime : undefined;
   if (fam && vr.has(fam)) m.runtime = vr.get(fam); else if (!fam && vr.size) m.runtime = [...vr.values()].sort()[0];
-  const owners = repoOwners(parseCodeowners(['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'].map((p) => texts.get(p) ?? '').join('\n')), people);
+  const rules = parseCodeowners(['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'].map((p) => texts.get(p) ?? '').join('\n')), owners = repoOwners(rules, people);
   const seed = parseCatalogInfo(texts.get('catalog-info.yaml') ?? '', people); // an optional seed: it only fills what the scan found nothing for
   const langs = langsOf(paths), row: Row = { id: `repo:${slug}`, name: typeof m.name === 'string' ? m.name : seed.name ?? slug, src: typeof m.name !== 'string' && seed.name !== undefined ? 'catalog' : 'scan', fp: fingerprint(files), scanner: SCANNER };
   if (seed.role !== undefined) row.role = seed.role;
   const subs = subUnits(m.workspaces, paths);
   if (subs.length) { row.paths = subs; row.role = 'monorepo'; }
   if (langs.length) row.langs = langs;
-  for (const k of ['pm', 'runtime', 'frameworks', 'cmds', 'entry']) if (m[k] !== undefined) row[k] = m[k];
+  for (const k of ['pm', 'runtime', 'frameworks', 'cmds', 'entry', 'test', 'lint', 'build', 'run']) if (m[k] !== undefined) row[k] = m[k];
   if (texts.has('Dockerfile')) row.deploy = 'docker';
+  const pkgs = pkgDirs([...(Array.isArray(m.workspaces) ? (m.workspaces as string[]) : []), ...workspaceEntries(texts)], paths);
+  if (pkgs.length) row.pkgs = pkgs;
+  const env = envNames(texts.get('.env.example'), texts.get('Dockerfile'));
+  if (env.length) row.env = env;
+  const teams = teamIds(rules);
+  if (teams.length) row.teams = teams;
   const own = owners.length ? owners : seed.owners ?? [];
   if (own.length) row.owners = own;
   return { row, warnings };
 }
 
-const SCANNED = ['name', 'langs', 'pm', 'runtime', 'frameworks', 'cmds', 'entry', 'deploy', 'src', 'fp', 'scanned_at', 'scanner'];
+const SCANNED = ['name', 'langs', 'pm', 'runtime', 'frameworks', 'cmds', 'entry', 'test', 'lint', 'build', 'run', 'pkgs', 'env', 'teams', 'deploy', 'src', 'fp', 'scanned_at', 'scanner'];
 /** A rescan: scanned fields are overwritten (and removed when no longer found), hand-written ones (`role`, `paths`, anything else) stay, owners are unioned. */
 export function mergeRow(existing: Row | undefined, scanned: Row): Row {
   if (!existing) return scanned;

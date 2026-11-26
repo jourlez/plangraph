@@ -1,0 +1,4 @@
+FROM node:24
+ENV NODE_ENV=production PORT=8080
+ENV LEGACY_FLAG somevalue123
+RUN echo hi
