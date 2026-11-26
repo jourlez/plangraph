@@ -225,7 +225,7 @@ test('ci.yml: no continue-on-error anywhere, and the coverage floors and include
   assert.ok(!/test-coverage-(lines|branches|functions)=/.test(t), 'the floors live in scripts/test-coverage.ts once, not in ci.yml');
   for (const f of WF) assert.ok(!/--experimental-test-coverage/.test(read('workflows', f)), `${f}: coverage is measured by scripts/test-coverage.ts only`);
   assert.equal((script.match(/--experimental-test-coverage/g) ?? []).length, 1);
-  assert.match(job(t, 'unit'), /fetch-depth: 0/, 'the unit job runs the commit-author check, which needs history');
+  for (const n of ['unit', 'macos', 'compat']) assert.match(job(t, n), /fetch-depth: 0/, `the ${n} job runs the commit-author check, which needs history`);
 });
 
 test('release.yml: the release job needs verify, checks the tag is on main, and attests a specific subject', () => {
