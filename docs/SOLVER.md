@@ -251,7 +251,11 @@ world write; a missing base is created `0700` (`umask 077`). A group- or world-w
 default mode, so `775` under umask `002`) is not an error: the launcher prints one stderr line and uses `~/.cache/plangraph` instead, and never
 changes the other directory (the merge shim of `lib/driver.ts` does the same, decision D19). Any other untrusted base (a symlink, not a
 directory, owned by another user, or `~/.cache/plangraph` itself writable by others) exits 3 with one line naming the reason; only the writable
-case names the fix, `chmod go-w <dir>`. The check uses `find` and `id`; when either is missing it fails closed.
+case names the fix, `chmod go-w <dir>`. The check uses `find` and `id`; when either is missing it fails closed. An existing `<base>/venv` and its
+`bin` directory must pass the same check before the venv is first used; one that fails (writable by others, a symlink, not a directory) is
+removed and rebuilt, and the launcher exits 3 when it cannot be removed. The venv is always built under `umask 077`. Before it looks up any
+command, the launcher drops every `PATH` entry that is not absolute (an empty entry, `.`, or a relative directory), since those resolve in your
+directory, where a repository could commit an executable `uv` or `python3.14`.
 
 Tests: `node --test test/solver.test.ts` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
 

@@ -7,6 +7,10 @@
 # symlink) owned by the user without group or world write; a missing one is created 0700 (umask 077). A group- or world-writable
 # CLAUDE_PLUGIN_DATA (Claude Code creates it with the default mode, so 775 under umask 002) is not an error: one stderr line, then the
 # $HOME/.cache/plangraph base; the other directory is never changed (decision D19). Any other untrusted base exits 3 naming the reason.
+# The venv and its bin directory pass the same check before the venv is first used; one that fails is removed and rebuilt (exit 3 when it
+# cannot be removed), and the venv is always built under umask 077.
+# PATH: every entry that is not absolute (empty, `.`, or relative) is dropped first, since it resolves in the caller's directory, where a
+# repository could commit an executable uv or python3.14.
 # Env: PLANGRAPH_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
 # Isolation: every python call of the fallback passes -I, so the current directory (a repo that may commit ortools.py, venv/ or pip.py)
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
@@ -21,6 +25,14 @@
 # Fallback when that fails (an older uv): `uv run` stays the parent, and the solver watches it (PLANGRAPH_SOLVE_WATCH_PARENT=1) and exits without
 # writing once uv is gone. PLANGRAPH_SOLVE_LAUNCH=uv-run forces that fallback (tests). See docs/SOLVER.md, Anytime output.
 PIN="ortools==9.15.6755"
+ABS=""
+REST="$PATH:"
+while [ -n "$REST" ]; do
+  D="${REST%%:*}"; REST="${REST#*:}"
+  case "$D" in /*) ABS="${ABS:+$ABS:}$D" ;; esac
+done
+if [ -z "$ABS" ]; then echo "plangraph-solve: PATH holds no absolute directory" >&2; exit 3; fi
+PATH="$ABS"; export PATH
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="${PLANGRAPH_SOLVE_SCRIPT:-$HERE/plangraph-solve}"
 if command -v uv >/dev/null 2>&1; then
@@ -71,14 +83,26 @@ if [ ! -e "$BASE" ] && [ ! -L "$BASE" ]; then (umask 077 && mkdir -p "$BASE") 2>
 WHY="$(untrusted "$BASE")"
 if [ -n "$WHY" ]; then echo "plangraph-solve: refusing the venv base $BASE: $WHY" >&2; exit 3; fi
 VENV="$BASE/venv"
+# Whoever can write venv/ or venv/bin/ can plant venv/bin/python too: an existing venv must pass the base check, else it is removed and rebuilt.
+if [ -e "$VENV" ] || [ -L "$VENV" ]; then
+  WHY="$(untrusted "$VENV")"
+  if [ -z "$WHY" ]; then WHY="$(untrusted "$VENV/bin")"; [ -z "$WHY" ] || WHY="its bin directory: $WHY"; fi
+  if [ -n "$WHY" ]; then
+    rm -rf "$VENV" 2>/dev/null
+    if [ -e "$VENV" ] || [ -L "$VENV" ]; then echo "plangraph-solve: refusing the venv $VENV: $WHY, and it could not be removed" >&2; exit 3; fi
+  fi
+fi
 if [ ! -x "$VENV/bin/python" ] || ! "$VENV/bin/python" -I -c 'import ortools' >/dev/null 2>&1; then
-  for v in 3.14 3.13 3.12 3.11 3.10; do
-    if command -v "python$v" >/dev/null 2>&1; then
-      rm -rf "$VENV"
-      if "python$v" -I -m venv "$VENV" >/dev/null 2>&1 && "$VENV/bin/python" -I -m pip install --quiet --require-hashes -r "$HERE/../solver/solver-requirements.txt" >/dev/null 2>&1; then break; fi
-      rm -rf "$VENV"
-    fi
-  done
+  (
+    umask 077
+    for v in 3.14 3.13 3.12 3.11 3.10; do
+      if command -v "python$v" >/dev/null 2>&1; then
+        rm -rf "$VENV"
+        if "python$v" -I -m venv "$VENV" >/dev/null 2>&1 && "$VENV/bin/python" -I -m pip install --quiet --require-hashes -r "$HERE/../solver/solver-requirements.txt" >/dev/null 2>&1; then break; fi
+        rm -rf "$VENV"
+      fi
+    done
+  )
 fi
 if [ -x "$VENV/bin/python" ] && "$VENV/bin/python" -I -c 'import ortools' >/dev/null 2>&1; then exec "$VENV/bin/python" -I "$SCRIPT" "$@"; fi
 if command -v python3 >/dev/null 2>&1 && python3 -I -c 'import ortools' >/dev/null 2>&1; then exec python3 -I "$SCRIPT" "$@"; fi
