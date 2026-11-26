@@ -105,7 +105,7 @@ test('test/packaging walker (sourceFilesIn) and test/public-clean file list see 
   const dir = tmp();
   try {
     for (const f of ['lib/a.mjs', 'lib/b.ts', 'src/floor.js', 'src/other.js', 'lib/data.json', 'lib/sub/c.ts']) { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), '\n'); }
-    assert.deepEqual(sourceFilesIn(dir, ['lib', 'src']), ['lib/a.mjs', 'lib/b.ts', 'lib/sub/c.ts', 'src/floor.js']);
+    assert.deepEqual(sourceFilesIn(dir, ['lib', 'src']), ['lib/a.mjs', 'lib/b.ts', 'lib/sub/c.ts', 'src/floor.js', 'src/other.js']);
     assert.equal(isSourceFile('src/commands/x.ts'), true);
     assert.equal(isSourceFile('src/commands/x.js'), false);
   } finally { rm(dir); }

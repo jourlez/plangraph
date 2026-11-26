@@ -61,7 +61,7 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 | Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hook, skills, `plangraph` on the Bash PATH |
 | uv (recommended), or Python 3.10 to 3.14 | any uv; OR-Tools has no wheel for Python 3.15 yet | the solver only (`plangraph-solve-run`) |
 
-In short: Node 24.15 or newer, git, and Claude Code 2.1.329 or newer. The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
+In short: Node 24.15 or newer, git, and Claude Code 2.1.329 or newer. (`engines.node` is `>=24.15` in `package.json`.) The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
 
 ## Installation
 
