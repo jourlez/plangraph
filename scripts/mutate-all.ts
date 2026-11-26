@@ -48,6 +48,11 @@ export const OVERRIDES: Record<string, string[]> = {
   'lib/driver.ts': ['test/driver-wiring.test.ts'],
   'lib/stale.ts': ['test/stale.test.ts'], // loads the module through a computed dynamic import (STALE_MODULE), invisible to the scan
 };
+/** Test files run in tier 1 for a target no test imports (a launcher script run as a subprocess): without this its tests are all tier 2, behind the whole suite. */
+export const TIER1_OVERRIDES: Record<string, string[]> = {
+  'src/entry.js': ['test/compile-cache.test.ts', 'test/floor.test.ts', 'test/launchers.test.ts'],
+  'src/merge-entry.js': ['test/floor.test.ts', 'test/launchers.test.ts'],
+};
 const EQUIVALENT_FILE = 'scripts/mutate/equivalent.json';
 // bumped when the tier rules change, so survivors recorded under older rules are re-run
 const MAPPING_VERSION = 2;
@@ -205,6 +210,21 @@ export function mutantsFor(file: string, src: string) {
     if (x.type === 'string' && p.value === '(' && t[k - 2]?.value === `import`) skip.add(k);
     if (x.value === '*' && p.type === 'name' && (p.value === `import` || p.value === 'export')) skip.add(k);
   }
+  // A `type X = ...;` alias and an `interface X { ... }` are erased when the types are stripped: a mutated string or boolean in them can never
+  // change a run, so none is generated (the statement is skipped as a whole).
+  for (let k = 0; k < t.length; k++) {
+    const x = t[k], p = t[k - 1];
+    if (x.type !== 'name' || (x.value !== 'type' && x.value !== 'interface') || t[k + 1]?.type !== 'name') continue;
+    if (p && !(p.type === 'punct' && (p.value === ';' || p.value === '}')) && !(p.type === 'name' && (p.value === 'export' || p.value === 'declare'))) continue;
+    if (x.value === 'type' && !(t[k + 2]?.value === '=' || t[k + 2]?.value === '<')) continue;
+    let d = 0, j = k, seenBrace = false;
+    for (; j < t.length; j++) {
+      const v = t[j].type === 'punct' ? t[j].value : '';
+      if (OPEN.has(v)) { d++; if (v === '{') seenBrace = true; } else if (CLOSE.has(v)) { d--; if (x.value === 'interface' && seenBrace && d === 0) break; } else if (x.value === 'type' && d === 0 && v === ';') break;
+    }
+    for (let m = k; m <= Math.min(j, t.length - 1); m++) skip.add(m);
+    k = j;
+  }
   /** guard: tokens[k] is `if`; returns [condStart, condEnd] token indexes when the body is return/throw/continue/break */
   const guard = (/** @type {number} */ k: number) => {
     if (t[k + 1]?.value !== '(') return null;
@@ -319,6 +339,12 @@ export function testMap(root: string, targets: string[], tests: string[]) {
       if (direct.has(target)) m.direct.push(test);
       else if (reach.has(target) || (OVERRIDES[target] ?? []).includes(test)) { m.extended.push(test); if (imported.has(target)) inProc.set(target, [...(inProc.get(target) ?? []), test]); }
     }
+  }
+  for (const [target, extra] of Object.entries(TIER1_OVERRIDES)) {
+    const m = map.get(target);
+    if (!m) continue;
+    for (const t of extra) if (tests.includes(t)) { if (!m.direct.includes(t)) m.direct.push(t); m.extended = m.extended.filter((/** @type {string} */ f: string) => f !== t); }
+    m.direct.sort();
   }
   // a module under src/ (driven through the CLI) and a module no test imports directly also get the tests that load it in-process as
   // tier 1 (the tier-1 budget still moves the slow ones to tier 2)
@@ -443,9 +469,14 @@ function runTests(cwd: string, files: string[], timeout: number, conc: number, k
   });
 }
 /** @param {string} cwd @param {string} file @returns {Promise<boolean>} */
-function syntaxOk(cwd: string, file: string) {
+export function syntaxOk(cwd: string, file: string) {
   return new Promise((resolve) => {
-    const c = spawn(process.execPath, ['--check', file], { cwd, stdio: 'ignore' });
+    // `node --check` cannot parse some TypeScript (a generic call such as `new Set<string>()` reads as a comparison): a .ts file is checked
+    // after its types are stripped, which also throws on a real syntax error; a plain .js file is checked as it is
+    const args = file.endsWith('.ts')
+      ? ['--no-warnings', '-e', "const m = require('node:module'), fs = require('node:fs'), os = require('node:os'), path = require('node:path'), cp = require('node:child_process'); const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-syntax-')); try { const out = path.join(dir, 'x.mjs'); fs.writeFileSync(out, m.stripTypeScriptTypes(fs.readFileSync(process.argv[1], 'utf8'))); process.exitCode = cp.spawnSync(process.execPath, ['--check', out], { stdio: 'ignore' }).status; } catch { process.exitCode = 1; } finally { fs.rmSync(dir, { recursive: true, force: true }); }", file]
+      : ['--check', file];
+    const c = spawn(process.execPath, args, { cwd, stdio: 'ignore' });
     c.on('close', (code) => resolve(code === 0)); c.on('error', () => resolve(false));
   });
 }

@@ -113,7 +113,7 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
   if (!delta && reason === 'no-timezone') warnings.push('delta_unavailable:no-timezone');
   const queryJql = `${delta ? `(${base}) AND updated >= "${clause}"` : base} ORDER BY key ASC`;
 
-  const got = new Map<string, JiraIssue>(); let rows = 0, dropped = 0, failure: { message?: unknown; resetAt?: string } | null = null;
+  const got = new Map<string, JiraIssue>(); let rows = 0, dropped = 0, failed = false, failure: { message?: unknown; resetAt?: string } | null = null;
   try {
     let cursor: string | number | null | undefined = null, pages = 0, empties = 0;
     for (;;) {
@@ -130,11 +130,11 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
       if (page.issues.length === 0 && ++empties > 3) throw new JiraError('pagination_stalled', 'Jira returned several empty pages without finishing');
       cursor = page.cursor;
     }
-  } catch (e) { failure = e as { message?: unknown; resetAt?: string }; } // anything may be thrown: only message and resetAt are read
-  if (failure) {
+  } catch (e) { failed = true; failure = e as { message?: unknown; resetAt?: string } | null; } // anything may be thrown (even null or 0, which must still fail the pull): only message and resetAt are read
+  if (failed) {
     const code = failure instanceof JiraError ? failure.code : 'internal';
     const error = redact(failure instanceof JiraError ? failure.message : `unexpected error: ${failure && failure.message}`);
-    const r: Unsummarized<PullFailure> = { ok: false, complete: false, snapshot: null, code, error, resetAt: failure.resetAt, received: rows, warnings, changedKeys: [], removedKeys: [] };
+    const r: Unsummarized<PullFailure> = { ok: false, complete: false, snapshot: null, code, error, resetAt: failure?.resetAt, received: rows, warnings, changedKeys: [], removedKeys: [] };
     r.summary = `INCOMPLETE after ${got.size} issues (${code}${r.resetAt ? `, resets ${r.resetAt}` : ''}): ${error}; nothing written`;
     return r as PullFailure; // summary was set on the line above
   }
@@ -167,12 +167,11 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
   const meta: SnapshotMeta = { jql: base, fetched_at: client.now().toISOString(), mode: client.mode, ...client.identity, expected_count: expected, received_count: issues.length, count_drift: drift, complete: true, content_hash: hash(issues), pull: delta ? 'delta' : 'full', delta_runs: delta ? ((prev as Snapshot).meta.delta_runs || 0) + 1 : 0 }; // delta implies prev
   const snapshot: Snapshot = { schema: SCHEMA, meta, issues };
   const r: Unsummarized<PullSuccess> = { ok: true, complete: true, snapshot, mode: meta.pull as string, changedKeys, removedKeys, received: rows, warnings, windowMinutes: overlapMinutes, reason };
-  r.summary = summarize(r as PullSuccess); // summarize does not read summary on a success
+  r.summary = summarize(r as PullSuccess); // summarize reads only what a success carries (summary is not one of those)
   return r as PullSuccess; // summary was set on the line above
 }
 
-function summarize(r: PullResult): string {
-  if (!r.ok) return r.summary;
+function summarize(r: PullSuccess): string {
   const m = r.snapshot.meta;
   const how = r.mode === 'delta' ? `delta ${r.changedKeys.length}, window ${r.windowMinutes}m` : `full${r.removedKeys.length ? `, removed ${r.removedKeys.length}` : ''}`;
   return `pulled ${m.received_count} issues (${how}), drift ${m.count_drift ?? 'n/a'}, complete, hash ${(m.content_hash as string).slice(0, 6)}${r.warnings.length ? `, WARN ${r.warnings.join('+')}` : ''}`; // a successful pull always sets content_hash
