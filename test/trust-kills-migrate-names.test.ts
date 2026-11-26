@@ -40,6 +40,9 @@ test('user files: the 64 KiB edge, symlinks, special files, existing targets, an
   assert.deepEqual(plan.refused, [`~/.config/${OLD_FOLDER}/autopilot.json is larger than 64 KiB: not copied`]);
   assert.equal(plan.found, true); assert.equal(plan.copied, true); assert.equal(plan.oldConfigDir, od);
   assert.deepEqual(log, [], 'planning writes nothing');
+  // a user file that is not there is skipped
+  const w0: World = { entries: { [od]: dir(), [`${od}/autopilot.json`]: file() }, texts: {} };
+  assert.deepEqual(planMigration(mk(w0).input).steps.map((s) => s.text), ['copy ~/.config/' + OLD_FOLDER + '/autopilot.json to ~/.config/plangraph/autopilot.json (mode 0600)']);
   assert.deepEqual(applyMigration(plan), { done: 1, failed: null });
   assert.deepEqual(log, [`mkdir ${nd}`, `copy ${od}/jira-sites.json ${nd}/jira-sites.json`]);
   // an existing new directory is not created again; an existing file is kept; both files copy into one directory creation
@@ -153,7 +156,7 @@ test('each old trace alone makes the repository part run', () => {
     ['rc file', { entries: { [R_RC]: file() }, texts: { [R_RC]: '{}' } }],
     ['default dir', { entries: { [R_DIR]: dir() } }],
     ['driver line', { entries: { [R_GA]: file() }, texts: { [R_GA]: `x merge=${OLD_DRIVER}\n` } }],
-    ['ignore line', { entries: { [R_GI]: file(), [R_DIR]: dir() }, texts: { [R_GI]: `${OLD_INDEX}\n` } }],
+    ['ignore line', { entries: { [R_GI]: file(), [`${REPO}/.plangraphrc`]: file() }, texts: { [R_GI]: `${OLD_INDEX}\n`, [`${REPO}/.plangraphrc`]: '{"dir":".c"}' } }],
     ['old git config', { git: { [`config --local --get-regexp ^merge\\.${OLD_DRIVER}\\.`]: { ok: true, out: `merge.${OLD_DRIVER}.driver x\n` } } }],
     ['refused attributes', { entries: { [R_GA]: { kind: 'symlink', size: 0 } } }],
     ['refused ignore', { entries: { [R_GI]: { kind: 'symlink', size: 0 } } }],
@@ -162,6 +165,9 @@ test('each old trace alone makes the repository part run', () => {
   // a custom directory named by the rc: a lone old .brain directory is then not an old trace
   const custom = dirty({ entries: { [R_DIR]: dir(), [R_RC.replace(OLD_RC, '.plangraphrc')]: file() }, texts: { [R_RC.replace(OLD_RC, '.plangraphrc')]: '{"dir":".custom"}' } });
   assert.equal(custom.found, false);
+  // an ignore file with nothing old in it, and an attribute file without the old driver, are no trace
+  const quiet = repo({ entries: { [R_GI]: file(), [R_GA]: file(), [`${REPO}/.plangraphrc`]: file() }, texts: { [R_GI]: 'node_modules/\n', [R_GA]: '*.png binary\n', [`${REPO}/.plangraphrc`]: '{"dir":".c"}' } });
+  assert.equal(quiet.plan.found, false);
   // a failed status is also a refusal
   const failed = repo({ entries: { [R_RC]: file() }, texts: { [R_RC]: '{}' }, git: { 'status --porcelain --untracked-files=no': { ok: false, out: '' } } });
   assert.deepEqual(failed.plan.steps, []); assert.equal(failed.plan.refused.length, 1);

@@ -1,5 +1,6 @@
 // lib/jira/redact.ts with ONLY a short raw token registered (12 to 15 characters, no window): it is found in any case, and only whole.
 // A file of its own because the registry is process-wide.
+import './helpers/runaway.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerSecret, redact } from '../lib/jira/redact.ts';

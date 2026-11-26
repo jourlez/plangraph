@@ -469,3 +469,14 @@ test('several warnings are joined by + in the summary', async () => {
   assert.deepEqual(r.warnings, ['invalid_key_dropped:1', 'count_drift']);
   assert.match(r.summary, /, WARN invalid_key_dropped:1\+count_drift$/);
 });
+
+test('sprints with the same id keep their order, including unreadable ids (zero)', () => {
+  const sprints = (v: unknown) => (normalizeIssue(raw({}, { customfield_1: v }), { sprintField: 'customfield_1' })?.sprint ?? []).map((s) => s.name);
+  assert.deepEqual(sprints([{ id: 0, name: 'a' }, { id: 0, name: 'b' }, { id: 0, name: 'c' }, { id: 0, name: 'd' }]), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(sprints([{ id: 'x', name: 'a' }, { id: null, name: 'b' }, { name: 'c' }, { id: 4, name: 'z' }]), ['a', 'b', 'c', 'z']);
+  assert.deepEqual(sprints([{ id: 2, name: 'a' }, { id: 1, name: 'b' }, { id: 2, name: 'c' }, { id: 1, name: 'd' }]), ['b', 'd', 'a', 'c']);
+});
+
+test('parseSnapshotJsonl names the file in its line errors', () => {
+  assert.throws(() => parseSnapshotJsonl('{"schema":1,"meta":{}}\nnot json\n'), (e: Error) => /^snapshot\.jsonl:2: invalid JSON/.test(e.message));
+});

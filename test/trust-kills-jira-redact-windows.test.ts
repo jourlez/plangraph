@@ -1,5 +1,6 @@
 // lib/jira/redact.ts with ONLY a windowed raw token registered (no short raw token): the scan must not be skipped for want of short tokens.
 // A file of its own because the registry is process-wide.
+import './helpers/runaway.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerSecret, redact } from '../lib/jira/redact.ts';

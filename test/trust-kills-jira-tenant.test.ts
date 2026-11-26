@@ -167,3 +167,13 @@ test('tenantCredentials: the registry entry is bound to the tenant, generic cred
   assert.equal(clientBase(hand({ jira: { base_url: '' } })).baseUrl, undefined);
   assert.equal(clientBase(hand({ jira: {} }), { JIRA_BASE_URL: '' }).baseUrl, undefined);
 });
+
+test('resolveTenant finds the projects entry of a root written with trailing slashes', { skip: !posix }, () => {
+  const w = world('{"projects":{"/work/repo":{"cloud_id":"cid-user-0001"}}}');
+  for (const root of ['/work/repo', '/work/repo/', '/work/repo///']) {
+    const r = resolveTenant({ cloud_id: 'cid-committed-1' }, root, w.env);
+    assert.equal(r.tenant, 'cid-user-0001', root); assert.strictEqual(r.trust.userTenant, true);
+  }
+  assert.equal(resolveTenant({ cloud_id: 'cid-committed-1' }, '/work/repomutant', w.env).tenant, 'cid-committed-1');
+  assert.equal(resolveTenant({ cloud_id: 'cid-committed-1' }, '/work', w.env).tenant, 'cid-committed-1');
+});

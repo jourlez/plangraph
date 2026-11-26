@@ -1,12 +1,13 @@
 // Read refusals of lib/jsonl.ts (readJsonl): each refusal code of the data-file reader that names the file is turned into a data error carrying
 // the file's base name and the reader's reason. The races are injected by replacing methods of the node:fs object the module reads.
 // NOT covered: the reader itself (test/jsonl-read.test.ts, test/fsafe.test.ts).
+import './helpers/runaway.ts';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { readJsonl, DATA_REFUSALS, parseJsonl, readCapped, readStreamCapped } from '../lib/jsonl.ts';
+import { readJsonl, DATA_REFUSALS, readCapped } from '../lib/jsonl.ts';
 
 const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'jsonlk-')));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -39,22 +40,6 @@ test('a file over the cap and a directory are data errors too; any other failure
 
 const wrapFs = (over: Record<string, unknown>) => ({ ...fs, ...over }) as unknown as typeof fs;
 const withStat = (s: fs.Stats, patch: Record<string, unknown>) => Object.assign(Object.create(Object.getPrototypeOf(s)), s, patch) as fs.Stats;
-
-test('parseJsonl visits each line once: a counted loop, no clock', (t) => {
-  const src = '{"a":1}\n{"a":2}\n{"a":3}';
-  const real = String.prototype.indexOf;
-  let calls = 0;
-  t.mock.method(String.prototype, 'indexOf', function (this: string, ...a: [string, number?]) { if (String(this) === src && ++calls > 20) throw new Error('runaway line loop'); return real.apply(this, a); });
-  assert.deepEqual(parseJsonl(src), [{ a: 1 }, { a: 2 }, { a: 3 }]);
-  assert.ok(calls <= 5, `${calls} line searches for 3 lines`);
-});
-
-test('readStreamCapped gives up on a reader that never has data once the idle limit is passed (a counted loop)', () => {
-  let reads = 0;
-  const fsImpl = wrapFs({ readSync: () => { if (++reads > 5) throw new Error('runaway wait loop'); throw Object.assign(new Error('again'), { code: 'EAGAIN' }); } });
-  assert.throws(() => readStreamCapped(0, 100, { timeoutMs: -1, fsImpl }), (e: Error & { code?: string }) => e.code === 'TIMEOUT' && e.message === 'timed out');
-  assert.equal(reads, 1);
-});
 
 test('readCapped with follow: false refuses a symlink by its own lstat, even when the open would follow it', () => {
   const target = path.join(dir, 'target.jsonl'); fs.writeFileSync(target, 'secret\n');

@@ -2,6 +2,7 @@
 // (raw, percent-encoded, JSON-escaped, base64 at any offset, hex, case-changed), the length limits of each rule, and the header and token
 // patterns, all against exact output.
 // NOT covered: the redaction of real Jira errors (test/redact-forms.test.ts, test/jira.test.ts). The registry is process-wide, so every secret here is unique to this file.
+import './helpers/runaway.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerSecret, redact } from '../lib/jira/redact.ts';
