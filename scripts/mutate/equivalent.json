@@ -931,8 +931,8 @@
  },
  {
   "file": "lib/verify.ts",
-  "line": "const ORDER: ViolationCode[] = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
-  "mutated": "const ORDER: ViolationCode[] = ['', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
+  "line": "const ORDER: ViolationCode[] = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'SPRINT_CLOSED', 'BLOCKED', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
+  "mutated": "const ORDER: ViolationCode[] = ['', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'SPRINT_CLOSED', 'BLOCKED', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];",
   "why": "CONFIG is the first code: with it removed from ORDER, indexOf gives -1, which still sorts it before every other code"
  },
  {

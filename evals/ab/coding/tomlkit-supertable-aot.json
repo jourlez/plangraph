@@ -2,7 +2,7 @@
   "id": "tomlkit-supertable-aot",
   "repo": "https://github.com/python-poetry/tomlkit",
   "commit": "669d4d625168998312f733a34bcb93d870a39d5a",
-  "task": "tomlkit emits super tables in the wrong order when they are separated by an array of tables, so dumping a parsed document changes its layout. Fix container ordering so the round trip preserves the original order.",
+  "task": "Parsing a TOML document with out-of-order tables where an array of tables ([[x]]) sits between the pieces of a super table, then dumping it, changes the layout: the output order of the tables differs from the input. A parsed document should round-trip to exactly the same text.",
   "hiddenTests": {
     "fromCommit": "29c31d2d08f6e6070345e07c8e0a0b9bb8a2ed85",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_toml_document.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pyyaml",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 120
 }

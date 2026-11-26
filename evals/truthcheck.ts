@@ -9,7 +9,7 @@ import type { EvalCase, TruthArgs, TruthValue } from './schema.ts';
 
 export interface TruthCheck { checked: string[]; unchecked: string[]; mismatches: Array<{ id: string; what: string }> }
 // the JSON a `plangraph ... --json` command prints under `data`; each case reads only the fields it names
-interface BrainData { lines?: string[]; found?: boolean; ready?: boolean; ok?: boolean; more?: unknown; reasons: Array<{ code: string; kind: string; key: string; detail?: string; warn?: boolean }>; violations?: Array<{ code: string; key: string }> }
+interface BrainData { lines?: string[]; found?: boolean; ready?: boolean; ok?: boolean; more?: unknown; reasons: Array<{ code: string; kind: string; key: string; detail?: string; warn?: boolean }>; total?: number; violations?: Array<{ code: string; key: string }> }
 
 const sortS = (a: Iterable<string>) => [...a].sort();
 const same = (a: Iterable<string>, b: Iterable<string>) => JSON.stringify(sortS(a)) === JSON.stringify(sortS(b));
@@ -84,7 +84,8 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
       }
       case 'chain': { const l = lines('chain', a.key)[0] || ''; if (!l.startsWith(`longest chain behind ${a.key}: ${v.hops} hops`)) bad('hops'); break; }
       case 'verifyPlan': {
-        const d = json('verify');
+        const d = json('verify', '-v'); // -v: the full list (the default prints 20, and BLOCKED warnings now share it with CAPACITY)
+        if (d && d.total !== undefined && d.total > (d.violations || []).length) { bad('verify list truncated'); break; }
         const cap = (d?.violations || []).filter((x) => x.code === 'CAPACITY');
         if (a.valid) { // reassign-safe: every slot whatif accepts is exactly the valid set
           for (const s of a.valid) { const w = json('whatif', a.key, '--to', s.to, '--sprint', String(s.sprint)); if (!w || !w.ok) { bad('a valid slot is refused by whatif'); break; } }
@@ -104,7 +105,7 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
       case 'blockers+verifyPlan': {
         const l = lines('blockers'); const n = Number(/^(\d+) tickets not READY/.exec(l[0] || '')?.[1] ?? (l.length ? Number.NaN : 0));
         if (!(n === v.not_ready || (Number.isNaN(n) && v.not_ready === 0))) bad('not_ready');
-        if ((json('verify')?.violations || []).filter((x) => x.code === 'CAPACITY').length !== v.over_capacity) bad('over_capacity');
+        if ((json('verify', '-v')?.violations || []).filter((x) => x.code === 'CAPACITY').length !== v.over_capacity) bad('over_capacity');
         break;
       }
       case 'readySet+jira': {

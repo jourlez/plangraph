@@ -2,7 +2,7 @@
   "id": "requests-prepare-body-wrapper",
   "repo": "https://github.com/psf/requests",
   "commit": "0b401c76b6e80a4eecf3c690085b2553f6e261ca",
-  "task": "Passing a file wrapper that forwards attributes through __getattr__ as the request data is not detected as a stream when the body is prepared, so it is handled as the wrong body type. Fix stream detection in body preparation.",
+  "task": "Passing a file-like wrapper object that forwards attributes with __getattr__ (including iteration support) as data= is not treated as a stream when the request body is prepared. It is handled as the wrong body type, and for example a redirect that must re-send such a streamed body misbehaves. Such wrappers should be streamed exactly like the underlying file.",
   "hiddenTests": {
     "fromCommit": "6404f345e562d962abe6700a1c357ec1e7e18232",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_requests.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pytest-httpbin pytest-mock trustme pytest-timeout",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 600
 }

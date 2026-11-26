@@ -2,14 +2,20 @@
   "id": "rich-split-graphemes-loop",
   "repo": "https://github.com/Textualize/rich",
   "commit": "27701029082052c6541031b6f139097230253900",
-  "task": "The grapheme splitting helper in rich.cells can loop forever for some input strings. Find the input class that triggers the infinite loop and make the function always terminate with correct splitting.",
+  "task": "Calling rich.cells.split_graphemes on certain strings never returns and pins the CPU at 100 percent. The hang depends on the characters in the input, apparently a character class at a particular position, such as a string beginning with a zero-width character. The function should always return, splitting the text into graphemes with correct cell widths.",
   "hiddenTests": {
     "fromCommit": "60b064a70a9db813e96955b7b344f61f62817f4c",
     "files": [
       "tests/test_cells.py"
     ],
-    "command": "python -m pytest -x -q tests/test_cells.py"
+    "command": "python -m pytest -x -q --timeout 60 tests/test_cells.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pytest-timeout 'pygments==2.19.2'",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 180
 }

@@ -2,7 +2,7 @@
   "id": "rich-markdown-table-inline-code",
   "repo": "https://github.com/Textualize/rich",
   "commit": "19c67b9a3479841e9133bea94607c89ee931d3fc",
-  "task": "Rich Markdown rendering drops or mis-renders inline code spans inside table cells. Fix the markdown renderer so inline code in a table cell is displayed with its content intact.",
+  "task": "When Markdown is rendered with inline_code_theme and inline_code_lexer set, inline code spans in normal paragraphs are syntax highlighted, but inline code inside a table cell is rendered with the plain code style instead (no highlighting from the configured theme and lexer). Inline code in table cells should use the same theme and lexer highlighting, with its text intact.",
   "hiddenTests": {
     "fromCommit": "7ef2d05ca8aa3cb405dab2fdf3282e69cf8089e3",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_markdown.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest attrs 'pygments==2.19.2'",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 120
 }

@@ -2,7 +2,7 @@
   "id": "tqdm-concurrent-length",
   "repo": "https://github.com/tqdm/tqdm",
   "commit": "4a7f422734a765d3df89ad7dbfec3ef1baf53b30",
-  "task": "tqdm.contrib.concurrent map helpers pick the wrong total when the iterable has no usable length. Fix length detection so the progress total is correct or unset.",
+  "task": "thread_map and process_map with several iterables of different lengths take the progress total, and the process_map chunksize warning, from the first (or longest) iterable. The map actually stops at the shortest iterable, so the total is too large and the 'Iterable length > 1000 but chunksize is not set' warning fires for lengths that will never be processed. Total and the warning should reflect the shortest iterable, and an iterable without a length should leave the total unset.",
   "hiddenTests": {
     "fromCommit": "0eaee96e4fd5ccf18e5bc2a637aa19a280e54bc3",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/tests_concurrent.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pytest-timeout pytest-asyncio numpy pandas",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 180
 }

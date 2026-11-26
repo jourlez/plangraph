@@ -2,7 +2,7 @@
   "id": "tqdm-format-meter-inf",
   "repo": "https://github.com/tqdm/tqdm",
   "commit": "6ab24dcc5df910044f1f6e0685f95dbf9cd424f3",
-  "task": "tqdm.format_meter raises OverflowError when total is float(\"inf\"). Make it format a progress line for an infinite total without raising.",
+  "task": "Calling tqdm.format_meter(5, float('inf'), 1) raises OverflowError: cannot convert float infinity to integer. An infinite total should render the same progress line as an unknown total (total=None) instead of crashing.",
   "hiddenTests": {
     "fromCommit": "ef15578141f2df10f9c169ec619d8a5217f6a37f",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/tests_tqdm.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pytest-timeout pytest-asyncio numpy pandas",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 180
 }

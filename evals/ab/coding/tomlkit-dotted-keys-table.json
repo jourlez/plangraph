@@ -2,7 +2,7 @@
   "id": "tomlkit-dotted-keys-table",
   "repo": "https://github.com/python-poetry/tomlkit",
   "commit": "543fcef39c6aceb4f5ebca15ec0def00d5568386",
-  "task": "tomlkit raises or corrupts a document when a table header appears out of order after dotted keys that already defined part of the same table. Make parsing accept this valid TOML and keep round-trip output identical.",
+  "task": "Parsing a valid TOML document fails with ParseError 'Key \"b\" already exists' when a table header such as [a.b] appears after dotted keys (for example a.b.c = 1) that already defined part of the same table, with other content in between. This is legal TOML and should parse, and dumping the parsed document must reproduce the input text exactly.",
   "hiddenTests": {
     "fromCommit": "f91f20ca955cb526b154cc58fb937c4be68a2bc1",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_toml_document.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pyyaml",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 120
 }

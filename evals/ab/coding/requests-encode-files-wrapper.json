@@ -2,7 +2,7 @@
   "id": "requests-encode-files-wrapper",
   "repo": "https://github.com/psf/requests",
   "commit": "661970d171d9c3e12e4c789c4768db647d8c4da0",
-  "task": "Uploading a file wrapper object that forwards attribute access through __getattr__ breaks requests when building a multipart body: the wrapper is not recognised as a file-like object. Fix the detection used when encoding files so such wrappers work.",
+  "task": "Uploading a file through the files= argument breaks when the file object is a wrapper/proxy that forwards attribute access with __getattr__ (it exposes read() only dynamically). Building the multipart body fails with a TypeError instead of reading the wrapped file, for example when posting a NamedTemporaryFile-style wrapper. Such wrappers should upload exactly like real file objects.",
   "hiddenTests": {
     "fromCommit": "6f205ff422bccd5e4c4fc0b64c5f3e7df5181db6",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q tests/test_requests.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest pytest-httpbin pytest-mock trustme pytest-timeout",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 600
 }

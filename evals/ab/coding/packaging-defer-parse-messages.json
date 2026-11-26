@@ -2,7 +2,7 @@
   "id": "packaging-defer-parse-messages",
   "repo": "https://github.com/pypa/packaging",
   "commit": "dec6213e562b69ffb680d5b9a82a899fafe4dc02",
-  "task": "Parse errors for markers and requirements format their messages eagerly, which costs time and can raise secondary errors for bad input. Defer message formatting until the exception text is needed.",
+  "task": "InvalidMarker and InvalidRequirement build their message eagerly in __init__ by calling str(self). If an argument's string form is not ready yet at that point, or a subclass overrides __str__ using attributes it sets after calling super().__init__, construction raises a secondary error such as AttributeError. Constructing these exceptions should never format the message; err.message should reflect the final string when first read.",
   "hiddenTests": {
     "fromCommit": "f91ea7931fa551eb498ca2cdf5644dbbf20bcbc6",
     "files": [
@@ -12,5 +12,12 @@
     "command": "python -m pytest -x -q tests/test_markers.py tests/test_requirements.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "export VIRTUAL_ENV=\"$PWD/.venv\" PATH=\"$PWD/.venv/bin:$PATH\"",
+    "uv pip install pytest hypothesis pretend tomli_w coverage pip",
+    "uv pip install -e . --no-deps"
+  ],
+  "timeoutSec": 180
 }

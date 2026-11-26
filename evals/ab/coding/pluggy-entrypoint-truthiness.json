@@ -2,7 +2,7 @@
   "id": "pluggy-entrypoint-truthiness",
   "repo": "https://github.com/pytest-dev/pluggy",
   "commit": "60b15251ee18560f781c557b6b9ef3de4d786bee",
-  "task": "Loading setuptools entry points skips an already registered plugin by checking the truthiness of the plugin object, so a plugin object that is falsy is loaded again. Compare registration without relying on truthiness.",
+  "task": "load_setuptools_entrypoints is meant to skip an entry point whose plugin name is already registered. If the registered plugin object happens to be falsy (for example it defines __bool__ or __len__ returning false/0), the entry point is not skipped and loading it again fails with 'Plugin name already registered'. An already registered plugin must be skipped regardless of its truthiness.",
   "hiddenTests": {
     "fromCommit": "e108fa4490564b9f252fe7a8a4d1969f6f996641",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q testing/test_pluginmanager.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest setuptools",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 120
 }
