@@ -32,7 +32,7 @@ function ignoreCache(ctx: Ctx): void {
 }
 
 async function importCmd(ctx: Ctx, args: Args<{ sys?: string; tenant?: string; ledger?: string }>): Promise<number> {
-  const { providerOf, MAX_INPUT_BYTES, MAX_OBSERVATIONS, CACHE_FILES, OBS_COLUMNS, obsProblem } = await import('../../lib/graph/provider.ts');
+  const { providerOf, MAX_INPUT_BYTES, MAX_OBSERVATIONS, OBS_COLUMNS, obsProblem } = await import('../../lib/graph/provider.ts');
   const v = args.values, files = args.positionals;
   if (!v.sys || !files.length) throw usage('usage: plangraph import --sys jira|sp|generic|github FILE... [--tenant ALIAS] [--ledger FILE]');
   const provider = providerOf(v.sys);
@@ -42,7 +42,6 @@ async function importCmd(ctx: Ctx, args: Args<{ sys?: string; tenant?: string; l
   const cfgTenant = (ctx.config() as { jira?: { tenant?: unknown } }).jira?.tenant;
   const tenant = v.tenant ?? (typeof cfgTenant === 'string' ? cfgTenant : '');
   const day = isoDay(ctx.now()), cache = path.join(ctx.dir, 'cache'), file = path.join(cache, `${v.sys}.jsonl`);
-  if (!CACHE_FILES.includes(`cache/${v.sys}.jsonl`)) throw usage('no cache file for this provider'); // CACHE_FILES and PROVIDERS list the same names (a test pins it)
 
   // what the cache holds now, keyed sys+xid (an unreadable or hand-damaged cache is a data error: delete the file and import again)
   const old = new Map<string, Record<string, unknown>>();
@@ -52,6 +51,7 @@ async function importCmd(ctx: Ctx, args: Args<{ sys?: string; tenant?: string; l
   } catch (e) { throw dataError(`cache/${v.sys}.jsonl: ${oneError(e)}`, 'delete the cache file and import again'); }
   const prev = new Map<string, Observation>([...old].map(([k, r]) => [k, r as unknown as Observation]));
 
+  const cwd = ctx.cwd as string; // makeContext always sets it
   const fresh = new Map<string, ObsRow>(); let dropped = 0; const warnings: string[] = [];
   for (const f of files) {
     const shown = oneLine(path.basename(String(f)), 80);
@@ -60,10 +60,10 @@ async function importCmd(ctx: Ctx, args: Args<{ sys?: string; tenant?: string; l
     else {
       let planText: string, ledgerText: string | undefined;
       try {
-        planText = readCapped(path.resolve(ctx.cwd ?? process.cwd(), f), MAX_INPUT_BYTES);
-        if (v.ledger !== undefined) ledgerText = readCapped(path.resolve(ctx.cwd ?? process.cwd(), v.ledger), MAX_INPUT_BYTES);
+        planText = readCapped(path.resolve(cwd, f), MAX_INPUT_BYTES);
+        if (v.ledger !== undefined) ledgerText = readCapped(path.resolve(cwd, v.ledger), MAX_INPUT_BYTES);
       } catch { throw dataError(`cannot read input file ${shown}`, 'check the path'); }
-      const abs = path.resolve(ctx.cwd ?? process.cwd(), f), inside = (() => { try { assertInside(ctx.root, abs); return true; } catch { return false; } })();
+      const abs = path.resolve(cwd, f), inside = (() => { try { assertInside(ctx.root, abs); return true; } catch { return false; } })();
       input = { name: inside ? path.relative(fs.realpathSync.native(ctx.root), fs.realpathSync.native(abs)).split(path.sep).join('/') : path.basename(abs), text: planText, ...(ledgerText !== undefined ? { ledger: ledgerText } : {}) };
     }
     let batch: ReturnType<typeof provider.normalize>;
