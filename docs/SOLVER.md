@@ -359,5 +359,5 @@ setting; "after" has both.
 
 What this shows: the re-proof is cheap. It costs only the time it takes from the next stage (a few owner changes), never the end sprint. The
 presolve setting is expensive. It doubles or triples a proved stage's time at 60 tickets. At 150 tickets the end-sprint stage no longer proves
-within its budget and ends 2 to 3 sprints later. `HINT_NO_INCLUSION` at the top of `bin/plangraph-solve` turns the setting off; the audit
-keeps the result honest either way.
+within its budget and ends 2 to 3 sprints later. `HINT_NO_INCLUSION` at the top of `bin/plangraph-solve` is therefore `False` by default (decision of the 0.3.0 controller): the audit and the unhinted re-proof
+of every hinted OPTIMAL keep the result honest, and the switch stays for anyone who prefers the upstream workaround over the schedule quality.

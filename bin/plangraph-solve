@@ -34,7 +34,7 @@ MAX_UNITS = 10 ** 9     # story points, caps and min_per_sprint: at most this af
 MAX_SPRINT = 10 ** 6    # first_sprint, end_sprint (--end), frozen_before_sprint: whole numbers within +-this (as lib/verify.ts bounds first_sprint)
 SCALED = ('shortfall', 'load_of', 'peak_load')   # stage values in story points (reported unscaled)
 SNAP_CAP = 64 << 20     # an existing --out larger than this is not snapshotted, and anytime writes are then off
-HINT_NO_INCLUSION = True  # hinted solves set presolve_inclusion_work_limit=0 (issue 5582 workaround; its cost is measured in docs/SOLVER.md, Trust)
+HINT_NO_INCLUSION = False  # off by default (controller ruling): setting presolve_inclusion_work_limit=0 on hinted solves (issue 5582 workaround) ends 150-ticket plans 2 to 3 sprints later (docs/SOLVER.md, Trust); the unhinted re-proof of every hinted OPTIMAL already prevents a false optimum
 
 
 class Fail(Exception):
