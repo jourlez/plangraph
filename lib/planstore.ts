@@ -153,11 +153,11 @@ export class JsonlStore implements PlanStore {
   describe(): { backend: 'jsonl' | 'entity'; root: string } { return { backend: 'jsonl', root: this.ctx.dir }; }
 }
 
-/** The storage of a plan directory: `"storage": "entity"` in format.json selects the entity backend; anything else (no file, an unreadable or odd one) is JSONL. */
-const storageOf = (dir: string): 'jsonl' | 'entity' => {
+/** The storage backend of a plan directory: `"storage": "entity"` in format.json selects the entity backend; anything else (no file, an unreadable or odd one) is JSONL. */
+export const backendOf = (dir: string): 'jsonl' | 'entity' => {
   try { return readFormat(dir).storage === 'entity' ? 'entity' : 'jsonl'; } catch { return 'jsonl'; } // a bad format.json is reported by checkFormat, not here
 };
 /** The store of a plan directory, by format.json. root: the repository the writes are confined to. */
-export const openStore = (ctx: StoreCtx): PlanStore => (storageOf(ctx.dir) === 'entity' ? new EntityStore(ctx) : new JsonlStore(ctx));
+export const openStore = (ctx: StoreCtx): PlanStore => (backendOf(ctx.dir) === 'entity' ? new EntityStore(ctx) : new JsonlStore(ctx));
 /** A store for reading a plan directory when no repository root is at hand (a reader never writes). */
 export const readStoreAt = (dir: string): PlanStore => openStore({ dir, root: dir });

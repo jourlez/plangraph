@@ -23,6 +23,14 @@
 // - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/obs.ts CACHE_FILES).
 //   A cache file adds bytes to the source fingerprint only when it is present, so a directory without a cache keeps its fingerprint. An index
 //   built before `obs` existed (0.4.0) is a known older schema like 0.3.0's (digest over the 0.4.0 table list, stale, query-only, handle.older). The table is advisory data, read by no solver.
+// - Incremental build (1.0): the advisory table source_file(path, size, mtime, hash) records every source file of the last build. buildIndex compares each
+//   file's (size, mtime) with it and re-hashes only the files that differ (a file whose mtime is within RACY_MS of the old index's own is always re-hashed,
+//   as git does for a racy entry); a file whose hash changed, a new file and a deleted one (seen from the directory walk) mark the tables built from it,
+//   and only those tables are rebuilt (the others are copied from the old index). The result equals a full rebuild. It reads the files, never git, so it
+//   works in and out of a repository and sees unstaged edits and untracked files. Any index writer that changes rows without the text (stampContent) clears
+//   source_file, so the next build is a full one. The entity backend fingerprints (path, hash) of its files; the JSONL backend keeps the text fingerprint.
+// - ADVISORY_TABLES: tables the solver never reads (source_file now; later identity, module, requirement, decision, team, event). The schema check and the
+//   content digest ignore them, here and in bin/plangraph-solve (test/solver-contract.test.ts keeps the two lists equal).
 // The fingerprint lives in its own table, not in `meta`: `meta` mirrors meta.jsonl and is exported back to text, so a fingerprint row
 // there would leak into meta.jsonl (and collide with a user key of the same name).
 import fs from 'node:fs';
@@ -32,7 +40,7 @@ import { SCHEMAS } from '../lib/store.ts';
 import type { Schema } from '../lib/store.ts';
 import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.ts';
 import { validators } from '../lib/schema.ts';
-import { readStoreAt, kindFile, kindOfFile } from '../lib/planstore.ts';
+import { readStoreAt, openStore, backendOf, kindFile, kindOfFile } from '../lib/planstore.ts';
 import type { Kind } from '../lib/planstore.ts';
 import { GRAPH_FILES, parseGraphFile } from '../lib/graph/files.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
@@ -47,6 +55,10 @@ export const FINGERPRINT_KEY = 'source_fingerprint';
 export const CONTENT_KEY = 'content_digest';
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
+/** Tables the solver does not read: the schema check and the content digest ignore them (bin/plangraph-solve has the same list). */
+export const ADVISORY_TABLES: ReadonlySet<string> = new Set(['source_file', 'identity', 'module', 'requirement', 'decision', 'team', 'event']);
+const SOURCE_FILE_DDL = 'CREATE TABLE source_file(path TEXT PRIMARY KEY, size INTEGER, mtime INTEGER, hash TEXT);';
+const RACY_MS = 2000;
 
 const OBS_FILE = 'cache/obs'; // the name of the table's source in TABLES; the real files are CACHE_FILES
 // [table (a plan kind, or obs), primary key, INTEGER columns, upsert]. learnings and refs are INSERT OR REPLACE (a later line with the same id wins),
@@ -123,7 +135,7 @@ const V1_TABLES = Object.freeze([...TABLES.values()].slice(0, V1_TABLE_COUNT));
 const PREV_TABLES = Object.freeze([...TABLES.values()].filter((t) => t.name !== 'obs')); // the table list of 0.4.0
 const GRAPH_TABLE_NAMES = Object.freeze([...TABLES.values()].slice(V1_TABLE_COUNT).map((t) => t.name));
 const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n')
-  + '\nCREATE INDEX edge_p ON edge(producer); CREATE INDEX ev_k ON evidence(key);\nCREATE TABLE index_meta(k TEXT PRIMARY KEY, v TEXT);\n'
+  + `\nCREATE INDEX edge_p ON edge(producer); CREATE INDEX ev_k ON evidence(key);\nCREATE TABLE index_meta(k TEXT PRIMARY KEY, v TEXT);\n${SOURCE_FILE_DDL}\n`
   + GRAPH_VIEWS.map(([, sql]) => `${sql};`).join('\n');
 
 // ---------- node:sqlite, lazily ----------
@@ -192,17 +204,21 @@ function readSources(dir: string): Array<[string, string | null]> {
   return SOURCE_FILES.map((f) => {
     const kind = kindOfFile(f);
     if (kind) return [f, store.readSource(kind, MAX_SOURCE_BYTES)]; // a plan kind: the store's capped, symlink-refusing read
-    // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
-    if (f.startsWith('cache/')) { let c = null; try { c = fs.lstatSync(path.join(dir, 'cache')); } catch { /* no cache */ } if (c?.isSymbolicLink()) throw new IngestError('cache: is a symlink, not a directory'); } // the cache directory itself is never followed
-    let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
-    if (st?.isSymbolicLink()) throw new IngestError(`${f}: is a symlink, not a regular file`);
-    try { return [f, readDataCapped(path.join(dir, f), MAX_SOURCE_BYTES)]; } // O_NOFOLLOW + dev/ino check: no swap after the lstat
-    catch (e) { // fs errno errors and readDataCapped's coded refusals
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [f, null]; // fs and the readers throw errno-style errors with a code
-      if (DATA_REFUSALS.has((e as { code: string }).code)) throw new IngestError(`${f}: ${(e as Error).message}`); // a missing code is simply not in the set
-      throw e;
-    }
+    return [f, readPlain(dir, f)];
   });
+}
+/** A plain source file (a cache file): capped, regular files only, null when missing. */
+function readPlain(dir: string, f: string): string | null {
+  // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
+  if (f.startsWith('cache/')) { let c = null; try { c = fs.lstatSync(path.join(dir, 'cache')); } catch { /* no cache */ } if (c?.isSymbolicLink()) throw new IngestError('cache: is a symlink, not a directory'); } // the cache directory itself is never followed
+  let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
+  if (st?.isSymbolicLink()) throw new IngestError(`${f}: is a symlink, not a regular file`);
+  try { return readDataCapped(path.join(dir, f), MAX_SOURCE_BYTES); } // O_NOFOLLOW + dev/ino check: no swap after the lstat
+  catch (e) { // fs errno errors and readDataCapped's coded refusals
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; // fs and the readers throw errno-style errors with a code
+    if (DATA_REFUSALS.has((e as { code: string }).code)) throw new IngestError(`${f}: ${(e as Error).message}`); // a missing code is simply not in the set
+    throw e;
+  }
 }
 function fingerprintOf(sources: Array<[string, string | null]>): string {
   const h = crypto.createHash('sha256');
@@ -213,8 +229,104 @@ function fingerprintOf(sources: Array<[string, string | null]>): string {
   }
   return h.digest('hex');
 }
-/** sha256 (hex) over the sorted index source files of dir: name, byte length and bytes of each; a missing file differs from an empty one. */
-export const sourceFingerprint = (dir: string): string => fingerprintOf(readSources(dir));
+const sha = (b: string | Buffer): string => crypto.createHash('sha256').update(b).digest('hex');
+/** Table builders and the file hash, as one object so a test can spy on them: rows(t, textOf) is the one place a table's rows are built from text;
+ * hash(abs) is the one place a source file is read for the change check. */
+export const builders = {
+  rows(t: Readonly<TableSpec>, textOf: (file: string) => string | null): readonly Record<string, unknown>[] {
+    return t.file === OBS_FILE ? obsRows(textOf) : GRAPH_SET.has(t.file) ? graphRows(t, textOf(t.file) ?? '') : parseJsonl(textOf(t.file) ?? '', t.file, { validate: validatorOf(t) });
+  },
+  /** sha256 of one source file (capped, never through a symlink). A file that cannot be read hashes to its refusal code: a change of state is a change. */
+  hash(abs: string): string {
+    try { return sha(readDataCapped(abs, MAX_SOURCE_BYTES)); } catch (e) { return `unreadable:${(e as { code?: string }).code ?? 'ERR'}`; } // fs errno errors and readDataCapped's coded refusals
+  },
+};
+
+// ---------- the source file table (advisory) ----------
+interface SrcRow { size: number; mtime: number; hash: string }
+type SrcMap = Map<string, SrcRow>;
+/** What the last build recorded: the rows of source_file and the index file's own modification time (the racy-entry bound). */
+interface Prior { rows: SrcMap; indexMtime: number }
+const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'ext', 'openitem'];
+const RUN_DIRS: Readonly<Record<string, string>> = { evidence: 'evidence', findings: 'finding', learnings: 'learning' };
+// the tables built from each node directory (a link or xref table reads every directory that can hold a source node)
+const NODE_TABLES: Readonly<Record<string, readonly string[]>> = {
+  ticket: ['ticket', 'edge', 'ref', 'link', 'xref'], person: ['person', 'capacity', 'link', 'xref'], sprint: ['sprint', 'link', 'xref'], epic: ['epic', 'ref', 'link', 'xref'],
+  repo: ['repo', 'link', 'xref'], ext: ['link', 'xref'], openitem: ['openitem'],
+};
+/** The tables built from a source file of either layout (an old-layout file name, an entity path, a cache file). */
+function tablesOf(rel: string): readonly string[] {
+  const kind = kindOfFile(rel);
+  if (kind) return [kind];
+  const [top, sub] = rel.split('/');
+  if (top === 'cache') return ['obs'];
+  if (top === 'nodes') return NODE_TABLES[sub as string] ?? [];
+  if (top === 'schedules') return ['schedule'];
+  if (top === 'runs') return RUN_DIRS[sub as string] ? [RUN_DIRS[sub as string] as string] : [];
+  return [];
+}
+/** The source files of an entity plan directory (relative, '/'-separated, sorted): node, schedule and run files, meta.jsonl and the cache files. A symlink is listed
+ * (it is refused when read, and a change of state is a change). */
+function entityFiles(dir: string): string[] {
+  const out: string[] = [];
+  const walk = (rel: string, take: (name: string) => boolean) => {
+    let ents: fs.Dirent[];
+    try { ents = fs.readdirSync(path.join(dir, rel), { withFileTypes: true }); } catch { return; } // a missing directory has no files
+    for (const e of ents) { const r = `${rel}/${e.name}`; if (e.isDirectory()) walk(r, take); else if (e.isSymbolicLink() || take(e.name)) out.push(r); }
+  };
+  for (const k of NODE_DIRS) walk(`nodes/${k}`, (n) => n.endsWith('.pg'));
+  walk('schedules', (n) => n.endsWith('.jsonl') || n === 'CURRENT');
+  for (const k of Object.keys(RUN_DIRS)) walk(`runs/${k}`, (n) => n.endsWith('.jsonl'));
+  for (const f of ['meta.jsonl', ...CACHE_FILES]) { try { fs.lstatSync(path.join(dir, f)); out.push(f); } catch { /* absent */ } }
+  return out.sort();
+}
+/** (size, mtime, hash) of every source file of an entity directory. A file whose (size, mtime) equal the prior row's, and whose mtime is older than racyBefore, keeps
+ * the prior hash without being read; every other file is hashed. */
+function scanEntity(dir: string, prior: SrcMap | null, racyBefore: number): SrcMap {
+  const out: SrcMap = new Map();
+  for (const rel of entityFiles(dir)) {
+    const abs = path.join(dir, rel);
+    let st: fs.Stats; try { st = fs.lstatSync(abs); } catch { continue; } // gone since the walk: a deleted file
+    const size = st.size, mtime = Math.trunc(st.mtimeMs), was = prior?.get(rel);
+    out.set(rel, { size, mtime, hash: was && was.size === size && was.mtime === mtime && mtime < racyBefore ? was.hash : builders.hash(abs) });
+  }
+  return out;
+}
+/** The same record for the old layout, from the texts already read for the fingerprint. */
+function scanText(dir: string, sources: Array<[string, string | null]>): SrcMap {
+  const out: SrcMap = new Map();
+  for (const [f, text] of sources) {
+    if (text === null) continue;
+    let mtime = 0; try { mtime = Math.trunc(fs.lstatSync(path.join(dir, f)).mtimeMs); } catch { /* gone */ }
+    out.set(f, { size: Buffer.byteLength(text), mtime, hash: sha(text) });
+  }
+  return out;
+}
+const fingerprintFiles = (files: SrcMap): string => {
+  const h = crypto.createHash('sha256'); h.update('entity\0');
+  for (const rel of [...files.keys()].sort()) h.update(`${rel}\0${(files.get(rel) as SrcRow).hash}\0`);
+  return h.digest('hex');
+};
+/** What an open index recorded in source_file, or null (no table, no rows, unreadable). */
+function priorOf(h: IndexHandle, file: string): Prior | null {
+  try {
+    if (!h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='source_file'")) return null;
+    const rows: SrcMap = new Map();
+    for (const r of h.all('SELECT path, size, mtime, hash FROM source_file') as Array<{ path: string; size: number; mtime: number; hash: string }>) rows.set(r.path, { size: r.size, mtime: r.mtime, hash: r.hash }); // the columns this SELECT names
+    return rows.size ? { rows, indexMtime: fs.lstatSync(file).mtimeMs } : null;
+  } catch { return null; }
+}
+/** The recorded source files of the index at `file`, when it is usable as the base of an incremental build: a current schema, its digest intact, rows recorded. */
+function loadPrior(file: string): Prior | null {
+  try { using h = openIndex(file); return h.older ? null : priorOf(h, file); } catch { return null; } // any refusal: a full build
+}
+
+/** sha256 (hex) over the sorted index source files of dir: name, byte length and bytes of each; a missing file differs from an empty one.
+ * An entity directory: over the (path, hash) of its source files; prior (what the index recorded) saves reading the files whose (size, mtime) did not change. */
+export function sourceFingerprint(dir: string, prior: Prior | null = null): string {
+  if (backendOf(dir) === 'entity') return fingerprintFiles(scanEntity(dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity));
+  return fingerprintOf(readSources(dir));
+}
 
 // ---------- content digest ----------
 // sha256 over every table in the fixed TABLES order, then index_meta without the digest row: per table its name, then one SQLite json_array
@@ -223,6 +335,7 @@ export const sourceFingerprint = (dir: string): string => fingerprintOf(readSour
 // large index; the ORDER BY makes the digest independent of physical row order (VACUUM). SQL text comes only from the frozen table specs.
 // Cost (docs/CONTRACT.md): about 5 ms at 1,400 tickets and 0.4 s at 100,000 tickets (533k rows) on the dev machine; a full digest, no sampling.
 export function contentDigest(h: IndexHandle, tables: readonly Readonly<TableSpec>[] = [...TABLES.values()]): string {
+  tables = tables.filter((t) => !ADVISORY_TABLES.has(t.name)); // advisory tables are never part of the digest
   const hash = crypto.createHash('sha256');
   const feed = (name: string, sql: string, args: SQLInputValue[]) => {
     let buf = `${name}\0`;
@@ -234,11 +347,16 @@ export function contentDigest(h: IndexHandle, tables: readonly Readonly<TableSpe
   feed('index_meta', 'SELECT json_array(k, v) FROM index_meta WHERE k <> ? ORDER BY k, v', [CONTENT_KEY]);
   return hash.digest('hex');
 }
-/** Store the content digest of the index as it is now (inside the caller's transaction, before COMMIT). Returns it. */
-export function stampContent(h: IndexHandle): string {
+function stampDigest(h: IndexHandle): string {
   const digest = contentDigest(h);
   h.prepare('INSERT OR REPLACE INTO index_meta(k, v) VALUES(?, ?)').run(CONTENT_KEY, digest);
   return digest;
+}
+/** Store the content digest of the index as it is now (inside the caller's transaction, before COMMIT). Returns it. The caller changed rows without the text, so
+ * what source_file recorded no longer describes the index: it is cleared, and the next build is a full one. */
+export function stampContent(h: IndexHandle): string {
+  if (h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='source_file'")) h.exec('DELETE FROM source_file'); // an index of an earlier build has none
+  return stampDigest(h);
 }
 
 // ---------- build ----------
@@ -300,22 +418,55 @@ function graphRows(t: Readonly<TableSpec>, text: string): readonly Record<string
 }
 
 /** The rows of every cache file, in file order; each row is checked like any input (obsProblem), a duplicate sys+xid is refused by the table's key. */
-function obsRows(text: ReadonlyMap<string, string | null>): readonly Record<string, unknown>[] {
-  return CACHE_FILES.flatMap((f) => parseJsonl(text.get(f) ?? '', f, { validate: obsProblem }));
+function obsRows(textOf: (file: string) => string | null): readonly Record<string, unknown>[] {
+  return CACHE_FILES.flatMap((f) => parseJsonl(textOf(f) ?? '', f, { validate: obsProblem }));
 }
 
-/** Build the index for ctx.dir into `file` (default <dir>/plangraph.sqlite). Throws IngestError on bad data, keeping the old index. */
-export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, INDEX_FILE), now = Date.now() }: { file?: string; now?: number } = {}): { file: string; counts: Record<string, number>; fingerprint: string; digest: string } {
+/** What an index holds, read back for a build that had nothing to do. */
+function summaryOf(h: IndexHandle): { counts: Record<string, number>; fingerprint: string; digest: string } {
+  const counts: Record<string, number> = {};
+  for (const t of TABLES.values()) counts[t.name] = (h.get(`SELECT COUNT(*) c FROM ${t.name}`) as { c: number }).c; // COUNT(*) always returns one row
+  const meta = (k: string) => String((h.get('SELECT v FROM index_meta WHERE k=?', k) as { v: unknown }).v); // both rows exist in a verified index
+  return { counts, fingerprint: meta(FINGERPRINT_KEY), digest: meta(CONTENT_KEY) };
+}
+
+/** Build the index for ctx.dir into `file` (default <dir>/plangraph.sqlite). Throws IngestError on bad data, keeping the old index.
+ * incremental (default): when the old index is usable (a current schema, an intact digest, source_file rows), only the tables built from a source file whose
+ * hash changed, that is new or that is gone are rebuilt; the rest is copied from the old index. The result equals a full rebuild. `rebuilt` names the tables built from text. */
+export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, INDEX_FILE), now = Date.now(), incremental = true }: { file?: string; now?: number; incremental?: boolean } = {}): { file: string; counts: Record<string, number>; fingerprint: string; digest: string; rebuilt: string[] } {
   let st = null;
   try { st = fs.statSync(ctx.dir); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT' && (e as NodeJS.ErrnoException).code !== 'ENOTDIR') throw e; } // fs throws errno errors
   if (!st?.isDirectory()) throw new PlangraphError('DATA', 'no plan directory', { hint: 'run `plangraph init` first' });
   const { DatabaseSync } = loadSqlite();
   removeStaleTemps(path.dirname(file), `${path.basename(file)}.tmp-`, now);
   clearSidecars(file, false); // fail fast on a symlinked or non-file sidecar; regular ones are removed only right before the rename
-  const sources = readSources(ctx.dir), text = new Map(sources);
-  const fingerprint = fingerprintOf(sources);
+  const prior = incremental ? loadPrior(file) : null;
+  let scan: SrcMap, fingerprint: string, textOf: (f: string) => string | null;
+  if (backendOf(ctx.dir) === 'entity') {
+    const store = openStore({ dir: ctx.dir, root: ctx.dir }), read = new Map<string, string | null>();
+    scan = scanEntity(ctx.dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity);
+    fingerprint = fingerprintFiles(scan);
+    textOf = (f) => { if (!read.has(f)) { const kind = kindOfFile(f); read.set(f, kind ? store.readSource(kind, MAX_SOURCE_BYTES) : readPlain(ctx.dir, f)); } return read.get(f) ?? null; };
+  } else {
+    const sources = readSources(ctx.dir), text = new Map(sources);
+    scan = scanText(ctx.dir, sources); fingerprint = fingerprintOf(sources); textOf = (f) => text.get(f) ?? null;
+  }
+  // which tables are built from text: all, or those of a file that is new, gone or whose hash differs from the recorded one
+  const dirty = new Set<string>();
+  if (!prior) for (const n of TABLES.keys()) dirty.add(n);
+  else {
+    for (const [rel, r] of scan) if (prior.rows.get(rel)?.hash !== r.hash) for (const n of tablesOf(rel)) dirty.add(n);
+    for (const rel of prior.rows.keys()) if (!scan.has(rel)) for (const n of tablesOf(rel)) dirty.add(n);
+    const unchanged = !dirty.size && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime);
+    if (unchanged) { // nothing to do: the index stays as it is (leftovers at this build's own temp name are still cleared, or refused if a symlink)
+      clearSidecars(`${file}.tmp-${process.pid}`, true);
+      using h = openIndex(file);
+      const sum = summaryOf(h);
+      if (sum.fingerprint === fingerprint) return { file, ...sum, rebuilt: [] };
+    }
+  }
   // parse everything before touching the database
-  const rows = [...TABLES.values()].map((t) => ([t, t.file === OBS_FILE ? obsRows(text) : GRAPH_SET.has(t.file) ? graphRows(t, text.get(t.file) ?? '') : parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })] as const));
+  const rows = [...TABLES.values()].filter((t) => dirty.has(t.name)).map((t) => ([t, builders.rows(t, textOf)] as const));
   const tmp = `${file}.tmp-${process.pid}`;
   // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it. removeStaleTemps above already
   // unlinked a REGULAR file at this name (our own pid: a leftover of a crashed build); a symlink or other non-file there, or any file that
@@ -336,7 +487,10 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
       using h = new IndexHandle(new DatabaseSync(tmp));
       // journal_mode OFF, set before the first write: SQLite creates no journal (and no WAL) for the temp file at all, so none can be renamed
       // or replayed onto the final name; the build is all-or-nothing anyway (a failed build deletes the temp file).
-      h.exec('PRAGMA journal_mode=OFF'); h.exec(DDL); h.exec('BEGIN');
+      h.exec('PRAGMA journal_mode=OFF'); h.exec(DDL);
+      if (prior) h.prepare('ATTACH DATABASE ? AS old').run(file); // the verified old index: its tables are copied where no source changed
+      h.exec('BEGIN');
+      for (const t of TABLES.values()) if (!dirty.has(t.name)) h.exec(`INSERT INTO ${t.name}(${t.columnList}) SELECT ${t.columnList} FROM old.${t.name} ORDER BY rowid`); // table and column names are constants; in file order, as a full build
       for (const [t, recs] of rows) {
         const ins = h.cached(t.name, insertSql(t, t.upsert ? 'INSERT OR REPLACE' : 'INSERT')); // once per table
         recs.forEach((r, i) => {
@@ -345,8 +499,11 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
         });
       }
       h.prepare('INSERT INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
-      digest = stampContent(h);
+      const rec = h.prepare('INSERT INTO source_file(path, size, mtime, hash) VALUES(?, ?, ?, ?)');
+      for (const rel of [...scan.keys()].sort()) { const r = scan.get(rel) as SrcRow; rec.run(rel, r.size, r.mtime, r.hash); }
+      digest = stampDigest(h);
       h.exec('COMMIT');
+      if (prior) h.exec('DETACH DATABASE old');
       if ((h.get('PRAGMA integrity_check') as { integrity_check: unknown }).integrity_check !== 'ok') throw new PlangraphError('DATA', 'index failed its integrity check'); // the columns this SELECT names
       for (const t of TABLES.values()) counts[t.name] = (h.get(`SELECT COUNT(*) c FROM ${t.name}`) as { c: number }).c; // the pragma and COUNT(*) always return one row
     } // closed here, before the rename
@@ -355,7 +512,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
     clearSidecars(tmp, true);
     clearSidecars(file, true); // a journal of the old (or a planted) index must never be replayed into the new one
     fs.renameSync(tmp, file); // rename replaces a symlink at `file` itself, never its target
-    return { file, counts, fingerprint, digest };
+    return { file, counts, fingerprint, digest, rebuilt: [...TABLES.keys()].filter((n) => dirty.has(n)) };
   } catch (e) {
     try { const now = fs.lstatSync(tmp); if (now.isFile() && now.ino === mine.ino && now.dev === mine.dev) fs.rmSync(tmp, { force: true }); } catch { /* gone */ }
     throw e;
@@ -380,11 +537,11 @@ function schemaKind(h: IndexHandle): 'current' | 'prev' | 'older' | null {
   const tables = new Set<string>(), views = new Set<string>();
   for (const o of objects) {
     if (o.type === 'table') {
-      if (!family.has(o.name) || o.name !== o.tbl_name || typeof o.sql !== 'string' || /^\s*CREATE\s+VIRTUAL\b/i.test(o.sql)) return null;
+      if (!(family.has(o.name) || ADVISORY_TABLES.has(o.name)) || o.name !== o.tbl_name || typeof o.sql !== 'string' || /^\s*CREATE\s+VIRTUAL\b/i.test(o.sql)) return null;
       tables.add(o.name);
     } else if (o.type === 'index') {
       const auto = typeof o.name === 'string' && o.name.startsWith(`sqlite_autoindex_${o.tbl_name}_`) && o.sql === null;
-      if (!(auto ? family.has(o.tbl_name) : EXPECTED_INDEXES.get(o.name) === o.tbl_name)) return null;
+      if (!(auto ? family.has(o.tbl_name) || ADVISORY_TABLES.has(o.tbl_name) : EXPECTED_INDEXES.get(o.name) === o.tbl_name)) return null;
     } else if (o.type === 'view' && current) {
       if (o.name !== o.tbl_name || EXPECTED_VIEWS.get(o.name) !== o.sql) return null; // a view whose body differs could forge every answer
       views.add(o.name);
@@ -393,6 +550,7 @@ function schemaKind(h: IndexHandle): 'current' | 'prev' | 'older' | null {
   for (const t of family.keys()) if (t !== 'index_meta' && !tables.has(t)) return null;
   if (current && views.size !== EXPECTED_VIEWS.size) return null;
   for (const t of tables) {
+    if (ADVISORY_TABLES.has(t)) continue; // an advisory table is only a plain table: the solver reads none of it
     const info = h.all('SELECT name, hidden FROM pragma_table_xinfo(?)', t) as Array<{ name: string; hidden: number }>; // the pragma's columns
     if (info.some((c) => c.hidden !== 0) || info.map((c) => c.name).join(',') !== EXPECTED_COLUMNS.get(t)) return null;
   }
@@ -455,7 +613,7 @@ export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: b
     if ((older || prev) && !readOnly) throw new PlangraphError('STALE', 'the index was built by an older plangraph', { hint: 'run `plangraph build`' }); // before any write
     if (dir !== undefined) {
       const stored = meta(FINGERPRINT_KEY);
-      h.fingerprint = sourceFingerprint(dir); h.builtFingerprint = stored ?? null;
+      h.fingerprint = sourceFingerprint(dir, priorOf(h, file)); h.builtFingerprint = stored ?? null;
       h.stale = stored !== h.fingerprint || want === undefined;
     }
     if (older || prev) { h.older = true; h.stale = true; } // the text may be unchanged: the index still lacks the graph tables, so it counts as stale
