@@ -1,5 +1,5 @@
 $ plangraph ready T-8 --json
 exit: 1
 --- stdout
-{"v":2,"cmd":"ready","ok":false,"exit":1,"data":{"key":"T-8","found":true,"ready":false,"reasons":[{"code":"WAITS","key":"T-2","status":"To Do","sprint":1,"owner":"Cleo"},{"code":"WAITS","key":"T-6","status":"To Do","sprint":1,"owner":"Ana"},{"code":"WAITS","key":"T-7","status":"To Do","sprint":2,"owner":"Cleo"}],"more":0,"statuses":"last build"},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["plangraph ready T-2","plangraph ready T-6"]}
+{"v":2,"cmd":"ready","ok":false,"exit":1,"data":{"key":"T-8","found":true,"ready":false,"reasons":[{"code":"WAITS","key":"T-2","status":"To Do","sprint":1,"owner":"Cleo"},{"code":"WAITS","key":"T-6","status":"To Do","sprint":1,"owner":"Ana"},{"code":"WAITS","key":"T-7","status":"To Do","sprint":2,"owner":"Cleo"}],"more":0,"statuses":"last build"},"fresh":{"fp":"<FP>","built":"<FP>"},"next":["plangraph ready T-2","plangraph ready T-6"]}
 --- stderr

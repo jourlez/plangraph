@@ -1,5 +1,5 @@
 $ plangraph chain T-30 --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"chain","ok":true,"exit":0,"data":{"lines":["longest chain behind T-30: 3 hops, 2 handoffs, 1 critical path","  T-1 S1 Ana","  T-7 S2 Cleo","  T-8 S2 Cleo","  T-30 S3 Ana"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"chain","ok":true,"exit":0,"data":{"lines":["longest chain behind T-30: 3 hops, 2 handoffs, 1 critical path","  T-1 S1 Ana","  T-7 S2 Cleo","  T-8 S2 Cleo","  T-30 S3 Ana"]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

@@ -1,12 +1,12 @@
 $ plangraph learn --from-wolf Never confirm a checkout from the redirect; wait for the webhook.
 exit: 0
 --- stdout
-copied repo rule w8fe9c3 to learnings.jsonl as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `plangraph build`
+copied repo rule w8fe9c3 to <FILE> as W-1 (kind rule, topic repo, source openwolf:cerebrum); run `plangraph build`
 <untrusted src="wolf-cerebrum" n="8fe9c3dd" len="65">
 Never confirm a checkout from the redirect; wait for the webhook.
 </untrusted>
 --- stderr
---- file .plangraph/learnings.jsonl
+--- file .plangraph/<FILE>
 {"id":"L06","kind":"rule","topic":"loops","text":"A loop between tickets is almost never a real two-way need: read both plan tasks and classify (wrong direction, verify-only, false claim, split, step in wrong ticket). Run a cycle and self-link check on every new link set before solving.","why":"Of 17 + 13 loops read, 0 were real two-way; 13 of 44 new links formed loops and 9 were self-links.","source":"seed from a large planning engagement"}
 {"id":"L08","kind":"rule","topic":"solver","text":"Greedy scheduling gives an upper bound only. Use the exact CP-SAT model and compute a lower bound (total SP over total capacity) before reporting an end sprint.","why":"A greedy run showed Sprint 17 for a plan the solver ends in Sprint 14; adding capacity made the greedy result worse.","source":"seed from a large planning engagement"}
 {"id":"L09","kind":"rule","topic":"solver","text":"Optimize in two steps: first the end sprint, then owner changes or the owner's load preference. A hard minimum per person can make the solver find nothing; use a soft shortfall term seeded with a nearby plan.","why":"Hard 240 SP minimums returned UNKNOWN; the soft version found a valid plan.","source":"seed from a large planning engagement"}

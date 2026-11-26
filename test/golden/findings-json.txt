@@ -1,5 +1,5 @@
 $ plangraph findings --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"findings","ok":true,"exit":0,"data":{"lines":["export_clash: 1","external: 1","note: 1","plan_text: 2"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"findings","ok":true,"exit":0,"data":{"lines":["export_clash: 1","external: 1","note: 1","plan_text: 2"]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

@@ -3,6 +3,6 @@ exit: 0
 --- stdout
 linked T-3 to docs/plan.md: 2 tasks
 --- stderr
---- file .plangraph/refs.jsonl
+--- file .plangraph/<FILE>
 {"key":"T-1","plans":[{"fp":"","plan":"docs/plan.md","task":"1"}],"files":{},"fp_files":"","jira_updated":"","audited_at":"base"}
 {"key":"T-3","plans":[{"plan":"docs/plan.md","task":"1"},{"plan":"docs/plan.md","task":"2"}],"files":{}}

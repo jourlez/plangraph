@@ -1,5 +1,5 @@
 $ plangraph sprint 3 --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"sprint","ok":true,"exit":0,"data":{"sprint":3,"rows":[{"owner":"Ana","sp":14,"cap":1000,"tickets":5},{"owner":"Ben","sp":10,"cap":1000,"tickets":3}],"over":[]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"sprint","ok":true,"exit":0,"data":{"sprint":3,"rows":[{"owner":"Ana","sp":14,"cap":1000,"tickets":5},{"owner":"Ben","sp":10,"cap":1000,"tickets":3}],"over":[]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

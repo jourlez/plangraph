@@ -1,7 +1,7 @@
 $ plangraph init
 exit: 0
 --- stdout
-initialised .plangraph: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `plangraph build`
+initialised .plangraph: edit config.json, then add <FILE>, <FILE> and <FILE> (see the plugin README), then `plangraph build`
 suggested lines for this repo's CLAUDE.md (printed only, nothing written):
 ## Plan questions
 Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.

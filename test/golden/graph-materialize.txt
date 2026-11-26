@@ -3,17 +3,17 @@ exit: 0
 --- stdout
 materialized 12 node rows (people 3, sprints 5, epics 4)
 --- stderr
---- file .plangraph/people.jsonl
+--- file .plangraph/<FILE>
 {"id":"Ana"}
 {"id":"Ben"}
 {"id":"Cleo"}
---- file .plangraph/sprints.jsonl
+--- file .plangraph/<FILE>
 {"n":1}
 {"n":2}
 {"n":3}
 {"n":4}
 {"n":5}
---- file .plangraph/epics.jsonl
+--- file .plangraph/<FILE>
 {"id":"E0"}
 {"id":"E1"}
 {"id":"E2"}

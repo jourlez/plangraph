@@ -1,5 +1,5 @@
 $ plangraph ticket T-5 --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"ticket","ok":true,"exit":0,"data":{"lines":["T-5 | 5 SP | <untrusted n=\"6d9eebe2\">Jira To Do | verdict READY (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 3 | 2 findings | <untrusted n=\"d71730c7\">ticket 5</untrusted>"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"ticket","ok":true,"exit":0,"data":{"lines":["T-5 | 5 SP | <untrusted n=\"6d9eebe2\">Jira To Do | verdict READY (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 3 | 2 findings | <untrusted n=\"d71730c7\">ticket 5</untrusted>"]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

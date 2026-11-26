@@ -3,7 +3,7 @@ exit: 0
 --- stdout
 loaded as current; previous plan kept as archive-a; run `plangraph export` to save it as text
 --- stderr
---- file .plangraph/schedule.jsonl
+--- file .plangraph/<FILE>
 {"version":"current","key":"T-1","owner":"Ana","sprint":1}
 {"version":"current","key":"T-2","owner":"Cleo","sprint":1}
 {"version":"current","key":"T-3","owner":"Ben","sprint":1}

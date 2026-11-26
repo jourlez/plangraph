@@ -1,5 +1,5 @@
 $ plangraph card --line
 exit: 0
 --- stdout
-plangraph: 40 tickets, last sprint 5, 0 violations @b6280500
+plangraph: 40 tickets, last sprint 5, 0 violations @<FP>
 --- stderr

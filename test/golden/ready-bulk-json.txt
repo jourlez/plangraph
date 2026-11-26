@@ -1,5 +1,5 @@
 $ plangraph ready --sprint 3 --json
 exit: 1
 --- stdout
-{"v":2,"cmd":"ready","ok":false,"exit":1,"data":{"person":null,"sprint":3,"total":8,"counts":{"ready":0,"done":0,"notReady":8,"waiting":8,"openItems":0,"verdict":0},"ready":[],"done":[],"notReady":["T-13","T-16","T-19","T-21","T-26","T-30","T-33","T-36"],"waiting":["T-13","T-16","T-19","T-21","T-26","T-30","T-33","T-36"],"openItems":[],"verdict":[],"statuses":"last build"},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["plangraph ready T-13"]}
+{"v":2,"cmd":"ready","ok":false,"exit":1,"data":{"person":null,"sprint":3,"total":8,"counts":{"ready":0,"done":0,"notReady":8,"waiting":8,"openItems":0,"verdict":0},"ready":[],"done":[],"notReady":["T-13","T-16","T-19","T-21","T-26","T-30","T-33","T-36"],"waiting":["T-13","T-16","T-19","T-21","T-26","T-30","T-33","T-36"],"openItems":[],"verdict":[],"statuses":"last build"},"fresh":{"fp":"<FP>","built":"<FP>"},"next":["plangraph ready T-13"]}
 --- stderr
