@@ -72,7 +72,7 @@ Exit codes:
 | 0 | ok |
 | 1 | a negative verdict: `check`, `verify`, `ready`, `whatif`, `doctor` found a problem |
 | 2 | usage or data error: unknown command or option, missing or bad argument, unreadable or invalid input file, no index, corrupt index, `export` over a stale index, data format too new or needing migration for a writing command |
-| 3 | environment missing: Node older than 24.15 (with `--if-present`, any command: silent exit 0 instead), Jira credentials or configuration missing or rejected |
+| 3 | environment missing: Node older than 24.15 (with `--if-present`, any command: exit 0 and one line `plangraph: needs Node >= 24.15, found <v>; install Node 24` instead), Jira credentials or configuration missing or rejected |
 | 4 | refused: a plan directory outside the repository (absolute, or escaping it through `..` or a symlink), a write target that is a symlink, not a regular file or outside the repository (nothing is written), a whatif write that would add violations |
 | 5 | unexpected internal error (`error: internal error: ...`) |
 

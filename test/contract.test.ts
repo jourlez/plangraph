@@ -317,7 +317,7 @@ test('explain: per-flag writes of doctor --fix and card --heal (and init) are de
   assert.deepEqual(JSON.parse(run(R, ['explain', 'init', '--json']).stdout).data.commands[0].also, WIRING);
   // every command whose code wires the merge driver declares it (a new caller must be added to the registry)
   const src = fs.readdirSync(path.join(import.meta.dirname, '../src/commands')).map((f) => fs.readFileSync(path.join(import.meta.dirname, '../src/commands', f), 'utf8')).join('\n');
-  assert.equal((src.match(/await wireMergeDriver\(ctx\)/g) || []).length, 3, 'init, doctor --fix and card --heal are the only callers');
+  assert.equal((src.match(/await wireMergeDriver\(ctx[,)]/g) || []).length, 3, 'init, doctor --fix and card --heal are the only callers');
 });
 test('registry: a side-write list must be a non-empty list of known names, without duplicates; it is frozen', async () => {
   const { createRegistry, defineCommand } = await import('../src/registry.ts');

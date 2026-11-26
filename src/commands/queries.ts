@@ -335,7 +335,7 @@ async function healMergeDriver(ctx: Ctx): Promise<string | null> {
     const dir = rel(ctx, ctx.dir);
     if (!S.doctorMergeDriver(ctx.root, { dir, target: path.join(BIN, 'plangraph-merge') }).problems.length) return null;
     if (consent) { await wireMergeDriver(ctx); return null; }
-    return `plangraph: merge driver not set up in this clone; merges of ${oneLine(dir, 80)}/*.jsonl conflict until you run plangraph doctor --fix`;
+    return `plangraph: merge driver not set up in this clone; merges of ${oneLine(dir, 80)}/*.jsonl conflict until the user runs plangraph doctor --fix`;
   } catch { return null; /* the hook must never fail */ }
 }
 

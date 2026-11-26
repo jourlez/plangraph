@@ -59,7 +59,7 @@ test('package.json stays private and carries the same repository, homepage and b
   assert.deepEqual(p.repository, { type: 'git', url: `git+${REPO}.git` });
   assert.equal(p.homepage, REPO);
   assert.deepEqual(p.bugs, { url: `${REPO}/issues` });
-  assert.deepEqual(p.engines, { node: '>=24.2' });
+  assert.deepEqual(p.engines, { node: '>=24.15' });
 });
 
 test('the marketplace entry has no version of its own', () => {

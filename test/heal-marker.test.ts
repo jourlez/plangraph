@@ -13,7 +13,7 @@ import * as D from '../lib/driver.ts';
 const test = (name: string, fn: (t: TestContext) => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
 const PLUGIN = path.resolve(import.meta.dirname, '..');
 const VERSION = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'package.json'), 'utf8')).version as string;
-const NUDGE = 'plangraph: merge driver not set up in this clone; merges of .plangraph/*.jsonl conflict until you run plangraph doctor --fix';
+const NUDGE = 'plangraph: merge driver not set up in this clone; merges of .plangraph/*.jsonl conflict until the user runs plangraph doctor --fix';
 const made: string[] = [];
 const tmp = (p = 'hm-') => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), p))); made.push(d); return d; };
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });

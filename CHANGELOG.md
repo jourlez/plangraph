@@ -6,6 +6,14 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 Added for 0.3.0 (Keep a Changelog form):
 
+### Changed (versioned behavior)
+- Node 24.15 is the floor (was 24.2): Node 24.2 to 24.14 print ExperimentalWarning lines on every command. Below the floor the SessionStart hook exits 0 and prints one line (`plangraph: needs Node >= 24.15, found <v>; install Node 24`); every other command exits 3 with one line. `package.json` engines say `>=24.15`.
+- Merge-driver healing needs consent: a SessionStart hook repairs the driver only where `plangraph.heal` in the clone's own git config holds a version (written by `init` and `doctor --fix`; clones wired before this release are grandfathered). Otherwise it writes nothing and prints one line.
+- A group- or world-writable `CLAUDE_PLUGIN_DATA` is no longer an error: the solver launcher and the merge shim print one line and use `~/.cache/plangraph` (created 0700); the other directory is never changed.
+- The solver fallbacks pass `--no-config` (the user's own `uv.toml` is passed back with `--config-file`); a relative `XDG_CONFIG_HOME` is ignored.
+- Redaction also covers case-changed forms of registered API tokens and any 16-character piece of them.
+- CI: lean job set (unit, slow, static, macos, compat, floor, mutation, secrets, release-dry-run), shellcheck and actionlint, package contents check, `claude plugin validate --strict`.
+
 ### Added
 - `docs/TEAM.md`: the path for a second teammate (project-scope install, `plangraph doctor --fix` once per clone and why, per-person Jira credentials, what to commit, upgrading together, pinning a release by tag, resolving merge conflicts), checked by `test/team-docs.test.ts`.
 - README: a "Which Node, how to get it" box (nvm, fnm, `.node-version`; Node 24.15 or newer) and "Windows is not supported" at the top of Requirements.
