@@ -33,7 +33,7 @@ import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'src/*', 'src/commands/*', 'mcp/*'];
+export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'lib/jira/*', 'src/*', 'src/commands/*', 'mcp/*'];
 /** a source file whatever its extension during the .mjs to .ts migration; src/floor.js is the one plain .js file (the Node floor guard) @param {string} f */
 export const isSource = (f: string) => /\.(mjs|ts)$/.test(f) || f === 'src/floor.js';
 /** a test file whatever its extension @param {string} f */
