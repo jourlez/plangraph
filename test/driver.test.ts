@@ -115,6 +115,28 @@ test('defaultDataDir', () => {
   assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: '' }, '/h'), path.join('/h', '.cache', 'plangraph'));
   assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: 'relative' }, '/h'), path.join('/h', '.cache', 'plangraph'));
 });
+test('defaultDataDir: a group- or world-writable CLAUDE_PLUGIN_DATA falls back to ~/.cache/plangraph with one line and is never changed (D19)', () => {
+  const root = tmp(), home = path.join(root, 'home'), fb = path.join(home, '.cache', 'plangraph');
+  for (const m of [0o775, 0o757, 0o777]) {
+    const d = path.join(root, `open${m.toString(8)}`); fs.mkdirSync(d); fs.chmodSync(d, m);
+    const lines: string[] = [];
+    assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: d }, home, (l) => lines.push(l)), fb);
+    assert.deepEqual(lines, [`plangraph: CLAUDE_PLUGIN_DATA (${d}) is group or world writable; using ${fb} instead`]);
+    assert.equal(mode(d), m, 'never chmod'); assert.deepEqual(fs.readdirSync(d), []);
+  }
+  // private, missing, a symlink to an open directory or a file: kept as given (ensureStableDriver creates or refuses it), no line
+  const quiet = (d: string) => { const lines: string[] = []; assert.equal(defaultDataDir({ CLAUDE_PLUGIN_DATA: d }, home, (l) => lines.push(l)), d); assert.deepEqual(lines, []); };
+  const priv = path.join(root, 'priv'); fs.mkdirSync(priv, { mode: 0o700 }); quiet(priv); quiet(path.join(root, 'missing'));
+  const link = path.join(root, 'link'); fs.symlinkSync(path.join(root, 'open777'), link); quiet(link);
+  const file = path.join(root, 'file'); fs.writeFileSync(file, ''); fs.chmodSync(file, 0o666); quiet(file);
+  // the fallback itself writable by others: no second fallback, ensureStableDriver refuses it
+  fs.mkdirSync(fb, { recursive: true }); fs.chmodSync(fb, 0o775); quiet(fb);
+  const t = echoer(root, 't.mjs', 'T');
+  assert.throws(() => ensureStableDriver({ dataDir: defaultDataDir({ CLAUDE_PLUGIN_DATA: path.join(root, 'open775') }, home, () => {}), target: t }), /^TypeError: data directory is not private: directory is group or world writable/);
+  // a fresh fallback is created 0700 by ensureStableDriver
+  const home2 = path.join(root, 'home2'), d = defaultDataDir({ CLAUDE_PLUGIN_DATA: path.join(root, 'open777') }, home2, () => {});
+  ensureStableDriver({ dataDir: d, target: t }); assert.equal(mode(d), 0o700); assert.equal(mode(path.join(home2, '.cache')), 0o700);
+});
 const gitRepo = () => { const d = tmp('drv-repo-'); execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: d }); return d; };
 test('installMergeDriver refuses a versioned plugin-cache path', () => {
   const d = gitRepo();

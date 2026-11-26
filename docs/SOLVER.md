@@ -229,8 +229,29 @@ case is not measured here.
 
 `bin/plangraph-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/plangraph-solve ...` also works.
 OR-Tools has no wheel for Python 3.15 (verified 2026-11). `bin/plangraph-solve-run` tries, in order: `uv run --locked --script bin/plangraph-solve` (dependencies pinned with hashes in `bin/plangraph-solve.lock`; a stale lock fails instead of re-resolving);
-a venv in `${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv` built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
+a venv in `<base>/venv` (see "Which uv configuration applies, and the venv base" below) built from python3.14..3.10 (first found) with `pip install --require-hashes -r solver/solver-requirements.txt`; a python3 that already imports ortools;
 else prints three lines and exits 3. `PLANGRAPH_SOLVE_SCRIPT` overrides the script (used by the mutation test).
+
+### Which uv configuration applies, and the venv base
+
+| path | runs in | configuration files uv reads | `UV_*` variables |
+|---|---|---|---|
+| `uv sync --locked --script`, `uv python find --script` (normal path), `uv python find` (interpreter for the fallback) | the plugin's `bin` directory | `uv.toml` or `pyproject.toml` `[tool.uv]` found by uv's walk up from `<plugin>/bin` (none in the plugin tree, and a test keeps it so; the walk reaches only the plugin's parents, which the user owns: `~/.claude/plugins/...` or a checkout), the user's `uv.toml` (`$XDG_CONFIG_HOME/uv/uv.toml` or `~/.config/uv/uv.toml`), the system `uv.toml`, `UV_CONFIG_FILE` | apply |
+| `uv run` fallback (an older uv without `sync --script`, or `PLANGRAPH_SOLVE_LAUNCH=uv-run`) | your directory | none from your directory: `--no-config` drops every file; the user's own `uv.toml` comes back through `--config-file` when it exists and `UV_CONFIG_FILE` is unset (an `XDG_CONFIG_HOME` that is not absolute is ignored, since it would resolve in your directory); with `UV_CONFIG_FILE` set, that file applies (uv honors it even with `--no-config`). The system `uv.toml` (`/etc/uv/uv.toml`) is not read on this path | apply |
+
+To use a package mirror on every path, set `UV_INDEX_URL` or `UV_DEFAULT_INDEX` (or `index-url` / `[[index]]` in your own `uv.toml`). Measured with uv
+0.8.8 and uv 0.4.30: `uv run --no-config --config-file <user uv.toml>` is accepted, uses the index of that file and ignores a hostile `uv.toml` in
+the working directory, and a command-line `--config-file` wins over `UV_CONFIG_FILE`. `--no-config` does not stop uv from taking the interpreter of a
+committed `.venv` (every version) or `.python-version` (0.4.30), which is why the fallback also passes an absolute `--python` (above).
+
+The venv base (no uv) is `$CLAUDE_PLUGIN_DATA` when it is an absolute path, else `~/.cache/plangraph` (the rule of `lib/driver.ts`
+`defaultDataDir`; a relative value is never used, so `rm -rf` never reaches your directory). Whoever can write the base can plant `venv/bin/python`,
+which the launcher would run, so before the venv is first used the base must be a real directory (not a symlink) owned by you without group or
+world write; a missing base is created `0700` (`umask 077`). A group- or world-writable `$CLAUDE_PLUGIN_DATA` (Claude Code creates it with the
+default mode, so `775` under umask `002`) is not an error: the launcher prints one stderr line and uses `~/.cache/plangraph` instead, and never
+changes the other directory (the merge shim of `lib/driver.ts` does the same, decision D19). Any other untrusted base (a symlink, not a
+directory, owned by another user, or `~/.cache/plangraph` itself writable by others) exits 3 with one line naming the reason; only the writable
+case names the fix, `chmod go-w <dir>`. The check uses `find` and `id`; when either is missing it fails closed.
 
 Tests: `node --test test/solver.test.ts` (about 2 to 3 minutes; skips with a message if neither uv nor an ortools python exists).
 
@@ -282,7 +303,7 @@ so it is listed by the validator as a `bin` entry but cannot be run as a command
 The locked uv path (`uv run --locked --script bin/plangraph-solve`) and the hash-verified pip fallback (`pip install --require-hashes -r solver/solver-requirements.txt`)
 fetch the pinned Python packages on first use: `ortools`, `numpy` and their dependencies, at the exact versions listed in `bin/plangraph-solve.lock` and
 `solver/solver-requirements.txt`. They come from PyPI (`pypi.org` for the index, `files.pythonhosted.org` for the files) and are cached afterwards (uv cache, or the venv under
-`${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv`). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
+`<base>/venv`, see above). If no Python 3.10-3.14 is installed, the `uv run` fallback (an older uv) exits 3 and asks you to run `uv python install 3.14` (it never downloads one); on the normal path uv (default `python-downloads = automatic`; `--no-python-downloads` or `UV_PYTHON_DOWNLOADS=never` turns it off) first downloads a standalone CPython from the Astral `python-build-standalone` project:
 `github.com` (release download URL), which redirected to `release-assets.githubusercontent.com` when checked on 2026-11-22 (that CDN host is GitHub's choice and may change). The pip fallback uses only the default PyPI index and never downloads a Python.
 These four hosts, plus the two Jira hosts, are what `network.hosts` in `.claude-plugin/plugin.json` declares. Nothing else leaves the machine: no ticket data, no telemetry. This is the only network access the solver ever makes.
 A cold first run took about 27 s on a fast connection (one measurement in an isolated cache; it is network-bound, so a slow connection takes longer); later runs reuse the cache.

@@ -1,12 +1,19 @@
 #!/bin/sh
 # Launcher for plangraph-solve: finds or builds a Python (3.10-3.14) that has OR-Tools, then runs the solver with the given flags.
 # Dependencies are locked: bin/plangraph-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/plangraph-solve`.
-# Order: uv (no install), else a cached venv under ${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv, else a python3 that already has ortools.
+# Order: uv (no install), else a cached venv under <base>/venv, else a python3 that already has ortools.
+# Venv base: CLAUDE_PLUGIN_DATA when absolute, else $HOME/.cache/plangraph (the lib/driver.ts defaultDataDir rule). Whoever can write the base
+# can plant venv/bin/python, which this launcher would run, so before the first use of the venv the base must be a real directory (no
+# symlink) owned by the user without group or world write; a missing one is created 0700 (umask 077). A group- or world-writable
+# CLAUDE_PLUGIN_DATA (Claude Code creates it with the default mode, so 775 under umask 002) is not an error: one stderr line, then the
+# $HOME/.cache/plangraph base; the other directory is never changed (decision D19). Any other untrusted base exits 3 naming the reason.
 # Env: PLANGRAPH_SOLVE_SCRIPT overrides the solver script (tests, mutation checks). Exit 3 when no solver can be provided.
 # Isolation: every python call of the fallback passes -I, so the current directory (a repo that may commit ortools.py, venv/ or pip.py)
 # and the script directory never enter sys.path, and PYTHON* variables and the user site are ignored; paths go by argument, never by
 # environment (test/solver-launcher.test.ts). The uv branches run the locked script environment; the two uv preparation calls run from this
-# bin directory, so a uv.toml in the caller's repository is not read (the `uv run` fallbacks still run in the caller's directory: KNOWN_ISSUES.md).
+# bin directory, so a uv.toml in the caller's repository is not read; the `uv run` fallbacks run in the caller's directory and pass --no-config
+# (no uv.toml or pyproject.toml is read), plus --config-file for the user's own uv.toml (absolute XDG_CONFIG_HOME, else $HOME/.config) when it
+# exists and UV_CONFIG_FILE is unset (uv honors UV_CONFIG_FILE even with --no-config). UV_* variables (a mirror: UV_INDEX_URL) still apply.
 # Interpreter: both `uv run` fallbacks pass an absolute --python found by `uv python find` run from this bin directory (UV_PYTHON is the
 # request when set), never one a .venv or .python-version in the caller's directory names; none found exits 3 (this launcher never installs one).
 # Signals: every path execs the solver's Python, so this process IS the solver and any signal (SIGKILL included) reaches it: on the uv path,
@@ -34,15 +41,40 @@ if command -v uv >/dev/null 2>&1; then
     echo "plangraph-solve: no Python 3.10-3.14 found by uv; run: uv python install 3.14" >&2
     exit 3
   fi
+  # --no-config: the caller's directory may hold a uv.toml or pyproject.toml [tool.uv] naming another index. The user's own uv.toml comes back
+  # through --config-file (a relative XDG_CONFIG_HOME would resolve in the caller's directory, so it is ignored).
+  CFG=""
+  case "${XDG_CONFIG_HOME:-}" in /*) CFG="$XDG_CONFIG_HOME/uv/uv.toml" ;; *) CFG="$HOME/.config/uv/uv.toml" ;; esac
+  if [ -n "${UV_CONFIG_FILE:-}" ] || [ ! -f "$CFG" ]; then CFG=""; fi
   PLANGRAPH_SOLVE_WATCH_PARENT=1; export PLANGRAPH_SOLVE_WATCH_PARENT
-  if [ -z "${PLANGRAPH_SOLVE_SCRIPT:-}" ]; then exec uv run --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
-  exec uv run --quiet --no-project --python "$PYI" --with "$PIN" python "$SCRIPT" "$@"
+  if [ -z "${PLANGRAPH_SOLVE_SCRIPT:-}" ]; then exec uv run --no-config ${CFG:+--config-file "$CFG"} --quiet --python "$PYI" --locked --script "$SCRIPT" "$@"; fi
+  exec uv run --no-config ${CFG:+--config-file "$CFG"} --quiet --no-project --python "$PYI" --with "$PIN" python "$SCRIPT" "$@"
 fi
-VENV="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/plangraph}/venv"
+# The venv base (see the header). find and id fail closed: when either is missing, the base reads as not owned and is refused.
+others_write() { [ ! -L "$1" ] && [ -d "$1" ] && [ -n "$(find "$1" -prune \( -perm -020 -o -perm -002 \) 2>/dev/null)" ]; }
+untrusted() {
+  case "$1" in /*) ;; *) echo "it is not an absolute path"; return ;; esac
+  if [ -L "$1" ]; then echo "it is a symlink"
+  elif [ ! -d "$1" ]; then echo "it is not a directory"
+  elif [ -z "$(find "$1" -prune -user "$(id -u)" 2>/dev/null)" ]; then echo "it is not owned by the current user"
+  elif [ "$(find "$1" -prune -type d -user "$(id -u)" ! -perm -020 ! -perm -002 2>/dev/null)" != "$1" ]; then echo "it is group or world writable; run: chmod go-w $1"
+  fi
+}
+FALLBACK="$HOME/.cache/plangraph"
+BASE="$FALLBACK"
+case "${CLAUDE_PLUGIN_DATA:-}" in /*) BASE="$CLAUDE_PLUGIN_DATA" ;; esac
+if [ "$BASE" != "$FALLBACK" ] && others_write "$BASE"; then
+  echo "plangraph-solve: CLAUDE_PLUGIN_DATA ($BASE) is group or world writable; the venv goes under $FALLBACK instead" >&2
+  BASE="$FALLBACK"
+fi
+if [ ! -e "$BASE" ] && [ ! -L "$BASE" ]; then (umask 077 && mkdir -p "$BASE") 2>/dev/null; fi
+WHY="$(untrusted "$BASE")"
+if [ -n "$WHY" ]; then echo "plangraph-solve: refusing the venv base $BASE: $WHY" >&2; exit 3; fi
+VENV="$BASE/venv"
 if [ ! -x "$VENV/bin/python" ] || ! "$VENV/bin/python" -I -c 'import ortools' >/dev/null 2>&1; then
   for v in 3.14 3.13 3.12 3.11 3.10; do
     if command -v "python$v" >/dev/null 2>&1; then
-      rm -rf "$VENV"; mkdir -p "$(dirname "$VENV")"
+      rm -rf "$VENV"
       if "python$v" -I -m venv "$VENV" >/dev/null 2>&1 && "$VENV/bin/python" -I -m pip install --quiet --require-hashes -r "$HERE/../solver/solver-requirements.txt" >/dev/null 2>&1; then break; fi
       rm -rf "$VENV"
     fi
