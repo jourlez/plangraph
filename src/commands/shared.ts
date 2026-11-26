@@ -14,6 +14,7 @@ import type { Ctx, Args } from '../context.ts';
 import type { Model, Ticket, Edge, ScheduleRow, PlanRecord } from '../../lib/model.ts';
 import { parseSnapshotJsonl, toLegacyMap } from '../../lib/tracker.ts';
 import type { LegacyIssue } from '../../lib/tracker.ts';
+import type { CapacityRow } from '../../lib/graph/files.ts';
 import type { OpenItem } from '../../lib/openitems.ts';
 /** A Map that the code reads only with keys it holds (built from the same key list, or checked with has() first): get() is never undefined. */
 export type Dense<K, V> = Omit<Map<K, V>, 'get'> & { get(key: K): V };
@@ -106,7 +107,7 @@ export function readJsonInput(file: string, what: string, max: number = MAX_DATA
 /** The query model read from the index, so schedule-load and whatif --write changes are respected. */
 export function modelFromDb(ctx: Ctx): Model {
   const d = ctx.db();
-  return buildModel({ tickets: d.all('SELECT * FROM ticket') as Ticket[], edges: d.all('SELECT * FROM edge') as Edge[], schedule: d.all('SELECT * FROM schedule') as ScheduleRow[], config: ctx.config(), findings: d.all('SELECT * FROM finding') as PlanRecord[], evidence: d.all('SELECT * FROM evidence') as PlanRecord[], learnings: d.all('SELECT * FROM learning') as PlanRecord[] }); // index rows: the records build wrote, one column each
+  return buildModel({ tickets: d.all('SELECT * FROM ticket') as Ticket[], edges: d.all('SELECT * FROM edge') as Edge[], schedule: d.all('SELECT * FROM schedule') as ScheduleRow[], config: ctx.config(), findings: d.all('SELECT * FROM finding') as PlanRecord[], evidence: d.all('SELECT * FROM evidence') as PlanRecord[], learnings: d.all('SELECT * FROM learning') as PlanRecord[], capacity: d.older ? [] : d.all('SELECT person, sprint, sp FROM capacity') as CapacityRow[] }); // an index built by 0.3.0 has no capacity table (it opens stale and answers v1 questions) // index rows: the records build wrote, one column each
 }
 
 /** open-items.jsonl (capped read; absent -> no items). */
