@@ -116,8 +116,7 @@ test('legitimate index writes re-stamp the digest: whatif --write, schedule-load
   assert.equal(run(d, ['ticket', 'T-2']).status, 0);
 });
 
-test('cost: the digest of a 1,400-ticket index is computed in well under the open budget (full digest, no sampling)', async () => {
-  const { budget } = await import('./helpers/perf.ts');
+test('the digest of a 1,400-ticket index is the full digest, the same on every recomputation (no sampling, no wall-clock limit)', async () => {
   const { contentDigest } = await import('../src/db.ts');
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-integrity-')); tmps.push(d);
   const b = path.join(d, '.plangraph'); fs.mkdirSync(b);
@@ -130,7 +129,5 @@ test('cost: the digest of a 1,400-ticket index is computed in well under the ope
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(t)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(sc)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(e));
   const r = buildIndex({ dir: b });
   using h = openIndex(r.file, { dir: b });
-  let best = Infinity;
-  for (let k = 0; k < 3; k++) { const t0 = performance.now(); assert.equal(contentDigest(h), r.digest); best = Math.min(best, performance.now() - t0); }
-  assert.ok(best < budget(150), `digest took ${best.toFixed(1)} ms`); // measured about 5 ms on the dev machine
+  for (let k = 0; k < 3; k++) assert.equal(contentDigest(h), r.digest);
 });

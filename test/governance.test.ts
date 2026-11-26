@@ -46,7 +46,7 @@ test('package.json has the playbook script set', () => {
     'validate:plugin': 'node test/validate-plugin.ts',
     validate: 'npm run lint:check && npm run typecheck && npm run test:coverage && npm run assure && npm run validate:plugin && npm run knip && npm run lint:sh && npm audit --audit-level=high',
     typecheck: 'node scripts/typecheck.ts',
-    test: 'node --test "test/*.test.{mjs,ts}"',
+    test: 'node --test $(node scripts/ci-tests.ts nontiming) && node --test --test-concurrency=1 $(node scripts/ci-tests.ts timing)',
     bulletproof: 'npm run lint:fix && npm run typecheck && npm run test',
     'bulletproof:check': 'npm run lint:check && npm run typecheck && npm run test',
   };

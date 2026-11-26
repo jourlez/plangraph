@@ -10,7 +10,6 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { parseCerebrum, parseStatus, scanKeys, anatomyLookup, readAnatomyIndex, readWolfFile, repoRuleList, renderRepoRules, handleOf } from '../lib/integrations/openwolf.ts';
 import type { RepoRule } from '../lib/integrations/openwolf.ts';
 import { canonFile, SCHEMAS } from '../lib/store.ts';
-import { budget } from './helpers/perf.ts';
 
 // Fixtures are the synthetic ones from docs/research/integrations/openwolf.md section 7 (invented names, no real data).
 const HERE = import.meta.dirname;
@@ -139,38 +138,6 @@ test('scanKeys: token boundaries, sp: keys, duplicates, lookalikes', () => {
   assert.deepEqual(scanKeys('task sp:widget-export/3 and sp:other-plan. not xsp:bad'), ['sp:widget-export/3', 'sp:other-plan']);
   assert.deepEqual(scanKeys('ＤＥＭＯ-１ (fullwidth) demo-1 E-١ A-'), []);
   assert.equal(scanKeys(Array.from({ length: 50 }, (_, i) => `K-${i}`).join(' ')).length, 20);
-});
-
-// ---------- linear time (child process with a kill timer: a backtracking regex would hang, not just slow down) ----------
-test('parsers are linear: 4x longer hostile lines take about 4x (not 16x) as long, and stay under a load-scaled ceiling', () => {
-  // The child times the whole hostile set at N and at 4N (min of 3 and 2 runs); a backtracking or quadratic parser blows the ratio
-  // (16x or worse) and the kill timer catches a hang. Relative timing is immune to a uniformly loaded machine.
-  const script = `
-    import { parseCerebrum, parseStatus, scanKeys } from ${JSON.stringify(MOD)};
-    const once = (N) => {
-      const lines = [' '.repeat(N) + 'x', '\\t'.repeat(N) + '#', '1.'.repeat(N / 2), '#'.repeat(N) + ' ', '\`'.repeat(N), '- ' + '[2031-01-01'.repeat(N / 11),
-        '<!--'.repeat(N / 4), '-->'.repeat(N / 3) + '<!--', 'A-'.repeat(N / 2) + '1', 'sp:'.repeat(N / 3), '-'.repeat(N) + '!', ' \\r'.repeat(N / 2), '## ' + ' '.repeat(N) + '!'];
-      const t0 = performance.now();
-      for (const l of lines) { parseCerebrum('## Do-Not-Repeat\\n- ' + l + '\\n  ' + l + '\\n' + l); parseStatus('## Next\\n- ' + l + '\\n' + l); scanKeys(l); }
-      return performance.now() - t0;
-    };
-    const best = (N, reps) => { let m = Infinity; for (let k = 0; k < reps; k++) m = Math.min(m, once(N)); return m; };
-    const U = 1024 * 1024; once(U / 8);
-    const small = best(U / 2, 3), large = best(2 * U, 2);
-    console.log(JSON.stringify({ small, large }));`;
-  // Timing noise (GC, a busy machine) can inflate one measurement; a truly super-linear parser is slow in EVERY attempt, so the best of 3 is judged.
-  let best = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', timeout: 120000 });
-    assert.equal(r.signal, null, 'timed out: a parser is not linear');
-    assert.equal(r.status, 0, r.stderr);
-    const m = JSON.parse(r.stdout.trim());
-    if (!best || m.large / Math.max(m.small, 1) < best.large / Math.max(best.small, 1)) best = m;
-    if (best.large / Math.max(best.small, 1) < 9) break;
-  }
-  const { small, large } = best;
-  assert.ok(large / Math.max(small, 1) < 9, `not linear: N took ${small.toFixed(0)} ms, 4N took ${large.toFixed(0)} ms (best of 3 attempts)`);
-  assert.ok(large < budget(15000), `took ${large} ms`); // measured about 1.4 s for 4N
 });
 
 // ---------- reading: bounded, confined, never writes ----------

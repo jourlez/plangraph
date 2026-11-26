@@ -16,7 +16,7 @@
     "plangraph-merge": "bin/plangraph-merge"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.{mjs,ts}\"",
+    "test": "node --test $(node scripts/ci-tests.ts nontiming) && node --test --test-concurrency=1 $(node scripts/ci-tests.ts timing)",
     "smoke": "bash test/smoke.sh",
     "bench": "node test/bench-tokens.ts",
     "validate:plugin": "node test/validate-plugin.ts",

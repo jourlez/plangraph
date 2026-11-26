@@ -60,9 +60,10 @@ test('a new test/*.test.ts file runs in npm test, in the CI coverage and portabl
     let r = spawnSync(process.execPath, ['--test', ...files], { cwd: dir, encoding: 'utf8', env: CLEAN_ENV });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /zz-probe ran as typescript/);
-    // and `npm test` expands the quoted glob itself
+    // and `npm test` takes the groups from scripts/ci-tests.ts (an empty timing group makes node --test find files by itself: harmless here)
     const scripts = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
-    assert.equal(scripts.test, 'node --test "test/*.test.{mjs,ts}"');
+    assert.equal(scripts.test, 'node --test $(node scripts/ci-tests.ts nontiming) && node --test --test-concurrency=1 $(node scripts/ci-tests.ts timing)');
+    // and `npm test` runs the non-timing files, then the timing files serially
     r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['test', '--ignore-scripts'], { cwd: dir, encoding: 'utf8', env: CLEAN_ENV });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /zz-probe ran as typescript/);
@@ -72,7 +73,7 @@ test('a new test/*.test.ts file runs in npm test, in the CI coverage and portabl
   for (const g of ['nocoverage', 'portable']) assert.match(ci, new RegExp(`node scripts/ci-tests\\.(mjs|ts) ${g}`), `CI job for ${g}`);
   // the coverage group is reached through scripts/test-coverage.ts, which takes it from scripts/ci-tests.ts
   assert.match(ci, /node scripts\/test-coverage\.ts --group coverage/, 'CI job for coverage');
-  assert.match(fs.readFileSync(path.join(ROOT, 'scripts/test-coverage.ts'), 'utf8'), /groups\(all\)\.coverage/, 'the script takes the coverage group from ci-tests');
+  assert.match(fs.readFileSync(path.join(ROOT, 'scripts/test-coverage.ts'), 'utf8'), /groups\(all\);[\s\S]*\bg\.coverage/, 'the script takes the coverage group from ci-tests');
 });
 
 test('scripts/mutate-all finds at least the target files it found before (and src/floor.js), and isSource accepts the migration extensions', () => {

@@ -11,7 +11,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import type { TestContext } from 'node:test';
 import * as S from '../lib/store.ts';
-import { budget, scaling, workScaling } from './helpers/perf.ts';
+import { workScaling } from './helpers/perf.ts';
 
 const test = (name: string, fn: (t: TestContext) => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
 const PLUGIN = path.resolve(import.meta.dirname, '..');
@@ -104,14 +104,14 @@ test('(e) --heal with no plan directory, or outside a git work tree, prints noth
   r = ok(w.plangraph(PLUGIN, ['card', '--if-present', '--heal'], plain, env)); assert.equal(r.stdout + r.stderr, '');
   assert.deepEqual(noCache(fs.readdirSync(w.dataDir)), []); assert.deepEqual(fs.readdirSync(plain), ['.plangraph']);
 });
-test('(f) hooks.json passes --heal, keeps matcher and timeout; the declared command exits 0 under 1 s', () => {
+test('(f) hooks.json passes --heal, keeps matcher and timeout; the declared command exits 0', () => {
   const entry = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0];
   assert.equal(entry.matcher, 'startup|resume|clear|compact|fork');
   const hook = entry.hooks[0]; assert.equal(hook.timeout, 10); assert.equal(hook.command, 'node'); assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--heal']);
   const w = world(); ok(w.plangraph(PLUGIN, ['init'])); fs.rmSync(w.shim);
   const args = hook.args.map((a: string) => a.replace('${CLAUDE_PLUGIN_ROOT}', PLUGIN));
-  const t0 = Date.now(); const r = spawnSync(hook.command, args, { cwd: w.repo, env: w.env, encoding: 'utf8' }); const ms = Date.now() - t0;
-  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, ''); assert.ok(ms < budget(1000), `took ${ms} ms`);
+  const r = spawnSync(hook.command, args, { cwd: w.repo, env: w.env, encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout, NUDGE); assert.equal(r.stderr, '');
   assert.ok(fs.existsSync(w.shim));
 });
 test('(g) doctor without --fix reports a missing shim as a problem and changes nothing', () => {
@@ -141,29 +141,7 @@ test('(h2) a symlinked data dir is refused the same way', () => {
   assert.match(r.stderr, /^merge driver not installed: data directory is not private: directory is a symlink/m); assert.deepEqual(fs.readdirSync(real), []);
 });
 
-// Size axis: the wiring path (installMergeDriver, then doctorMergeDriver) over a .gitattributes of n and 4n lines (4n stays under the
-// 256 KiB cap), in process, min of 3 each (test/helpers/perf.ts scaling): the git config calls are a constant part, so linear stays
-// near 1x and quadratic heads for 16x. The plangraph line is last (both scans read every line) and already present (nothing is written).
-// Proved by a deliberately quadratic line scan in doctorMergeDriver (ratio about 12), which scripts/mutate.ts keeps applying.
-test('timing: merge-driver wiring scales linearly with the .gitattributes size (n vs 4n lines, in process, min of 3)', () => {
-  const n = 3500, repos = new Map();
-  for (const m of [n >> 2, n, 4 * n]) {
-    const d = tmp('dw-attr-'); git(d, 'init', '-q');
-    fs.writeFileSync(path.join(d, '.gitattributes'), `${Array.from({ length: m }, (_, i) => `d${i} -text`).join('\n')}\n.plangraph/*.jsonl merge=plangraph-jsonl\n`);
-    repos.set(m, d);
-  }
-  assert.ok(fs.statSync(path.join(repos.get(4 * n), '.gitattributes')).size < S.GITATTRIBUTES_MAX);
-  const wire = (m: number) => {
-    const d = repos.get(m);
-    S.installMergeDriver(d, { dir: '.plangraph', driverPath: '/opt/plangraph/plangraph-merge' });
-    assert.equal(S.doctorMergeDriver(d, { dir: '.plangraph' }).attributes, true);
-  };
-  const s = scaling(wire, n) as { small: number; large: number; ratio: number; maxRatio: number }; // attempts >= 1, so a result is always set
-  console.log(`# wiring ms: ${s.small.toFixed(1)} at ${n} lines, ${s.large.toFixed(1)} at ${4 * n} (ratio ${s.ratio.toFixed(1)})`);
-  assert.ok(s.ratio < s.maxRatio, `wiring scaling ratio ${s.ratio.toFixed(1)} (${s.small.toFixed(1)} ms at ${n} lines, ${s.large.toFixed(1)} ms at ${4 * n}; linear ~1-4, quadratic ~16)`);
-});
-
-// The same size axis without a clock (test/helpers/perf.ts workScaling): the elements the Array and String built-ins touch on the wiring
+// The same size axis without a clock (test/helpers/perf.ts workScaling; the clock version is test/driver-wiring-timing.test.ts): the elements the Array and String built-ins touch on the wiring
 // path, n vs 4n lines. Deterministic, so it fails the same way on every machine; the deliberately quadratic line scan in doctorMergeDriver
 // (scripts/mutate.ts) re-joins every prefix of the lines, which this counts (ratio about 16), while the real scan stays near 4.
 test('work: merge-driver wiring touches linearly many elements in the .gitattributes size (n vs 4n lines, built-in work count, no clock)', async () => {

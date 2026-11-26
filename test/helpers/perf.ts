@@ -1,23 +1,17 @@
-// Load-tolerant timing helpers. A fixed deterministic CPU loop is timed (min of 3) and compared with the idle
-// reference; budget(ms) scales an absolute bound by that ratio, so a busy machine gets proportionally more time.
-// PLANGRAPH_PERF_FACTOR multiplies on top. Hard cap keeps a real hang/blow-up failing.
-const REF_MS = 15; // idle reference for one calibration loop on the dev machine
-const CAP = 20;
-const loop = () => { let x = 1; for (let i = 0; i < 1.6e7; i++) x = (Math.imul(x, 1664525) + 1013904223) | 0; return x; };
-export function baselineMs(): number {
-  let best = Infinity;
-  for (let k = 0; k < 3; k++) { const t = performance.now(); loop(); best = Math.min(best, performance.now() - t); }
-  return best;
-}
-export const factor = () => { const f = Number(process.env.PLANGRAPH_PERF_FACTOR); return Number.isFinite(f) && f > 0 ? f : 1; };
-export const ratio = () => Math.min(CAP, Math.max(1, baselineMs() / REF_MS));
-export const budget = (ms: number): number => Math.round(ms * ratio() * factor());
+// Timing helpers (Task 21A). The size-axis rule: a timing assertion compares two runs of the same code at input sizes n and 4n, measured
+// in the same process, never an absolute number of milliseconds, so a slow or busy machine slows both runs alike and the ratio holds.
+// Only timing files (test/*-timing.test.ts) may call scaling(); the deterministic workScaling() and builtinWork() below need no clock.
+// PLANGRAPH_PERF_FACTOR multiplies the allowed ratio (default 1) for an unusually noisy machine.
+export const factor = (): number => { const f = Number(process.env.PLANGRAPH_PERF_FACTOR); return Number.isFinite(f) && f > 0 ? f : 1; };
 // Relative complexity check: time fn(n) and fn(4n), each min of `reps`. Linear => ~4x; quadratic => ~16x.
 // `maxRatio` default 9 sits between them; sizes must be big enough that noise is small against the run time.
 export interface Scaling { small: number; large: number; ratio: number; maxRatio: number }
-export function scaling(fn: (n: number) => unknown, n: number, { reps = 3, maxRatio = 9, attempts = 3 }: { reps?: number; maxRatio?: number; attempts?: number } = {}): Scaling {
+// `now` is the clock (milliseconds; default performance.now): a test injects a fake one to prove the check itself. The returned maxRatio
+// already includes PLANGRAPH_PERF_FACTOR, so callers compare ratio < maxRatio.
+export function scaling(fn: (n: number) => unknown, n: number, { reps = 3, maxRatio = 9, attempts = 3, now = () => performance.now() }: { reps?: number; maxRatio?: number; attempts?: number; now?: () => number } = {}): Scaling {
+  maxRatio *= factor();
   // Timing noise (GC, a busy runner) can inflate one measurement; a genuinely super-linear function is slow in EVERY attempt, so the best attempt is reported.
-  const time = (m: number) => { let best = Infinity; for (let k = 0; k < reps; k++) { const t = performance.now(); fn(m); best = Math.min(best, performance.now() - t); } return best; };
+  const time = (m: number) => { let best = Infinity; for (let k = 0; k < reps; k++) { const t = now(); fn(m); best = Math.min(best, now() - t); } return best; };
   fn(Math.max(1, n >> 2)); // warm-up
   let best: Scaling | null = null;
   for (let i = 0; i < attempts; i++) {
