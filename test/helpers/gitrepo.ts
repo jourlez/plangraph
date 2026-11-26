@@ -61,8 +61,8 @@ export function fastRepo(n: number, { files = 50, start = T0, step = 60 }: { fil
   const parts: string[] = [];
   for (let i = 0; i < n; i++) {
     const body = `v${i}\n`, shared = `s${i}\n`, at = start + i * step;
-    parts.push(`commit refs/heads/main\ncommitter T <t@example.test> ${at} +0000\nauthor ${i % 2 ? 'B' : 'A'} <${i % 2 ? 'b' : 'a'}@example.test> ${at} +0000\ndata 1\nc\n`);
-    if (i > 0) parts.push(`from refs/heads/main^0\n`);
+    parts.push(`commit refs/heads/main\nmark :${i + 1}\nauthor ${i % 2 ? 'B' : 'A'} <${i % 2 ? 'b' : 'a'}@example.test> ${at} +0000\ncommitter T <t@example.test> ${at} +0000\ndata 1\nc\n`);
+    if (i > 0) parts.push(`from :${i}\n`);
     parts.push(`M 100644 inline m${i % files}.txt\ndata ${body.length}\n${body}\nM 100644 inline shared.txt\ndata ${shared.length}\n${shared}\n`);
   }
   execFileSync('git', ['-C', repo.dir, 'fast-import', '--quiet'], { input: parts.join(''), env: gitEnv(), stdio: ['pipe', 'ignore', 'pipe'], maxBuffer: 1 << 28 });
