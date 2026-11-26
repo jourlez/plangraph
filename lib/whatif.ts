@@ -5,7 +5,7 @@
 // 0-SP ticket may move into a cell that is already over capacity (its load and its verify violation are unchanged).
 // Frozen history (lib/frozen.ts): a link whose producer is closed is satisfied wherever the producer sits, so it never yields
 // PRODUCER_LATE / CONSUMER_EARLY, never ripples and never needs a repair; the moved ticket itself is free, so every other link of it binds.
-import { capOf } from './model.ts';
+import { capacityFor, capacityAdvice } from './capacity.ts';
 import type { Model, Placement, Ticket } from './model.ts';
 import { verifyPlan } from './verify.ts';
 import type { Violation } from './verify.ts';
@@ -36,12 +36,14 @@ export type Suggestion = { sprint: number; owner: string; shifts: number; ownerC
 export interface WhatifResult {
   ok: boolean; reasons: WhatifReason[]; ripple: Ripple[]; load: Loads; started: boolean; suggestion: Suggestion | null;
   freed?: { owner: string; sprint: number; sp: number };
+  /** advisory lines (a capacity row above the config value) */
+  notes?: string[];
 }
 /** What renderWhatif reads: a whatif result, or a hand-built one with only these fields (load is read only when ok). */
 export interface WhatifView {
   ok: boolean; reasons: ReadonlyArray<{ code: string; key: string; detail: string; fix?: string; warn?: boolean }>;
   ripple?: ReadonlyArray<{ key: string; to: { owner: string; sprint: number } }>; load?: Loads;
-  freed?: { owner: string; sprint: number; sp: number }; suggestion?: { none?: boolean; sprint?: number; owner?: string; shifts?: number; ownerChanges?: number; flags?: string[] } | null;
+  freed?: { owner: string; sprint: number; sp: number }; notes?: readonly string[]; suggestion?: { none?: boolean; sprint?: number; owner?: string; shifts?: number; ownerChanges?: number; flags?: string[] } | null;
 }
 export interface Move { key: string; from: Slot; to: Slot }
 export type ProposeResult = { ok: true; moves: Move[]; reasons: WhatifReason[]; shifted: number; ownerChanges: number; slipped: number; searchComplete: boolean; nodes: number }
@@ -145,12 +147,13 @@ export function whatif(model: Model, mv: MoveRequest, opts: WhatifOptions = {}):
   // Capacity and load bookkeeping.
   const { loads } = cellLoads(model);
   const sp = spOf(t), oc = cellKey(cur.owner, cur.sprint), nc = cellKey(owner, sprint);
-  const entry = (o: string, s: number, before: number, after: number) => { (res.load[o] ||= {})[s] = { before, after, cap: capOf(model.config, o) }; };
+  const entry = (o: string, s: number, before: number, after: number) => { (res.load[o] ||= {})[s] = { before, after, cap: capacityFor(o, s, model.capacity ?? [], model.config) }; };
   entry(cur.owner, cur.sprint, loads.get(oc) || 0, (loads.get(oc) || 0) - sp);
   const nb = loads.get(nc) || 0, na = nb + sp;
   entry(owner, sprint, nb, na);
   res.freed = { owner: cur.owner, sprint: cur.sprint, sp };
-  const cap = capOf(model.config, owner);
+  const cap = capacityFor(owner, sprint, model.capacity ?? [], model.config), advice = capacityAdvice(owner, sprint, model.capacity ?? [], model.config);
+  if (advice) res.notes = [advice];
   if (na > cap && na > nb) { // a move that adds no load (0 SP) leaves an existing overload as it was: no new violation
     let alt: number | null = null;
     for (let s = Math.max(sprint, first); s <= range(model, opts).max; s++) if (s !== sprint && (loads.get(cellKey(owner, s)) || 0) + sp <= cap) { alt = s; break; }
@@ -241,7 +244,7 @@ export function proposeMove(model: Model, mv: MoveRequest, opts: WhatifOptions =
     for (const [k, v] of ov) { const b = base.get(k) as Slot, sp = spOf(model.tickets.get(k)); delta.set(cellKey(b.owner, b.sprint), (delta.get(cellKey(b.owner, b.sprint)) || 0) - sp); delta.set(cellKey(v.owner, v.sprint), (delta.get(cellKey(v.owner, v.sprint)) || 0) + sp); } // the overlay holds only placed tickets
     for (const c of [...delta.keys()].sort()) {
       const dl = delta.get(c) as number; if (dl <= 0) continue; // c is one of delta's keys
-      const [o, s] = c.split('\t') as [string, string], load = (baseLoads.get(c) || 0) + dl, cap = capOf(cfg, o); // c was built by cellKey(owner, sprint)
+      const [o, s] = c.split('\t') as [string, string], load = (baseLoads.get(c) || 0) + dl, cap = capacityFor(o, Number(s), model.capacity ?? [], cfg); // c was built by cellKey(owner, sprint)
       if (load > cap) out.push({ t: 'C', owner: o, sprint: Number(s), load, cap, delta });
     }
     return out;
@@ -386,7 +389,7 @@ interface GoodSlot extends Slot { slip: number; oc: number }
 interface Candidate { key: string; sp: number; slots: GoodSlot[]; minSlip: number }
 interface Relief { moves: RelieveMove[]; slip: number; oc: number }
 export function relieve(model: Model, { person, sprint }: { person: string; sprint: number }, opts: RelieveOptions = {}): RelieveResult {
-  const cfg = model.config || {}, cap = capOf(cfg, person), { first, end } = range(model, {}), budget = opts.budget ?? RELIEVE_BUDGET;
+  const cfg = model.config || {}, cap = capacityFor(person, sprint, model.capacity ?? [], cfg), { first, end } = range(model, {}), budget = opts.budget ?? RELIEVE_BUDGET;
   const allowed = ['later', ...(opts.allowEarlier ? ['earlier'] : []), ...(opts.allowOwnerChange ? ['owner-change'] : [])];
   const cell: string[] = [];
   for (const [k, p] of model.sched) if (model.tickets.has(k) && p && p.owner === person && p.sprint === sprint) cell.push(k);
@@ -422,7 +425,7 @@ export function relieve(model: Model, { person, sprint }: { person: string; spri
       if (ok && !closedP(k)) for (const c of model.cons.get(k) || []) { if (c === k || free(c)) continue; const pc = placed(c); if (pc && !okLink(to, pc)) { ok = false; break; } }
       if (!ok) continue;
       linkOk++;
-      if ((loads.get(cellKey(to.owner, to.sprint)) || 0) + sp > capOf(cfg, to.owner)) continue;
+      if ((loads.get(cellKey(to.owner, to.sprint)) || 0) + sp > capacityFor(to.owner, to.sprint, model.capacity ?? [], cfg)) continue;
       good.push({ ...to, slip: Math.abs(to.sprint - sprint), oc: d(to.owner, person) });
     }
     good.sort((a, b) => a.slip - b.slip || a.oc - b.oc || (a.owner < b.owner ? -1 : a.owner > b.owner ? 1 : 0) || a.sprint - b.sprint);
@@ -470,7 +473,7 @@ export function relieve(model: Model, { person, sprint }: { person: string; spri
       for (const to of c.slots) {
         if (++nodes > budget) { hit = true; return; }
         const ck = cellKey(to.owner, to.sprint), cur = (loads.get(ck) || 0) + (add.get(ck) || 0) + c.sp;
-        if (cur > capOf(cfg, to.owner)) continue;
+        if (cur > capacityFor(to.owner, to.sprint, model.capacity ?? [], cfg)) continue;
         at.set(c.key, to);
         let ok = true;
         for (const e of intra.get(c.key) as Array<{ p: string; c: string }>) { const pp = where(e.p), pc = where(e.c); if (pp && pc && !okLink(pp, pc)) { ok = false; break; } } // intra has every candidate
@@ -514,7 +517,7 @@ export function relieve(model: Model, { person, sprint }: { person: string; spri
       // every candidate fits somewhere alone; when the target cells together have less room than the excess, say so (an upper bound on what
       // the moves could free: room per distinct target cell, max(0, cap - load))
       const targets = new Map<string, number>();
-      for (const c of cands) for (const to of c.slots) targets.set(cellKey(to.owner, to.sprint), Math.max(0, capOf(cfg, to.owner) - (loads.get(cellKey(to.owner, to.sprint)) || 0)));
+      for (const c of cands) for (const to of c.slots) targets.set(cellKey(to.owner, to.sprint), Math.max(0, capacityFor(to.owner, to.sprint, model.capacity ?? [], cfg) - (loads.get(cellKey(to.owner, to.sprint)) || 0)));
       const room = [...targets.values()].reduce((a, v) => a + v, 0);
       res.reasons.push(room < excess ? { code: 'NO_ROOM', keys: cands.map((c) => c.key), room, needed: excess } : { code: 'CONFLICT', keys: cands.map((c) => c.key) });
     }
@@ -576,7 +579,7 @@ export function findSlots(model: Model, key: string, opts: FindOptions = {}): Fi
     const after = verifyPlan(model, applyMoves(model.sched, [{ key, to: { owner: o, sprint: s } }]), {});
     const bad = after.filter((v) => !was.has(sig(v)) && !(v.code === 'CAPACITY' && wasCap.has(v.key) && parseFloat(v.detail) <= (wasCap.get(v.key) as number))); // has() was just tested
     if (bad.length) throw new Error(`findSlots produced an invalid slot: ${bad.slice(0, 3).map(sig).join('; ')}`);
-    list.push({ owner: o, sprint: s, slip: Math.abs(s - cur.sprint), sameOwner: o === cur.owner, load: loads.get(cellKey(o, s)) || 0, cap: capOf(model.config, o), warn: w.reasons.some((r) => r.warn) });
+    list.push({ owner: o, sprint: s, slip: Math.abs(s - cur.sprint), sameOwner: o === cur.owner, load: loads.get(cellKey(o, s)) || 0, cap: capacityFor(o, s, model.capacity ?? [], model.config), warn: w.reasons.some((r) => r.warn) });
   }
   list.sort((a, b) => a.slip - b.slip || Number(b.sameOwner) - Number(a.sameOwner) || a.load - b.load || (a.owner < b.owner ? -1 : a.owner > b.owner ? 1 : 0) || a.sprint - b.sprint);
   return Object.assign(res, { status: res.frozen ? 'frozen' : list.length ? 'found' : 'none', valid: list.length, slots: list });
@@ -643,6 +646,7 @@ export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): stri
     for (const o of Object.keys(r.load as Loads)) for (const sp of Object.keys((r.load as Loads)[o] as Record<string, LoadCell>)) { const l = ((r.load as Loads)[o] as Record<string, LoadCell>)[sp] as LoadCell; if (l.after > l.before) s += ` ${o} S${sp} ${l.after}/${l.cap}.`; } // an ok result carries its load (whatif always sets it); o and sp are keys of the maps they index
     if (r.freed && r.freed.sp) s += ` Frees ${r.freed.sp} on ${r.freed.owner} S${r.freed.sprint}.`;
     if (warn) s += ` WARN ${shown}.`;
+    if (r.notes?.length) s += ` Note: ${r.notes.join('; ')}.`;
     return s;
   }
   let s = `NO: ${head}. ${shown}.`;
@@ -653,5 +657,6 @@ export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): stri
     s += ` Fix: ${at} (${g.shifts} ${g.shifts === 1 ? 'other shifts' : 'others shift'}, ${g.ownerChanges} owner changes${need}).`;
   } else if (g && g.none) s += ' Fix: none found; try --earlier or --owner-change.';
   else if (r.reasons[0] && r.reasons[0].fix) s += ` Fix: ${r.reasons[0].fix}.`;
+  if (r.notes?.length) s += ` Note: ${r.notes.join('; ')}.`;
   return s;
 }

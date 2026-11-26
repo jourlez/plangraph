@@ -3,6 +3,7 @@
 // cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}>, config, findings, evidence, learnings, refs }.
 import path from 'node:path';
 import type fs from 'node:fs';
+import type { CapacityRow } from './graph/files.ts';
 import { readJsonl, readDataCapped, IngestError } from './jsonl.ts';
 
 /** What the config reader's catch reads from a thrown value (whatever was thrown is read the same way as before). */
@@ -50,12 +51,14 @@ export interface Model {
   evidence: PlanRecord[];
   learnings: PlanRecord[];
   refs: PlanRecord[];
+  /** per-sprint capacity rows (capacity.jsonl); read only by whatif and relieve (lib/capacity.ts) */
+  capacity?: readonly CapacityRow[];
 }
 /** buildModel's input: validated rows (loadModel) or literal test fixtures. A fixture that is deliberately ill-typed (a string `sp` or
  * `sprint`, to pin how the libraries treat bad data) says so with `as unknown as Ticket[] // deliberate misuse`. */
 export interface ModelRecords {
   tickets?: readonly Ticket[]; edges?: readonly Edge[]; schedule?: readonly ScheduleRow[]; config?: PlanConfig;
-  findings?: readonly object[]; evidence?: readonly object[]; learnings?: readonly object[]; refs?: readonly object[];
+  findings?: readonly object[]; evidence?: readonly object[]; learnings?: readonly object[]; refs?: readonly object[]; capacity?: readonly CapacityRow[];
 }
 
 // A per-person number from a config map (caps, min_per_sprint): an OWN property holding a finite number, else the map's `default`
@@ -68,7 +71,7 @@ export const ownNumber = (map: unknown, person: string, fallback: number): numbe
 export const capOf = (cfg: { caps?: unknown } | null | undefined, person: string): number => ownNumber((cfg || {}).caps, person, 140);
 
 // Build a model from already-parsed records (used by tests and by loadModel).
-export function buildModel({ tickets = [], edges = [], schedule = [], config = {}, findings = [], evidence = [], learnings = [], refs = [] }: ModelRecords = {}): Model {
+export function buildModel({ tickets = [], edges = [], schedule = [], config = {}, findings = [], evidence = [], learnings = [], refs = [], capacity = [] }: ModelRecords = {}): Model {
   const skip = new Set<unknown>(config.ignore_link_kinds || []);
   const prods = new Map<string, string[]>(), cons = new Map<string, string[]>();
   for (const e of edges) {
@@ -79,7 +82,7 @@ export function buildModel({ tickets = [], edges = [], schedule = [], config = {
   }
   for (const m of [prods, cons]) for (const a of m.values()) a.sort();
   const sched = new Map(schedule.filter((r) => (r.version ?? 'current') === 'current').map((r) => [r.key, { owner: r.owner, sprint: r.sprint }]));
-  return { tickets: new Map(tickets.map((t) => [t.key, t])), edges: edges as Edge[], prods, cons, sched, config, findings: findings as PlanRecord[], evidence: evidence as PlanRecord[], learnings: learnings as PlanRecord[], refs: refs as PlanRecord[] }; // the lists are returned as given: edges is readonly in the input only so that a frozen fixture fits (the model holds the same array, as before); the record lists are validated rows
+  return { tickets: new Map(tickets.map((t) => [t.key, t])), edges: edges as Edge[], prods, cons, sched, config, findings: findings as PlanRecord[], evidence: evidence as PlanRecord[], learnings: learnings as PlanRecord[], refs: refs as PlanRecord[], capacity }; // the lists are returned as given: edges is readonly in the input only so that a frozen fixture fits (the model holds the same array, as before); the record lists are validated rows
 }
 
 // config.json: THE one reader (loadModel, src/context.ts ctx.config() and every command go through it). Small and repo-controlled: one
