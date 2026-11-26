@@ -26,7 +26,7 @@ test('canonical values, lines and files for every schema', () => {
   G('canon-value', () => [S.canonValue({ b: [3, 1, { z: undefined, y: null }], a: 'x' }), S.canonValue(['b', 'a', 'b'], true), S.canonValue(undefined), S.canonValue(null), S.canonValue([]), S.canonValue(1.0), S.canonValue({ __proto__: { x: 1 }, own: 1 })]);
   G('canon-line', () => [S.canonLine({ z: 1, key: 'A', sp: 2, summary: 's', extra: undefined }, S.SCHEMAS['tickets.jsonl']), S.canonLine({ key: 'K', plans: ['b', 'a', 'a'], files: { y: 1, x: 2 } }, S.SCHEMAS['refs.jsonl']), outcome(() => S.canonLine(([1] as unknown as S.Rec), {})), outcome(() => S.canonLine((null as unknown as S.Rec), {}))]); // deliberate misuse
   const recs = [{ key: 'B', sp: 1 }, { key: 'A', sp: 2 }, { key: 'A', sp: 2 }, { key: 'A', sp: 1 }];
-  for (const name of Object.keys(S.SCHEMAS)) G(`canon-file-${name}`, () => S.canonFile(recs.map((r, i) => ({ ...r, consumer: `C${i % 2}`, producer: 'P', id: `L${i % 3}`, k: `k${i}`, kind: 'x', text: 't', version: i % 2 ? 'old' : 'current', source: 's', verdict: 'v' })), S.SCHEMAS[name]));
+  for (const name of S.V1_FILES) G(`canon-file-${name}`, () => S.canonFile(recs.map((r, i) => ({ ...r, consumer: `C${i % 2}`, producer: 'P', id: `L${i % 3}`, k: `k${i}`, kind: 'x', text: 't', version: i % 2 ? 'old' : 'current', source: 's', verdict: 'v' })), S.SCHEMAS[name]));
   G('canon-file-fallback', () => [S.canonFile([{ b: 1 }, { a: 1 }, { b: 1 }], null), S.canonFile([], null), S.canonFile([{ k: 2 }, { k: 1 }], (r: S.Rec) => String(r.k))]);
   G('canon-text', () => [S.canonText('{"key":"B"}\n\n{"key":"A","sp":1}\r\n', S.SCHEMAS['tickets.jsonl'], 't.jsonl'), outcome(() => S.canonText('{bad', {} as unknown as S.Schema, 'x.jsonl')), S.parseJsonlText('{"a":1}')]); // deliberate misuse: parsing fails before the spec is read
   G('defaults', () => [S.withDefaults(S.SCHEMAS['refs.jsonl'], { key: 'K', plans: undefined }), S.withDefaults(S.SCHEMAS['edges.jsonl'], { consumer: 'A', producer: 'B', kind: 'x' }), S.withDefaults({}, { a: 1 })]);
@@ -158,7 +158,7 @@ test('schemas: identity fields drive the three-way merge, field order and defaul
   const full = { impl_status: 'done', first_verdict: 'READY', verdict_source: 'audit', verdict: 'READY', v2_sprint: 2, v2_owner: 'Ana', jira_status: 'Done', sp: 3, epic: 'E', summary: 's', key: 'A', zz: 1, aa: 2 };
   G('order-tickets', () => S.canonLine(full, S.SCHEMAS['tickets.jsonl']));
   G('order-open-items', () => S.canonLine({ text: 't', status: 'open', due_sprint: 1, kind: 'k', key: 'A', owner: 'x' }, S.SCHEMAS['open-items.jsonl']));
-  G('order-all', () => Object.entries(S.SCHEMAS).map(([f, s]) => [f, s.file, s.order, s.sets, s.defaults]));
+  G('order-all', () => Object.entries(S.SCHEMAS).filter(([f]) => S.V1_FILES.includes(f)).map(([f, s]) => [f, s.file, s.order, s.sets, s.defaults])); // the nine format-1 files; the graph files are pinned in test/graph-files.test.ts
   const d = tmp();
   for (const f of ['edges.jsonl', 'evidence.jsonl', 'learnings.jsonl', 'schedule.jsonl', 'tickets.jsonl']) put(d, f, `${JSON.stringify({ key: 'A', consumer: 'A', producer: 'B', id: 'L', source: 's' })}\n`);
   G('read-defaults', () => ['edges.jsonl', 'evidence.jsonl', 'learnings.jsonl', 'schedule.jsonl', 'tickets.jsonl'].map((f) => S.readRecords(d, f)));

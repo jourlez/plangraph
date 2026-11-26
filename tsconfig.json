@@ -36,6 +36,7 @@
   ],
   "exclude": [
     "node_modules",
-    "test/types-fixtures"
+    "test/types-fixtures",
+    "test/fixtures/release-*"
   ]
 }

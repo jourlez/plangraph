@@ -57,7 +57,8 @@
 			"scripts/**/*.ts",
 			"test/**/*.ts",
 			"evals/**/*.ts",
-			"!test/types-fixtures"
+			"!test/types-fixtures",
+			"!test/fixtures/release-*"
 		]
 	}
 }

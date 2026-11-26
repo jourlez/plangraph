@@ -13,6 +13,10 @@
     "test/types-fixtures/*-bad.ts",
     "test/**/*.assure.ts"
   ],
+  "ignore": [
+    // the frozen runtime of a released version (scripts/freeze-release.ts): run by the mixed-version tests, never imported
+    "test/fixtures/release-*/**"
+  ],
   "ignoreFiles": [
     // a template for the Claude Code Workflow tool, run by that tool and never imported by the plugin
     "workflows/audit.workflow.js"

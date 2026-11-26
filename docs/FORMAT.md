@@ -22,6 +22,13 @@ Implemented in `lib/store.ts`, `lib/merge.ts`, `bin/plangraph-merge`. Text files
 | refs | `key` | `plans` is a set |
 | open-items | `key`+`kind` | |
 | evidence | content hash of (key, source, verdict, resolution, needs) | no natural key: the file is a SET, sorted by key, source, hash |
+| people | `id` | graph file (section 6) |
+| sprints | `n` | graph file; `n` is a whole number, 0 and negatives allowed like `schedule.sprint` |
+| epics | `id` | graph file |
+| repos | `id` | graph file; `langs`, `frameworks`, `entry`, `owners` and `paths` are sets |
+| capacity | `person`+`sprint` | graph file; a data file, not a node type |
+| xrefs | `type`+`id`+`sys`+`xid` | graph file; one node may have many references |
+| links | hash of the whole canonical record | graph file; a SET: an edit is a delete plus an add |
 | any other `*.jsonl` | hash of the whole canonical record | set semantics: never loses a line |
 
 Defaults for missing optional fields are applied on read (`readRecords`, `withDefaults`), never written, so they cause no churn (the one exception is the schedule `version`, see the table).
@@ -55,7 +62,7 @@ Used by `runMigration` (`.migrate.lock`). The lock file is created exclusively a
 
 ## 4. Merge driver (`mergeJsonl`, `bin/plangraph-merge`, `installMergeDriver`, `doctorMergeDriver`)
 
-`mergeJsonl({base, ours, theirs}, keyFn|schema, opts)` merges by primary key: only one side changed: take it; both same: take it; one side deleted and the other unchanged: delete; deleted vs edited: conflict; added differently on both sides: conflict; both edited differently: field-level 3-way (a field changed on one side only, or to the same value, merges; same field changed to different values: conflict). Set fields (`refs.plans`) merge elementwise. Evidence and unknown files are sets (union minus removals). A new duplicate primary key is a conflict. Output is canonical. Returns `{text, conflicts:[{key,detail,ours,theirs}]}`; with conflicts `text` carries `<<<<<<< ours / ======= / >>>>>>> theirs` blocks at the record's sorted position, which `readJsonl` refuses (so nobody builds from a conflicted file).
+`mergeJsonl({base, ours, theirs}, keyFn|schema, opts)` merges by primary key: only one side changed: take it; both same: take it; one side deleted and the other unchanged: delete; deleted vs edited: conflict; added differently on both sides: conflict; both edited differently: field-level 3-way (a field changed on one side only, or to the same value, merges; same field changed to different values: conflict). Set fields (`refs.plans`) merge elementwise. Evidence, `links.jsonl` and unknown files are sets (union minus removals). The graph node files (section 6) merge by key exactly like the v1 files; a clean field-level merge keeps each field valid, not the rules that tie two fields together (two branches that edit `start` and `end` of one sprint apart can leave `start` after `end`; `plangraph build` reports it). A new duplicate primary key is a conflict. Output is canonical. Returns `{text, conflicts:[{key,detail,ours,theirs}]}`; with conflicts `text` carries `<<<<<<< ours / ======= / >>>>>>> theirs` blocks at the record's sorted position, which `readJsonl` refuses (so nobody builds from a conflicted file).
 
 `bin/plangraph-merge %O %A %B %P`: key function chosen from the basename of `%P`; result written atomically to `%A`; exit 0 clean, 1 conflicts (keys and reasons on stderr), 2 unreadable input (`%A` untouched). Works for `git merge`, `rebase` and `cherry-pick`. A clean merge of `schedule.jsonl` or `edges.jsonl` prints one line on stderr (`... merged cleanly, but a text merge can still break a handoff or capacity rule: run \`plangraph build\` then \`plangraph check\``): field-level merging keeps each record valid, not the plan's rules (edge T-2 needs T-1, base both Ana S2, ours moves T-2 to Ben S3, theirs moves both to S3: clean, yet a HANDOFF violation).
 
@@ -81,3 +88,24 @@ Install: `.gitattributes` gets `<dir>/*.jsonl merge=plangraph-jsonl` (versioned,
 - Finding kinds: `sp_constraint` and `sp_review_focus` (plan Global Constraints and Review Focus bullets, keyed on the epic; not learnings), `sp_ruling`, `sp_parked`, `sp_deferred` (ledger rulings, parked findings and deferred minors, keyed on the task or the epic).
 - Ownership: records whose key is `sp:<slug>` or starts with `sp:<slug>/` belong to that plan's ingest. A re-ingest replaces that plan's tickets, refs, `sp_needs` edges and plan-kind findings; ledger-kind findings are kept and added to (they must survive the ledger being deleted) and are dropped only with their task. Schedule rows are never changed or removed (`--owner NAME --sprint N` only adds rows for tasks that have none). Every other record is passed through unchanged.
 - Unknown ticket fields are now safe (`plangraph build` keeps them, see the unknown-field rule in section 1). The ingest still writes none (no `alias`, `kind`, `title_fp`, `impl_range`) because it has no need to.
+
+## 7. Graph files (0.4.0, no format bump)
+
+Seven optional files next to the v1 files: `people.jsonl`, `sprints.jsonl`, `epics.jsonl`, `repos.jsonl`, `capacity.jsonl`, `links.jsonl`, `xrefs.jsonl`. A directory without them is a valid directory and behaves exactly as under 0.3.0 (index fingerprint, card line and every answer are unchanged); a present file adds its bytes to the card digest. `FORMAT_VERSION` and `min_reader` stay 1. Nodes are keyed per file and no file stores a `type` field; there is no `plantasks.jsonl` (plan tasks are derived from `refs.plans`, `<plan>#<task>`, never parsed). One reader, `parseGraphFile(name, text)` in `lib/graph/files.ts`, checks every graph file; a data error is `<file>:<line>: "<field>" must be ...` (never the value) or starts with a code: `LINK_UNKNOWN_REL`, `LINK_DERIVED_REL`, `DUPLICATE_NODE`, `XREF_BAD_ID`.
+
+| file | row (all fields optional unless marked) |
+|---|---|
+| `people.jsonl` | `id` (required), `name`, `active` (boolean) |
+| `sprints.jsonl` | `n` (required), `name`, `start`, `end` (`YYYY-MM-DD`, real dates, `start <= end`), `state` |
+| `epics.jsonl` | `id` (required), `name` |
+| `repos.jsonl` | `id` (required), `name`, `role` (`service lib app infra docs monorepo`), `langs`, `pm`, `runtime`, `frameworks`, `cmds` (`{build,test,lint}`: script names, never bodies), `entry`, `deploy`, `owners`, `paths` (`[{glob, sub}]`), `src` (`scan manual catalog`), `fp`, `scanned_at`, `scanner` |
+| `capacity.jsonl` | `person`, `sprint`, `sp` (non-negative) required; `review_h` (non-negative, carried and never read) |
+| `links.jsonl` | `from`, `from_type`, `rel`, `to`, `to_type` required; `attrs` (object) |
+| `xrefs.jsonl` | `type`, `id`, `sys`, `xid` required; `src`, `seen` (`YYYY-MM-DD`), `note` |
+
+- Every row may carry `schema_version` (a whole number of at least 1, the version of that row's own shape) and any field a newer tool wrote: unknown fields are kept and written back appended in sorted order, never interpreted. A row of a newer shape is read, never refused.
+- Open grammars. Node types are `ticket person sprint epic plantask openitem plan doc repo` plus extension types `x-<sys>.<kind>` (`[a-z][a-z0-9-]{0,23}` each part). Hand-authored relations in `links.jsonl` are `relates_to`, `depends_on`, `touches`, plus extension relations `x-<sys>/<rel>`. Derived relations (`needs assigned_to scheduled_in belongs_to implements held_by part_of specified_by tracked_by owned_by`) are never stored: a row with one is `LINK_DERIVED_REL` naming the file that holds the fact; any other relation is `LINK_UNKNOWN_REL`. An extension type, relation or xref `sys` is accepted and counted (`GraphFiles.ext`), never an error, and no blocker, capacity, solver or verify rule reads it (`REL_SEMANTICS`).
+- Endpoints are typed: a sprint is written `S<n>`, an open item `<key>|<kind>`, a plan task `<plan>#<task>`; ids are unique per type, not across types.
+- Id rule: at most 200 characters, no C0 or C1 control, bidirectional or line-break character. A row already in a file that breaks it is a warning (`GraphFiles.warnings`); a command that writes a new row refuses it (`idProblem`).
+- xrefs: `sys` is `<name>`, `<name>:<alias>` or `<name>:<owner>/<repo>` (lower-case name; known names are `jira github gitlab bitbucket linear confluence ci local sp`, any other well-formed name is accepted as an extension); `xid` is `[A-Za-z0-9._:/#@ -]{1,200}` with no `..`, no URL and nothing shaped like an email address. No URL, host, account id or email is committed (decision D24).
+- Duplicates: two rows with one key and different content are `DUPLICATE_NODE` naming the file and the key (an identical row twice is one row). An older `plangraph-merge` (0.3.0) merges these files as sets of whole records, so a two-sided edit of one row leaves two rows with that key; the 0.4.0 driver merges them into one by key. Upgrade every team member before anyone commits graph files.

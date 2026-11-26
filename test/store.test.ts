@@ -29,6 +29,13 @@ function randRec(r: Rng, name: string, i: number): S.Rec {
     'meta.jsonl': { v: w(), k: `k${i}`, ...extra },
     'learnings.jsonl': { text: w(), id: `L${i}`, kind: w(), ...extra },
     'refs.jsonl': { files: { z: 1, a: 2 }, plans: [w(), w(), 'b'], key: `T-${i}`, ...extra },
+    'people.jsonl': { name: w(), active: r() < 0.5, id: `P-${i}`, schema_version: 1, ...extra },
+    'sprints.jsonl': { state: w(), n: i - 3, name: w(), start: '2026-01-05', end: '2026-01-16', ...extra },
+    'epics.jsonl': { name: w(), id: `E-${i}`, ...extra },
+    'repos.jsonl': { role: 'lib', id: `repo:r${i}`, owners: [w(), 'b', w()], langs: ['ts', 'py'], paths: [{ sub: w(), glob: 'a/**' }, { glob: 'b/**', sub: 'b' }], cmds: { test: 'test', build: 'build' }, ...extra },
+    'capacity.jsonl': { sp: Math.floor(r() * 30), sprint: i % 5, person: `P-${i % 3}`, review_h: 2, ...extra },
+    'links.jsonl': { to_type: 'repo', to: `repo:r${i % 4}`, rel: 'touches', from: `T-${i}`, from_type: 'ticket', attrs: { why: w(), conf: 'high' }, ...extra },
+    'xrefs.jsonl': { xid: `ABC-${i}`, sys: 'jira:acme', id: `T-${i % 6}`, type: 'ticket', seen: '2026-01-05', ...extra },
   } as Record<string, S.Rec>)[name]; // the file names above are the keys
   return R;
 }

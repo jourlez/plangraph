@@ -9,7 +9,7 @@ import { makeGit } from '../../lib/gitsafe.ts';
 import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
-import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
+import { BIN, CUR, SRC_FILES, GRAPH_SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { IndexHandle } from '../db.ts';
@@ -352,6 +352,12 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
     let b = '';
     if (f !== 'config.json' && !presentDataFile(path.join(ctx.dir, f))) { h.update(`${f}\0${b.length}\0${b}\0`); continue; } // a symlinked data file is refused
     try { b = readDataCapped(path.join(ctx.dir, f), f === 'config.json' ? CONFIG_MAX : MAX_DATA); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // O_NOFOLLOW + dev/ino: no symlink, no swap; fs errno errors
+    h.update(`${f}\0${b.length}\0${b}\0`);
+  }
+  for (const f of GRAPH_SRC_FILES) { // a graph file counts only when it is there: a directory without one keeps its 0.3.0 digest
+    if (!presentDataFile(path.join(ctx.dir, f))) continue;
+    let b = '';
+    try { b = readDataCapped(path.join(ctx.dir, f), MAX_DATA); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // as above: O_NOFOLLOW + dev/ino; fs errno errors
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && (s.sprint as number) > last) last = (s.sprint as number); // Number.isInteger is the check

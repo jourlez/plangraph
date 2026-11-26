@@ -26,6 +26,9 @@ export const KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/;
 export const MAX_DATA = 64 * 1024 * 1024;
 // Every file the index and the open-items list are derived from (the card's freshness line and `card --line` use the same list).
 export const SRC_FILES = Object.freeze(['tickets', 'edges', 'schedule', 'evidence', 'findings', 'meta', 'learnings', 'refs', 'open-items'].map((n) => `${n}.jsonl`));
+/** The seven graph files (the same list as GRAPH_FILES in lib/graph/files.ts, which a test pins; a literal here keeps that module off the start-up path).
+ * Kept apart from SRC_FILES: a graph file adds to the card digest only when it is present, so a directory without one keeps its 0.3.0 digest. */
+export const GRAPH_SRC_FILES = Object.freeze(['people', 'sprints', 'epics', 'repos', 'capacity', 'links', 'xrefs'].map((n) => `${n}.jsonl`));
 
 export const dbFile = (ctx: Ctx): string => path.join(ctx.dir, INDEX_FILE);
 export const rel = (ctx: Ctx, p: string): string => path.relative(ctx.root, p) || '.';

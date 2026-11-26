@@ -38,6 +38,10 @@ const byFields = (fields: readonly string[]): KeyFn => (r) => keyStr(fields.map(
 // strings, numbers and null both give the same bytes, so existing ids do not change).
 const evHash = (r: Rec): string => sha(canonValue([r.key ?? null, r.source ?? null, r.verdict ?? null, r.resolution ?? null, r.needs ?? null]));
 const mk = (file: string, key: string[], order: string[], extra: Partial<Schema> = {}): Schema => ({ file, order, sets: [], defaults: {}, id: byFields(key), sort: byFields(key), ...extra });
+// A file with no natural key is a set: the whole canonical record is its identity (also FALLBACK, and links.jsonl).
+const wholeRecord: KeyFn = (r) => sha(canonLine(r, { order: [], sets: [] }));
+/** The nine files of format 1. The 0-to-1 migration iterates this frozen list, so a schema added later never changes a shipped migration. */
+export const V1_FILES: readonly string[] = Object.freeze(['edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'meta.jsonl', 'open-items.jsonl', 'refs.jsonl', 'schedule.jsonl', 'tickets.jsonl']);
 export const SCHEMAS: Record<string, Schema> = {
   'tickets.jsonl': mk('tickets.jsonl', ['key'], ['key', 'summary', 'epic', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'verdict', 'verdict_source', 'first_verdict', 'impl_status'], { defaults: { summary: '', epic: '', jira_status: '', verdict: '', verdict_source: '', first_verdict: '' } }),
   'edges.jsonl': mk('edges.jsonl', ['consumer', 'producer'], ['consumer', 'producer', 'kind', 'note'], { defaults: { kind: 'plan_need', note: '' } }),
@@ -49,9 +53,19 @@ export const SCHEMAS: Record<string, Schema> = {
   'learnings.jsonl': mk('learnings.jsonl', ['id'], ['id', 'kind', 'topic', 'text', 'why', 'source'], { defaults: { why: '', source: '' } }),
   'refs.jsonl': mk('refs.jsonl', ['key'], ['key', 'plans', 'files', 'fp_files', 'jira_updated', 'audited_at'], { sets: ['plans'], defaults: { plans: [], files: {}, fp_files: '', jira_updated: '', audited_at: '' } }),
   'open-items.jsonl': mk('open-items.jsonl', ['key', 'kind'], ['key', 'kind', 'status']),
+  // graph files (docs/FORMAT.md section 6). Node files are keyed per file and store no `type` field; a row may carry `schema_version` and any
+  // field a newer tool wrote (kept, appended sorted). Arrays that are sets merge elementwise and are written sorted.
+  'people.jsonl': mk('people.jsonl', ['id'], ['id', 'name', 'active']),
+  'sprints.jsonl': mk('sprints.jsonl', ['n'], ['n', 'name', 'start', 'end', 'state']),
+  'epics.jsonl': mk('epics.jsonl', ['id'], ['id', 'name']),
+  'repos.jsonl': mk('repos.jsonl', ['id'], ['id', 'name', 'role', 'langs', 'pm', 'runtime', 'frameworks', 'cmds', 'entry', 'deploy', 'owners', 'paths', 'src', 'fp', 'scanned_at', 'scanner'], { sets: ['langs', 'frameworks', 'entry', 'owners', 'paths'] }),
+  'capacity.jsonl': mk('capacity.jsonl', ['person', 'sprint'], ['person', 'sprint', 'sp', 'review_h']),
+  'links.jsonl': mk('links.jsonl', [], ['from', 'from_type', 'rel', 'to', 'to_type', 'attrs'], { id: wholeRecord, sort: wholeRecord }),
+  // an xref is one fact about one node: the key is the whole reference (one node may have many)
+  'xrefs.jsonl': mk('xrefs.jsonl', ['type', 'id', 'sys', 'xid'], ['type', 'id', 'sys', 'xid', 'src', 'seen', 'note']),
 };
 // Unknown *.jsonl: the whole canonical record is its identity (set semantics: never lose a line, never invent a conflict).
-const FALLBACK: Schema = { file: '*', order: [], sets: [], defaults: {}, id: (r) => sha(canonLine(r, { order: [], sets: [] })), sort: (r) => sha(canonLine(r, { order: [], sets: [] })) };
+const FALLBACK: Schema = { file: '*', order: [], sets: [], defaults: {}, id: wholeRecord, sort: wholeRecord };
 export const schemaFor = (fileName: string): Schema => SCHEMAS[path.basename(fileName)] || FALLBACK;
 // A spec is a schema, a key function (id and sort by it), or nothing (fallback).
 export function specOf(x: KeySpec): Spec;
@@ -236,7 +250,7 @@ export const migrations: Migration[] = [{
   from: 0, to: 1, min_reader: 1, describe: 'add format.json, canonicalize every known jsonl file',
   plan(dir, read) {
     const ops: MigrationOp[] = [];
-    for (const name of Object.keys(SCHEMAS).sort()) {
+    for (const name of [...V1_FILES].sort()) {
       const cur = read(name); if (cur === null) continue;
       const next = canonText(cur, SCHEMAS[name], name); // errors name the file only, never its absolute path
       if (next !== cur) ops.push({ file: name, text: next });

@@ -34,7 +34,7 @@ import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'lib/jira/*', 'src/*', 'src/commands/*', 'mcp/*'];
+export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'lib/jira/*', 'lib/graph/*', 'src/*', 'src/commands/*', 'mcp/*'];
 /** the plain .js files that are mutated: the Node floor guard and the two launcher entry files */
 const PLAIN_JS = new Set(['src/floor.js', 'src/entry.js', 'src/merge-entry.js']);
 /** a source file whatever its extension during the .mjs to .ts migration; PLAIN_JS lists the plain .js files that count @param {string} f */

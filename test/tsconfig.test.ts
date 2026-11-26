@@ -54,7 +54,7 @@ const read = (rel: string): Config => JSON.parse(fs.readFileSync(path.join(ROOT,
 for (const e of TABLE) test(`${e.name} holds its expected flags and include`, () => assert.deepEqual(checkConfig(read(e.name), e), []));
 
 test('the tracked .js files are src/floor.js, src/entry.js, src/merge-entry.js and the workflow; only the three src files are in a tsconfig include (R25)', () => {
-  const tracked = execFileSync('git', ['ls-files', '*.js'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const tracked = execFileSync('git', ['ls-files', '*.js'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).filter((f) => !f.startsWith('test/fixtures/release-')); // a frozen release (scripts/freeze-release.ts) holds its own .js files
   const includes = Object.fromEntries(TABLE.map((e) => [e.name, read(e.name).include ?? []]));
   assert.deepEqual(checkJsSources(tracked, includes), []);
 });
