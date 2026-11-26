@@ -37,6 +37,8 @@ jobs:
           V="${GITHUB_REF_NAME#v}"
           git archive --format=tar --prefix="plangraph-$V/" "$GITHUB_SHA" | gzip -n > "plangraph-$V.tar.gz"
           sha256sum "plangraph-$V.tar.gz" > "plangraph-$V.tar.gz.sha256"
+      - name: package contents (nothing private, every file the plugin needs)
+        run: node scripts/check-package.ts
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: plangraph-*.tar.gz

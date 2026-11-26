@@ -2,7 +2,8 @@
 // Covered: every `uses:` pinned to a 40-hex SHA with a version comment (local ./ reusable workflows exempt), top-level permissions are contents: read,
 // release adds only the three allowed job permissions, every reusable-workflow caller grants what the called jobs ask for, no
 // pull_request_target, persist-credentials: false after every checkout, the parallel CI jobs (unit with the coverage floors, slow, static,
-// macos shards, mutation, gitleaks) and their steps, the weekly informational mutation smoke, dependabot covers github-actions, CODEOWNERS
+// macos shards, compat, floor, mutation, gitleaks, release dry run) and their steps, the Node, Python and tool-version matrices, the checked
+// tool tarballs, the hostile-uv step, the floor assertions, the weekly informational mutation smoke, dependabot covers github-actions, CODEOWNERS
 // holds no invented owner.
 // NOT covered: that the pinned SHAs exist upstream (needs the network; resolved with `gh api` when written) or that the workflows run on GitHub.
 import { test } from 'node:test';
@@ -88,24 +89,27 @@ test('every reusable-workflow caller grants every permission the called workflow
 test('ci.yml: the parallel jobs, their commands and gates', () => {
   const t = read('workflows', 'ci.yml');
   assert.match(t, /workflow_call:/);
-  assert.deepEqual(jobNames(t), ['unit', 'slow', 'static', 'macos', 'mutation', 'secrets']);
-  assert.ok(!/^ {4}needs:/m.test(t), 'every CI job starts at once: none waits for another');
-  assert.ok(!/^ {4}if:/m.test(t), 'every CI job always runs');
+  assert.deepEqual(jobNames(t), ['unit', 'slow', 'static', 'macos', 'compat', 'floor', 'mutation', 'secrets', 'release-dry-run']);
+  assert.deepEqual(jobNames(t).filter((n) => /^ {4}needs:/m.test(job(t, n))), ['release-dry-run'], 'every CI job starts at once but the dry run');
+  assert.deepEqual(jobNames(t).filter((n) => /^ {4}if:/m.test(job(t, n))), ['release-dry-run'], 'every other CI job always runs');
   for (const [name, cmds] of ([
     ['unit', ['node scripts/test-coverage.ts --group coverage']],
     ['slow', ['npm run smoke', 'node scripts/ci-tests.ts nocoverage', 'node --test $files', 'astral-sh/setup-uv@']],
-    ['static', ['npm run validate:plugin', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint', 'claude plugin validate . --strict', '::notice::']],
+    ['static', ['npm run validate:plugin', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint:check', 'npm run knip', 'npm run lint:sh', 'actionlint -shellcheck', 'node scripts/check-package.ts']],
     ['macos', ['node scripts/ci-tests.ts portable', 'npm run smoke']],
+    ['compat', ['node scripts/ci-tests.ts portable', 'node --test $files']],
+    ['floor', ['node bin/plangraph card --if-present --heal']],
+    ['release-dry-run', ['git archive', 'sha256sum', 'node scripts/check-package.ts']],
     ['mutation', ['npm run mutate']],
     ['secrets', ['gitleaks/gitleaks-action@']],
   ] as Array<[string, string[]]>)) for (const c of cmds) assert.ok(job(t, name).includes(c), `job ${name} is missing ${c}`);
-  for (const name of ['unit', 'slow', 'static', 'mutation', 'secrets']) assert.match(job(t, name), /^ {4}runs-on: ubuntu-24\.04$/m, `${name} on ubuntu`);
-  assert.equal((t.match(/actions\/setup-node@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+node-version: '24'\n/g) ?? []).length, 4, 'every job but gitleaks sets up Node 24 (the unit job through its matrix)');
+  for (const name of ['unit', 'slow', 'static', 'compat', 'floor', 'mutation', 'secrets', 'release-dry-run']) assert.match(job(t, name), /^ {4}runs-on: ubuntu-24\.04$/m, `${name} on ubuntu`);
+  assert.equal((t.match(/actions\/setup-node@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+node-version: '24'\n/g) ?? []).length, 5, 'slow, static, macos, mutation and the dry run set up Node 24 (unit, compat and floor through a matrix; gitleaks needs none)');
   assert.match(job(t, 'unit'), /^ {8}node: \['24'(?:, '\d+')*\]/m, 'the unit job runs a Node matrix of the floor major');
   assert.match(job(t, 'unit'), /node-version: \$\{\{ matrix\.node \}\}\n/);
   assert.equal(/typecheck skipped|lint skipped|if \[ -f (tsconfig|biome)\.json \]/.test(t), false, 'typecheck and lint always run (their configs are committed)');
   // a step-level condition could hide a check; the only one runs the macOS smoke once instead of on every shard
-  assert.deepEqual([...t.matchAll(/^ {8}if: (.+)$/gm)].map((m) => m[1]), ['matrix.shard == 1']);
+  assert.deepEqual([...t.matchAll(/^ {8}if: (.+)$/gm)].map((m) => m[1]), ["matrix.python == '3.14'", 'matrix.shard == 1']);
 });
 
 test('ci.yml: macOS runs the portable group in shards that together cover every file, without coverage', () => {
@@ -127,18 +131,18 @@ test('ci.yml: the slow job runs the no-coverage group with uv, smoke first, with
   assert.ok(!/experimental-test-coverage/.test(s));
   assert.ok(s.indexOf('npm run smoke') < s.indexOf('ci-tests.ts nocoverage'), 'smoke first: it builds the solver environment');
   assert.ok(s.indexOf('astral-sh/setup-uv@') < s.indexOf('npm run smoke'), 'uv before anything needs it');
-  assert.match(s, /^ {10}files=\$\(node scripts\/ci-tests\.ts nocoverage\)\n {10}test -n "\$files"\n(?: {10}#.*\n)? {10}node --test \$files$/m);
+  assert.match(s, /^ {8}if: matrix\.python == '3\.14'\n {8}run: \|\n {10}files=\$\(node scripts\/ci-tests\.ts nocoverage\)\n {10}test -n "\$files"\n(?: {10}#.*\n)? {10}node --test \$files$/m);
 });
 
-// unit and macos run test/types.test.ts, which runs tsc from node_modules, so they install the locked dev tools too (lifecycle scripts off).
-test('ci.yml: npm ci runs in static, unit and macos only (unit and macos: lockfile-exact, no scripts); its npm cache is in the static job only', () => {
+// unit, macos and compat run test/types.test.ts, which runs tsc from node_modules, so they install the locked dev tools too (lifecycle scripts off).
+test('ci.yml: npm ci runs in static, unit, macos and compat only, always with the npm cache (the three test jobs: lockfile-exact, no scripts)', () => {
   const t = read('workflows', 'ci.yml');
-  const install = new Set(['static', 'unit', 'macos']);
+  const install = new Set(['static', 'unit', 'macos', 'compat']);
   for (const name of jobNames(t)) {
     const j = job(t, name);
-    assert.equal(/npm ci/.test(j), install.has(name), `npm ci in ${name}`);
+    assert.equal(/^ {8}run: npm ci/m.test(j), install.has(name), `npm ci in ${name}`);
+    assert.equal(/^ {10}cache: npm$/m.test(j), install.has(name), `npm cache in ${name}`);
     if (name !== 'static' && install.has(name)) assert.equal([...j.matchAll(/npm ci.*/g)].map((m) => m[0]).join('|'), 'npm ci --ignore-scripts --no-fund', `npm ci in ${name}`);
-    assert.equal(/^ {10}cache: npm$/m.test(j), name === 'static', `npm cache in ${name}`);
   }
 });
 
@@ -272,7 +276,7 @@ test('ci.yml: the mutation job is its own required job, ubuntu only, same Node a
 test('ci.yml: every job has a timeout; concurrency cancels superseded runs but never on main', () => {
   const t = read('workflows', 'ci.yml');
   assert.deepEqual(jobNames(t).filter((n) => !/^ {4}timeout-minutes: \d+\b/m.test(job(t, n))), [], 'a job without a timeout');
-  for (const [name, mins] of ([['unit', 15], ['slow', 15], ['static', 10], ['macos', 15], ['mutation', 15], ['secrets', 10]] as Array<[string, number]>)) {
+  for (const [name, mins] of ([['unit', 15], ['slow', 15], ['static', 10], ['macos', 15], ['compat', 15], ['floor', 5], ['mutation', 15], ['secrets', 10], ['release-dry-run', 10]] as Array<[string, number]>)) {
     assert.match(job(t, name), new RegExp(`^ {4}timeout-minutes: ${mins}\\b`, 'm'), `${name} timeout`);
   }
   assert.match(t, /^concurrency:\n {2}group: .+\n {2}cancel-in-progress: \$\{\{ github\.ref != 'refs\/heads\/main' \}\}$/m);
@@ -290,4 +294,83 @@ test('mutation.yml: the mutation smoke reports without gating, runs weekly and o
   assert.match(scripts['mutate:all'], /scripts\/mutate-all\.ts/);
   assert.ok(!/uses: \.\/\.github\/workflows\/mutation\.yml/.test(read('workflows', 'release.yml')), 'the release must not wait on the informational mutation job');
 
+});
+
+// ------------------------------------------------------------------ Task 20: compat, floor, slow matrix, static tools, dry run, package contents
+const CI = read('workflows', 'ci.yml');
+const values = (j: string, key: string): string[] => (new RegExp(`^ {8}${key}: \\[([^\\]]*)\\]`, 'm').exec(j)?.[1] ?? '').split(',').map((x) => x.trim().replace(/^'|'$/g, ''));
+
+test('compat: Node 24.15.0 and 26 on ubuntu run the portable group in one step that fails when the redirected warning file is non-empty', () => {
+  const j = job(CI, 'compat');
+  assert.deepEqual(values(j, 'node'), ['24.15.0', '26']);
+  assert.match(j, /^ {4}runs-on: ubuntu-24\.04$/m);
+  assert.match(j, /^ {10}NODE_OPTIONS: --redirect-warnings=\$\{\{ runner\.temp \}\}\/w\.log$/m, 'the expression, never a literal $RUNNER_TEMP (a YAML env value is not shell-expanded)');
+  assert.ok(!/NODE_OPTIONS:.*\$RUNNER_TEMP/.test(j));
+  assert.match(j, /node scripts\/ci-tests\.ts portable/);
+  assert.match(j, /if \[ -s "\$RUNNER_TEMP\/w\.log" \]; then[^\n]*exit 1; fi/);
+  assert.equal((j.match(/NODE_OPTIONS/g) ?? []).length, 1, 'one step carries the redirect');
+  assert.ok(!/RUNTIME_WARNING_ALLOW|--check-warnings/.test(j + fs.readFileSync(path.join(ROOT, 'scripts/ci-tests.ts'), 'utf8')), 'no allow list: any warning fails');
+});
+
+test('floor: Node 18, 20.9.0 and 24.14.0 on ubuntu, no npm ci; the hook exits 0, prints at most the one floor line and writes nothing', () => {
+  const j = job(CI, 'floor');
+  assert.deepEqual(values(j, 'node'), ['18', '20.9.0', '24.14.0']);
+  assert.match(j, /^ {4}runs-on: ubuntu-24\.04$/m);
+  assert.ok(!/run: npm ci/.test(j));
+  assert.match(j, /node bin\/plangraph card --if-present --heal >"\$out" 2>"\$err" \|\| rc=\$\?/);
+  for (const c of ['test "$rc" = 0', `grep -c ''`, '-le 1', "grep -Eq '^plangraph:? needs Node'", 'test -z "$(git status --porcelain)"']) assert.ok(j.includes(c), `floor step lacks ${c}`);
+  const hook = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0].hooks[0];
+  assert.deepEqual(hook.args.slice(1), ['card', '--if-present', '--heal'], 'the floor job runs the arguments the hook runs');
+});
+
+test('slow: Python 3.10 and 3.14 with a pinned uv, the hostile working directory asserts both markers absent, the no-coverage group runs once', () => {
+  const j = job(CI, 'slow');
+  assert.deepEqual(values(j, 'python'), ['3.10', '3.14']);
+  assert.match(j, /^ {6}UV_PYTHON: \$\{\{ matrix\.python \}\}$/m);
+  assert.match(j, /astral-sh\/setup-uv@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+version: '\d+\.\d+\.\d+'/, 'uv is pinned');
+  const h = j.slice(j.indexOf('hostile working directory'), j.indexOf('no-coverage test group'));
+  for (const c of ['PLANGRAPH_SOLVE_LAUNCH: uv-run', '.venv/bin/python', '.python-version', 'uv.toml', 'evil/python3', 'marks"', 'a planted interpreter ran', 'exit 1']) assert.ok(h.includes(c), `hostile step lacks ${c}`);
+  assert.ok(j.indexOf('hostile working directory') > j.indexOf('npm run smoke'));
+  assert.ok(!/0\.4\.30|PLANGRAPH_TEST_UV_0430/.test(CI), 'the uv 0.4.30 leg is not in CI (the test skips it without the variable)');
+});
+
+test('static: shellcheck 0.11.0 and actionlint come from SHA-256-checked tarballs before they are used; actionlint gets -shellcheck with that path; lint:sh runs with the tools required', () => {
+  const j = job(CI, 'static');
+  const at = (x: string) => { const i = j.indexOf(x); assert.ok(i >= 0, `static lacks ${x}`); return i; };
+  const sc = /koalaman\/shellcheck\/releases\/download\/v0\.11\.0\/shellcheck-v0\.11\.0\.linux\.x86_64\.tar\.xz/.exec(j);
+  assert.ok(sc, 'shellcheck 0.11.0 tarball');
+  assert.match(j, /echo "[0-9a-f]{64} {2}shellcheck\.tar\.xz" \| sha256sum -c -/);
+  assert.match(j, /rhysd\/actionlint\/releases\/download\/v\d+\.\d+\.\d+\/actionlint_\d+\.\d+\.\d+_linux_amd64\.tar\.gz/);
+  assert.match(j, /echo "[0-9a-f]{64} {2}actionlint\.tar\.gz" \| sha256sum -c -/);
+  assert.ok(at('echo "$bin" >> "$GITHUB_PATH"') < at('actionlint -shellcheck "$RUNNER_TEMP/tools/bin/shellcheck"'));
+  assert.ok(at('actionlint -shellcheck') < at('npm run lint:sh'));
+  assert.match(j, /PLANGRAPH_REQUIRE_TOOLS: '1'\n\s+run: npm run lint:sh/);
+  assert.ok(!/setup-uv/.test(j), 'static needs no uv');
+  assert.ok(!/bulletproof/.test(j), 'the suite runs in unit and slow, not a third time');
+});
+
+test('static: the plugin validator runs through npx at a fixed version with no secrets and no login', () => {
+  const j = job(CI, 'static');
+  assert.match(j, /^ {8}run: npx --yes @anthropic-ai\/claude-code@\d+\.\d+\.\d+ plugin validate \. --strict$/m);
+  const step = j.slice(j.indexOf('claude plugin validate'));
+  assert.ok(!/secrets\.|env:/.test(step));
+});
+
+test('release-dry-run needs unit and static and runs on pull requests and tags only; it builds the tarball and checks the package contents', () => {
+  const j = job(CI, 'release-dry-run');
+  assert.match(j, /^ {4}needs: \[unit, static\]$/m);
+  assert.match(j, /^ {4}if: github\.event_name == 'pull_request' \|\| startsWith\(github\.ref, 'refs\/tags\/'\)$/m);
+  assert.ok(!/ci\/|snapshot/.test(CI.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n')), 'no ci/** snapshot trigger');
+  assert.match(CI, /^on:\n {2}push:\n {4}branches: \[main\]\n {2}pull_request:\n {2}workflow_call:/m);
+});
+
+test('release.yml checks the package contents before the attestation', () => {
+  const t = read('workflows', 'release.yml');
+  assert.ok(t.indexOf('node scripts/check-package.ts') > 0 && t.indexOf('node scripts/check-package.ts') < t.indexOf('actions/attest@'));
+});
+
+test('package.json: lint:sh runs scripts/lint-sh.ts and the validate script runs it after knip', () => {
+  const s = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts;
+  assert.equal(s['lint:sh'], 'node scripts/lint-sh.ts');
+  assert.match(s.validate, /npm run knip && npm run lint:sh && /);
 });

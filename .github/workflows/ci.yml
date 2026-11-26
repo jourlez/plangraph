@@ -1,6 +1,7 @@
 name: ci
 # Parallel jobs so that no single job is long (wall time to a green result is what counts). Every test file runs on Linux in exactly one
 # of `unit` (with the coverage floors) and `slow` (no coverage); scripts/ci-tests.ts makes the split and test/ci-tests.test.ts pins it.
+# Only `release-dry-run` waits for other jobs. `compat` and `floor` run the supported newer Node majors and the old ones the session hook must survive.
 on:
   push:
     branches: [main]
@@ -28,15 +29,22 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
       # test/types.test.ts runs tsc from node_modules
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
         run: npm ci --ignore-scripts --no-fund
       - name: unit tests with coverage ratchet (the coverage group; the floors live in scripts/test-coverage.ts, raise them when coverage rises, never lower)
         run: node scripts/test-coverage.ts --group coverage
   slow:
-    name: solver, evals and icon tests, smoke (ubuntu)
+    name: solver, evals and icon tests, smoke (ubuntu, python ${{ matrix.python }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15 # estimated about 4 minutes
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14'] # requires-python of bin/plangraph-solve is >=3.10,<3.15: both bounds
+    env:
+      UV_PYTHON: ${{ matrix.python }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,17 +55,40 @@ jobs:
       # the solver tests and the solver part of the smoke test need uv; they run here only (they skip cleanly without uv)
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
+          version: '0.13.10'
           enable-cache: false
       - name: smoke (first, so it also builds the solver environment the solver tests reuse)
         run: npm run smoke
-      - name: no-coverage test group (slow files that reach no lib/ or src/ code the coverage group does not)
+      - name: hostile working directory (the uv run fallback never runs a planted interpreter; real uv)
+        env:
+          PLANGRAPH_SOLVE_LAUNCH: uv-run
+          UV_OFFLINE: '1'
+          UV_PYTHON_DOWNLOADS: never
+        run: |
+          set -euo pipefail
+          unset UV_PYTHON
+          base="$RUNNER_TEMP/hostile"
+          rm -rf "$base"
+          mkdir -p "$base/repo/.venv/bin" "$base/repo/evil" "$base/marks" "$base/home" "$base/cache"
+          cd "$base/repo"
+          printf '#!/bin/sh\necho ran > "%s/venv"\nexit 1\n' "$base/marks" > .venv/bin/python
+          printf '#!/bin/sh\necho ran > "%s/pyver"\nexit 1\n' "$base/marks" > evil/python3
+          chmod +x .venv/bin/python evil/python3
+          ln -s python .venv/bin/python3
+          printf 'home = /usr/bin\nimplementation = CPython\nversion_info = 3.12.0\ninclude-system-site-packages = false\n' > .venv/pyvenv.cfg
+          printf './evil/python3\n' > .python-version
+          printf 'index-url = "https://evil.invalid/simple"\n' > uv.toml
+          HOME="$base/home" UV_CACHE_DIR="$base/cache" "$GITHUB_WORKSPACE/bin/plangraph-solve-run" --help >/dev/null 2>&1 || true
+          test -z "$(ls -A "$base/marks")" || { echo "a planted interpreter ran:"; ls "$base/marks"; exit 1; }
+      - name: no-coverage test group (slow files that reach no lib/ or src/ code the coverage group does not; one Python leg is enough)
+        if: matrix.python == '3.14'
         run: |
           files=$(node scripts/ci-tests.ts nocoverage)
           test -n "$files"
           # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
           node --test $files
   static:
-    name: typecheck, lint, plugin layout
+    name: typecheck, lint, knip, shellcheck, actionlint, package contents, plugin layout
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -68,6 +99,21 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+      - name: install shellcheck 0.11.0 and actionlint 1.7.12 (release tarballs, SHA-256 checked, first on PATH, so the runner image decides nothing)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/tools/bin"
+          mkdir -p "$bin" "$RUNNER_TEMP/dl"
+          cd "$RUNNER_TEMP/dl"
+          curl -fsSL --retry 3 -o shellcheck.tar.xz https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  shellcheck.tar.xz" | sha256sum -c -
+          tar -xJf shellcheck.tar.xz --strip-components=1 shellcheck-v0.11.0/shellcheck
+          mv shellcheck "$bin/shellcheck"
+          curl -fsSL --retry 3 -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          mv actionlint "$bin/actionlint"
+          echo "$bin" >> "$GITHUB_PATH"
       - name: plugin layout
         run: npm run validate:plugin
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
@@ -78,15 +124,20 @@ jobs:
         run: npm run typecheck
       - name: biome lint (lint rules only, formatter disabled)
         run: npm run lint:check
-      - name: bulletproof check (lint, typecheck, full test suite)
-        run: npm run bulletproof:check
-      - name: claude plugin validate
-        run: |
-          if command -v claude >/dev/null 2>&1; then
-            claude plugin validate . --strict
-          else
-            echo "::notice::claude CLI not installed on this runner, plugin validate skipped"
-          fi
+      - name: knip (unused files, exports and dependencies)
+        run: npm run knip
+      - name: actionlint (runs the pinned shellcheck over every run block)
+        run: actionlint -shellcheck "$RUNNER_TEMP/tools/bin/shellcheck"
+      - name: shellcheck over the shell scripts
+        env:
+          PLANGRAPH_REQUIRE_TOOLS: '1'
+        run: npm run lint:sh
+      - name: package contents (git archive HEAD holds nothing private and every file the plugin needs)
+        run: node scripts/check-package.ts
+      # the package is fetched outside the lockfile, so its integrity is not pinned (decision D16); its own postinstall must run, it fetches the
+      # native binary. No secret is in this step's environment, and the validator needs no login (measured).
+      - name: claude plugin validate (pinned Claude Code, no login)
+        run: npx --yes @anthropic-ai/claude-code@2.1.329 plugin validate . --strict
   macos:
     name: macos tests (shard ${{ matrix.shard }}/2, node 24)
     runs-on: macos-latest
@@ -102,6 +153,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+          cache: npm
       # test/types.test.ts runs tsc from node_modules
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
         run: npm ci --ignore-scripts --no-fund
@@ -114,6 +166,62 @@ jobs:
       - name: smoke on macOS (BSD userland; the solver part needs uv and runs in the slow job)
         if: matrix.shard == 1
         run: npm run smoke
+  compat:
+    name: portable tests on node ${{ matrix.node }} (ubuntu, no runtime warning)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15 # estimated about 3 minutes
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24.15.0', '26'] # the floor of 0.3.0 and the newest major
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
+        run: npm ci --ignore-scripts --no-fund
+      # Node writes every runtime warning of this process and of every child the tests spawn to the file instead of stderr, so a warning that
+      # a user would see (ExperimentalWarning, a DEP00xx deprecation) leaves the file non-empty and fails the job.
+      - name: portable test group; any Node runtime warning fails
+        env:
+          NODE_OPTIONS: --redirect-warnings=${{ runner.temp }}/w.log
+        run: |
+          files=$(node scripts/ci-tests.ts portable)
+          test -n "$files"
+          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
+          node --test $files
+          if [ -s "$RUNNER_TEMP/w.log" ]; then echo "Node runtime warnings:"; cat "$RUNNER_TEMP/w.log"; exit 1; fi
+  floor:
+    name: session hook on node ${{ matrix.node }} (ubuntu, below or at the floor)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20.9.0', '24.14.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      # No npm ci: the hook runs where nothing was installed. It must exit 0, write nothing, and print at most the one floor line in total
+      # (T11 prints it on stdout; the pattern accepts either stream), never anything else.
+      - name: SessionStart hook exits 0 with at most the floor line
+        run: |
+          out="$RUNNER_TEMP/hook.out"; err="$RUNNER_TEMP/hook.err"
+          rc=0
+          node bin/plangraph card --if-present --heal >"$out" 2>"$err" || rc=$?
+          echo "exit $rc"; echo "--- stdout"; cat "$out"; echo "--- stderr"; cat "$err"
+          test "$rc" = 0
+          test "$(cat "$out" "$err" | grep -c '')" -le 1
+          if [ -n "$(cat "$out" "$err")" ]; then cat "$out" "$err" | grep -Eq '^plangraph:? needs Node'; fi
+          test -z "$(git status --porcelain)"
   mutation:
     name: mutation
     runs-on: ubuntu-24.04
@@ -148,3 +256,22 @@ jobs:
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release-dry-run:
+    name: release dry run (tarball, checksum, package contents; nothing is published)
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/')
+    needs: [unit, static]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: reproducible source tarball and checksum
+        run: |
+          git archive --format=tar --prefix="plangraph-dry/" "$GITHUB_SHA" | gzip -n > "$RUNNER_TEMP/plangraph-dry.tar.gz"
+          (cd "$RUNNER_TEMP" && sha256sum plangraph-dry.tar.gz > plangraph-dry.tar.gz.sha256 && sha256sum -c plangraph-dry.tar.gz.sha256)
+      - name: package contents
+        run: node scripts/check-package.ts
