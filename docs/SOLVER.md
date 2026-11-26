@@ -313,3 +313,51 @@ To pre-fetch in CI (or before going offline): `uv run --locked --script bin/plan
 
 After changing the pin in `bin/plangraph-solve`: `uv lock --script bin/plangraph-solve && uv export --script bin/plangraph-solve --format requirements-txt --no-header > solver/solver-requirements.txt`
 (uv 0.8.8: hashes are emitted by default; the flag is `--hashes`/`--no-hashes`, not `--hash`). Commit both files.
+
+## Trust
+
+OR-Tools stays at 9.15.6755. Two upstream defects apply to it. Issue 5582: a run with a solution hint can report OPTIMAL above the true
+optimum, and a bad hint triggers it. Issue 5141: `sufficient_assumptions_for_infeasibility()` can name a literal that was never assumed while
+presolve is on. The fix for 5582 is only in the 10.0 release candidate, which regresses large neighborhood search (issue 5571), so the solver
+does not upgrade. It guards against both defects instead:
+
+- Every hinted solve (each lexicographic stage after the first valid start, and each `--lns`/`--decompose` round) sets
+  `presolve_inclusion_work_limit=0`, the documented workaround for 5582.
+- The solver's word is never taken for a stage. The stage audit (`audit` in `solve_all`) runs after every stage that returns a schedule. The
+  schedule must pass the independent verifier. Its objective is recomputed from the schedule in the model's own terms and must equal the
+  reported one (for OPTIMAL; at most the reported one for FEASIBLE). It must not beat the proven bound. No known verified schedule (the
+  incumbent, the constructions, the current plan) may beat a claimed optimum. A hinted OPTIMAL above the stage's trivial bound is re-proved by
+  an unhinted solve of `objective <= value - 1`, which must end INFEASIBLE within the stage's share of the time left.
+- When a check fails, the stage is FEASIBLE, never OPTIMAL. Its record keeps `solver_status` and `solver_bound` and lists the reasons in
+  `untrusted`. Its `bound` falls back to a bound that holds for every schedule (the global lower bound of the stage; for the end sprint, the
+  frozen slots and the capacity bound). The schedule is the best verified one seen (the solver's, the incumbent, a known candidate, or the
+  re-solve's better one), and later stages are held to its recomputed value. The status line says `solver claimed OPTIMAL, not trusted: <reason>`.
+  The exit code follows the usual rules (0 within the target, 4 when it is missed).
+- The solver never uses assumptions. Infeasibility is explained by the relaxed-cost model (every link droppable at cost 1). Its set of dropped
+  links is then checked and minimised by deletion (`minimize_links`): the relaxed schedule must pass the independent verifier with those links
+  removed and every sprint by the end sprint, then each link is put back as a hard constraint in turn. A link whose return still leaves a
+  verified schedule leaves the set; a link whose return is INFEASIBLE is confirmed. `proved_minimal` is true only when the witness verified and
+  every listed link was confirmed. Otherwise the line says `(not proved minimal)`.
+
+Tests: `test/solver-trust.test.ts` (real OR-Tools, faults injected through a driver that loads the solver as a module). A deliberately wrong
+hint (every free ticket on one person in the first sprint) must not beat a proven bound or claim a false optimum, and its output must pass
+`plangraph verify`. A fake solver that claims OPTIMAL for its own hint must be caught. A misreported objective and a bound above the
+schedule's value must both be refused. N injected impossible links must be explained as exactly that set. Deletion must shrink a superset of
+them to that set, and refuse a set too small to verify.
+
+Cost, measured 2026-11-25 on `genPlan` instances with `--deterministic --time 60` (stages `end_sprint`, `owner_changes`; deterministic
+seconds per stage, so the figures repeat). "before" is the solver without this section; "re-proof only" has the audit but not the presolve
+setting; "after" has both.
+
+| instance | before | re-proof only | after |
+|---|---|---|---|
+| n 60, cap 12, seed 3 | end 9 OPTIMAL (1.7), changes 13 OPTIMAL (1.6) | same | same values, stage times 3.7 and 5.9 |
+| n 150, cap 20, seed 1 | end 9 OPTIMAL (17.3), changes 64 | end 9 OPTIMAL, changes 65 | end 12 FEASIBLE (bound 6, 30.6), changes 62 |
+| n 150, cap 20, seed 2 | end 9 OPTIMAL (21.9), changes 65 | end 9 OPTIMAL, changes 70 | end 11 FEASIBLE (bound 8, 30.6), changes 53 |
+| n 150, cap 20, seed 3 | end 10 OPTIMAL (14.7), changes 58 | end 10 OPTIMAL, changes 64 | end 12 FEASIBLE (bound 6, 30.8), changes 53 |
+| n 300, cap 40, seed 3 | end 12 FEASIBLE (bound 6), changes 166 | same | end 13 FEASIBLE (bound 6), changes 128 |
+
+What this shows: the re-proof is cheap. It costs only the time it takes from the next stage (a few owner changes), never the end sprint. The
+presolve setting is expensive. It doubles or triples a proved stage's time at 60 tickets. At 150 tickets the end-sprint stage no longer proves
+within its budget and ends 2 to 3 sprints later. `HINT_NO_INCLUSION` at the top of `bin/plangraph-solve` turns the setting off; the audit
+keeps the result honest either way.
