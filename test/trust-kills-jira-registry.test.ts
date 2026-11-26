@@ -105,3 +105,13 @@ test('the name of a bad alias or project is cut to one short line', () => {
   const long = 'x'.repeat(100);
   assert.deepEqual(parse({ sites: {}, aliases: { [long.toUpperCase()]: { cloud_id: 'c' } } }).problems, [`alias ${'X'.repeat(40)}…[+60 chars]: the name must match ALIAS_RE ${ALIAS_RE.source}`]);
 });
+
+test('the name of a bad project or site is cut to 60 characters', () => {
+  const long = (c: string) => c.repeat(100);
+  const r = parse({ sites: { [`${long('x')}`]: 5 }, projects: { [`relative-${long('p')}`]: { jql: 'x' }, [`/${long('q')}`]: {} } });
+  assert.deepEqual(r.problems, [
+    `project relative-${'p'.repeat(51)}\u2026[+${109 - 60} chars]: needs an absolute path and an object`,
+    `project /${'q'.repeat(59)}\u2026[+${101 - 60} chars]: no usable field`,
+    `site ${'x'.repeat(60)}\u2026[+40 chars]: bad host or entry`,
+  ]);
+});

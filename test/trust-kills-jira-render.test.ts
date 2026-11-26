@@ -4,7 +4,7 @@
 // NOT covered: Jira's real ADF variety.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { adfToText, renderIssue } from '../lib/jira/render.ts';
+import { adfToText, renderIssue, fetchIssueText, fetchChangelog } from '../lib/jira/render.ts';
 
 const p = (...c: unknown[]) => ({ type: 'paragraph', content: c });
 const t = (text: string) => ({ type: 'text', text });
@@ -90,11 +90,11 @@ test('renderIssue: the comment total line appears only when more comments exist 
 
 test('renderIssue: the default cap is 30000 characters, a smaller one is honoured, and a cut leaves balanced fences', () => {
   const lenFor = (k: number, maxChars?: number) => renderIssue('AB-1', issue({ description: doc('d'.repeat(k)) }), maxChars === undefined ? {} : { maxChars });
-  const base = renderIssue('AB-1', issue({ description: doc('') })).length;
-  const exact = lenFor(30000 - base + 8 - 0); // find k so the whole text is exactly 30000: the fence adds fixed text around the body
-  const k = (() => { let x = 1; while (renderIssue('AB-1', issue({ description: doc('d'.repeat(x)) }), { maxChars: 1e9 }).length < 30000) x++; return x; })();
-  const full = renderIssue('AB-1', issue({ description: doc('d'.repeat(k)) }), { maxChars: 1e9 });
-  assert.equal(full.length, 30000); void exact;
+  // find k so the whole text is exactly 30000 characters (a bounded search: under a broken renderer it fails instead of looping)
+  const fullLen = (x: number) => renderIssue('AB-1', issue({ description: doc('d'.repeat(x)) }), { maxChars: 1e9 }).length;
+  let k = 0;
+  for (let x = 29700; x < 30000 && !k; x++) if (fullLen(x) === 30000) k = x;
+  assert.ok(k > 0, 'a description length that makes the whole text 30000 characters exists');
   assert.equal(lenFor(k).length, 30000); assert.equal(lenFor(k).includes('more chars'), false);
   const over = lenFor(k + 1); assert.ok(over.endsWith('\n... 1 more chars\n'), over.slice(-60));
   // an explicit cap: the text is cut, one closing tag is appended after the cut, and the count of dropped characters is exact
@@ -118,7 +118,7 @@ test('a cut never ends in a lone high surrogate, never keeps half a fence tag, a
   const closeAt = full.indexOf('</untrusted>', full.indexOf('## Description'));
   for (const n of [closeAt + 1, closeAt + 5, closeAt + 11]) {
     const r = renderIssue('AB-1', issue({ description: doc(body) }), { maxChars: n });
-    assert.equal(/<\/?u?n?t?r?u?s?t?e?d?$/m.test((r.split('\n... ')[0] ?? '').replace(/\n<\/untrusted>$/, '')), false, `cut at ${n}`);
+    assert.equal(/<(?!untrusted |\/untrusted>)/.test(r.split('\n... ')[0] ?? ''), false, `cut at ${n}`);
   }
   const openAt = full.indexOf('<untrusted ', full.indexOf('## Description'));
   for (const n of [openAt + 1, openAt + 5, openAt + 11, openAt + 20]) {
@@ -126,5 +126,51 @@ test('a cut never ends in a lone high surrogate, never keeps half a fence tag, a
     const head = r.split('\n... ')[0] ?? '';
     assert.equal((head.match(/<untrusted /g) || []).length, (head.match(/<\/untrusted>/g) || []).length, `cut at ${n}`);
     assert.equal(head.includes('<untrusted src="jira:AB-1" n="" len="1'), false, `cut at ${n}`);
+    assert.equal(/<(?!untrusted |\/untrusted>)/.test(head), false, `a half tag is left at cut ${n}: ${JSON.stringify(head.slice(-40))}`);
   }
+});
+
+test('renderIssue: the key is cut to 40 characters and one line; line breaks in header text become one space', () => {
+  assert.equal(renderIssue(`AB-${'1'.repeat(60)}`, null).split('\n')[0], `# AB-${'1'.repeat(37)}…[+23 chars]`);
+  assert.equal(renderIssue('AB-1', issue({ summary: 'a\n\n\nb', status: { name: 'x\ny' }, updated: 'p\nq' })).split('\n').slice(0, 2).join('|'), '# AB-1|Status: x y | updated p q');
+  assert.ok(renderIssue('AB-1', issue({ summary: 'a\n\nb' })).includes('\na b\n</untrusted>'));
+  assert.ok(renderIssue('AB-1', issue({ comment: { comments: [{ author: { displayName: 'A\nB' }, created: 'C\nD', body: doc('b') }] } })).includes('- [A B, C D]:'));
+});
+
+const rec = (answers: { issue?: unknown; changelog?: unknown[] } = {}) => {
+  const calls: unknown[][] = [];
+  return { calls, client: { verify: async () => { calls.push(['verify']); return {}; }, issue: async (...a: unknown[]) => { calls.push(['issue', ...a]); return answers.issue as never; }, changelog: async (...a: unknown[]) => { calls.push(['changelog', ...a]); return answers.changelog ?? []; } } };
+};
+
+test('fetchIssueText: key check, verify first, the field list, and the options pass through', async () => {
+  const msg = 'not a Jira issue key (expected like ABC-123)';
+  for (const bad of ['', 'ab-1', 'AB-', 'AB-1 ', 'AB-1\n', 5, null, undefined, ['AB-1']]) {
+    const r = rec();
+    await assert.rejects(() => fetchIssueText(r.client as never, bad as never), (e: Error & { code?: string }) => e.code === 'bad_key' && e.message === msg, String(bad));
+    assert.deepEqual(r.calls, []);
+  }
+  const r = rec({ issue: { fields: { summary: 'S', description: doc('x'.repeat(100)) } } });
+  const text = await fetchIssueText(r.client as never, 'AB-1', { maxChars: 120 });
+  assert.deepEqual(r.calls, [['verify'], ['issue', 'AB-1', ['summary', 'status', 'updated', 'description', 'comment']]]);
+  assert.equal(text, renderIssue('AB-1', issue({ summary: 'S', description: doc('x'.repeat(100)) }), { maxChars: 120 }));
+  assert.ok(text.startsWith('# AB-1\n') && text.includes('more chars'));
+});
+
+test('fetchChangelog: key check, verify first, and the entries reduced to strings', async () => {
+  for (const bad of ['', 'ab-1', 'AB-', 5, null]) {
+    const r = rec();
+    await assert.rejects(() => fetchChangelog(r.client as never, bad as never), (e: Error & { code?: string }) => e.code === 'bad_key' && e.message === 'not a Jira issue key', String(bad));
+    assert.deepEqual(r.calls, []);
+  }
+  const r = rec({ changelog: [
+    { id: '1', created: 'c1', author: { displayName: 'Ann' }, items: [{ field: 'status', fromString: 'Open', toString: 'Done' }, { field: 5, fromString: null }] },
+    { id: 2, created: undefined, author: null },
+    { id: '3', author: {}, items: null },
+  ] });
+  assert.deepEqual(await fetchChangelog(r.client as never, 'AB-1'), [
+    { id: '1', created: 'c1', author: 'Ann', items: [{ field: 'status', from: 'Open', to: 'Done' }, { field: '', from: '', to: '' }] },
+    { id: '', created: '', author: '', items: [] },
+    { id: '3', created: '', author: '', items: [] },
+  ]);
+  assert.deepEqual(r.calls, [['verify'], ['changelog', 'AB-1']]);
 });

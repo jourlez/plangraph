@@ -203,3 +203,22 @@ test('the default helper runner caps the output at 64 KiB', { skip: !posix }, as
   fakeOp(big(65537));
   await assert.rejects(() => withPath(viaOp), code('no_credentials'));
 });
+
+test('an empty token after the colon is malformed; a one-character prefix is still an email part; a token alone registers no extra secret', async () => {
+  const run = (secret: string, env: Record<string, string> = {}) => getCredentials({ env, exec: recorder({ security: secret }).exec, platform: 'darwin' });
+  await assert.rejects(() => run('a@b.c:'), code('bad_credentials', 'token from keychain is malformed (8+ printable characters, no spaces)'));
+  await assert.rejects(() => run('x:tokentoken-0123', { JIRA_EMAIL: 'env@b.c' }), code('bad_credentials', 'JIRA_EMAIL is not an email address'));
+  await getCredentials({ env: { JIRA_API_TOKEN: 'TOKEN-ONLY-9f8e7d6c5b4a' }, platform: 'win32' });
+  assert.equal(redact('the word mutant stays'), 'the word mutant stays');
+});
+
+test('a registry entry without email_env reads JIRA_EMAIL; names it does not give are not looked up under another name', async () => {
+  const H = 'acme.atlassian.net';
+  const c = await getCredentialsFor(H, { env: { JIRA_EMAIL: 'plain@example.invalid', MY_T: TOK }, platform: 'win32', registry: { [H]: { token_env: 'MY_T' } } });
+  assert.equal(c.email, 'plain@example.invalid'); assert.equal(c.source, `registry ${H}:env`);
+  // an entry without token_env or op_ref finds nothing, even when the environment holds a variable literally named "mutant"
+  await assert.rejects(() => getCredentialsFor(H, { env: { mutant: TOK, JIRA_EMAIL: 'plain@example.invalid' }, platform: 'win32', registry: { [H]: {} } }), code('no_credentials'));
+  const op = recorder({ op: `o@example.invalid:${TOK}` });
+  await assert.rejects(() => getCredentialsFor(H, { env: { mutant: 'op://v/i/f' }, exec: op.exec, platform: 'win32', registry: { [H]: {} } }), code('no_credentials'));
+  assert.deepEqual(op.calls, []);
+});

@@ -21,3 +21,23 @@ test('a .js file is checked as it is', async () => {
   assert.equal(await syntaxOk(dir, put('d.js', 'const n = 1;\n')), true);
   assert.equal(await syntaxOk(dir, put('e.js', 'const n = ;\n')), false);
 });
+
+test('type aliases and interfaces are not mutated, runtime code beside them is', async () => {
+  const { mutantsFor } = await import('../scripts/mutate-all.ts');
+  const src = [
+    "export type Mode = 'a' | 'b';",
+    'export type Code =',
+    "  | 'x' | 'y'",
+    "  | 'z';",
+    "export interface Shape { kind: 'k' | 'l'; ok: true; nested: { f: false } }",
+    "interface Other<T> { v: 'v' }",
+    "const answer = 'real';",
+    "export const flag = true;",
+  ].join('\n');
+  const m = mutantsFor('x.ts', src);
+  assert.deepEqual([...new Set(m.map((x) => x.line))], [7, 8]);
+  assert.ok(m.some((x) => x.op === 'string') && m.some((x) => x.op === 'boolean'));
+  // a variable named type, or a value after it, is untouched by the rule
+  const plain = mutantsFor('y.ts', "const type = 'a';\ntype = 'b';\nconst o = { type: 'c' };");
+  assert.equal(plain.length, 3);
+});

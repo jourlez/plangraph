@@ -113,7 +113,7 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
   if (!delta && reason === 'no-timezone') warnings.push('delta_unavailable:no-timezone');
   const queryJql = `${delta ? `(${base}) AND updated >= "${clause}"` : base} ORDER BY key ASC`;
 
-  const got = new Map<string, JiraIssue>(); let rows = 0, dropped = 0, failure: { message?: unknown; resetAt?: string } | null = null;
+  const got = new Map<string, JiraIssue>(); let rows = 0, dropped = 0, failed = false, failure: { message?: unknown; resetAt?: string } | null = null;
   try {
     let cursor: string | number | null | undefined = null, pages = 0, empties = 0;
     for (;;) {
@@ -130,11 +130,11 @@ export async function pullSnapshot(client: SnapshotClient, opts: PullOptions = {
       if (page.issues.length === 0 && ++empties > 3) throw new JiraError('pagination_stalled', 'Jira returned several empty pages without finishing');
       cursor = page.cursor;
     }
-  } catch (e) { failure = e as { message?: unknown; resetAt?: string }; } // anything may be thrown: only message and resetAt are read
-  if (failure) {
+  } catch (e) { failed = true; failure = e as { message?: unknown; resetAt?: string } | null; } // anything may be thrown (even null or 0, which must still fail the pull): only message and resetAt are read
+  if (failed) {
     const code = failure instanceof JiraError ? failure.code : 'internal';
     const error = redact(failure instanceof JiraError ? failure.message : `unexpected error: ${failure && failure.message}`);
-    const r: Unsummarized<PullFailure> = { ok: false, complete: false, snapshot: null, code, error, resetAt: failure.resetAt, received: rows, warnings, changedKeys: [], removedKeys: [] };
+    const r: Unsummarized<PullFailure> = { ok: false, complete: false, snapshot: null, code, error, resetAt: failure?.resetAt, received: rows, warnings, changedKeys: [], removedKeys: [] };
     r.summary = `INCOMPLETE after ${got.size} issues (${code}${r.resetAt ? `, resets ${r.resetAt}` : ''}): ${error}; nothing written`;
     return r as PullFailure; // summary was set on the line above
   }

@@ -205,6 +205,21 @@ export function mutantsFor(file: string, src: string) {
     if (x.type === 'string' && p.value === '(' && t[k - 2]?.value === `import`) skip.add(k);
     if (x.value === '*' && p.type === 'name' && (p.value === `import` || p.value === 'export')) skip.add(k);
   }
+  // A `type X = ...;` alias and an `interface X { ... }` are erased when the types are stripped: a mutated string or boolean in them can never
+  // change a run, so none is generated (the statement is skipped as a whole).
+  for (let k = 0; k < t.length; k++) {
+    const x = t[k], p = t[k - 1];
+    if (x.type !== 'name' || (x.value !== 'type' && x.value !== 'interface') || t[k + 1]?.type !== 'name') continue;
+    if (p && !(p.type === 'punct' && (p.value === ';' || p.value === '}')) && !(p.type === 'name' && (p.value === 'export' || p.value === 'declare'))) continue;
+    if (x.value === 'type' && !(t[k + 2]?.value === '=' || t[k + 2]?.value === '<')) continue;
+    let d = 0, j = k, seenBrace = false;
+    for (; j < t.length; j++) {
+      const v = t[j].type === 'punct' ? t[j].value : '';
+      if (OPEN.has(v)) { d++; if (v === '{') seenBrace = true; } else if (CLOSE.has(v)) { d--; if (x.value === 'interface' && seenBrace && d === 0) break; } else if (x.value === 'type' && d === 0 && v === ';') break;
+    }
+    for (let m = k; m <= Math.min(j, t.length - 1); m++) skip.add(m);
+    k = j;
+  }
   /** guard: tokens[k] is `if`; returns [condStart, condEnd] token indexes when the body is return/throw/continue/break */
   const guard = (/** @type {number} */ k: number) => {
     if (t[k + 1]?.value !== '(') return null;
