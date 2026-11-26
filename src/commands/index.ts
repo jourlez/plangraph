@@ -13,5 +13,6 @@ import { commands as importObs } from './import.ts';
 import { commands as sync } from './sync.ts';
 import { commands as fmt } from './fmt.ts';
 import { commands as resolve } from './resolve.ts';
+import { commands as compact } from './compact.ts';
 
-export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve });
+export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact });

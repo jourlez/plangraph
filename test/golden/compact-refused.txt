@@ -1,0 +1,7 @@
+$ plangraph compact
+exit: 4
+--- stdout
+--- stderr
+error: compact runs only in CI on the default branch
+hint: set CI=true or pass --ci
+try: plangraph explain compact
