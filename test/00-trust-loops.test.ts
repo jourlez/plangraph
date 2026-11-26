@@ -1,6 +1,7 @@
-// Counted loops of lib/jsonl.ts and lib/jira/redact.ts, in a file of its own that does almost nothing else (so it runs first among the tests of
-// those modules): a mutant that makes a scan loop endless fails here at once. The guard of test/helpers/runaway.ts caps every string search and
-// character read in the process; the tests below also bound the exact number of reads. No clock.
+// Counted loops of lib/jsonl.ts and lib/jira/redact.ts, in a file of its own that does almost nothing else. Its name sorts first: node --test runs
+// the files of a list in path order, so a mutant that makes a scan loop endless must fail here before a slower test of the same module can hang on
+// it. The guard of test/helpers/runaway.ts caps every string search and character read in the process; the tests below also bound the exact
+// number of reads. No clock.
 // NOT covered: what the loops compute (test/trust-kills-jsonl.test.ts, test/trust-kills-jira-redact*.test.ts).
 import './helpers/runaway.ts';
 import { test } from 'node:test';
