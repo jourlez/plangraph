@@ -299,7 +299,8 @@ const git = (cwd: string, args: string[]): string => execFileSync('git', args, {
 const tryGit = (cwd: string, args: string[]): { ok: true; out: string; err?: never } | { ok: false; err: string; out?: never } => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String((e as Coded & { stderr?: unknown }).stderr || (e as Coded).message) }; } }; // whatever was thrown: its fields are read as before
 const DRIVER = 'plangraph-jsonl';
 const VERSIONED = '/plugins/cache/';
-const SAFE_ATTR_DIR = /^[A-Za-z0-9._/-]+$/;
+/** A plan directory name that may go into a gitattributes line or hook output: A-Z a-z 0-9 . _ / - only. */
+export const SAFE_ATTR_DIR = /^[A-Za-z0-9._/-]+$/;
 const shq = (s: string): string => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
 export function installMergeDriver(repoRoot: string, { dir = '.plangraph', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
   if (String(driverPath).includes(VERSIONED)) throw new TypeError(`refusing a versioned plugin-cache driver path (${VERSIONED} is deleted after a plugin update); pass the stable shim from ensureStableDriver`);

@@ -95,7 +95,7 @@ export function ensureStableDriver({ dataDir, target, nodePath = process.execPat
 // version value counts (what recordConsent writes), so `false`, `off` or any other value never grants healing; `never` declines.
 /** The git config key that records the user's consent to heal the merge driver at session start. */
 export const CONSENT_KEY = 'plangraph.heal';
-const CONSENT_VALUE = /^\d+\.\d+\.\d+/;
+const CONSENT_VALUE = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 /** The real path of the git common directory of the repository at cwd (shared by its worktrees); null outside a git repository. */
 export function gitCommonDir(cwd: string): string | null {

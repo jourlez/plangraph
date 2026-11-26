@@ -14,7 +14,9 @@
 // uv.toml comes back through --config-file, UV_CONFIG_FILE and UV_* variables still reach uv. (5) the venv base (no uv): only an absolute
 // CLAUDE_PLUGIN_DATA is used; a group- or world-writable one falls back to ~/.cache/plangraph with one stderr line and is never changed
 // (decision D19); a base that is a symlink, not a directory, not owned by the user or (the fallback itself) writable by others exits 3 before
-// any python in it runs or any rm reaches it; a missing base is created 0700 whatever the umask.
+// any python in it runs or any rm reaches it; a missing base is created 0700 whatever the umask. (6) an existing venv or venv/bin that fails
+// the same check is removed and rebuilt (exit 3 when it cannot be removed) and the venv step runs under umask 077; a missing find or id fails
+// closed; PATH entries that are not absolute are dropped, so a committed uv or python3.x reached through them never runs.
 // NOT covered: Windows (POSIX sh launcher), a host without python3 (the probes skip and say so; the static test still runs), a real uv
 // (test/solver.test.ts runs the fallbacks with the real uv in a hostile directory; the --no-config and --config-file combination was measured
 // with uv 0.8.8 and 0.4.30, docs/SOLVER.md).
@@ -228,12 +230,12 @@ test('the plugin tree holds no uv.toml or pyproject.toml (uv walks up from bin/ 
 // group or world write before the first use of the venv. A group- or world-writable CLAUDE_PLUGIN_DATA (Claude Code creates it with the
 // default mode, so 775 under umask 002) is not an error: the launcher falls back to ~/.cache/plangraph with one stderr line and never
 // changes the other directory (decision D19). The fake python3.14 records each call and fails, so the run ends in exit 3; no python3.
-function venvRun({ data, home = tmp('sl-vhome-'), files = {}, umask }: { data?: string; home?: string; files?: Record<string, string>; umask?: string }) {
+function venvRun({ data, home = tmp('sl-vhome-'), files = {}, umask, tools = TOOLS, pathOf = (bin: string) => bin }: { data?: string; home?: string; files?: Record<string, string>; umask?: string; tools?: string[]; pathOf?: (bin: string) => string }) {
   const cwd = tmp('sl-vcwd-'), bin = tmp('sl-vbin-'), log = path.join(tmp('sl-vlog-'), 'calls.log');
-  for (const [rel, body] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(cwd, rel), body); }
+  for (const [rel, body] of Object.entries(files)) { fs.mkdirSync(path.dirname(path.join(cwd, rel)), { recursive: true }); fs.writeFileSync(path.join(cwd, rel), body, { mode: 0o755 }); }
   fs.writeFileSync(path.join(bin, 'python3.14'), `#!/bin/sh\necho "python3.14 $*" >> ${JSON.stringify(log)}\nexit 1\n`, { mode: 0o755 });
-  for (const name of TOOLS) fs.symlinkSync(which(name), path.join(bin, name));
-  const env: Record<string, string> = { PATH: bin, HOME: home };
+  for (const name of tools) fs.symlinkSync(which(name), path.join(bin, name));
+  const env: Record<string, string> = { PATH: pathOf(bin), HOME: home };
   if (data !== undefined) env.CLAUDE_PLUGIN_DATA = data;
   const r = umask ? spawnSync(which('sh'), ['-c', `umask ${umask} && exec "$0" --help`, RUN], { cwd, env, encoding: 'utf8', timeout: 60000 })
     : spawnSync(RUN, ['--help'], { cwd, env, encoding: 'utf8', timeout: 60000 });
@@ -302,4 +304,75 @@ test('with umask 002 and no data directory, the launcher creates it 0700 and pro
   const b = venvRun({ umask: '002' });
   assert.equal(mode(path.join(b.home, '.cache', 'plangraph')), 0o700);
   assert.deepEqual(b.lines, [`python3.14 -I -m venv ${path.join(b.home, '.cache', 'plangraph', 'venv')}`]);
+});
+
+// A trusted base is not enough: the venv and its bin directory are checked too, since whoever can write venv/ or venv/bin/ can plant
+// venv/bin/python. Either one group- or world-writable (or a symlink, or not a directory) is removed and rebuilt; the planted python never
+// runs. The rebuild runs under umask 077, so a venv built under umask 002 is never group-writable.
+test('a group- or world-writable venv or venv/bin under a trusted base is removed and rebuilt; a planted python in it never runs', { skip: POSIX_ONLY }, () => {
+  for (const [venvMode, binMode] of [[0o700, 0o775], [0o755, 0o777], [0o777, 0o755], [0o775, 0o700]]) {
+    const data = tmp('sl-vv-'), p = plant(data); fs.chmodSync(data, 0o700);
+    fs.chmodSync(path.join(data, 'venv'), venvMode); fs.chmodSync(path.join(data, 'venv', 'bin'), binMode);
+    const v = venvRun({ data });
+    const label = `venv ${venvMode.toString(8)}, venv/bin ${binMode.toString(8)}`;
+    assert.equal(v.r.status, 3, `${label}: ${v.r.stderr}`); assert.match(v.r.stderr, UNAVAILABLE);
+    assert.ok(!fs.existsSync(p.record), `the planted python ran (${label})`);
+    assert.ok(!fs.existsSync(path.join(data, 'venv')), `the untrusted venv is removed (${label})`);
+    assert.deepEqual(v.lines, [`python3.14 -I -m venv ${path.join(data, 'venv')}`], label);
+  }
+  // a venv that is a symlink to a private directory holding a planted python: the link is removed, the target never runs
+  const data = tmp('sl-vvl-'), elsewhere = tmp('sl-vvt-'), p = plant(elsewhere); fs.chmodSync(data, 0o700);
+  fs.symlinkSync(path.join(elsewhere, 'venv'), path.join(data, 'venv'));
+  const v = venvRun({ data });
+  assert.equal(v.r.status, 3, v.r.stderr);
+  assert.ok(!fs.existsSync(p.record), 'the planted python behind a venv symlink ran');
+  assert.ok(fs.existsSync(p.py), 'rm -rf removed the link, not its target');
+});
+
+test('an untrusted venv that cannot be removed exits 3 and its planted python never runs', { skip: POSIX_ONLY }, () => {
+  const data = tmp('sl-vvr-'), p = plant(data), stuck = path.join(data, 'venv', 'stuck'); fs.chmodSync(data, 0o700);
+  fs.mkdirSync(stuck); fs.writeFileSync(path.join(stuck, 'f'), ''); fs.chmodSync(stuck, 0o500);
+  fs.chmodSync(path.join(data, 'venv', 'bin'), 0o777);
+  try {
+    const v = venvRun({ data });
+    assert.equal(v.r.status, 3, v.r.stderr);
+    assert.match(v.r.stderr, /^plangraph-solve: refusing the venv .*: it is group or world writable.* and it could not be removed/m);
+    assert.ok(!fs.existsSync(p.record), 'the planted python ran');
+    assert.deepEqual(v.lines, [], 'no python ran');
+  } finally { fs.chmodSync(stuck, 0o700); }
+});
+
+test('a venv built under umask 002 is private: the venv step runs under umask 077', { skip: POSIX_ONLY }, () => {
+  // The fake python3.14 creates venv/bin with the umask it inherits and records the mode it got.
+  const data = tmp('sl-vu-'), bin = tmp('sl-vubin-'), log = path.join(tmp('sl-vulog-'), 'calls.log');
+  fs.writeFileSync(path.join(bin, 'python3.14'), `#!/bin/sh\nmkdir -p "$4/bin" && echo "umask $(umask)" >> ${JSON.stringify(log)}\nexit 1\n`, { mode: 0o755 });
+  for (const name of TOOLS) fs.symlinkSync(which(name), path.join(bin, name));
+  const r = spawnSync(which('sh'), ['-c', 'umask 002 && exec "$0" --help', RUN], { cwd: tmp('sl-vucwd-'), env: { PATH: bin, HOME: tmp('sl-vuhome-'), CLAUDE_PLUGIN_DATA: data }, encoding: 'utf8', timeout: 60000 });
+  assert.equal(r.status, 3, r.stderr);
+  assert.match(fs.readFileSync(log, 'utf8'), /^umask 0*77$/m);
+});
+
+// The header and docs/SOLVER.md say a missing find or id fails closed: the base reads as not owned, exit 3, no python runs.
+test('with find or id missing from PATH the launcher fails closed: exit 3 and no python runs', { skip: POSIX_ONLY }, () => {
+  for (const gone of ['find', 'id']) {
+    const data = tmp('sl-vt-'), p = plant(data); fs.chmodSync(data, 0o700);
+    const v = venvRun({ data, tools: TOOLS.filter((t) => t !== gone) });
+    assert.equal(v.r.status, 3, `${gone} missing: ${v.r.stderr}`);
+    assert.ok(v.r.stderr.endsWith(`plangraph-solve: refusing the venv base ${data}: it is not owned by the current user\n`), `${gone} missing: ${v.r.stderr}`);
+    assert.deepEqual(v.lines, [], `${gone} missing: no python ran`);
+    assert.ok(!fs.existsSync(p.record), `${gone} missing: the planted python ran`);
+  }
+});
+
+// A relative PATH entry (empty, `.`, or any other) resolves in the caller's directory, which may be a repository that commits an executable uv
+// or python3.14. The launcher drops every PATH entry that is not absolute before it looks up any command.
+test('a committed uv or python3.13 found through an empty, `.` or relative PATH entry never runs', { skip: POSIX_ONLY }, () => {
+  for (const pathOf of [(b: string) => `.:${b}`, (b: string) => `:${b}`, (b: string) => `${b}:`, (b: string) => `${b}::/nonexistent`, (b: string) => `tools:${b}`]) {
+    const marks = tmp('sl-vpm-');
+    const fake = (what: string) => `#!/bin/sh\necho ${what} >> ${JSON.stringify(path.join(marks, what))}\nexit 0\n`;
+    const v = venvRun({ data: tmp('sl-vp-'), pathOf, files: { uv: fake('uv'), 'python3.13': fake('python3.13'), 'tools/uv': fake('tools-uv') } });
+    const shown = pathOf('<bin>');
+    assert.equal(v.r.status, 3, `PATH ${shown}: ${v.r.stderr}`); assert.match(v.r.stderr, UNAVAILABLE);
+    assert.deepEqual(fs.readdirSync(marks), [], `PATH ${shown}: a committed command ran`);
+  }
 });
