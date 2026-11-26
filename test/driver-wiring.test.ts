@@ -40,7 +40,6 @@ function mergeScenario(repo: string) {
 }
 const WANT = S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31'), tk('T-32')], T);
 const NUDGE = 'plangraph: plan data found in .plangraph but no index: run plangraph build\n'; // the first-use line: plan data, no index yet
-const HEAL_NUDGE = 'plangraph: merge driver not set up in this clone; merges of .plangraph/*.jsonl conflict until the user runs plangraph doctor --fix\n'; // no heal consent (D3)
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 // bin/plangraph keeps its private compile cache in the data dir (bin/plangraph): an optimization, not a command's write, so left out
 const noCache = (names: string[]) => names.filter((f) => f !== 'compile-cache' && !f.startsWith('compile-cache' + path.sep));
