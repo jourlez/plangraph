@@ -23,6 +23,15 @@ test('DRIFT_ASSIGNEE: differs ignoring case; equal gives nothing; missing side g
   assert.deepEqual(codes({ ...base(), obs: [ob('T-1', { assignee: 'ANA' })] }), []);
   assert.deepEqual(codes({ ...base(), obs: [ob('T-1', { assignee: '' })] }), []);
 });
+test('identity map: DRIFT_ASSIGNEE only when the ref resolves to a different person; unmapped gives UNMAPPED_ASSIGNEE', () => {
+  const m = (byRef: Record<string, string>) => ({ version: 1 as const, byRef });
+  const withMap = (byRef: Record<string, string>, who: string) => codes({ ...base(), identities: m(byRef), obs: [ob('T-1', { assignee: who })] });
+  assert.deepEqual(withMap({ 'jira:acme:Ben B': 'ben' }, 'Ben B'), ['DRIFT_ASSIGNEE T-1']);
+  assert.deepEqual(withMap({ 'jira:acme:Ana A': 'ana' }, 'Ana A'), []);
+  assert.deepEqual(withMap({}, 'Ben B'), ['UNMAPPED_ASSIGNEE T-1']);
+  assert.deepEqual(withMap({}, 'ana'), []);
+  assert.deepEqual(codes({ ...base(), obs: [ob('T-1', { assignee: 'Ben' })] }), ['DRIFT_ASSIGNEE T-1']);
+});
 test('DRIFT_SPRINT: the last observed sprint id against the planned sprint number', () => {
   assert.deepEqual(codes({ ...base(), obs: [ob('T-1', { sprint: '1,3' })] }), ['DRIFT_SPRINT T-1']);
   assert.deepEqual(codes({ ...base(), obs: [ob('T-1', { sprint: '1,2' })] }), []);
