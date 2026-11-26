@@ -63,6 +63,10 @@ elif mode in ('liar', 'lowball', 'highbound'):
         def NumConflicts(s): return 0
         def StatusName(s, st): return 'OPTIMAL'
     m.solve_with = lambda cp_, a, model, budget, on_solution, anytime: (Liar(model), cp.OPTIMAL) if m.has_hint(model) else real_solve(cp_, a, model, budget, on_solution, anytime)
+elif mode == 'verify':
+    A = types.SimpleNamespace(jsonl_dir=sys.argv[3], config=None, db=None, baseline='current', freeze='', freeze_file=None, end=None, balance=False, deterministic=True, workers=1, seed=1)
+    pr = m.prepare(A, *m.load_raw(A))
+    print(json.dumps(m.verify(pr, {k: tuple(v) for k, v in json.loads(sys.argv[4]).items()}))); sys.exit(0)
 elif mode == 'minimize':
     d, injected, extra = sys.argv[3], json.loads(sys.argv[4]), json.loads(sys.argv[5])
     A = types.SimpleNamespace(jsonl_dir=d, config=None, db=None, baseline='current', freeze=sys.argv[6], freeze_file=None, end=None, balance=False, deterministic=True, workers=1, seed=1)
@@ -215,4 +219,23 @@ test('trust: a reported objective that differs from the schedule, or a bound the
       }
     }
   }
+});
+
+test('trust: the solver verify() flags BLOCKED and SPRINT_CLOSED rows exactly as plangraph verify does', { skip: SKIP, timeout: 300000 }, () => {
+  const p = genPlan({ n: 4, people: 2, density: 0, seed: 3, cap: 99 }), dir = writePlan(p);
+  const [t1, t2, t3, t4] = p.tickets.map((t) => t.key as string);
+  const owner = p.schedule[0].owner;
+  fs.writeFileSync(path.join(dir, 'tickets.jsonl'), p.tickets.map((t) => JSON.stringify(t.key === t2 ? { ...t, verdict: 'NOT_READY' } : t)).join('\n') + '\n');
+  wjl(path.join(dir, 'open-items.jsonl'), [{ key: t1, kind: 'decision', owner, due_sprint: 1, status: 'open', text: 'x' }, { key: t4, kind: 'fix', owner, due_sprint: 1, status: 'done', text: 'x' }]);
+  wjl(path.join(dir, 'findings.jsonl'), [{ key: t4, kind: 'fix', text: 'x' }]);
+  wjl(path.join(dir, 'sprints.jsonl'), [{ n: 2, state: 'closed' }]);
+  const rows = new Map<string, [string, number]>([[t1, [owner, 1]], [t2, [owner, 1]], [t3, [owner, 2]], [t4, [owner, 1]]]);
+  const ts = verifyPlan(buildModel({ tickets: p.tickets.map((t) => (t.key === t2 ? { ...t, verdict: 'NOT_READY' } : t)), edges: p.edges, config: p.config, sprints: [{ n: 2, state: 'closed' }],
+    schedule: [...rows].map(([key, [o, sprint]]) => ({ key, owner: o, sprint })) }), undefined, { items: [{ key: t1, kind: 'decision', owner, due_sprint: 1, status: 'open', text: 'x' }, { key: t4, kind: 'fix', owner, due_sprint: 1, status: 'done', text: 'x' }] })
+    .filter((v) => v.code === 'BLOCKED' || v.code === 'SPRINT_CLOSED').map((v) => `${v.code} ${v.key}`).sort();
+  assert.deepEqual(ts, [`BLOCKED ${t1}`, `BLOCKED ${t2}`, `SPRINT_CLOSED ${t3}`]);
+  const r = drive('verify', [dir, JSON.stringify(Object.fromEntries(rows))]);
+  assert.equal(r.status, 0, r.stderr);
+  const py = (JSON.parse(r.stdout) as string[]).map((l) => (l.includes('blocked') ? `BLOCKED ${l.split(' ')[0]}` : l.includes('closed') ? `SPRINT_CLOSED ${l.split(' ')[0]}` : l)).sort();
+  assert.deepEqual(py, ts);
 });

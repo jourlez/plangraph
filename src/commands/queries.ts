@@ -235,7 +235,7 @@ async function check(ctx: Ctx): Promise<number> {
 }
 
 async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean }>): Promise<number> {
-  const V = await import('../../lib/verify.ts'), R = await import('../../lib/render.ts'), model = modelFromDb(ctx);
+  const V = await import('../../lib/verify.ts'), R = await import('../../lib/render.ts'), model = modelFromDb(ctx), { items } = await readItems(ctx);
   let sched = model.sched;
   const [file] = args.positionals;
   if (file !== undefined) {
@@ -245,7 +245,7 @@ async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean }>): Promis
   }
   // a schedule file is checked against the frozen tickets of the CURRENT schedule: one it moves or drops is FROZEN_MOVED
   const frozen = file === undefined ? undefined : (await import('../../lib/frozen.ts')).frozenSlots(model);
-  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
+  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), items, ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
   ctx.io.data?.({ ok: !v.length, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
     { next: v.length ? nextList([nextCommand(['ticket', [(v[0] as (typeof v)[number]).key], '-v']), file === undefined ? 'plangraph check' : null]) : [] }); // v.length was checked
   if (!v.length) { ctx.io.out(`OK plan valid (${model.tickets.size} tickets)`); return 0; } // every ticket (unplaced sp: tasks included)
@@ -379,7 +379,7 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && (s.sprint as number) > last) last = (s.sprint as number); // Number.isInteger is the check
-  return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`;
+  return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model, model.sched, { items: (await readItems(ctx)).items }).length} violations @${h.digest('hex').slice(0, 8)}`;
 }
 async function cardLine(ctx: Ctx): Promise<number> { ctx.io.out(await cardLineText(ctx)); return 0; }
 

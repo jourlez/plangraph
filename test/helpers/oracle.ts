@@ -11,12 +11,13 @@ export type Assign = ReadonlyMap<string, Slot>;
 export const peopleOf = (plan: GenPlan): string[] => [...new Set(plan.schedule.map((r) => r.owner))].sort();
 const capOf = (plan: GenPlan, who: string): number => plan.config.caps[who] ?? plan.config.caps.default;
 
-/** true when the assignment (every ticket placed) breaks no link and no capacity, with sprints from `first` */
-export function oracleValid(plan: GenPlan, a: Assign, first = 1): boolean {
+/** true when the assignment (every ticket placed) breaks no link and no capacity, with sprints from `first`; gate: tickets that are blocked and sprints that are closed */
+export function oracleValid(plan: GenPlan, a: Assign, first = 1, gate: { blocked?: ReadonlySet<string>; closed?: ReadonlySet<number> } = {}): boolean {
   const sp = new Map(plan.tickets.map((t) => [t.key, t.sp as number]));
   const load = new Map<string, number>();
   for (const [k, s] of a) {
     if (s.sprint < first) return false;
+    if (gate.blocked?.has(k) || gate.closed?.has(s.sprint)) return false; // a blocked ticket, or a ticket in a closed sprint (the oracle's tickets are all open and free)
     const c = `${s.owner}\t${s.sprint}`; load.set(c, (load.get(c) ?? 0) + (sp.get(k) ?? 0));
     if ((load.get(c) as number) > capOf(plan, s.owner)) return false;
   }

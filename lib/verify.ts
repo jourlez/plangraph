@@ -2,7 +2,7 @@
 // verifyPlan(model, sched = model.sched, opts) -> [{code,key,detail}] sorted by (code order, key, detail); [] means the plan is valid.
 // opts: { frozen: Map key->{owner,sprint}, enforceMin: bool }. O(V+E).
 // Conventions: HANDOFF key = consumer; CAPACITY/MINLOAD key = "Person S<n>"; CYCLE key = smallest ticket key on the cycle, detail = path;
-// BEFORE_FIRST key = ticket; CONFIG key = the config field.
+// BEFORE_FIRST key = ticket; SPRINT_CLOSED and BLOCKED key = ticket (a not-done, not-frozen row at or after first_sprint in a closed sprint; an open gate or a verdict other than READY); CONFIG key = the config field.
 // Frozen history (lib/frozen.ts states the rule once; bin/plangraph-solve verify() applies the same): frozen = closed (Done, closed_statuses, an
 // sp: task with impl_status done), jira_status in config.frozen_statuses, a key of opts.frozen, or current sprint below
 // config.frozen_before_sprint. A constraint exists only where at least one side is free: no HANDOFF when the producer is closed or both ends
@@ -15,9 +15,11 @@
 import { capOf, ownNumber } from './model.ts';
 import type { Model, Placement, Ticket } from './model.ts';
 import { frozenTest, linkBinds } from './frozen.ts';
+import { blockedRow, closedSprintRow } from './graph/blockers.ts';
+import type { PlanRecord } from './model.ts';
 
 /** The violation codes, in report order (ORDER). */
-export type ViolationCode = 'CONFIG' | 'UNKNOWN_TICKET' | 'UNPLACED' | 'BEFORE_FIRST' | 'HANDOFF' | 'CAPACITY' | 'FROZEN_MOVED' | 'MINLOAD' | 'CYCLE';
+export type ViolationCode = 'CONFIG' | 'UNKNOWN_TICKET' | 'UNPLACED' | 'BEFORE_FIRST' | 'SPRINT_CLOSED' | 'BLOCKED' | 'HANDOFF' | 'CAPACITY' | 'FROZEN_MOVED' | 'MINLOAD' | 'CYCLE';
 /** One violation, discriminated on its code (the key conventions per code are in the header comment). */
 export type Violation = { [C in ViolationCode]: { code: C; key: string; detail: string } }[ViolationCode];
 /** A schedule to verify: key -> placement (model.sched, or a candidate plan). */
@@ -25,9 +27,10 @@ export type Sched = ReadonlyMap<string, Placement>;
 /** A placement that passed placed(): a non-empty owner and an integer sprint. */
 interface Placed { owner: string; sprint: number }
 /** frozen: key -> the slot it must keep (only its owner and sprint are compared). */
-export interface VerifyOptions { frozen?: ReadonlyMap<string, { owner?: unknown; sprint?: unknown }>; enforceMin?: boolean }
+/** items: the open-items rows, so an open held_by item makes its row BLOCKED (without them only a verdict does). */
+export interface VerifyOptions { frozen?: ReadonlyMap<string, { owner?: unknown; sprint?: unknown }>; enforceMin?: boolean; items?: readonly PlanRecord[] }
 
-const ORDER: ViolationCode[] = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];
+const ORDER: ViolationCode[] = ['CONFIG', 'UNKNOWN_TICKET', 'UNPLACED', 'BEFORE_FIRST', 'SPRINT_CLOSED', 'BLOCKED', 'HANDOFF', 'CAPACITY', 'FROZEN_MOVED', 'MINLOAD', 'CYCLE'];
 const MAX_SPAN = 1000; // MINLOAD checks at most this many sprints after first_sprint
 const spOf = (t: Ticket | undefined): number => (t && Number.isFinite(t.sp) ? t.sp as number : 0); // Number.isFinite is the check
 const isSpKey = (k: string): boolean => String(k).startsWith('sp:');
@@ -61,6 +64,14 @@ export function verifyPlan(model: Model, sched: Sched = model.sched, opts: Verif
   }
   const frozen = frozenTest(model, opts);
   if (firstOk) for (const k of sched.keys()) { const p = at(k); if (p && p.sprint < first && !frozen(k)) add('BEFORE_FIRST', k, `sprint ${p.sprint} before the first sprint ${first}`); }
+
+  // Rows of open tickets that are neither done nor frozen, in the first sprint or later: not in a closed sprint, and not blocked (lib/graph/blockers.ts).
+  for (const k of sched.keys()) {
+    const p = at(k); if (!p) continue;
+    if (closedSprintRow(model, k, p.sprint, { frozen })) add('SPRINT_CLOSED', k, `S${p.sprint} is closed`);
+    const b = blockedRow(model, k, p.sprint, { frozen, items: opts.items ?? [] });
+    if (b) add('BLOCKED', k, b.detail);
+  }
 
   for (const [c, ps] of model.prods) {
     const pc = at(c); if (!pc) continue;

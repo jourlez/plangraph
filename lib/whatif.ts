@@ -14,7 +14,7 @@ import type { Model, Placement, Ticket } from './model.ts';
 import { verifyPlan } from './verify.ts';
 import type { Violation } from './verify.ts';
 import { isClosed, frozenTest } from './frozen.ts';
-import { readiness } from './ready.ts';
+import { blockedRow, sprintIsClosed } from './graph/blockers.ts';
 import { REL_SEMANTICS } from './graph/files.ts';
 import type { NodeType } from './graph/files.ts';
 import type { PlanRecord } from './model.ts';
@@ -62,7 +62,8 @@ export interface Move { key: string; from: Slot; to: Slot }
 export type ProposeResult = { ok: true; moves: Move[]; reasons: WhatifReason[]; shifted: number; ownerChanges: number; slipped: number; searchComplete: boolean; nodes: number }
   | { ok: false; moves: Move[]; reasons: WhatifReason[]; searchComplete?: boolean; nodes?: number; shifted?: never; ownerChanges?: never; slipped?: never };
 
-const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE', 'SPRINT_CLOSED']);
+/** The codes no move can repair (src/commands/plan.ts reads the same set). */
+export const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE', 'SPRINT_CLOSED']);
 /** A reason no move can repair: a hard code, or a STARTED or BLOCKED that stops (not a warning). */
 const stops = (r: { code: string; warn?: boolean | undefined }): boolean => HARD.has(r.code) || ((r.code === 'STARTED' || r.code === 'BLOCKED') && !r.warn);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
@@ -150,15 +151,12 @@ export function whatif(model: Model, mv: MoveRequest, opts: WhatifOptions = {}):
   // Slot: a target sprint that is closed, or whose end is before the as-of day.
   if (Number.isInteger(sprint)) {
     const row = (model.sprints ?? []).find((x) => Number(x.n) === sprint), end = typeof row?.end === 'string' && ISO_DAY.test(row.end) ? row.end.slice(0, 10) : null;
-    if (row && String(row.state ?? '').toLowerCase() === 'closed') reasons.push({ code: 'SPRINT_CLOSED', key: `S${sprint}`, detail: `S${sprint} is closed`, fix: 'pick an open sprint' });
+    if (sprintIsClosed(model, sprint)) reasons.push({ code: 'SPRINT_CLOSED', key: `S${sprint}`, detail: `S${sprint} is closed`, fix: 'pick an open sprint' });
     else if (end && opts.asOf && ISO_DAY.test(opts.asOf) && end < opts.asOf.slice(0, 10)) reasons.push({ code: 'SPRINT_CLOSED', key: `S${sprint}`, detail: `S${sprint} ended ${end}`, fix: 'pick a sprint that has not ended' });
   }
   // Gate: an open held_by item or a verdict other than READY on the moved ticket (producers still waiting are PRODUCER_LATE's business).
-  if (!isClosed(model, key)) {
-    const rd = readiness(model, key, { items: opts.items ?? [] });
-    const why = rd.found && !rd.done ? rd.reasons.flatMap((x) => (x.code === 'VERDICT' ? [`verdict ${x.verdict}`] : x.code === 'OPEN_ITEM' ? [`open ${x.kind}`] : [])) : [];
-    if (why.length) reasons.push({ code: 'BLOCKED', key, detail: why.slice(0, 3).join(', ') + (why.length > 3 ? ` +${why.length - 3}` : ''), fix: 'clear it first, or move it knowingly', ...(opts.strict ? {} : { warn: true }) });
-  }
+  const blocked = blockedRow(model, key, sprint, { items: opts.items ?? [], frozen: frozenTest(model, opts.frozen ? { frozen: opts.frozen } : {}) });
+  if (blocked) reasons.push({ code: 'BLOCKED', key, detail: blocked.detail, fix: 'clear it first, or move it knowingly', ...(opts.strict ? {} : { warn: true }) });
 
   // A self-link (key needs key) is read through P on both ends: the moved ticket's NEW slot, so it never yields a phantom reason.
   const P = (k: string): Slot | undefined => (k === key ? { owner, sprint } : (model.sched as SchedView).get(k)); // schedule rows are read as placed slots: a null owner or sprint is compared and printed as before (unchecked, pre-existing)

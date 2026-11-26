@@ -6,6 +6,7 @@ import { blockingItems, closedSet } from '../openitems.ts';
 import type { OpenItem } from '../openitems.ts';
 import type { Model, PlanRecord } from '../model.ts';
 import type { BlockerSource } from './views.ts';
+import { closedStatuses, frozenTest } from '../frozen.ts';
 export type { BlockerSource } from './views.ts';
 
 const spKey = (k: unknown): boolean => String(k).startsWith('sp:');
@@ -74,4 +75,36 @@ export function modelSource(model: Model, { items = [], findingsOf }: { items?: 
     openItems: (key) => blockingItems(rows, key).map((i) => ({ key: i.key, kind: i.kind, status: str(i.status), owner: i.owner || '', text: i.text || '' })),
     producers: (key) => (model.prods.get(key) || []).map((p) => ({ key: p, kind: null })),
   };
+}
+
+// ---- schedule rows: the two predicates `verify` and `whatif` share (the Python mirror is bin/plangraph-solve verify()) ----
+/** Why a schedule row is blocked: an open gate (open item or finding) or a verdict other than READY, as a short detail. */
+export interface RowReason { code: 'BLOCKED'; detail: string }
+/** items: the open-items rows (held_by); frozen: the frozen test when the caller already built it (frozenTest(model, opts)). */
+export interface RowOpts { items?: readonly PlanRecord[]; frozen?: (key: string) => boolean }
+
+/** Is this sprint number a sprint whose state is `closed`? */
+export const sprintIsClosed = (model: Model, sprint: number): boolean => (model.sprints ?? []).some((x) => Number(x.n) === sprint && String(x.state ?? '').toLowerCase() === 'closed');
+
+/** A schedule row is checked only when its ticket is known, not done, not frozen, and the sprint is the first schedulable one or later. */
+function checkedRow(model: Model, key: string, sprint: number, opts: RowOpts): boolean {
+  if (!model.tickets.has(key) || !Number.isInteger(sprint)) return false;
+  const fs = model.config?.first_sprint, first = typeof fs === 'number' && Number.isSafeInteger(fs) ? fs : 1;
+  if (sprint < first) return false;
+  const src = modelSource(model);
+  if (doneIn(src, key, { closed: closedStatuses(model.config) })) return false;
+  return !(opts.frozen ?? frozenTest(model))(key);
+}
+
+/** The reason this row is blocked (an open held_by item or finding, or a verdict other than READY), or null. Done, frozen and past rows are never blocked. */
+export function blockedRow(model: Model, key: string, sprint: number, opts: RowOpts = {}): RowReason | null {
+  if (!checkedRow(model, key, sprint, opts)) return null;
+  const rd = blockersOf(modelSource(model, { items: opts.items ?? [] }), key, { closed: closedStatuses(model.config), ignore: new Set<string>() });
+  const why = rd.found && !rd.done ? rd.reasons.flatMap((x) => (x.code === 'VERDICT' ? [`verdict ${x.verdict}`] : x.code === 'OPEN_ITEM' ? [`open ${x.kind}`] : [])) : []; // producers still waiting are the handoff rule's business
+  return why.length ? { code: 'BLOCKED', detail: why.slice(0, 3).join(', ') + (why.length > 3 ? ` +${why.length - 3}` : '') } : null;
+}
+
+/** Does this row sit in a closed sprint (a row that is checked at all: not done, not frozen, sprint at or after the first)? */
+export function closedSprintRow(model: Model, key: string, sprint: number, opts: RowOpts = {}): boolean {
+  return checkedRow(model, key, sprint, opts) && sprintIsClosed(model, sprint);
 }

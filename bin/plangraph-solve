@@ -286,6 +286,8 @@ def load_raw(a):
         cfgp = a.config or os.path.join(d, 'config.json')
         tickets = read_jsonl(os.path.join(d, 'tickets.jsonl'))
         edges = [(e['consumer'], e['producer'], e.get('kind', '')) for e in read_jsonl(os.path.join(d, 'edges.jsonl'))]
+        findings = [(r.get('key'), r.get('kind')) for r in read_jsonl(os.path.join(d, 'findings.jsonl'))]
+        sprints = [(r.get('n'), r.get('state')) for r in read_jsonl(os.path.join(d, 'sprints.jsonl'))]
         sched = {}
         for r in read_jsonl(os.path.join(d, 'schedule.jsonl')):
             sched.setdefault(r.get('version', 'current'), {})[r['key']] = (r['owner'], r['sprint'])
@@ -294,8 +296,10 @@ def load_raw(a):
         dbp = a.db or os.path.join(bd, 'plangraph.sqlite'); cfgp = a.config or os.path.join(bd, 'config.json')
         db = open_index(dbp)
         try:
-            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status'), r)) for r in
-                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint, impl_status FROM ticket ORDER BY key')]
+            tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status', 'verdict'), r)) for r in
+                       db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint, impl_status, verdict FROM ticket ORDER BY key')]
+            findings = [tuple(r) for r in db.execute('SELECT key, kind FROM finding')]
+            sprints = [tuple(r) for r in db.execute('SELECT n, state FROM sprint')]
             edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
             sched = {}
             for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
@@ -303,7 +307,27 @@ def load_raw(a):
     # a --config named on the command line may be a symlink (as other files a person names); the plan dir's own config.json may not
     text = read_capped(cfgp, follow=bool(a.config))
     if text is None: raise invalid(f'config not found: {cfgp}')
-    return tickets, edges, sched, json.loads(text)
+    cfg = json.loads(text)
+    items = read_jsonl(os.path.join(os.path.dirname(cfgp), 'open-items.jsonl'))   # the register sits beside config.json
+    gate_rows(tickets, cfg, findings, items, sprints)
+    return tickets, edges, sched, cfg
+
+
+def gate_rows(tickets, cfg, findings, items, sprints):
+    """The facts verify() needs for BLOCKED and SPRINT_CLOSED, mirroring lib/graph/blockers.ts blockedRow and closedSprintRow: each ticket gets
+    `_why` (the verdict, then each finding whose kind has no done item, then each open item whose kind no finding named) and cfg gets
+    `_closed_sprints`. Private keys: prepare() reads them and the input hash does not."""
+    shut = {(i.get('key'), i.get('kind')) for i in items if i.get('status') == 'done'}
+    for t in tickets:
+        k = t['key']; why = []; seen = set()
+        v = t.get('verdict')
+        if v and v != 'READY': why.append(f'verdict {v}')
+        for fk, kind in findings:
+            if fk == k and (k, kind) not in shut: seen.add(kind); why.append(f'open {kind}')
+        for i in sorted((i for i in items if i.get('key') == k and i.get('status') != 'done'), key=lambda i: (i.get('key'), i.get('kind'))):
+            if i.get('kind') not in seen: why.append(f'open {i.get("kind")}')
+        t['_why'] = why
+    cfg['_closed_sprints'] = sorted(n for n, st in sprints if isinstance(n, int) and not isinstance(n, bool) and str(st if st is not None else '').lower() == 'closed')
 
 
 class Problem: pass
@@ -370,6 +394,7 @@ def prepare(a, tickets, edges_raw, sched, cfg):
     if any(abs(d * F) > MAX_UNITS for d in spd + list(capd.values()) + list(mind.values())): raise invalid(UNITS_MSG)
     pr.nd = {i for i, d in enumerate(spd) if Fraction(float(d)) != Fraction(d)}   # not exactly a binary float (see over())
     pr.status = [t.get('jira_status') or '' for t in tickets]
+    pr.why = [t.get('_why') or [] for t in tickets]; pr.closed_sprints = set(cfg.get('_closed_sprints') or [])   # see gate_rows
     pr.v2 = [t.get('v2_owner') or None for t in tickets]; pr.v2s = [t.get('v2_sprint') for t in tickets]
     skip = set(cfg.get('ignore_link_kinds', []))
     pr.dropped = 0; es = set()
@@ -565,6 +590,11 @@ def verify(pr, assign):
         if (owner, sprint) in free and over(l, pr.capf(owner), (owner, sprint) in nd and (owner, sprint) in free):
             bad.append(f'capacity {owner} sprint {sprint}: {us(pr, l)} > {us(pr, pr.capf(owner))}' if l > pr.capf(owner) else
                        f'capacity {owner} sprint {sprint}: {us(pr, l)} reaches {us(pr, pr.capf(owner))} with a story point that is not a binary float')
+    for key, (owner, sprint) in sorted(place.items()):   # rows of open, free tickets at or after the first sprint: blocked, or in a closed sprint
+        i = pr.ix.get(key)
+        if i is None or not isinstance(sprint, int) or isinstance(sprint, bool) or sprint < pr.S0 or i in pr.closed or i in pr.frozen: continue
+        if sprint in pr.closed_sprints: bad.append(f'{key} sprint {sprint} is closed')
+        if pr.why[i]: bad.append(f'{key} is blocked: ' + ', '.join(pr.why[i][:3]) + (f' +{len(pr.why[i]) - 3}' if len(pr.why[i]) > 3 else ''))
     for c, p in pr.edges:
         kc, kp = pr.T[c], pr.T[p]
         if p in pr.closed or (c in pr.frozen and p in pr.frozen): continue   # a closed producer, or two frozen tickets: history, no constraint
