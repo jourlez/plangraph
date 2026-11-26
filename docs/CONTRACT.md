@@ -52,6 +52,8 @@ Ownership: each worker edits ONLY the files assigned to it (new files under `lib
 
 Model shape (`lib/model.ts`): `{ tickets: Map<key,row>, edges: [{consumer,producer,kind,note}], prods: Map<consumer,[producer]>, cons: Map<producer,[consumer]>, sched: Map<key,{owner,sprint}> (current schedule), config, findings, evidence, learnings, refs }`. `config.caps[person] ?? config.caps.default` is capacity in story points per person per sprint (`capOf`). `ticket.sp` is story points. A link "consumer needs producer". **Strict handoff rule:** `sprint[consumer] >= sprint[producer] + (owner[consumer] !== owner[producer] ? 1 : 0)`: another person's output must land in an earlier sprint; the same person may share the sprint.
 
+**Whatif gate and slot** (0.5.0): `BLOCKED` when the moved ticket has an open `held_by` item or a verdict other than READY (a warning; a stop under `--strict`), `SPRINT_CLOSED` when the target sprint's state is `closed` or its `end` is before today (a stop). Neither is repairable by moving tickets, so a stop gives no suggestion. The result may carry one `touches:` line (at most 40 estimated tokens) from a depth-2 walk over trace and identity relations (group, info and extension relations are never read); it never changes a verdict.
+
 **Frozen history** (stated once, in `lib/frozen.ts`; `bin/plangraph-solve` mirrors it and `test/frozen.test.ts` compares the two on a grid; verify, `whatif` (STARTED and the tickets a
 repair may move), `proposeMove` and `--relieve` all read this one predicate. In `plangraph whatif`, a closed ticket, a ticket below
 `frozen_before_sprint` or one frozen by the caller is a hard `STARTED` stop; `In Progress` always warns (`STARTED`, warn: someone
