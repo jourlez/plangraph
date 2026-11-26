@@ -1,0 +1,6 @@
+$ plangraph graph pg:ticket/%2e%2e
+exit: 2
+--- stdout
+--- stderr
+error: the pg: URI is not in the grammar pg:<type>/<id> (percent-encode %, /, #, |, ?, spaces and non-ASCII in the id)
+try: plangraph explain graph

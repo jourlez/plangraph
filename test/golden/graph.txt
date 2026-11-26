@@ -1,0 +1,11 @@
+$ plangraph graph T-12 --depth 2
+exit: 0
+--- stdout
+<untrusted src="graph" n="68d73ad9" len="132">
+1 assigned_to Ana person
+1 belongs_to E3 epic
+1 scheduled_in S1 sprint
+1 held_by T-12|followup openitem
+1 held_by T-12|note openitem
+</untrusted>
+--- stderr
