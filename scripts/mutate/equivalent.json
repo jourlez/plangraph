@@ -1816,5 +1816,17 @@
   "line": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
   "mutated": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, '')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
   "why": "the message of the error thrown inside the try is never shown (the catch throws its own), and a Buffer parses as its utf8 text"
+ },
+ {
+  "file": "src/entry.js",
+  "line": "if (!st.isDirectory()) return false;",
+  "mutated": "if (!st.isDirectory()) return null;",
+  "why": "false and null are both falsy where owned() is read (an if condition)"
+ },
+ {
+  "file": "src/entry.js",
+  "line": "return process.platform === 'win32' || (typeof process.getuid === 'function' && st.uid === process.getuid() && (st.mode & forbidden) === 0);",
+  "mutated": "return process.platform === '' || (typeof process.getuid === 'function' && st.uid === process.getuid() && (st.mode & forbidden) === 0);",
+  "why": "a win32-only fallback (CI runs on Linux and macOS), so no test there can see the mutant"
  }
 ]
