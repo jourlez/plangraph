@@ -20,8 +20,9 @@ const FROZEN_TYPES = [
   'ValidatedBase',
 ];
 
-/** The type names a module exports through `export type` and `export interface` declarations. */
-const declaredTypes = (text: string): string[] => [...text.matchAll(/^export (?:type|interface) ([A-Za-z]+)/gm)].map((m) => m[1] as string);
+/** The type names lib/jira/index.ts re-exports through its `export type { ... } from` lines. */
+const reexportedTypes = (text: string): string[] =>
+  [...text.matchAll(/^export type \{([^}]*)\} from '\.\/[a-z]+\.ts';$/gm)].flatMap((m) => (m[1] as string).split(',').map((s) => s.trim()).filter(Boolean));
 
 test('the module exports exactly the frozen list', async () => {
   const keys = Object.keys(await import('../lib/jira.ts')).sort();
@@ -30,6 +31,11 @@ test('the module exports exactly the frozen list', async () => {
 
 test('the module exports exactly the frozen type list', () => {
   assert.ok(FROZEN_TYPES.length >= 29);
-  const names = declaredTypes(fs.readFileSync(path.join(ROOT, 'lib/jira.ts'), 'utf8')).sort();
+  const names = reexportedTypes(fs.readFileSync(path.join(ROOT, 'lib/jira/index.ts'), 'utf8')).sort();
   assert.deepEqual(names, FROZEN_TYPES);
+});
+
+test('lib/jira.ts declares nothing itself: it re-exports lib/jira/index.ts', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'lib/jira.ts'), 'utf8');
+  assert.deepEqual(text.split('\n').filter((l) => l && !l.startsWith('//')), ["export * from './jira/index.ts';"]);
 });

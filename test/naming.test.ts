@@ -32,7 +32,7 @@ test('the README install line uses the new names', () => {
 
 test('per-user state names are the plangraph names', () => {
   assert.ok(configDir({ HOME: '/h' }).endsWith(path.join('.config', 'plangraph')));
-  assert.match(read('lib/jira.ts'), /service: 'plangraph-jira'/);
-  assert.match(read('lib/jira.ts'), /`plangraph-jira:\$\{h\}`/);
+  assert.match(read('lib/jira/credentials.ts'), /service: 'plangraph-jira'/);
+  assert.match(read('lib/jira/credentials.ts'), /`plangraph-jira:\$\{h\}`/);
   assert.match(read('lib/store.ts'), /^const DRIVER = 'plangraph-jsonl';$/m);
 });
