@@ -167,13 +167,13 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|
-| 1 | ticket {"key":"T-700"} | 324 | 324 | yes | 419 | 95 | 81 | 105 |
-| 4 | ready {"key":"T-700"} | 508 | 508 | yes | 608 | 100 | 127 | 152 |
-| 15 | ticket {"key":"T-1200"} | 318 | 318 | yes | 413 | 95 | 79 | 103 |
-| 21 | ticket {"key":"T-20"} | 296 | 296 | yes | 391 | 95 | 74 | 98 |
-| 22 | ticket {"key":"T-99999"} | 95 | 95 | yes | 186 | 91 | 24 | 47 |
-| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 569 | 569 | yes | 660 | 91 | 143 | 165 |
-| | total | 2110 | | | 2677 | 567 | | |
+| 1 | ticket {"key":"T-700"} | 244 | 244 | yes | 338 | 94 | 61 | 84 |
+| 4 | ready {"key":"T-700"} | 428 | 428 | yes | 527 | 99 | 107 | 132 |
+| 15 | ticket {"key":"T-1200"} | 238 | 238 | yes | 332 | 94 | 59 | 83 |
+| 21 | ticket {"key":"T-20"} | 216 | 216 | yes | 310 | 94 | 54 | 78 |
+| 22 | ticket {"key":"T-99999"} | 15 | 15 | yes | 105 | 90 | 4 | 27 |
+| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 489 | 489 | yes | 579 | 90 | 123 | 145 |
+| | total | 1630 | | | 2191 | 561 | | |
 <!-- MCP-BENCH:END -->
 
 Reading it:
