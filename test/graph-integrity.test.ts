@@ -43,7 +43,7 @@ test('UNDATED_SPRINT is a warning and only when some sprints are dated', () => {
 
 test('DOUBLE_PLACED_WORK fires on an explicit xref when both tickets are placed', () => {
   const x = { type: 'ticket', id: 'sp:a/1', sys: 'jira:acme', xid: 'J-1' } as GraphFiles['xrefs'][number];
-  assert.deepEqual(lines({ xrefs: [x] }), ['warning: DOUBLE_PLACED_WORK xrefs.jsonl: sp:a/1 and J-1 are one work item and both are placed, so capacity counts it twice; keep one of the two placed']);
+  assert.deepEqual(lines({ xrefs: [x] }), ['warning: DOUBLE_PLACED_WORK xrefs.jsonl: sp:a/1 and J-1 are one work item and both are placed, so capacity counts it twice; keep one of the two placed (`sp-link --track` records the link, it does not unplace either)']);
   assert.deepEqual(integrity(g({ xrefs: [x] }), { ...V1, schedule: V1.schedule.slice(0, 1) }, []), []);
 });
 

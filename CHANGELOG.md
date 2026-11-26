@@ -5,6 +5,7 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 ## [Unreleased]
 
 ### Added
+- `plangraph sp-link sp:SLUG/N --track ABC-123` records which Jira ticket an `sp:` ticket tracks (one `xrefs.jsonl` row, `tracked_by`); the `DOUBLE_PLACED_WORK` hint now names it.
 - Provider seam: `plangraph import --sys jira|sp|generic FILE...` reads data another tool saved to a file into observations (`lib/graph/provider.ts`), kept in the uncommitted, git-ignored cache `<dir>/cache/<sys>.jsonl` (mode 0600) and in the index table `obs`. Observations are advisory: they never write tickets, edges or schedule. An index built by 0.4.0 has no `obs` table: run `plangraph build`.
 
 ## [0.4.0] - 2026-11-26

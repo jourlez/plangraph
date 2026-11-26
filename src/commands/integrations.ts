@@ -140,9 +140,32 @@ async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; 
   return 0;
 }
 
-async function spLink(ctx: Ctx, args: Args<{ tasks?: string }>): Promise<number> {
+// `sp-link SP_TICKET --track JIRA_KEY`: one tracked_by xref (xrefs.jsonl row, sys jira) from an sp: ticket to the Jira ticket it tracks, so the two
+// are one work item and DOUBLE_PLACED_WORK can tell when both are scheduled. It reads and writes xrefs.jsonl only.
+async function spTrack(ctx: Ctx, key: string, jira: string, tasks: string | undefined, planArg: string | undefined): Promise<void> {
+  if (planArg !== undefined || tasks !== undefined) throw usage('--track takes the sp: ticket and the Jira key only (no PLAN, no --tasks): plangraph sp-link sp:SLUG/N --track ABC-123');
+  needBrain(ctx);
+  if (!/^sp:[A-Za-z0-9][A-Za-z0-9._:/-]{0,115}$/.test(key) || key.includes('..')) throw usage('--track needs an sp: ticket (sp:SLUG/N) as the first argument');
+  if (!/^[A-Z][A-Z0-9_]{0,23}-\d{1,9}$/.test(jira)) throw usage('--track needs a Jira key such as ABC-123');
+  if (!spRead(ctx, 'tickets.jsonl').some((t) => t.key === key)) throw usage(`unknown ticket ${oneLine(key, 120)}: not in tickets.jsonl`);
+  const xrefs = spReadTarget(ctx, 'xrefs.jsonl'), jiraSys = (r: Rec) => String(r.sys).split(':')[0] === 'jira';
+  if (xrefs.some((r) => r.type === 'ticket' && r.id === key && r.sys === 'jira' && r.xid === jira)) { ctx.io.out(`${oneLine(key, 120)} already tracks ${jira}, nothing written`); return; }
+  const mine = xrefs.find((r) => r.type === 'ticket' && r.id === key && jiraSys(r));
+  if (mine) throw usage(`${oneLine(key, 120)} already tracks ${oneLine(String(mine.xid), 60)}: one work item is one Jira ticket (edit xrefs.jsonl to change it)`);
+  const other = xrefs.find((r) => r.type === 'ticket' && r.sys === 'jira' && r.xid === jira);
+  if (other) throw usage(`${jira} is already tracked by ${oneLine(String(other.id), 120)}: one Jira ticket is one work item (edit xrefs.jsonl to change it)`);
+  await spWrite(ctx, [['xrefs.jsonl', [...xrefs, { type: 'ticket', id: key, sys: 'jira', xid: jira }], xrefs]]);
+  ctx.io.out(`linked ${oneLine(key, 120)} to ${jira} (tracked_by): keep only one of the two placed in the schedule`);
+}
+
+async function spLink(ctx: Ctx, args: Args<{ tasks?: string; track?: string }>): Promise<number> {
   const v = args.values;
   try {
+    if (v.track !== undefined) {
+      if (!args.positionals[0] || !v.track || v.track.startsWith('--')) throw usage('usage: plangraph sp-link sp:SLUG/N --track ABC-123');
+      await spTrack(ctx, args.positionals[0], v.track, v.tasks, args.positionals[1]);
+      return 0;
+    }
     const SP = await import('../../lib/integrations/superpowers.ts'), { planSection, DEFAULT_HEADING } = await import('../../lib/stale.ts');
     const [key, planArg] = args.positionals;
     if (!key || !planArg) throw usage('usage: plangraph sp-link TICKET PLAN [--tasks 1,3]');
@@ -206,7 +229,7 @@ export const commands: CommandMap = {
     run: spIngest, positionals: [0, 1], writes: 'text', summary: 'superpowers plan + ledger -> tickets, edges, findings, refs (read-only on superpowers files)',
     options: { ledger: { type: 'string', missing: '--ledger needs a file path or none' }, owner: { type: 'string', missing: '--owner needs a plain name (at most 80 characters)' }, sprint: { type: 'string', missing: '--sprint needs a whole number' } },
   },
-  'sp-link': { run: spLink, positionals: [0, 2], writes: 'text', options: { tasks: { type: 'string', missing: '--tasks needs a comma-separated list of task ids' } }, summary: 'point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`)' },
+  'sp-link': { run: spLink, positionals: [0, 2], writes: 'text', options: { tasks: { type: 'string', missing: '--tasks needs a comma-separated list of task ids' }, track: { type: 'string', missing: '--track needs a Jira key such as ABC-123' } }, summary: 'point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`)' },
   learn: { run: learn, positionals: [0, 0], writes: 'text', guard: 'strict', options: { 'from-wolf': { type: 'string', missing: LEARN_USAGE } }, summary: 'copy ONE repo rule from .wolf/cerebrum.md into learnings.jsonl' },
 };
 

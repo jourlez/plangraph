@@ -86,6 +86,8 @@ Warnings only; they never change the exit code. Every file name printed goes thr
 
 `plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]` turns a superpowers implementation plan (and its SDD ledger, when one exists) into plangraph records. `plangraph sp-link TICKET PLAN [--tasks 1,3]` points an existing ticket at plan tasks through `refs.plans`, so `plangraph stale` fingerprints those task sections (the default `ref_heading` `^#{2,3} Task {id}:` matches superpowers' `### Task N:` headings; a task the configured heading cannot find is counted in the output). `sp-link` refuses a ticket that is not in tickets.jsonl and a task id that is not in the plan, and a `refs.jsonl` record whose `plans` is not a list of objects (a data error naming the line, exit 2, nothing written). It writes no edges.
 
+`plangraph sp-link sp:SLUG/N --track ABC-123` links an `sp:` ticket to the Jira ticket it tracks: it appends one `xrefs.jsonl` row (`type` ticket, `sys` jira, `xid` the Jira key), the `tracked_by` relation. It takes no PLAN and no `--tasks`, refuses a ticket not in tickets.jsonl, a key that is not `ABC-123` shaped, a second Jira key for the same `sp:` ticket and a Jira key already tracked by another ticket (exit 2, nothing written), and is a no-op when the row exists. It does not unplace anything: when both tickets are placed, `DOUBLE_PLACED_WORK` still warns until one is dropped from the schedule.
+
 Source: `lib/integrations/superpowers.ts` (`parsePlan`, `parseLedger`, `mergeLedgers`, `ingestPlan`, `findLedgers`, `readSpFile`); design in `docs/research/integrations/superpowers.md` sections 2, 5 and 7. Record shapes and ownership are in `docs/FORMAT.md` section 6.
 
 What the ingest does:
