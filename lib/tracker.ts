@@ -6,8 +6,8 @@ import type { Ctx } from '../src/context.ts';
 import type { Trust } from '../src/jira-tenant.ts';
 import type { AuthMode, ImportResult, JiraCredentials, PullOptions, PullResult, RawImport, RawIssue, Snapshot } from './jira.ts';
 
-export { siteTag, KEY_RE, parseSnapshotJsonl, snapshotToJsonl, toLegacyMap } from './jira.ts';
-export type { Snapshot, RawIssue, RawImport, PullOptions, PullResult, LegacyIssue, JiraCredentials } from './jira.ts';
+export { siteTag, parseSnapshotJsonl, snapshotToJsonl, toLegacyMap } from './jira.ts';
+export type { Snapshot, RawIssue, RawImport, PullOptions, PullResult, LegacyIssue } from './jira.ts';
 
 /** The tracker settings of one project (the committed config block with the user's projects entry laid over it). */
 export interface TrackerSettings { kind?: string; tenant?: string; auth?: { mode: AuthMode }; base_url?: string; cloud_id?: string; jql?: string; sprint_field?: string }
