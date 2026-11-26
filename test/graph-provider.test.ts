@@ -13,7 +13,7 @@ const generic = PROVIDERS.generic as NonNullable<ReturnType<typeof providerOf>>;
 test('the provider table is frozen, null-prototype and looked up by own name only; the cache files are its names', () => {
   assert.ok(Object.isFrozen(PROVIDERS));
   assert.equal(Object.getPrototypeOf(PROVIDERS), null);
-  for (const bad of ['__proto__', 'constructor', 'toString', 'github', '']) assert.equal(providerOf(bad), null, bad);
+  for (const bad of ['__proto__', 'constructor', 'toString', 'gitlab', '']) assert.equal(providerOf(bad), null, bad);
   assert.deepEqual([...CACHE_FILES], Object.keys(PROVIDERS).sort().map((n) => `cache/${n}.jsonl`));
   assert.deepEqual([...OBS_COLUMNS], ['sys', 'xid', 'type', 'fields', 'links', 'fp', 'seen']);
 });

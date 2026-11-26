@@ -2,10 +2,11 @@
 // repos.jsonl row out. No I/O. Scanned text is untrusted data: only allowlisted tokens (enums, short names matched by a strict pattern, person ids
 // already in people.jsonl) reach the row; nothing else from a file is copied.
 import { createHash } from 'node:crypto';
+import { parseCatalogInfo } from './catalog.ts';
 
 export const MAX_FILE = 256 * 1024;
 const SCANNER = 'plangraph-scan/1';
-const FIXED = new Set(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.nvmrc', '.node-version', '.python-version', '.tool-versions', 'CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS', 'Dockerfile']);
+const FIXED = new Set(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.nvmrc', '.node-version', '.python-version', '.tool-versions', 'CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS', 'Dockerfile', 'catalog-info.yaml']);
 /** True for a repo-relative path the scan may read. */
 export const isScanFile = (p: string): boolean => FIXED.has(p);
 
@@ -18,6 +19,7 @@ export const fingerprint = (files: readonly { path: string; sha: string }[]): st
 
 const NAME = /^[a-z0-9][a-z0-9@/._-]{0,99}$/;
 const PATHLIKE = /^[A-Za-z0-9._][A-Za-z0-9._/-]{0,99}$/;
+const SUB = /^[a-z0-9][a-z0-9._-]{0,39}$/;
 const VERSION = /^v?(\d{1,4}(?:\.\d{1,4}){0,2})$/;
 export const slugOf = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 
@@ -48,7 +50,25 @@ function parsePackageJson(text: string): Row {
   const bins = typeof j.bin === 'string' ? [j.bin] : isObj(j.bin) ? Object.values(j.bin) : [];
   const entry = [j.main, ...bins].filter((p): p is string => typeof p === 'string' && PATHLIKE.test(p) && !p.split('/').includes('..'));
   if (entry.length) out.entry = [...new Set(entry)].sort().slice(0, 3);
+  const ws = Array.isArray(j.workspaces) ? j.workspaces : isObj(j.workspaces) && Array.isArray(j.workspaces.packages) ? j.workspaces.packages : [];
+  const globs = ws.filter((g): g is string => typeof g === 'string' && /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\/\*$/.test(g) && g.length <= 100 && !g.includes('..')).slice(0, 10);
+  if (globs.length) out.workspaces = globs; // consumed by subUnits, never copied to the row
   return out;
+}
+
+/** Monorepo sub-units (0.5.0): each `<dir>/<name>/package.json` under a one-level `workspaces` glob (`dir/*`) of the root manifest, as `{glob: "<dir>/<name>/**", sub: <name>}`. */
+export function subUnits(workspaces: unknown, paths: readonly string[]): Array<{ glob: string; sub: string }> {
+  if (!Array.isArray(workspaces)) return [];
+  const out = new Map<string, string>();
+  for (const g of workspaces) {
+    if (typeof g !== 'string') continue;
+    const dir = g.slice(0, -2), depth = dir.split('/').length; // "packages/*" -> "packages"
+    for (const p of paths) {
+      const parts = p.split('/'), sub = parts[depth];
+      if (parts.length === depth + 2 && parts[depth + 1] === 'package.json' && p.startsWith(`${dir}/`) && sub !== undefined && SUB.test(sub)) out.set(sub, `${dir}/${sub}/**`);
+    }
+  }
+  return [...out].map(([sub, glob]) => ({ glob, sub })).sort((a, b) => (a.sub < b.sub ? -1 : 1)).slice(0, 50);
 }
 
 function tomlSections(text: string): Map<string, Map<string, string>> {
@@ -92,7 +112,7 @@ export function parseCodeowners(text: string): Rule[] {
   }
   return rules;
 }
-function globRe(pattern: string): RegExp {
+export function globRe(pattern: string): RegExp {
   const dirOnly = pattern.endsWith('/'), p = dirOnly ? pattern.slice(0, -1) : pattern, anchored = p.startsWith('/') || p.includes('/'), body = (p.startsWith('/') ? p.slice(1) : p)
     .replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\0').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]').replace(/\0/g, '.*');
   return new RegExp(`${anchored ? '^' : '(?:^|/)'}${body}${dirOnly ? '/' : '(?:/|$)'}`);
@@ -131,11 +151,16 @@ export function scanRepo({ slug, files, paths, people }: ScanInput): ScanResult 
   const vr = versioned(texts), fam = typeof m.runtime === 'string' ? m.runtime : undefined;
   if (fam && vr.has(fam)) m.runtime = vr.get(fam); else if (!fam && vr.size) m.runtime = [...vr.values()].sort()[0];
   const owners = repoOwners(parseCodeowners(['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'].map((p) => texts.get(p) ?? '').join('\n')), people);
-  const langs = langsOf(paths), row: Row = { id: `repo:${slug}`, name: typeof m.name === 'string' ? m.name : slug, src: 'scan', fp: fingerprint(files), scanner: SCANNER };
+  const seed = parseCatalogInfo(texts.get('catalog-info.yaml') ?? '', people); // an optional seed: it only fills what the scan found nothing for
+  const langs = langsOf(paths), row: Row = { id: `repo:${slug}`, name: typeof m.name === 'string' ? m.name : seed.name ?? slug, src: typeof m.name !== 'string' && seed.name !== undefined ? 'catalog' : 'scan', fp: fingerprint(files), scanner: SCANNER };
+  if (seed.role !== undefined) row.role = seed.role;
+  const subs = subUnits(m.workspaces, paths);
+  if (subs.length) { row.paths = subs; row.role = 'monorepo'; }
   if (langs.length) row.langs = langs;
   for (const k of ['pm', 'runtime', 'frameworks', 'cmds', 'entry']) if (m[k] !== undefined) row[k] = m[k];
   if (texts.has('Dockerfile')) row.deploy = 'docker';
-  if (owners.length) row.owners = owners;
+  const own = owners.length ? owners : seed.owners ?? [];
+  if (own.length) row.owners = own;
   return { row, warnings };
 }
 
@@ -144,6 +169,7 @@ const SCANNED = ['name', 'langs', 'pm', 'runtime', 'frameworks', 'cmds', 'entry'
 export function mergeRow(existing: Row | undefined, scanned: Row): Row {
   if (!existing) return scanned;
   const out: Row = { ...existing };
+  for (const k of ['role', 'paths']) if (out[k] === undefined && scanned[k] !== undefined) out[k] = scanned[k]; // a seed fills a gap, never overwrites a hand-written value
   for (const k of SCANNED) { if (scanned[k] !== undefined) out[k] = scanned[k]; else delete out[k]; }
   const owners = [...new Set([...(Array.isArray(existing.owners) ? (existing.owners as string[]) : []), ...((scanned.owners as string[] | undefined) ?? [])])].sort();
   if (owners.length) out.owners = owners; else delete out.owners;
