@@ -7,6 +7,7 @@ Schedule-risk forecaster for small teams. Every output is tagged `REFUSED | PRIO
 - `history.jsonl`, one record per completed sprint: `{sprint, planned, done, added, carried}` points; optional `team`, `length`. `done:null` = no actuals. `parseHistory(text)` -> `{records, errors, warnings}`.
 - `actuals.jsonl` (optional): `{key, sp, actual, owner, sprint}`. `parseActuals(text)`.
 - A plan model (`lib/model.ts`) for plan-graph mode, or `remaining` points for flat mode. Config: `regime_changes: [sprint, ...]`, `caps`.
+- `sprints` (optional, the `sprint` table: `n`, `end`): when the table is not empty and every row has a real `end` date (`YYYY-MM-DD`), the text gains ` | dates P50 2026-12-04 ...`, the end date of the sprint each percentile names (a percentile beyond the table, or "never", gets none). With any row undated, or no rows, the text is byte for byte the undated one. `plangraph forecast` and the `report` tag read the same rows.
 
 ## Model
 - Capacity: resample whole sprints (joint `(done, added, planned)`), circular block bootstrap, block 2 (1 when n>=20 and |lag-1 r| < 1.96/sqrt(n)). Deviation from plain moving blocks: blocks wrap, so each sprint has equal marginal probability. Flat: `R_{t+1} = max(0, R_t - D_t + A_t)`, finish = first t with R=0 (cap 60 sprints = "never").

@@ -18,7 +18,7 @@ async function forecastTag(ctx: Ctx, model: Model) {
     const F = await import('../../lib/forecast.ts'), { readCapped } = await import('../../lib/jsonl.ts'), { MAX_DATA } = await import('./shared.ts');
     const rd = (n: string) => { const f = path.join(ctx.dir, n); return fs.existsSync(f) ? readCapped(f, MAX_DATA) : ''; };
     const H = F.parseHistory(rd('history.jsonl')), A = F.parseActuals(rd('actuals.jsonl'));
-    const r = F.forecast({ history: H.records, actuals: A.rows, model, config: ctx.config(), seed: 1 });
+    const r = F.forecast({ history: H.records, actuals: A.rows, model, config: ctx.config(), seed: 1, sprints: ctx.db().all('SELECT n,"end" AS "end" FROM sprint') as Array<{ n: number; end: unknown }> });
     return { state: r.state, n: r.n };
   } catch { return null; }
 }

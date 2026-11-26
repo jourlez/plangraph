@@ -25,7 +25,7 @@ async function forecast(ctx: Ctx, args: Args<{ seed?: number }>): Promise<number
   for (const e of [...H.errors.map((x) => `history.jsonl ${x}`), ...A.errors.map((x) => `actuals.jsonl ${x}`)]) ctx.io.err(e);
   const model = modelFromDb(ctx);
   if (!ctx.db().stale && !ctx.flags['if-present'] && openItemsNewer(ctx)) ctx.io.err(STALE_WARNING);
-  const r = F.forecast({ history: H.records, actuals: A.rows, model, config: ctx.config(), seed: args.values.seed ?? 1 });
+  const r = F.forecast({ history: H.records, actuals: A.rows, model, config: ctx.config(), seed: args.values.seed ?? 1, sprints: ctx.db().all('SELECT n,"end" AS "end" FROM sprint') as Array<{ n: number; end: unknown }> });
   ctx.io.out(r.text);
   if (verbose(args)) for (const w of H.warnings) ctx.io.out(`note: ${w}`);
   return 0;

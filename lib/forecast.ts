@@ -49,6 +49,7 @@ export type ForecastState = (typeof STATES)[number];
 export interface ForecastInput {
   history?: readonly HistoryRecord[]; actuals?: readonly ActualRow[]; model?: Model | null; config?: PlanConfig; runs?: number; seed?: number; remaining?: number;
   block?: number | null; mode?: string; targets?: number[]; doneKeys?: Iterable<string> | null; horizon?: number; start?: number;
+  sprints?: ReadonlyArray<{ n: unknown; end?: unknown }>; // the sprint table: when every row has a real end date, the text gains a calendar part
 }
 /** The probability of being done by one sprint; lo/hi only with n < 10 or a PRIOR-ONLY state. */
 interface ForecastProb { sprint: number; p: number; se: number; lo?: number; hi?: number }
@@ -340,6 +341,14 @@ export function decideState(a: { n: number; lackFrac: number; shift: boolean }, 
 }
 
 // ---------- top-level forecast ----------
+const realDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
+/** ' | dates P50 2026-12-04 ...' for the percentiles that land on a dated sprint; '' unless every sprint row is dated (then the text is the undated one, byte for byte). */
+function calendarPart(sprints: ForecastInput['sprints'], pct: Record<string, number>): string {
+  if (!sprints || !sprints.length || !sprints.every((x) => realDate(x.end))) return '';
+  const end = new Map(sprints.map((x) => [x.n, x.end]));
+  const d = Object.entries(pct).filter(([, v]) => end.has(v)).map(([k, v]) => `${k} ${end.get(v)}`);
+  return d.length ? ` | dates ${d.join(' ')}` : '';
+}
 const round = (p: number, step: number): number => Math.round((p * 100) / step) * step;
 export function forecast(inp: ForecastInput = {}): ForecastResult {
   const { history = [], actuals = [], model = null, config = (model && model.config) || {} } = inp, tag = 'model-conditional, not a prediction';
@@ -367,7 +376,7 @@ export function forecast(inp: ForecastInput = {}): ForecastResult {
   }
   const pct: Record<string, number> = { P50: quantile(ends, 0.5), P80: quantile(ends, 0.8) }; if (n >= 10) pct.P90 = quantile(ends, 0.9); if (n >= 30) pct.P95 = quantile(ends, 0.95);
   const res: ForecastFull = { state, n, tag, planPoints, lastDone, probs, percentiles: pct, runs: ends.length, step, block: L, mode: model ? (useTicket ? `plan-graph, ticket-level noise (${noise.label})` : 'plan-graph, capacity process') : 'flat backlog, capacity process', backtest: { k: bt.methods.model.cover.k, n: bt.n, ci: bt.methods.model.cover.ci, beats: bt.beats, passed: bt.passed }, reasons: a.reasons };
-  res.text = renderForecast(res); res.tokens = Math.ceil(res.text.length / 4); return res as ForecastResult; // text and tokens set on this line
+  res.text = renderForecast(res) + calendarPart(inp.sprints, pct); res.tokens = Math.ceil(res.text.length / 4); return res as ForecastResult; // text and tokens set on this line
 }
 
 export function renderForecast(r: ForecastView): string {
