@@ -4,27 +4,10 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
-Added for 0.3.0 (Keep a Changelog form):
-
-### Changed (versioned behavior)
-- Node 24.15 is the floor (was 24.2): Node 24.2 to 24.14 print ExperimentalWarning lines on every command. Below the floor the SessionStart hook exits 0 and prints one line (`plangraph: needs Node >= 24.15, found <v>; install Node 24`); every other command exits 3 with one line. `package.json` engines say `>=24.15`.
-- Merge-driver healing needs consent: a SessionStart hook repairs the driver only where `plangraph.heal` in the clone's own git config holds a version (written by `init` and `doctor --fix`; clones wired before this release are grandfathered). Otherwise it writes nothing and prints one line.
-- A group- or world-writable `CLAUDE_PLUGIN_DATA` is no longer an error: the solver launcher and the merge shim print one line and use `~/.cache/plangraph` (created 0700); the other directory is never changed.
-- The solver fallbacks pass `--no-config` (the user's own `uv.toml` is passed back with `--config-file`); a relative `XDG_CONFIG_HOME` is ignored.
-- Redaction also covers case-changed forms of registered API tokens and any 16-character piece of them.
-- CI: lean job set (unit, slow, static, macos, compat, floor, mutation, secrets, release-dry-run), shellcheck and actionlint, package contents check, `claude plugin validate --strict`.
-
-### Added
-- `docs/TEAM.md`: the path for a second teammate (project-scope install, `plangraph doctor --fix` once per clone and why, per-person Jira credentials, what to commit, upgrading together, pinning a release by tag, resolving merge conflicts), checked by `test/team-docs.test.ts`.
-- README: a "Which Node, how to get it" box (nvm, fnm, `.node-version`; Node 24.15 or newer) and "Windows is not supported" at the top of Requirements.
-- `CONTRIBUTING.md`: how CI works, commit style, identity and secrets, pull request flow. `SECURITY.md`: one line on response (best effort, single maintainer, private reporting).
-- `.github/dependabot.yml`: `dependencies` and `ci` labels, and an ignore of `@types/node` major updates.
-
-### Changed
-- Skills that write to Jira or change state carry `disable-model-invocation: true`: `autopilot`, `onboard` and `plan` (with `audit` and `init`, which already did), because they write Jira, plan data or the schedule; read-only query skills stay invocable by the model.
+## 0.3.0 - 2026-11-25
 
 ### Breaking
-Breaking: the whole tool is renamed to plangraph. Every name changes at once and nothing falls back to an old name.
+The whole tool is renamed to plangraph. Every name changes at once and nothing falls back to an old name; `plangraph migrate-names` is the one explicit bridge.
 - Command and files: `brain` is `plangraph` (`bin/plangraph`, `bin/plangraph-merge`, `bin/plangraph-solve`, `bin/plangraph-solve-run`, `mcp/plangraph-mcp.ts`); the `package.json` bin keys are `plangraph` and `plangraph-merge`. Every hint, `try:` line, error and usage line says `plangraph`; the error code `NO_BRAIN` is `NO_PLANGRAPH` in the JSON envelope.
 - Skills: `plangraph:brain` is `plangraph:plangraph`; `brain-audit`, `brain-autopilot`, `brain-init`, `brain-onboard`, `brain-plan` and `brain-report` are `plangraph:audit`, `:autopilot`, `:init`, `:onboard`, `:plan` and `:report`. `plangraph:whatif` is unchanged. Re-point any CLAUDE.md line or permission rule that names `Bash(brain` to `Bash(plangraph`.
 - State: the 30 `BRAIN_*` variables are `PLANGRAPH_*` and the old names are ignored; `~/.config/project-brain` and `~/.cache/project-brain` are `~/.config/plangraph` and `~/.cache/plangraph`; the default plan directory is `.plangraph/`, the repository config is `.plangraphrc`, the index is `plangraph.sqlite`; the merge driver is `plangraph-jsonl`; the eval schema ids are `plangraph-eval-case/2`, `plangraph-eval-p/1` and `plangraph-real-eval/1`. The config key `brain_rules_version` keeps its name until the format-2 migration (an old reader of a renamed key would silently default it).
@@ -32,6 +15,36 @@ Breaking: the whole tool is renamed to plangraph. Every name changes at once and
 - Manual step, the keychain: `migrate-names` never reads or writes the credential store (writing the secret would put it on a process argument list). Save the Jira token again under the service `plangraph-jira` (the dry run and `--apply` print the macOS command), then delete the old `project-brain-jira` entry.
 - Merge driver: every contributor updates before the repository's `.gitattributes` line changes. An unwired teammate (still on the old name, or without `plangraph-merge` installed) text-merges the JSONL files instead of using the driver.
 - Tooling: `scripts/rename-check.ts` holds the command-word rules and proves that the goldens, eval cases and fixtures equal the old ones with the rules applied (the deliberate differences are listed with their reason); `scripts/baseline.ts` maps the old names on the old side of a compare only; `test/no-old-names.test.ts` fails on any old name outside the migration, its tests, the baseline tools and history.
+
+### Security
+- The solver launcher never runs a repository-chosen interpreter or reads a repository `uv.toml`: absolute `--python` from `bin/`, `--no-config` with the user's own config passed back, relative `XDG_CONFIG_HOME` and non-absolute `PATH` entries ignored; the venv and its `bin/` must be owned by you and not group or world writable, and are rebuilt under `umask 077` otherwise.
+- A group- or world-writable `CLAUDE_PLUGIN_DATA` no longer stops the solver or the merge shim: they print one line and use `~/.cache/plangraph` (created 0700); the other directory is never changed.
+- Merge-driver healing needs consent (`plangraph.heal` in the clone's own git config; clones wired before this release are grandfathered); only a version value counts, `never` declines. Without consent the hook writes nothing and prints one line that names the plan directory only if it is a plain short name.
+- Credentials: the tracker provider seam (`Ctx.tracker()`) binds every networked call to a minted, frozen `Trust` checked at run time (not only by type); a neutral tenant alias (`"tenant": "work"`) keeps the company host out of the repository and needs your approval in a terminal outside Claude Code (`plangraph doctor --fix --alias`); the user registry `jira-sites.json` must be owned by you and not group or world writable.
+- Redaction covers case-changed forms of registered API tokens and any 16-character piece of them (limits are listed in `SECURITY.md`).
+- The solver never reports OPTIMAL it has not verified: every hinted OPTIMAL is recomputed, checked against the independent verifier and re-proved without the hint (OR-Tools 9.15.6755 can report a false OPTIMAL under a hint, upstream issue 5582).
+- Hook output and `migrate-names` never print repository-controlled text unless it is a plain safe name; the card steer line falls back to `.plangraph`.
+
+### Changed
+- Node 24.15 is the floor (was 24.2): Node 24.2 to 24.14 print ExperimentalWarning lines on every command. Below the floor the SessionStart hook exits 0 and prints one line (`plangraph: needs Node >= 24.15, found <v>; install Node 24`); every other command exits 3 with one line. `package.json` engines say `>=24.15`.
+- Merge-driver healing needs consent: a SessionStart hook repairs the driver only where `plangraph.heal` in the clone's own git config holds a version (written by `init` and `doctor --fix`; clones wired before this release are grandfathered). Otherwise it writes nothing and prints one line.
+- A group- or world-writable `CLAUDE_PLUGIN_DATA` is no longer an error: the solver launcher and the merge shim print one line and use `~/.cache/plangraph` (created 0700); the other directory is never changed.
+- The solver fallbacks pass `--no-config` (the user's own `uv.toml` is passed back with `--config-file`); a relative `XDG_CONFIG_HOME` is ignored.
+- Redaction also covers case-changed forms of registered API tokens and any 16-character piece of them.
+- CI: lean job set (unit, slow, static, macos, compat, floor, mutation, secrets, release-dry-run), shellcheck and actionlint, package contents check, `claude plugin validate --strict`.
+- Skills that write to Jira or change state carry `disable-model-invocation: true`: `autopilot`, `onboard` and `plan` (with `audit` and `init`, which already did), because they write Jira, plan data or the schedule; read-only query skills stay invocable by the model.
+
+### Added
+- `docs/TEAM.md`: the path for a second teammate (project-scope install, `plangraph doctor --fix` once per clone and why, per-person Jira credentials, what to commit, upgrading together, pinning a release by tag, resolving merge conflicts), checked by `test/team-docs.test.ts`.
+- README: a "Which Node, how to get it" box (nvm, fnm, `.node-version`; Node 24.15 or newer) and "Windows is not supported" at the top of Requirements.
+- `CONTRIBUTING.md`: how CI works, commit style, identity and secrets, pull request flow. `SECURITY.md`: one line on response (best effort, single maintainer, private reporting).
+- `.github/dependabot.yml`: `dependencies` and `ci` labels, and an ignore of `@types/node` major updates.
+- Per-file coverage floor (90 percent lines, 85 percent branches) over `lib`, `src` and `mcp`; `lib/jira.ts` is split into ten modules under `lib/jira/` with frozen exports; `scripts/repin.ts` re-pins mutation pins across text edits; `test/known-issues.test.ts` fails a release version that lists a known issue.
+
+### Fixed
+- `npm run mutate` prints the failing test's output when its baseline is red; the full mutation generator creates a git repository in each copy, mutates `src/entry.js` and `src/merge-entry.js`, and reports timeouts apart from kills.
+- Timing tests run on their own, serially, as size-ratio checks with no wall-clock bounds and no kill timers; the `slow` CI job runs them.
+- An eval budget split lost a cent through float rounding (a 3.50 cap became 3.49).
 
 ## 0.2.4
 

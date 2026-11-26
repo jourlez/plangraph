@@ -145,7 +145,7 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | - whatif | 837 | 210 |
 | - ticket | 534 | 134 |
 | tools/list reply line | 2036 | 509 |
-| initialize reply line | 169 | 43 |
+| initialize reply line | 165 | 42 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|
