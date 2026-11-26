@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
+import { adoptPlanDir, normalizeGolden } from './helpers/plan-dir.ts';
 
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), GOLD = path.join(HERE, 'golden'), FX = path.join(HERE, 'fixtures');
 const UPDATE = process.env.UPDATE_GOLDEN === '1';
@@ -42,6 +43,7 @@ function makeFixture(root: string): void {
   put(root, B + 'refs.jsonl', jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1', fp: '' }], files: {}, fp_files: '', jira_updated: '', audited_at: 'base' }]));
   put(root, B + 'history.jsonl', jl([30, 34, 28, 36].map((d, i) => ({ sprint: i + 1, planned: 40, done: d, added: 2, carried: 40 + 2 - d > 0 ? 42 - d : 0 }))));
   put(root, B + 'learnings.jsonl', fs.readFileSync(path.join(HERE, '../seed/learnings.seed.jsonl'), 'utf8'));
+  adoptPlanDir(path.join(root, B));
   put(root, '.wolf/cerebrum.md', fx('openwolf/cerebrum.template.md').replace('## Key Learnings\n', '## Key Learnings\n\n- Prices are computed on the server in minor units.\n').replace('## Do-Not-Repeat\n', '## Do-Not-Repeat\n\n[2026-01-02] Never confirm a checkout from the redirect; wait for the webhook.\n[2026-01-03] Do not hardcode a client brand in public copy.\n'));
   put(root, '.wolf/STATUS.md', '---\ndescription: handoff\n---\n# STATUS\n\n## Done\n\n- T-1 shipped.\n\n## Next quest\n\n### Open decisions\n- Should T-12 move to sprint 4? (T-12)\n\n### Blockers\n- T-3 waits on T-1 (T-3 and ZZ-9)\n\n## Context\n\n- Branch main.\n<!-- plangraph:card:begin -->\nold line\n<!-- plangraph:card:end -->\n');
   git(root, 'add', '-A'); git(root, 'commit', '-qm', 'base');
@@ -170,11 +172,11 @@ for (const c of CASES) {
     assert.equal(r.error, undefined, String(r.error));
     let body = `$ plangraph ${c.args.join(' ')}\nexit: ${r.status}\n--- stdout\n${r.stdout}--- stderr\n${r.stderr}`;
     for (const f of c.files || []) { const fp = path.join(root, f); body += `--- file ${f}\n${fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '(missing)\n'}`; }
-    const got = normalize(body, root);
+    const got = normalizeGolden(normalize(body, root));
     const file = path.join(GOLD, c.name + '.txt');
     if (UPDATE) { fs.mkdirSync(GOLD, { recursive: true }); fs.writeFileSync(file, got); return; }
     assert.ok(fs.existsSync(file), `missing golden ${c.name}.txt (run with UPDATE_GOLDEN=1 and review it)`);
-    assert.equal(got, fs.readFileSync(file, 'utf8'));
+    assert.equal(got, normalizeGolden(fs.readFileSync(file, 'utf8'))); // both sides normalized: a fingerprint or plan file name is backend-specific
   });
 }
 

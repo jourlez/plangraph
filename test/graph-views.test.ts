@@ -16,6 +16,7 @@ import type { NodeRef, Rel } from '../lib/graph/views.ts';
 import { DERIVED_RELATIONS } from '../lib/graph/files.ts';
 import { genPlan, rng } from './fixtures/gen.ts';
 import { downgradeToV1 } from './helpers/older-index.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
 const tmps: string[] = [];
@@ -27,6 +28,7 @@ type Files = Record<string, readonly object[]>;
 function plan(files: Files) {
   const dir = tmp('graph-views-');
   for (const [f, rows] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), jl(rows));
+  adoptPlanDir(dir);
   buildIndex({ dir });
   return { dir, file: path.join(dir, INDEX_FILE), open: () => openIndex(path.join(dir, INDEX_FILE), { dir }) };
 }
@@ -116,6 +118,7 @@ test('derived and stored rows never share a relation: a derived relation in link
   for (const rel of DERIVED_RELATIONS) {
     const dir = tmp('graph-derived-');
     fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([{ from: 'T-1', from_type: 'ticket', rel, to: 'T-2', to_type: 'ticket' }]));
+    adoptPlanDir(dir);
     assert.throws(() => buildIndex({ dir }), (e) => e instanceof Error && e.message.startsWith(`LINK_DERIVED_REL links.jsonl:1: `), rel);
   }
   assert.ok(DERIVED_RELATIONS.every((rel) => G_LINKS_SQL.includes(`'${rel}'`)), 'the view names every derived relation (the stored branch excludes them)');
@@ -223,6 +226,7 @@ test('reach follows assigned_to and scheduled_in of one schedule version only', 
 test('a links.jsonl row is stored with its from and to columns (keyword names), attrs as canonical JSON, and two equal lines give one reach result', () => {
   const row = { from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'E-1', to_type: 'epic', attrs: { z: 1, a: { y: 2, x: 3 } } };
   const dir = tmp('graph-links-'); fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([row, row]));
+  adoptPlanDir(dir);
   buildIndex({ dir });
   using h = openIndex(path.join(dir, INDEX_FILE), { dir });
   assert.deepEqual(h.all('SELECT "from", "to", attrs, extra FROM link').map((r) => ({ ...(r as object) })), [{ from: 'T-1', to: 'E-1', attrs: '{"a":{"x":3,"y":2},"z":1}', extra: null }, { from: 'T-1', to: 'E-1', attrs: '{"a":{"x":3,"y":2},"z":1}', extra: null }]);
@@ -256,7 +260,9 @@ test('an x-github.pr node and an x-github/closes link build, and the v1 answers 
     assert.equal(cli(d, 'init').status, 0);
     const b = path.join(d, '.plangraph');
     fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+    adoptPlanDir(b);
     if (graph) for (const [f, rows] of Object.entries(FULL)) if (!['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl', 'refs.jsonl'].includes(f)) fs.writeFileSync(path.join(b, f), jl(rows));
+    adoptPlanDir(b);
     const bl = cli(d, 'build'); assert.equal(bl.status, 0, bl.stderr);
     return d;
   };
@@ -273,6 +279,7 @@ test('an x-github.pr node and an x-github/closes link build, and the v1 answers 
 test('a links row without from_type or to_type, or with a type outside the grammar, is a data error naming the field', () => {
   for (const [row, field] of [[{ from: 'a', rel: 'relates_to', to: 'b', to_type: 'ticket' }, 'from_type'], [{ from: 'a', from_type: 'ticket', rel: 'relates_to', to: 'b' }, 'to_type'], [{ from: 'a', from_type: 'Ticket', rel: 'relates_to', to: 'b', to_type: 'ticket' }, 'from_type'], [{ from: 'a', from_type: 'ticket', rel: 'relates_to', to: 'b', to_type: 'x-a' }, 'to_type']] as const) {
     const dir = tmp('graph-badlink-'); fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([row]));
+    adoptPlanDir(dir);
     assert.throws(() => buildIndex({ dir }), (e) => e instanceof Error && e.message.includes('links.jsonl:1:') && e.message.includes(`"${field}"`), field);
   }
 });
@@ -290,14 +297,17 @@ test('a graph file adds its bytes to the fingerprint only when it is present; a 
   assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'init'], { cwd: d, env }).status, 0);
   const b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  adoptPlanDir(b);
   const built = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'build'], { cwd: d, env, encoding: 'utf8' });
   assert.equal(built.status, 0, built.stderr);
   const stored = (new DatabaseSync(path.join(b, INDEX_FILE), { readOnly: true }).prepare('SELECT v FROM index_meta WHERE k = ?').get(FINGERPRINT_KEY) as { v: string }).v;
   assert.equal(sourceFingerprint(b), stored, 'the fingerprint of a v1-only directory is the one the build stored');
   fs.writeFileSync(path.join(b, 'people.jsonl'), jl([{ id: 'Ana' }]));
+  adoptPlanDir(b);
   const one = sourceFingerprint(b);
   assert.notEqual(one, stored);
   fs.writeFileSync(path.join(b, 'people.jsonl'), jl([{ id: 'Ana', name: 'A' }]));
+  adoptPlanDir(b);
   assert.notEqual(sourceFingerprint(b), one);
   fs.rmSync(path.join(b, 'people.jsonl'));
   assert.equal(sourceFingerprint(b), stored);
@@ -312,6 +322,7 @@ function frozenRepo() {
   assert.equal(now('init').status, 0);
   const p = genPlan({ n: 6, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  adoptPlanDir(b);
   assert.equal(now('build').status, 0);
   downgradeToV1(path.join(b, INDEX_FILE));
   return { d, b, now, file: path.join(b, INDEX_FILE) };

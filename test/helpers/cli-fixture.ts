@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { main } from '../../src/cli.ts';
 import { genPlan } from '../fixtures/gen.ts';
+import { adoptPlanDir } from './plan-dir.ts';
 export const made: string[] = [];
 export const tmp = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'clik-'))); made.push(d); return d; };
 export const jl = (rows: object[]): string => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
@@ -54,6 +55,7 @@ export async function fixture(): Promise<string> {
   fs.writeFileSync(path.join(b, 'refs.jsonl'), jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }], files: { 'src.js': 1 }, fp_files: '', jira_updated: '', audited_at: '' }]));
   fs.writeFileSync(path.join(b, 'learnings.jsonl'), jl([{ id: 'L1', kind: 'rule', topic: 'db', text: 'use migrations', why: 'history', source: 'retro' }]));
   fs.writeFileSync(path.join(b, 'config.json'), JSON.stringify({ ...p.config, owner_of_decisions: 'Ana' }));
+  adoptPlanDir(b);
   assert.equal((await run(d, ['build'])).code, 0);
   return d;
 }

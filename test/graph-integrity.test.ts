@@ -7,6 +7,7 @@ import path from 'node:path';
 import { integrity, renderViolation } from '../lib/graph/integrity.ts';
 import type { GraphFiles } from '../lib/graph/files.ts';
 import { made, state, fixture, copy, run, jl } from './helpers/cli-fixture.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 before(async () => { state.FIX = await fixture(); });
 after(() => { for (const d of [state.FIX, ...made]) fs.rmSync(d, { recursive: true, force: true }); });
@@ -48,7 +49,7 @@ test('DOUBLE_PLACED_WORK fires on an explicit xref when both tickets are placed'
 });
 
 const flat = (r: { out: string[] }) => r.out.join('\n').split('\n');
-const put = (d: string, f: string, rows: readonly object[]) => fs.writeFileSync(path.join(d, '.plangraph', f), jl([...rows]));
+const put = (d: string, f: string, rows: readonly object[]) => { fs.writeFileSync(path.join(d, '.plangraph', f), jl([...rows])); adoptPlanDir(path.join(d, '.plangraph')); };
 const sprints = [{ n: 1, start: '2026-01-05', end: '2026-01-16' }, { n: 2 }];
 
 test('build prints violations on stderr and exits 0; check exits 1 on an error and 0 on a warning alone', async () => {

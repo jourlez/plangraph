@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
@@ -34,6 +35,7 @@ before(() => {
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([T('D-1', 'Done'), T('P-1', 'In Progress'), T('O-1', 'To Do'), T('F-1', 'To Do')]));
   fs.writeFileSync(path.join(B, 'edges.jsonl'), '');
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(Object.entries(CUR).map(([key, [owner, sprint]]) => ({ version: 'current', key, owner, sprint }))));
+  adoptPlanDir(B);
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), first_sprint: 1, caps: { default: 10 }, frozen_statuses: ['In Progress'], frozen_before_sprint: 2 }));
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
 });

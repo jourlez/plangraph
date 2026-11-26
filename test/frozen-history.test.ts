@@ -12,6 +12,7 @@ import type { Edge, PlanConfig, ScheduleRow, Ticket } from '../lib/model.ts';
 import { verifyPlan } from '../lib/verify.ts';
 import { whatif, relieve, renderRelieve } from '../lib/whatif.ts';
 import { readiness } from '../lib/ready.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const tk = (key: string, sp: number, jira_status = 'To Do', extra: Partial<Ticket> = {}): Ticket => ({ key, sp, jira_status, ...extra });
 const at = (key: string, owner: string, sprint: number): ScheduleRow => ({ key, owner, sprint });
@@ -93,6 +94,7 @@ function brainRepo(tickets: Ticket[], edges: Edge[], schedule: ScheduleRow[], co
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(tickets.map((t) => ({ verdict: 'READY', ...t }))));
   fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(edges));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(schedule.map((r) => ({ version: 'current', ...r }))));
+  adoptPlanDir(B);
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...config }));
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
   return { run, repo };

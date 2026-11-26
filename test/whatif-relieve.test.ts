@@ -15,6 +15,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { buildModel } from '../lib/model.ts';
 import { relieve, renderRelieve } from '../lib/whatif.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE = '', REPO = '';
@@ -49,6 +50,7 @@ before(() => {
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));
+  adoptPlanDir(B);
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
 });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });

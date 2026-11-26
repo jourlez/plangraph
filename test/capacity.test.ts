@@ -8,6 +8,7 @@ import { verifyPlan } from '../lib/verify.ts';
 import { capacityFor } from '../lib/capacity.ts';
 import { whatif, relieve, findSlots, proposeMove, renderWhatif, applyMoves } from '../lib/whatif.ts';
 import type { CapacityRow } from '../lib/graph/files.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 // A(2) and B(2) sit in Ana S2; C(2) sits in Ana S3. Cap 4 for everyone, six sprints.
 const world = (capacity: CapacityRow[] = []) => buildModel({
@@ -87,6 +88,7 @@ test('modelFromDb reads capacity.jsonl through the index (CLI)', async () => {
   const tk = fs.readFileSync(path.join(dir, 'schedule.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { key: string; owner: string; sprint: number })[0];
   assert.ok(tk);
   fs.writeFileSync(path.join(dir, 'capacity.jsonl'), jl([{ person: tk.owner, sprint: tk.sprint, sp: 0 }]));
+  adoptPlanDir(dir);
   assert.equal((await run(d, ['build'])).code, 0);
   const r = await run(d, ['whatif', '--relieve', tk.owner, '--sprint', String(tk.sprint), '--json']);
   assert.match(r.out.join('\n'), /"cap":0/);

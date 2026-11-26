@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE = '', n = 0;
@@ -17,6 +18,7 @@ const repo = (): string => {
   const d = path.join(BASE, `r-${n++}`); fs.mkdirSync(d); execFileSync('git', ['init', '-q'], { cwd: d, env: env() });
   assert.equal(run(d, ['init']).status, 0);
   put(d, '.plangraph/tickets.jsonl', '{"key":"T-1","sp":1}\n');
+  adoptPlanDir(path.join(d, '.plangraph'));
   return d;
 };
 const BATCH = JSON.stringify({ schema: 'plangraph-ext-batch@1', sys: 'x-demo', observations: [{ xid: 'item-1', type: 'x-demo.item', fields: { state: 'open' }, links: [] }] });

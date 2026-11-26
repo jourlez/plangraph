@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { loadModel, readConfig, CONFIG_MAX } from '../lib/model.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE: string, HOME: string, DATA: string, REPO: string, OUTSIDE: string;
@@ -30,6 +31,7 @@ before(() => {
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([{ key: 'T-1', sp: 3, verdict: 'READY' }, { key: 'T-2', sp: 2, verdict: 'READY' }]));
   fs.writeFileSync(path.join(B, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'code' }]));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }, { key: 'T-2', owner: 'Ana', sprint: 1 }]));
+  adoptPlanDir(B);
   execFileSync('git', ['add', '-A'], { cwd: REPO, env: env() }); execFileSync('git', ['commit', '-qm', 'base'], { cwd: REPO, env: env() });
   const b = run(REPO, 'build'); assert.equal(b.status, 0, b.stderr);
 });

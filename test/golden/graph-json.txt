@@ -1,5 +1,5 @@
 $ plangraph graph T-12 --depth 2 --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"graph","ok":true,"exit":0,"data":{"start":"pg:ticket/T-12","depth":2,"reverse":false,"nodes":[{"id":"pg:person/Ana","type":"person","depth":1,"rels":["assigned_to"]},{"id":"pg:epic/E3","type":"epic","depth":1,"rels":["belongs_to"]},{"id":"pg:sprint/S1","type":"sprint","depth":1,"rels":["scheduled_in"]},{"id":"pg:openitem/T-12%7Cfollowup","type":"openitem","depth":1,"rels":["held_by"]},{"id":"pg:openitem/T-12%7Cnote","type":"openitem","depth":1,"rels":["held_by"]}],"truncated":0},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"graph","ok":true,"exit":0,"data":{"start":"pg:ticket/T-12","depth":2,"reverse":false,"nodes":[{"id":"pg:person/Ana","type":"person","depth":1,"rels":["assigned_to"]},{"id":"pg:epic/E3","type":"epic","depth":1,"rels":["belongs_to"]},{"id":"pg:sprint/S1","type":"sprint","depth":1,"rels":["scheduled_in"]},{"id":"pg:openitem/T-12%7Cfollowup","type":"openitem","depth":1,"rels":["held_by"]},{"id":"pg:openitem/T-12%7Cnote","type":"openitem","depth":1,"rels":["held_by"]}],"truncated":0},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

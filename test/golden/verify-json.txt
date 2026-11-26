@@ -1,5 +1,5 @@
 $ plangraph verify --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"verify","ok":true,"exit":0,"data":{"ok":true,"warnings":4,"tickets":40,"violations":[{"code":"BLOCKED","key":"T-12","detail":"open note, open followup"},{"code":"BLOCKED","key":"T-3","detail":"verdict BLOCKED, open plan_text"},{"code":"BLOCKED","key":"T-5","detail":"open external, open plan_text"},{"code":"BLOCKED","key":"T-9","detail":"open export_clash"}],"total":4},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["plangraph ticket T-12 -v","plangraph check"]}
+{"v":2,"cmd":"verify","ok":true,"exit":0,"data":{"ok":true,"warnings":4,"tickets":40,"violations":[{"code":"BLOCKED","key":"T-12","detail":"open note, open followup"},{"code":"BLOCKED","key":"T-3","detail":"verdict BLOCKED, open plan_text"},{"code":"BLOCKED","key":"T-5","detail":"open external, open plan_text"},{"code":"BLOCKED","key":"T-9","detail":"open export_clash"}],"total":4},"fresh":{"fp":"<FP>","built":"<FP>"},"next":["plangraph ticket T-12 -v","plangraph check"]}
 --- stderr

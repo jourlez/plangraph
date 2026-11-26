@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 // mode 0500 does not stop root, and Windows has no POSIX modes: there the unwritable case cannot be built
 const posixUser = process.platform !== 'win32' && process.getuid?.() !== 0;
@@ -37,6 +38,7 @@ function repo(): string {
   fs.writeFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), jl(p.tickets));
   fs.writeFileSync(path.join(d, '.plangraph', 'edges.jsonl'), jl(p.edges));
   fs.writeFileSync(path.join(d, '.plangraph', 'schedule.jsonl'), jl(p.schedule));
+  adoptPlanDir(path.join(d, '.plangraph'));
   assert.equal(plangraph(['build']).status, 0);
   return d;
 }

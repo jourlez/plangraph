@@ -10,6 +10,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { statusBrainLine, parseCerebrum, renderRepoRules, repoRuleList, handleOf } from '../lib/integrations/openwolf.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), FIX = path.join(HERE, 'fixtures/openwolf');
 const fx = (p: string) => fs.readFileSync(path.join(FIX, p), 'utf8');
@@ -28,6 +29,7 @@ function repo(status?: string) {
   assert.equal(run(root, 'init').status, 0);
   put(root, '.plangraph/tickets.jsonl', '{"key":"SHOP-12","summary":"split","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n');
   put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"SHOP-12","owner":"Ana","sprint":2}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   assert.equal(run(root, 'build').status, 0);
   put(root, '.wolf/cerebrum.md', fx('cerebrum.drifted.md'));
   if (status !== undefined) put(root, '.wolf/STATUS.md', status);
@@ -59,6 +61,7 @@ test('doctor: an older plangraph line in STATUS.md gives one info line (protocol
   assert.equal(r.stdout.replace(DRIFT + '\n', ''), q.stdout, 'the info line is the only difference');
   // the data changes: the stored line is now older
   fs.appendFileSync(path.join(root, '.plangraph/tickets.jsonl'), '{"key":"SHOP-13","summary":"x","epic":"E","sp":1,"jira_status":"To Do","verdict":"READY"}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   assert.equal(run(root, 'build').status, 0);
   assert.ok(run(root, 'doctor').stdout.includes(DRIFT));
 });

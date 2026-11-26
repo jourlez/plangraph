@@ -9,6 +9,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { factor } from './helpers/perf.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -32,6 +33,7 @@ test('(e) 100k ticket records build in linear time (25k vs 100k, min of 3)', () 
     const lines = [];
     for (let i = 0; i < n; i++) lines.push(JSON.stringify(tk('K-' + i, i % 10 === 0 ? { extra_x: i } : {})));
     fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), lines.join('\n') + '\n');
+    adoptPlanDir(bdir(d));
     let best = Infinity;
     for (let k = 0; k < reps; k++) { const t0 = performance.now(); run(d, 'build'); best = Math.min(best, performance.now() - t0); }
     assert.equal(count(d, 'ticket'), n);

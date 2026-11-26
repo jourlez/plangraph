@@ -1,5 +1,5 @@
 $ plangraph person Ana --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"person","ok":true,"exit":0,"data":{"lines":["total 38 SP in 5 sprints","S1: 16 SP (5)","S2: 5 SP (2)","S3: 14 SP (5)","S4: 1 SP (1)","S5: 2 SP (1)"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"person","ok":true,"exit":0,"data":{"lines":["total 38 SP in 5 sprints","S1: 16 SP (5)","S2: 5 SP (2)","S3: 14 SP (5)","S4: 1 SP (1)","S5: 2 SP (1)"]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

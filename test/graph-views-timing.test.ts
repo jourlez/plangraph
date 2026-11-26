@@ -10,6 +10,7 @@ import path from 'node:path';
 import { buildIndex, openIndex, INDEX_FILE } from '../src/db.ts';
 import { graphReader, reach } from '../lib/graph/views.ts';
 import { factor } from './helpers/perf.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
@@ -25,6 +26,7 @@ function index(n: number) {
   w('schedule.jsonl', Array.from({ length: n }, (_, i) => ({ version: 'current', key: key(i), owner: owner(i), sprint: 1 + (i % 20) })));
   w('people.jsonl', Array.from({ length: 8 }, (_, i) => ({ id: `P${i}` })));
   w('links.jsonl', Array.from({ length: Math.floor(n / 10) }, (_, i) => ({ from: key(i * 10), from_type: 'ticket', rel: 'relates_to', to: key(i * 10 + 5), to_type: 'ticket' })));
+  adoptPlanDir(dir);
   buildIndex({ dir });
   return openIndex(path.join(dir, INDEX_FILE), { dir });
 }

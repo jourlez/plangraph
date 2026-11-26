@@ -33,6 +33,7 @@ function repo() {
   const p = genPlan({ n: 12, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges));
   fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  adoptPlanDir(b);
   const r = run(d, ['build']); assert.equal(r.status, 0, r.stderr);
   return d;
 }
@@ -43,6 +44,7 @@ test('a stale index (text changed after build) answers with one STALE warning on
   let r = run(d, ['ticket', 'T-1']);
   assert.equal(r.status, 0); assert.equal(r.stderr, '');
   fs.appendFileSync(path.join(d, '.plangraph/findings.jsonl'), JSON.stringify({ key: 'T-1', kind: 'note', text: 'later' }) + '\n');
+  adoptPlanDir(path.join(d, '.plangraph'));
   for (const args of [['ticket', 'T-1'], ['check'], ['blockers'], ['sprint', '1'], ['findings']]) {
     r = run(d, args);
     assert.equal(r.stderr, `${STALE_WARNING}\n`, args.join(' '));
@@ -125,6 +127,7 @@ test('after `plangraph export` rewrites the text (canonical order), the next que
   const d = repo(), b = path.join(d, '.plangraph');
   // non-canonical text: reversed lines, so export changes the bytes
   for (const f of ['tickets.jsonl', 'edges.jsonl']) fs.writeFileSync(path.join(b, f), fs.readFileSync(path.join(b, f), 'utf8').trim().split('\n').reverse().join('\n') + '\n');
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   const before = fs.readFileSync(path.join(b, 'tickets.jsonl'), 'utf8');
   let r = run(d, ['export']); assert.equal(r.status, 0, r.stderr);
@@ -177,6 +180,7 @@ test('forecast warns STALE when open-items.jsonl is newer than the index (open-i
   const d = repo(), b = path.join(d, '.plangraph');
   let r = run(d, ['forecast']); assert.equal(r.status, 0); assert.equal(r.stderr, '');
   fs.writeFileSync(path.join(b, 'open-items.jsonl'), '');
+  adoptPlanDir(b);
   const later = new Date(fs.statSync(path.join(b, INDEX_FILE)).mtimeMs + 5000);
   fs.utimesSync(path.join(b, 'open-items.jsonl'), later, later);
   r = run(d, ['forecast']); assert.equal(r.status, 0); assert.equal(r.stderr, `${STALE_WARNING}\n`);
@@ -262,6 +266,7 @@ test('the repository root is found without git (nearest .git, real path), matchi
 
 // ---------- review fixes (Task 11 review round) ----------
 import { main } from '../src/cli.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 // The SessionStart hook runs `card --if-present [--heal]`: it must never print and never exit non-zero, whatever fails.
 test('card --if-present [--heal] is silent with exit 0 on every failure: bad .plangraphrc, refused dir, corrupt index, bad option', () => {

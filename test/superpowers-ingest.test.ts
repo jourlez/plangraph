@@ -14,6 +14,7 @@ import { planSection, DEFAULT_HEADING } from '../lib/stale.ts';
 import type { Mode, OpenMode } from 'node:fs';
 import type { Ticket } from '../lib/model.ts';
 import type { SpFinding, SpRecords } from '../lib/integrations/superpowers.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 // Fixtures are the synthetic ones from docs/research/integrations/superpowers.md section 7 (invented names, no real data).
 const HERE = import.meta.dirname;
@@ -46,6 +47,7 @@ function repo({ ledger = '7x', plan = PLAN } = {}) {
   put(root, '.plangraph/tickets.jsonl', '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","verdict":"READY"}\n{"key":"sp:other-plan/1","summary":"x","epic":"sp:other-plan"}\n');
   put(root, '.plangraph/edges.jsonl', '{"consumer":"T-1","producer":"sp:other-plan/1","kind":"plan_need","note":""}\n');
   put(root, '.plangraph/findings.jsonl', '{"key":"T-1","kind":"note","text":"keep me"}\n');
+  adoptPlanDir(path.join(root, '.plangraph'));
   return root;
 }
 const walk = (dir: string, base = dir, out: Record<string, string> = {}) => {
@@ -486,7 +488,7 @@ test('sp-ingest: a flat ledger whose first line names the plan applies automatic
 });
 
 // ---------- 3. verify, ready and ticket know the sp: namespace ----------
-const placeT1 = (root: string) => put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"T-1","owner":"Ana","sprint":1}\n');
+const placeT1 = (root: string) => { put(root, '.plangraph/schedule.jsonl', '{"version":"current","key":"T-1","owner":"Ana","sprint":1}\n'); adoptPlanDir(path.join(root, '.plangraph')); };
 test('verify after sp-ingest without an owner: OK, the count covers every ticket; with --owner/--sprint the tasks are verified (HANDOFF)', () => {
   const root = repo(); placeT1(root);
   assert.equal(run(root, 'sp-ingest', PLAN_REL).status, 0); assert.equal(run(root, 'build').status, 0);
@@ -496,6 +498,7 @@ test('verify after sp-ingest without an owner: OK, the count covers every ticket
   const v2 = run(root, 'verify'); assert.equal(v2.stdout, 'BLOCKED T-1 open note\nOK plan valid (6 tickets, 1 warnings)\n'); assert.equal(v2.status, 0);
   const sched = fs.readFileSync(path.join(root, '.plangraph/schedule.jsonl'), 'utf8').replace(`"key":"${K('1')}","owner":"Ana"`, `"key":"${K('1')}","owner":"Ben"`);
   assert.ok(sched.includes('"owner":"Ben"')); fs.writeFileSync(path.join(root, '.plangraph/schedule.jsonl'), sched);
+  adoptPlanDir(path.join(root, '.plangraph'));
   assert.equal(run(root, 'build').status, 0);
   // K1's impl_status is done: a closed producer satisfies its links wherever it sits (frozen history, lib/frozen.ts)
   const v3 = run(root, 'verify'); assert.deepEqual([v3.status, v3.stdout], [0, 'BLOCKED T-1 open note\nOK plan valid (6 tickets, 1 warnings)\n']);
@@ -504,6 +507,7 @@ test('verify after sp-ingest without an owner: OK, the count covers every ticket
   assert.equal(run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '3').status, 0); assert.equal(run(root, 'build').status, 0);
   const sched2 = fs.readFileSync(path.join(root, '.plangraph/schedule.jsonl'), 'utf8').replace(`"key":"${K('2')}","owner":"Ana"`, `"key":"${K('2')}","owner":"Ben"`);
   assert.ok(sched2.includes(`"key":"${K('2')}","owner":"Ben"`)); fs.writeFileSync(path.join(root, '.plangraph/schedule.jsonl'), sched2);
+  adoptPlanDir(path.join(root, '.plangraph'));
   assert.equal(run(root, 'build').status, 0);
   const v4 = run(root, 'verify'); assert.equal(v4.status, 1);
   assert.equal(v4.stdout, `BLOCKED T-1 open note\nHANDOFF ${K('3')} producer ${K('2')} S3 Ben, consumer ${K('3')} S3 Ana, consumer needs >=S4\n`);
@@ -584,6 +588,7 @@ test('--owner and --sprint go together; seeding never clobbers rows and warns wi
   loud(root, ['sp-ingest', PLAN_REL, '--sprint', '2'], /--owner and --sprint go together/);
   fs.writeFileSync(path.join(root, PLAN_REL), PLAN.replace('### Task 1: CSV formatter\n', '### Task 1: CSV formatter\n\n**Points:** 3\n').replace('### Task 2: Streaming widget query\n', '### Task 2: Streaming widget query\n\n- Points: 5\n'));
   put(root, '.plangraph/schedule.jsonl', `{"version":"current","key":"${K('2')}","owner":"Cy","sprint":1}\n`);
+  adoptPlanDir(path.join(root, '.plangraph'));
   const r = run(root, 'sp-ingest', PLAN_REL, '--owner', 'Ana', '--sprint', '2'); assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^warning: seeded 2 tasks for Ana in sprint 2: 3 story points \(capacity is not checked here\)$/m);
   assert.deepEqual(readRecs(root, 'schedule.jsonl').map((x) => [x.key, x.owner, x.sprint]), [[K('1'), 'Ana', 2], [K('2'), 'Cy', 1], [K('3'), 'Ana', 2]]);

@@ -1,5 +1,5 @@
 $ plangraph rules --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"rules","ok":true,"exit":0,"data":{"lines":["agents: 4","input: 1","links: 1","loops: 1","replan: 1","reporting: 1","solver: 3","store: 1","verification: 3"]},"fresh":{"fp":"0512544c","built":"0512544c"},"next":[]}
+{"v":2,"cmd":"rules","ok":true,"exit":0,"data":{"lines":["agents: 4","input: 1","links: 1","loops: 1","replan: 1","reporting: 1","solver: 3","store: 1","verification: 3"]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

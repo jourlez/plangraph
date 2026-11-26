@@ -1,9 +1,9 @@
 $ plangraph open-items --findings - --write
 exit: 0
 --- stdout
-open-items.jsonl and OPEN-ITEMS.md written (7 open)
+<FILE> and OPEN-ITEMS.md written (7 open)
 --- stderr
---- file .plangraph/open-items.jsonl
+--- file .plangraph/<FILE>
 {"key":"T-12","kind":"followup","owner":"Ana","due_sprint":3,"status":"open","text":"confirm scope","source":"manual"}
 {"key":"T-12","kind":"note","owner":"Ana","due_sprint":1,"status":"open","text":"keep an eye"}
 {"key":"T-20","kind":"decision","owner":"Ben","due_sprint":5,"status":"done","text":"pick a vendor","closed_at":"2026-11-22","close_note":"done","source":"manual"}

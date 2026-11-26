@@ -13,6 +13,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { genPlan, rng } from './fixtures/gen.ts';
 import { generateReal, checkOut, Refused } from '../evals/gen-real.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 let tmp: string, project: string, canary: ReturnType<typeof makeCanary>;
@@ -43,6 +44,7 @@ function makeProject(dir: string, cv: ReturnType<typeof makeCanary>) {
   fs.writeFileSync(path.join(bd, 'findings.jsonl'), jl(findings));
   fs.writeFileSync(path.join(bd, 'open-items.jsonl'), '');
   fs.writeFileSync(path.join(bd, 'evidence.jsonl'), jl([{ key: plan.tickets[0].key, text: `${cv.marker} evidence` }]));
+  adoptPlanDir(bd);
   fs.writeFileSync(path.join(bd, 'config.json'), JSON.stringify(plan.config, null, 1) + '\n');
   fs.writeFileSync(path.join(dir, '.plangraphrc'), '{"dir": "docs/plan-graph"}\n');
 }

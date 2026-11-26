@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { canonFile, SCHEMAS } from '../lib/store.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph'), FX = path.join(import.meta.dirname, 'fixtures/repo-scan');
 const fx = (n: string) => fs.readFileSync(path.join(FX, n), 'utf8');
@@ -76,6 +77,7 @@ test('only git is spawned: a planted postinstall and Makefile run nothing', () =
 
 test('CODEOWNERS owners resolve against people.jsonl; the rest is dropped; an oversized manifest is refused', () => {
   const p = plan(); put(p, '.plangraph/people.jsonl', '{"id":"alice"}\n');
+  adoptPlanDir(path.join(p, '.plangraph'));
   const r = repo('svc', { CODEOWNERS: '* @alice @ghost\n', 'package.json': ' '.repeat(300 * 1024) + '{}' });
   const s = run(p, ['repo', 'scan', r]);
   assert.equal(s.status, 0, s.stderr); assert.match(s.stderr, /package\.json: over 256 KB/);
@@ -93,6 +95,7 @@ test('a tracked symlink manifest is never read', () => {
 
 test('a rescan keeps the id and hand-written fields; --all scans each child repository', () => {
   const p = plan(); put(p, '.plangraph/repos.jsonl', '{"id":"repo:web","name":"old","paths":[{"glob":"a/**","sub":"a"}],"role":"app"}\n');
+  adoptPlanDir(path.join(p, '.plangraph'));
   const parent = path.join(BASE, `p-${n++}`); repo('web', { 'package.json': '{"name":"renamed"}' }, parent); repo('lib', { 'go.mod': 'module x/lib\n' }, parent);
   const s = run(p, ['repo', 'scan', parent, '--all']);
   assert.equal(s.status, 0, s.stderr);
