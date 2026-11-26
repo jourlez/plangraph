@@ -57,6 +57,7 @@ export const FORMAT_BOUND: readonly string[] = [
   'first-use.test.ts',
   'graph-files.test.ts',
   'heal-marker.test.ts',
+  'index-incremental.test.ts',
   'launchers.test.ts',
   'merge-bounded.test.ts',
   'merge.test.ts',
