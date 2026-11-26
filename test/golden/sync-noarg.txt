@@ -1,0 +1,6 @@
+$ plangraph sync
+exit: 2
+--- stdout
+--- stderr
+error: usage: plangraph sync --plan
+try: plangraph explain sync

@@ -373,6 +373,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph doctor` | data format, merge driver, Node and solver runtime checks (exit 1 on a problem) | `--fix` | none (`--fix`: git config) |
 | `plangraph explain` | what each command does, from the registry | `[COMMAND]`, `--json` | none |
 | `plangraph export` | index to canonical text (refuses a stale index) | | text |
+| `plangraph sync` | read-only drift report between the plan files and the observation cache (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) plus a tracker push list; `config.graph.stale_days` (default 14) | `--plan` | none |
 | `plangraph findings` | finding counts by kind, or the findings of one kind | `[KIND]` | none |
 | `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
 | `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |

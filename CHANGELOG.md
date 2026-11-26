@@ -8,6 +8,8 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 - `plangraph sp-link sp:SLUG/N --track ABC-123` records which Jira ticket an `sp:` ticket tracks (one `xrefs.jsonl` row, `tracked_by`); the `DOUBLE_PLACED_WORK` hint now names it.
 - Provider seam: `plangraph import --sys jira|sp|generic FILE...` reads data another tool saved to a file into observations (`lib/graph/provider.ts`), kept in the uncommitted, git-ignored cache `<dir>/cache/<sys>.jsonl` (mode 0600) and in the index table `obs`. Observations are advisory: they never write tickets, edges or schedule. An index built by 0.4.0 has no `obs` table: run `plangraph build`.
 
+- Drift report: `plangraph sync --plan` (`lib/graph/drift.ts`) compares the plan files with the observation cache and prints one bounded line per finding (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) and a tracker push list. Read-only.
+
 ## [0.4.0] - 2026-11-26
 
 Upgrade every team member to 0.4.0 before anyone commits node files: a 0.3.0 client cannot read them.

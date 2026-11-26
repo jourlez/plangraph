@@ -3,7 +3,7 @@ exit: 0
 --- stdout
 plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}
 exit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error
-writes none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale ticket verify
+writes none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify
 writes files: card jira-import jira-pull jira-text units
 writes index: build schedule-load whatif
 writes text: export import init learn migrate migrate-names open-items refs-update repo report sp-ingest sp-link

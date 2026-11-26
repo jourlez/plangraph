@@ -59,7 +59,7 @@ const SHAPES = {
   bundle: [['T-1']], 'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['T-1', '--out', 'jt', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],
   'open-items': [[], ['--findings', 'f.jsonl']], forecast: [[]], simulate: [['--runs', '20']], integrations: [[]],
   'sp-ingest': [['docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none']], 'sp-link': [['T-1', 'docs/plan.md']],
-  learn: [['--from-wolf', 'w000000']], report: [[]], explain: [[], ['ticket'], ['nope']], 'migrate-names': [[]], repo: [['scan'], ['scan', '--check'], ['scan', '--all'], []], import: [['--sys', 'generic', 'batch.json'], ['--sys', 'jira', 'issue.json', '--tenant', 'work'], ['--sys', 'sp', 'docs/plan.md'], ['--sys', 'nope', 'batch.json'], []], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], ['T-404'], ['pg:ticket/T-2'], ['T-2', '--rel', 'nope'], ['materialize']],
+  learn: [['--from-wolf', 'w000000']], report: [[]], explain: [[], ['ticket'], ['nope']], 'migrate-names': [[]], repo: [['scan'], ['scan', '--check'], ['scan', '--all'], []], sync: [['--plan'], []], import: [['--sys', 'generic', 'batch.json'], ['--sys', 'jira', 'issue.json', '--tenant', 'work'], ['--sys', 'sp', 'docs/plan.md'], ['--sys', 'nope', 'batch.json'], []], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], ['T-404'], ['pg:ticket/T-2'], ['T-2', '--rel', 'nope'], ['materialize']],
 };
 // Failures after --json was seen: no index, a bad positional count, a bad option value.
 const FAILURES = [['@empty', 'ticket', 'T-1'], ['@empty', 'check'], ['sprint'], ['sprint', '1', '2'], ['simulate', '--runs', 'x']];
