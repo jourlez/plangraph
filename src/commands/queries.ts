@@ -9,6 +9,7 @@ import { makeGit } from '../../lib/gitsafe.ts';
 import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
+import { reach } from '../../lib/graph/views.ts';
 import { BIN, CUR, SRC_FILES, GRAPH_SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
@@ -23,6 +24,12 @@ type RulesValues = { repo?: boolean; max?: string; topic?: string; all?: boolean
 type ReadyValues = { jira?: string; person?: string; sprint?: number };
 
 const placeOf = (d: IndexHandle, key: unknown) => d.get(`SELECT owner,sprint FROM schedule WHERE ${CUR} AND key=?`, key) as Place | undefined; // one row or none
+
+// The `needs` relation as rows (src, dst, kind): the g_links view; an index built before the views existed answers from the edge table (v1 commands still work on it).
+const needsRows = (d: IndexHandle): string => (d.older ? 'SELECT consumer src, producer dst, kind FROM edge' : "SELECT src, dst, kind FROM g_links WHERE rel='needs'");
+// The tickets one step from a node over a relation, by reach; null (no restriction) on an index without the views.
+const held = (d: IndexHandle, start: { id: string; type: 'person' | 'sprint' }, rel: 'assigned_to' | 'scheduled_in'): string | null => (d.older ? null : JSON.stringify(reach(d, start, [rel], 1, true).map((r) => r.id)));
+const IN_KEYS = '(? IS NULL OR s.key IN (SELECT value FROM json_each(?)))';
 
 // Short data fields (status, verdict, owner, kind) are printed as one sanitized capped line each; free text (summary, finding text,
 // evidence resolution) only inside one <untrusted> fence, one record per line, with the number of records bounded.
@@ -39,8 +46,9 @@ function ticket(ctx: Ctx, args: Args): number {
   if (t.verdict) data.push(`verdict ${w(t.verdict)}${t.verdict_source ? ` (${w(t.verdict_source)})` : ''}`);
   if (t.impl_status) data.push(`impl ${w(t.impl_status)}`);
   if (isPlaced(s)) data.push(`plan S${s.sprint} ${w(s.owner, 60)}`);
-  const needs = d.all(`SELECT e.producer,e.kind,s.sprint,s.owner FROM edge e LEFT JOIN schedule s ON s.key=e.producer AND s.${CUR} WHERE e.consumer=? ORDER BY s.sprint, e.producer`, key) as Array<{ producer: unknown; kind: unknown; sprint: unknown; owner: unknown }>; // the columns this SELECT names
-  const neededBy = (d.get('SELECT COUNT(*) c FROM edge WHERE producer=?', key) as { c: number }).c; // COUNT(*) returns one row
+  const me = { id: String(key), type: 'ticket' as const };
+  const needs = d.all(`SELECT e.dst producer,e.kind,s.sprint,s.owner FROM (${needsRows(d)}) e LEFT JOIN schedule s ON s.key=e.dst AND s.${CUR} WHERE e.src=? ORDER BY s.sprint, e.dst`, key) as Array<{ producer: unknown; kind: unknown; sprint: unknown; owner: unknown }>; // the columns this SELECT names
+  const neededBy = d.older ? (d.get('SELECT COUNT(*) c FROM edge WHERE producer=?', key) as { c: number }).c : reach(d, me, ['needs'], 1, true).length; // the consumers one step back, each once; COUNT(*) returns one row
   const fs_ = d.all('SELECT kind,text FROM finding WHERE key=?', key) as Array<{ kind: unknown; text: unknown }>; // the columns this SELECT names
   // The data fields (statuses, verdict and its source, owner) are text from the plan: one inline <untrusted> fence around the group.
   if (data.length) parts.push(fenceInline(data.join(' | '), 400));
@@ -74,9 +82,15 @@ function neighbors(ctx: Ctx, args: Args): number {
   // The depth bounds a recursive query: an ASCII whole number from 0 to 50, never NaN or a huge value.
   if (!/^\d{1,3}$/.test(rawDepth) || Number(rawDepth) > MAX_DEPTH) throw usage('depth must be a whole number from 0 to 50');
   const depth = Number(rawDepth);
-  const walk = (a: string, b: string) => d.all(`WITH RECURSIVE c(k,depth) AS (SELECT ?,0 UNION SELECT e.${b},c.depth+1 FROM edge e JOIN c ON e.${a}=c.k WHERE c.depth<?) SELECT k,MIN(depth) depth FROM c WHERE k<>? GROUP BY k`, key, depth, key) as Array<{ k: string; depth: number }>; // the columns this SELECT names
+  const rows = d.all(needsRows(d)) as Array<{ src: string; dst: string }>, fwd = new Map<string, string[]>(), back = new Map<string, string[]>(); // the columns this SELECT names
+  for (const r of rows) { for (const [m, a, b] of [[fwd, r.src, r.dst], [back, r.dst, r.src]] as const) { const l = m.get(a); if (l) l.push(b); else m.set(a, [b]); } }
+  const walk = (adj: Map<string, string[]>) => { // breadth first: each key once, at its least depth, the key itself left out
+    const seen = new Set([key as string]), out: string[] = []; let frontier = [key as string];
+    for (let i = 0; i < depth && frontier.length; i++) { const next: string[] = []; for (const k of frontier) for (const n of adj.get(k) ?? []) if (!seen.has(n)) { seen.add(n); out.push(n); next.push(n); } frontier = next; }
+    return out.sort((x, y) => (x < y ? -1 : x > y ? 1 : 0)).map((k) => ({ k }));
+  };
   const fmt = (r: { k: string }) => { const s = placeOf(d, r.k); return `${w(r.k, 120)}${s ? ` S${w(s.sprint, 20)}/${w(String(s.owner).split(' ')[0])}` : ''}`; };
-  const down = walk('consumer', 'producer'), up = walk('producer', 'consumer');
+  const down = walk(fwd), up = walk(back);
   const lim = verbose(args) ? Infinity : 25, lst = (a: Array<{ k: string }>) => a.slice(0, lim).map(fmt).join(', ') + (a.length > lim ? ` +${a.length - lim} more` : '');
   ctx.io.out(`${w(key, 120)} needs (${down.length}): ${lst(down)}`);
   ctx.io.out(`${w(key, 120)} is needed by (${up.length}): ${lst(up)}`);
@@ -88,7 +102,7 @@ function neighbors(ctx: Ctx, args: Args): number {
 function chain(ctx: Ctx, args: Args): number {
   const d = ctx.db(), [key] = args.positionals as [string], out = ctx.io.out, skip = new Set<unknown>(ctx.config().ignore_link_kinds || []); // like check; chain's positionals is [1, 1]: parse() refused any other count
   const prods = new Map<string, string[]>();
-  for (const e of d.all('SELECT consumer,producer,kind FROM edge') as EdgeRow[]) { if (skip.has(e.kind)) continue; if (!prods.has(e.consumer)) prods.set(e.consumer, []); (prods.get(e.consumer) as string[]).push(e.producer); } // set just before
+  for (const e of d.all(`SELECT src consumer,dst producer,kind FROM (${needsRows(d)})`) as EdgeRow[]) { if (skip.has(e.kind)) continue; if (!prods.has(e.consumer)) prods.set(e.consumer, []); (prods.get(e.consumer) as string[]).push(e.producer); } // set just before
   for (const a of prods.values()) a.sort(); // stable tie-break: the smallest key wins
   const own = new Map((d.all(`SELECT key,owner FROM schedule WHERE ${CUR}`) as Array<{ key: string; owner: unknown }>).map((r) => [r.key, r.owner])); // the columns this SELECT names
   const hops = new Map() as Dense<string, number>, via = new Map() as Dense<string, string | null>, cnt = new Map() as Dense<string, number>, hand = new Map() as Dense<string, number>, state = new Map<string, number>(); // read only after a key is done
@@ -123,7 +137,8 @@ function chain(ctx: Ctx, args: Args): number {
 function sprint(ctx: Ctx, args: Args): number {
   if (!/^-?\d{1,7}$/.test(String(args.positionals[0]))) throw usage(`sprint needs a whole number, got "${oneLine(String(args.positionals[0])).slice(0, 40)}"`);
   const d = ctx.db(), cfg = ctx.config(), n = Number(args.positionals[0]);
-  const rows = d.all(`SELECT s.owner, SUM(t.sp) sp, COUNT(*) n FROM schedule s JOIN ticket t ON t.key=s.key WHERE s.${CUR} AND s.sprint=? GROUP BY s.owner ORDER BY s.owner`, Number.isFinite(n) ? n : null) as Array<{ owner: string; sp: number | null; n: number }>; // the columns this SELECT names (SUM is NULL when every sp is; COUNT never is)
+  const keys = held(d, { id: `S${n}`, type: 'sprint' }, 'scheduled_in'); // the tickets placed in the sprint now
+  const rows = d.all(`SELECT s.owner, SUM(t.sp) sp, COUNT(*) n FROM schedule s JOIN ticket t ON t.key=s.key WHERE s.${CUR} AND s.sprint=? AND ${IN_KEYS} GROUP BY s.owner ORDER BY s.owner`, Number.isFinite(n) ? n : null, keys, keys) as Array<{ owner: string; sp: number | null; n: number }>; // the columns this SELECT names (SUM is NULL when every sp is; COUNT never is)
   for (const r of rows) ctx.io.out(`${w(r.owner, 60)}: ${r.sp} SP / cap ${capOf(cfg, r.owner)} (${r.n} tickets)`);
   const over = rows.filter((r) => (r.sp as number) > capOf(cfg, r.owner)); // unchecked: a NULL sum compares as 0, as before
   let none = null;
@@ -138,7 +153,8 @@ function sprint(ctx: Ctx, args: Args): number {
 }
 
 function person(ctx: Ctx, args: Args): number {
-  const d = ctx.db(), rows = d.all(`SELECT s.sprint, SUM(t.sp) sp, COUNT(*) n FROM schedule s JOIN ticket t ON t.key=s.key WHERE s.${CUR} AND s.owner=? GROUP BY s.sprint ORDER BY s.sprint`, args.positionals[0]) as Array<{ sprint: number; sp: number; n: number }>; // the columns this SELECT names
+  const d = ctx.db(), keys = held(d, { id: String(args.positionals[0]), type: 'person' }, 'assigned_to'); // the tickets the person holds now
+  const rows = d.all(`SELECT s.sprint, SUM(t.sp) sp, COUNT(*) n FROM schedule s JOIN ticket t ON t.key=s.key WHERE s.${CUR} AND s.owner=? AND ${IN_KEYS} GROUP BY s.sprint ORDER BY s.sprint`, args.positionals[0], keys, keys) as Array<{ sprint: number; sp: number; n: number }>; // the columns this SELECT names
   ctx.io.out(`total ${rows.reduce((a, r) => a + r.sp, 0)} SP in ${rows.length} sprints`);
   for (const r of rows) ctx.io.out(`S${r.sprint}: ${r.sp} SP (${r.n})`);
   return 0;

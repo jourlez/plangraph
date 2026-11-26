@@ -138,8 +138,12 @@ export function reach(db: Queryable, start: NodeRef, rels: readonly Rel[], depth
 }
 
 // ---------- the reader ----------
-interface BlockerSource {
+export interface BlockerSource {
   ticket(key: string): { verdict: string; jira_status: string; impl_status: string | null } | null;
+  /** Is the open-items register's item key|kind closed? */
+  shut(key: string, kind: string): boolean;
+  /** The current placement of a ticket, as stored (unchecked), or null. */
+  place(key: string): { owner: unknown; sprint: unknown } | null;
   findings(key: string): ReadonlyArray<{ kind: string; text: string }>;
   openItems(key: string): ReadonlyArray<{ key: string; kind: string; status: string; owner: string; text: string }>;
   producers(key: string): ReadonlyArray<{ key: string; kind: string | null }>;
@@ -172,6 +176,10 @@ export function graphReader(db: Queryable, items: readonly OpenItem[]): GraphRea
     ticket(key) {
       const r = db.all('SELECT "verdict", "jira_status", "impl_status" FROM ticket WHERE "key" = ?', key)[0] as { verdict: unknown; jira_status: unknown; impl_status: unknown } | undefined; // the columns this SELECT names
       return r ? { verdict: str(r.verdict), jira_status: str(r.jira_status), impl_status: r.impl_status === null || r.impl_status === undefined ? null : str(r.impl_status) } : null;
+    },
+    shut: (key, kind) => shut.has(itemId({ key, kind })),
+    place(key) {
+      return (db.all(`SELECT "owner", "sprint" FROM schedule WHERE "version" = 'current' AND "key" = ?`, key)[0] as { owner: unknown; sprint: unknown } | undefined) ?? null; // the columns this SELECT names
     },
     findings(key) {
       return (db.all('SELECT "kind", "text" FROM finding WHERE "key" = ? ORDER BY rowid', key) as Array<{ kind: unknown; text: unknown }>).map((f) => ({ kind: str(f.kind), text: str(f.text) })); // the columns this SELECT names
