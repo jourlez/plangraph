@@ -95,6 +95,8 @@ const CASES: Case[] = [
   { name: 'chain', args: ['chain', 'T-30'] }, { name: 'chain-json', args: J('chain', 'T-30') },
   { name: 'graph', args: ['graph', 'T-12', '--depth', '2'] }, { name: 'graph-json', args: J('graph', 'T-12', '--depth', '2') }, { name: 'graph-uri-bad', args: ['graph', 'pg:ticket/%2e%2e'] },
   { name: 'graph-materialize', args: ['graph-materialize'], files: ['.plangraph/people.jsonl', '.plangraph/sprints.jsonl', '.plangraph/epics.jsonl'] },
+  { name: 'fmt', args: ['fmt'] }, { name: 'resolve', args: ['resolve'] },
+  { name: 'resolve-scalar-left', args: ['resolve'], setup: (r) => { const d = path.join(r, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'x~00000000.pg'), 'id "x"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n'); } },
   { name: 'repo', args: ['repo'] }, { name: 'repo-badpath', args: ['repo', 'scan', 'nope'] },
   { name: 'sync-noarg', args: ['sync'] }, { name: 'import-noarg', args: ['import'] }, { name: 'import-unknown-sys', args: ['import', '--sys', 'nope', 'x.json'] },
   { name: 'sprint', args: ['sprint', '3'] }, { name: 'sprint-json', args: ['sprint', '3', '--json'] }, { name: 'sprint-verbose', args: ['sprint', '3', '-v'] },

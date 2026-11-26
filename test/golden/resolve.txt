@@ -1,0 +1,5 @@
+$ plangraph resolve
+exit: 0
+--- stdout
+resolve: no conflicts
+--- stderr

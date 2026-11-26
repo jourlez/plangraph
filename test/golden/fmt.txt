@@ -1,0 +1,5 @@
+$ plangraph fmt
+exit: 0
+--- stdout
+fmt: nothing to rewrite
+--- stderr
