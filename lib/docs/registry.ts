@@ -6,6 +6,10 @@ import { policyFromList, policyKey, scanDocs, type DataPolicy, type Known, type 
 import { checkRegions, fingerprint, injectRegions, type Region, type RefusalReason, type RegionStatus } from './regions.ts';
 import type { Ctx, Extras, Generator } from './types.ts';
 import { docsOut } from './generators/common.ts';
+import { roadmap } from './generators/roadmap.ts';
+import { rtm } from './generators/rtm.ts';
+import { adrIndex } from './generators/adr-index.ts';
+import { status } from './generators/status.ts';
 
 export type { DataPolicy } from './policy.ts';
 export type { Generator, Extras } from './types.ts';
@@ -14,7 +18,7 @@ export type { Generator, Extras } from './types.ts';
 export type FsLike = { read(path: string): string; write(path: string, text: string): void; exists(path: string): boolean; mkdirp(dir: string): void };
 export type DocsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
 
-export const GENERATORS: readonly Generator[] = [];
+export const GENERATORS: readonly Generator[] = [roadmap, rtm, adrIndex, status];
 
 export const policyOf = (cfg: PlanConfig): DataPolicy => policyFromList(((cfg.docs ?? {}) as { include?: unknown }).include);
 

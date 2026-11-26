@@ -1,7 +1,9 @@
 // Shared builders for generators: a generator is a pure `data` function (policy-filtered facts) plus a `view`; the fingerprint inputs
 // are exactly the data, so a generator is stale exactly when a fact it prints changed.
 import type { Model, PlanConfig, Ticket } from '../../model.ts';
-import { cmp, hash8, short } from '../fence.ts';
+import { fenceInline } from '../../sanitize.ts';
+import { cmp, hash8, short, WITHHELD } from '../fence.ts';
+import { hasD24 } from '../policy.ts';
 import type { DataPolicy } from '../policy.ts';
 import type { Ctx, Extras, Generator } from '../types.ts';
 
@@ -18,7 +20,10 @@ export const who = (name: unknown, policy: DataPolicy): string => {
   if (s === '') return '';
   return policy.include.has('names') ? short(s, 40) : `p-${hash8(s)}`;
 };
-export const title = (t: Ticket, policy: DataPolicy): string => (policy.include.has('tracker_text') && t.summary ? short(t.summary) : '');
+export const title = (t: Ticket, policy: DataPolicy): string => {
+  if (!policy.include.has('tracker_text') || !t.summary) return '';
+  return hasD24(String(t.summary)) ? WITHHELD : fenceInline(t.summary, 80);
+};
 
 const cell = (s: unknown): string => String(s ?? '').replaceAll('|', '/');
 export function mdTable(head: readonly string[], rows: readonly (readonly unknown[])[]): string[] {
