@@ -31,9 +31,8 @@ type WhatifValues = { to?: string; sprint?: number; earlier?: boolean; 'owner-ch
 // ---- reassignment safety ----
 // --json data of a dry run: the move, the broken rules (bounded like the text), the repair suggestion; next: the --apply-plan dry run of
 // the same move when one exists (allowed, or a repair was found) and the ticket in detail. Untrusted strings are one sanitized line.
-const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE', 'SPRINT_CLOSED']);
 const FLAGS = ['earlier', 'owner-change', 'slip', 'strict'] as const;
-function whatifData(r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifValues, limit: number) {
+function whatifData(W: WhatifLib, r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifValues, limit: number) {
   const mv = r.ripple?.[0], g = r.suggestion, s = (x: unknown, n = 60) => oneLine(x ?? '', n);
   const data = {
     key: s(key, 120), ok: r.ok, to: mv ? { owner: s(mv.to.owner), sprint: mv.to.sprint } : null,
@@ -43,7 +42,7 @@ function whatifData(r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifVa
     suggestion: g ? (g.none ? { none: true } : { owner: s(g.owner), sprint: g.sprint, shifts: g.shifts, ownerChanges: g.ownerChanges, ...(g.flags ? { flags: g.flags } : {}) }) : null,
   };
   const known = !r.reasons.some((x) => x.code === 'UNKNOWN_TICKET');
-  const repairable = (r.ok || (g && !g.none)) && !r.reasons.some((x) => HARD.has(x.code) || (x.code === 'BLOCKED' && !x.warn)) && (v.sprint === undefined || v.sprint >= 0);
+  const repairable = (r.ok || (g && !g.none)) && !r.reasons.some((x) => W.HARD.has(x.code) || (x.code === 'BLOCKED' && !x.warn)) && (v.sprint === undefined || v.sprint >= 0);
   // a suggestion was searched with slip allowed: its --apply-plan runs the same search (--slip), or it would not find the same repair
   const need = (f: typeof FLAGS[number]) => v[f] || (f === 'slip' && !r.ok && g && !g.none);
   const apply = repairable ? nextCommand(['whatif', [key], ...(v.to !== undefined ? ['--to', [v.to]] : []), ...(v.sprint !== undefined ? ['--sprint', String(v.sprint)] : []), ...FLAGS.filter(need).map((f) => `--${f}`), '--apply-plan']) : null;
@@ -110,7 +109,7 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
       const t = W.touchesLine((await import('../../lib/graph/views.ts')).graphReader(ctx.db(), items), mv.key as string); if (t) r.touches = t; // key is defined past the --relieve return
     }
     out(dataText(W.renderWhatif(r, { limit }), 4000)); // one line: keys and owners from data cannot start a new line
-    const { data, next } = whatifData(r, mv.key as string, v, limit); ctx.io.data?.(data, { next }); // key is defined past the --relieve return (checked above)
+    const { data, next } = whatifData(W, r, mv.key as string, v, limit); ctx.io.data?.(data, { next }); // key is defined past the --relieve return (checked above)
     return r.ok ? 0 : 1;
   }
   const r = W.proposeMove(model, mv as MoveRequest, o); // as for whatif above: key is defined here, to and sprint are read with != null and ??

@@ -234,8 +234,8 @@ async function check(ctx: Ctx): Promise<number> {
   return code; // CI fails on any violation, and on any unplaced ticket (verify exits 1 on UNPLACED too)
 }
 
-async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean }>): Promise<number> {
-  const V = await import('../../lib/verify.ts'), R = await import('../../lib/render.ts'), model = modelFromDb(ctx);
+async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean; strict?: boolean }>): Promise<number> {
+  const V = await import('../../lib/verify.ts'), R = await import('../../lib/render.ts'), model = modelFromDb(ctx), { items } = await readItems(ctx);
   let sched = model.sched;
   const [file] = args.positionals;
   if (file !== undefined) {
@@ -245,12 +245,14 @@ async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean }>): Promis
   }
   // a schedule file is checked against the frozen tickets of the CURRENT schedule: one it moves or drops is FROZEN_MOVED
   const frozen = file === undefined ? undefined : (await import('../../lib/frozen.ts')).frozenSlots(model);
-  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
-  ctx.io.data?.({ ok: !v.length, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
+  const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), strict: Boolean(args.values.strict), items, ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
+  const errors = v.filter((x) => !x.warn).length; // a BLOCKED row is a warning (exit 0) unless --strict
+  ctx.io.data?.({ ok: !errors, warnings: v.length - errors, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
     { next: v.length ? nextList([nextCommand(['ticket', [(v[0] as (typeof v)[number]).key], '-v']), file === undefined ? 'plangraph check' : null]) : [] }); // v.length was checked
   if (!v.length) { ctx.io.out(`OK plan valid (${model.tickets.size} tickets)`); return 0; } // every ticket (unplaced sp: tasks included)
   for (const l of R.bound(v.map((x) => `${w(x.code)} ${w(x.key, 120)} ${dataText(x.detail, 1000)}`), { limit })) ctx.io.out(l);
-  return 1;
+  if (!errors) ctx.io.out(`OK plan valid (${model.tickets.size} tickets, ${v.length} warnings)`);
+  return errors ? 1 : 0;
 }
 
 // ---- definition of ready: may this ticket be started now? (the rules: lib/ready.ts, shared with blockers and report) ----
@@ -379,7 +381,7 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
     h.update(`${f}\0${b.length}\0${b}\0`);
   }
   for (const s of model.sched.values()) if (Number.isInteger(s.sprint) && (s.sprint as number) > last) last = (s.sprint as number); // Number.isInteger is the check
-  return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).length} violations @${h.digest('hex').slice(0, 8)}`;
+  return `plangraph: ${model.tickets.size} tickets, last sprint ${last}, ${V.verifyPlan(model).filter((x) => !x.warn).length} violations @${h.digest('hex').slice(0, 8)}`;
 }
 async function cardLine(ctx: Ctx): Promise<number> { ctx.io.out(await cardLineText(ctx)); return 0; }
 
@@ -446,7 +448,7 @@ export const commands: CommandMap = {
   findings: { run: findings, positionals: [0, 1], summary: 'finding counts by kind, or the findings of one kind' },
   rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' }, topic: { type: 'string', missing: TOPIC_USAGE }, all: B }, summary: 'learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)' },
   check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)' },
-  verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B }, summary: 'independent plan verifier (exit 1 on a violation)' },
+  verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B, strict: B }, summary: 'independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless --strict)' },
   ready: { run: ready, positionals: [0, 1], options: { jira: { type: 'string' }, person: { type: 'string' }, sprint: { type: 'integer' } }, summary: 'may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start' },
   card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: { ...B, writes: ['git-config', 'gitattributes', 'merge-shim'] } }, guard: (v: Record<string, unknown>) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
 };

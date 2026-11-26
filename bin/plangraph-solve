@@ -286,6 +286,7 @@ def load_raw(a):
         cfgp = a.config or os.path.join(d, 'config.json')
         tickets = read_jsonl(os.path.join(d, 'tickets.jsonl'))
         edges = [(e['consumer'], e['producer'], e.get('kind', '')) for e in read_jsonl(os.path.join(d, 'edges.jsonl'))]
+        sprints = [(r.get('n'), r.get('state')) for r in read_jsonl(os.path.join(d, 'sprints.jsonl'))]
         sched = {}
         for r in read_jsonl(os.path.join(d, 'schedule.jsonl')):
             sched.setdefault(r.get('version', 'current'), {})[r['key']] = (r['owner'], r['sprint'])
@@ -296,6 +297,7 @@ def load_raw(a):
         try:
             tickets = [dict(zip(('key', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'impl_status'), r)) for r in
                        db.execute('SELECT key, sp, jira_status, v2_owner, v2_sprint, impl_status FROM ticket ORDER BY key')]
+            sprints = [tuple(r) for r in db.execute('SELECT n, state FROM sprint')]
             edges = [tuple(r) for r in db.execute('SELECT consumer, producer, kind FROM edge')]
             sched = {}
             for v, k, o, s in db.execute('SELECT version, key, owner, sprint FROM schedule'): sched.setdefault(v, {})[k] = (o, s)
@@ -303,7 +305,15 @@ def load_raw(a):
     # a --config named on the command line may be a symlink (as other files a person names); the plan dir's own config.json may not
     text = read_capped(cfgp, follow=bool(a.config))
     if text is None: raise invalid(f'config not found: {cfgp}')
-    return tickets, edges, sched, json.loads(text)
+    cfg = json.loads(text)
+    gate_rows(cfg, sprints)
+    return tickets, edges, sched, cfg
+
+
+def gate_rows(cfg, sprints):
+    """The fact verify() needs for SPRINT_CLOSED, mirroring lib/graph/blockers.ts closedSprintRow: cfg gets `_closed_sprints` (a private key:
+    prepare() reads it and the input hash does not). BLOCKED is a warning in plangraph verify, so the solver neither checks nor avoids it."""
+    cfg['_closed_sprints'] = sorted(n for n, st in sprints if isinstance(n, int) and not isinstance(n, bool) and str(st if st is not None else '').lower() == 'closed')
 
 
 class Problem: pass
@@ -370,6 +380,7 @@ def prepare(a, tickets, edges_raw, sched, cfg):
     if any(abs(d * F) > MAX_UNITS for d in spd + list(capd.values()) + list(mind.values())): raise invalid(UNITS_MSG)
     pr.nd = {i for i, d in enumerate(spd) if Fraction(float(d)) != Fraction(d)}   # not exactly a binary float (see over())
     pr.status = [t.get('jira_status') or '' for t in tickets]
+    pr.closed_sprints = set(cfg.get('_closed_sprints') or [])   # see gate_rows
     pr.v2 = [t.get('v2_owner') or None for t in tickets]; pr.v2s = [t.get('v2_sprint') for t in tickets]
     skip = set(cfg.get('ignore_link_kinds', []))
     pr.dropped = 0; es = set()
@@ -565,6 +576,10 @@ def verify(pr, assign):
         if (owner, sprint) in free and over(l, pr.capf(owner), (owner, sprint) in nd and (owner, sprint) in free):
             bad.append(f'capacity {owner} sprint {sprint}: {us(pr, l)} > {us(pr, pr.capf(owner))}' if l > pr.capf(owner) else
                        f'capacity {owner} sprint {sprint}: {us(pr, l)} reaches {us(pr, pr.capf(owner))} with a story point that is not a binary float')
+    for key, (owner, sprint) in sorted(place.items()):   # rows of open, free tickets at or after the first sprint: never in a closed sprint
+        i = pr.ix.get(key)
+        if i is None or not isinstance(sprint, int) or isinstance(sprint, bool) or sprint < pr.S0 or i in pr.closed or i in pr.frozen: continue
+        if sprint in pr.closed_sprints: bad.append(f'{key} sprint {sprint} is closed')
     for c, p in pr.edges:
         kc, kp = pr.T[c], pr.T[p]
         if p in pr.closed or (c in pr.frozen and p in pr.frozen): continue   # a closed producer, or two frozen tickets: history, no constraint
@@ -599,7 +614,7 @@ def construct(pr):
         s = max(pr.S0, pr.base_sprint[i] if pr.base_sprint[i] is not None else pr.S0)
         for p in pr.prods[i]:
             if p in place: po, ps = place[p]; s = max(s, ps if po == o else ps + 1)
-        while over(load.get((o, s), 0) + pr.sp[i], pr.capf(pr.P[o]), i in pr.nd or ((o, s) in ndc and pr.sp[i] > 0)): s += 1
+        while s in pr.closed_sprints or over(load.get((o, s), 0) + pr.sp[i], pr.capf(pr.P[o]), i in pr.nd or ((o, s) in ndc and pr.sp[i] > 0)): s += 1
         place[i] = (o, s); load[(o, s)] = load.get((o, s), 0) + pr.sp[i]
         if i in pr.nd: ndc.add((o, s))
     return place
@@ -626,7 +641,7 @@ def construct_free(pr):
                 s = pr.S0
                 for p in pr.prods[i]:
                     if p in place: po, ps = place[p]; s = max(s, ps if po == q else ps + 1)
-                while over(load.get((q, s), 0) + pr.sp[i], pr.capf(pr.P[q]), i in pr.nd or ((q, s) in ndc and pr.sp[i] > 0)): s += 1
+                while s in pr.closed_sprints or over(load.get((q, s), 0) + pr.sp[i], pr.capf(pr.P[q]), i in pr.nd or ((q, s) in ndc and pr.sp[i] > 0)): s += 1
                 key = (s, 0 if q == bo else 1, q)
                 if best is None or key < best: best = key
             s, _, q = best; place[i] = (q, s); load[(q, s)] = load.get((q, s), 0) + pr.sp[i]
@@ -726,6 +741,9 @@ def build(pr, cp, horizon, links, soft=False):
         if i in pr.pin_owner and nP > 1: m.Add(cx.oi[i] == pr.pin_owner[i])   # repair mode only (empty otherwise: the model is unchanged)
         if i in pr.min_sprint: m.Add(cx.spr[i] >= pr.min_sprint[i])
         if pr.repair is not None: m.Add(cx.spr[i] <= pr.target)
+        for c in pr.closed_sprints:   # a free ticket never sits in a closed sprint (verify: SPRINT_CLOSED)
+            if max(lo, pr.S0) <= c <= horizon:
+                for p in range(nP): m.Add(xi[p][c - lo] == 0)
         for p in range(nP):
             for k in range(K): terms[p][k].append((xi[p][k], pr.sp[i])); tix[p][k].append(i)
     cx.load = {}

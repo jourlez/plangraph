@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { genPlan, rng } from '../fixtures/gen.ts';
 import { verifyPlan } from '../../lib/verify.ts';
+import { buildModel } from '../../lib/model.ts';
 import { eachAssign, modelWith, oracleValid, peopleOf, schedOf, slots } from '../helpers/oracle.ts';
 import type { Assign } from '../helpers/oracle.ts';
 
@@ -54,4 +55,16 @@ test('hand cases: one violation code each, matching the oracle', () => {
   assert.deepEqual(codes(modelWith(tight, both), both), ['CAPACITY']); assert.ok(!oracleValid(tight, both));
   const before = new Map([['T-1', { owner: 'Ana', sprint: 0 }], ['T-2', p1]]);
   assert.deepEqual(codes(modelWith(tight, before), before), ['BEFORE_FIRST']); assert.ok(!oracleValid(tight, before));
+});
+
+test('the oracle and verifyPlan reject the same blocked and closed-sprint rows', () => {
+  const plan = genPlan({ n: 2, people: 1, density: 0, seed: 1, cap: 9, maxSp: 1 });
+  const rows = (a: Assign, verdict: string | null, closed: number[]) => buildModel({ tickets: plan.tickets.map((t) => (t.key === 'T-1' && verdict ? { ...t, verdict } : t)), edges: plan.edges, config: plan.config,
+    schedule: [...a].map(([key, s]) => ({ key, owner: s.owner, sprint: s.sprint })), sprints: closed.map((n) => ({ n, state: 'closed' })) });
+  for (const [verdict, closed] of [[null, []], ['NOT_READY', []], [null, [2]], ['NOT_READY', [2]]] as const) {
+    eachAssign(plan, SPRINTS, (a) => {
+      const gate = { blocked: new Set(verdict ? ['T-1'] : []), closed: new Set(closed) };
+      assert.equal(verifyPlan(rows(a, verdict, [...closed]), schedOf(a)).length === 0, oracleValid(plan, a, 1, gate), `${verdict} ${closed} ${JSON.stringify([...a])}`);
+    });
+  }
 });
