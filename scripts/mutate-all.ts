@@ -48,6 +48,11 @@ export const OVERRIDES: Record<string, string[]> = {
   'lib/driver.ts': ['test/driver-wiring.test.ts'],
   'lib/stale.ts': ['test/stale.test.ts'], // loads the module through a computed dynamic import (STALE_MODULE), invisible to the scan
 };
+/** Test files run in tier 1 for a target no test imports (a launcher script run as a subprocess): without this its tests are all tier 2, behind the whole suite. */
+export const TIER1_OVERRIDES: Record<string, string[]> = {
+  'src/entry.js': ['test/compile-cache.test.ts', 'test/floor.test.ts', 'test/launchers.test.ts'],
+  'src/merge-entry.js': ['test/floor.test.ts', 'test/launchers.test.ts'],
+};
 const EQUIVALENT_FILE = 'scripts/mutate/equivalent.json';
 // bumped when the tier rules change, so survivors recorded under older rules are re-run
 const MAPPING_VERSION = 2;
@@ -334,6 +339,12 @@ export function testMap(root: string, targets: string[], tests: string[]) {
       if (direct.has(target)) m.direct.push(test);
       else if (reach.has(target) || (OVERRIDES[target] ?? []).includes(test)) { m.extended.push(test); if (imported.has(target)) inProc.set(target, [...(inProc.get(target) ?? []), test]); }
     }
+  }
+  for (const [target, extra] of Object.entries(TIER1_OVERRIDES)) {
+    const m = map.get(target);
+    if (!m) continue;
+    for (const t of extra) if (tests.includes(t)) { if (!m.direct.includes(t)) m.direct.push(t); m.extended = m.extended.filter((/** @type {string} */ f: string) => f !== t); }
+    m.direct.sort();
   }
   // a module under src/ (driven through the CLI) and a module no test imports directly also get the tests that load it in-process as
   // tier 1 (the tier-1 budget still moves the slow ones to tier 2)

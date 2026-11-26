@@ -41,3 +41,16 @@ test('type aliases and interfaces are not mutated, runtime code beside them is',
   const plain = mutantsFor('y.ts', "const type = 'a';\ntype = 'b';\nconst o = { type: 'c' };");
   assert.equal(plain.length, 3);
 });
+
+test('the tier-1 overrides name existing test files, and the launchers get them as direct tests', async () => {
+  const { TIER1_OVERRIDES, testMap } = await import('../scripts/mutate-all.ts');
+  const root = path.join(import.meta.dirname, '..');
+  const tests = fs.readdirSync(path.join(root, 'test')).filter((f) => /\.test\.(mjs|ts)$/.test(f)).map((f) => `test/${f}`);
+  for (const [target, list] of Object.entries(TIER1_OVERRIDES)) {
+    assert.ok(fs.existsSync(path.join(root, target)), target);
+    for (const t of list) assert.ok(tests.includes(t), `${target}: ${t} is not a test file`);
+    const m = testMap(root, [target], tests).get(target);
+    assert.deepEqual(list.filter((t) => !m.direct.includes(t)), [], `${target}: tier 1 holds its overrides`);
+    assert.deepEqual(list.filter((t) => m.extended.includes(t)), [], `${target}: tier 2 does not repeat them`);
+  }
+});
