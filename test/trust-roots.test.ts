@@ -22,3 +22,8 @@ test('every listed trust-root file exists and is a mutated source file', () => {
     assert.ok(isSource(p), `${p} is not a file the mutation runner mutates`);
   }
 });
+
+test('docs/CONTRACT.md names every listed trust-root file', () => {
+  const docs = fs.readFileSync(path.join(ROOT, 'docs/CONTRACT.md'), 'utf8');
+  for (const p of LIST as string[]) assert.ok(docs.includes(`\`${p}\``), `${p} is not named in docs/CONTRACT.md`);
+});
