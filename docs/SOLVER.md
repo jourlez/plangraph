@@ -225,6 +225,26 @@ instance; with a deterministic budget it tied at 60 s and gained 3 owner changes
 not better either (20.8 s vs 12.6 s, 14.8 s vs 15.9 s). It may help when components are large and truly independent (no shared people); that
 case is not measured here.
 
+## Repair mode: the whatif repair suggestion
+
+`plangraph whatif` checks a move by propagation (the cone of the moved ticket and the target cell), without the solver. The solver is only
+called to suggest a repair, with `--repair KEY --repair-to OWNER --repair-sprint N [--repair-owner-change] [--repair-earlier]` and
+`--baseline current` (anything else is MODEL_INVALID, exit 2):
+
+- Scope: the requested ticket, the cone of its transitive consumers (a closed ticket does not pass the move on) and the tickets now in the
+  target cell are free; every other ticket is fixed at its current slot (like a frozen one: a link between two fixed tickets is history, a
+  link to a free ticket still binds). The requested ticket goes to OWNER in sprint N or later; the others keep their owner unless
+  `--repair-owner-change` and never move earlier unless `--repair-earlier`. Free tickets end by the target end sprint (`--end` or `end_sprint`).
+  The independent verifier enforces these rules too, so a schedule that breaks them is never written.
+- Stability objective: the stages run in the order `owner_changes`, `sprint_moves` (free tickets whose sprint differs from the current one), then
+  the stages as configured (`stage_order` applies after those two). `sprint_moves` exists only in this mode.
+- Complete hint: the first stage starts from the current plan with the requested move applied and the naive forward ripple (consumers pushed
+  later until the handoff rule holds; capacity ignored), every ticket placed. It is only a hint: the trust rules above still apply (the audit,
+  and the unhinted re-proof of a hinted OPTIMAL), and a valid candidate schedule found by the constructions is preferred when it is better.
+- `lib/whatif.ts` `repairSpec` builds the call (scope, hint, flags) and `suggestionFromSchedule` turns the solver's schedule into the same
+  suggestion `whatif` prints (the other tickets that moved, owner changes, a `slip` flag), after checking it with `verifyPlan`.
+  `meta.repair` records the request and the number of free tickets.
+
 ## Environment (PEP 723 notes)
 
 `bin/plangraph-solve` carries an inline script header (`requires-python >=3.10,<3.15`, `ortools==9.15.6755`), so `uv run bin/plangraph-solve ...` also works.

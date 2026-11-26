@@ -3,6 +3,10 @@
 // Extra reason codes beyond the contract spec: OUT_OF_RANGE (sprint outside first_sprint..end_sprint), NO_REPAIR (proposeMove only).
 // CAPACITY is a NEW violation only (as lib/verify.ts counts them): the target cell ends over its capacity AND the move added load to it, so a
 // 0-SP ticket may move into a cell that is already over capacity (its load and its verify violation are unchanged).
+// Gate and slot (0.5.0): BLOCKED (the moved ticket has an open held_by item or a verdict other than READY: a warning, a stop under opts.strict;
+// the blocker rules of lib/graph/blockers.ts, order waits excluded since PRODUCER_LATE covers them) and SPRINT_CLOSED (the target sprint's
+// state is closed, or its end is before opts.asOf: always a stop). Neither can be repaired by a move, so neither gets a suggestion. The
+// `touches` line (touchesLine) is a bounded read-side note over trace and identity relations; it never changes a verdict.
 // Frozen history (lib/frozen.ts): a link whose producer is closed is satisfied wherever the producer sits, so it never yields
 // PRODUCER_LATE / CONSUMER_EARLY, never ripples and never needs a repair; the moved ticket itself is free, so every other link of it binds.
 import { capacityFor, capacityAdvice } from './capacity.ts';
@@ -10,6 +14,11 @@ import type { Model, Placement, Ticket } from './model.ts';
 import { verifyPlan } from './verify.ts';
 import type { Violation } from './verify.ts';
 import { isClosed, frozenTest } from './frozen.ts';
+import { readiness } from './ready.ts';
+import { REL_SEMANTICS } from './graph/files.ts';
+import type { NodeType } from './graph/files.ts';
+import type { PlanRecord } from './model.ts';
+import type { GraphReader, NodeRef, Rel } from './graph/views.ts';
 
 /** A slot: owner and sprint. Model.sched rows may still hold a null owner or sprint; whatif reads them through SchedView as slots,
  * unchecked: such a value is compared and printed exactly as before (pre-existing). */
@@ -22,9 +31,11 @@ export interface MoveRequest { key: string; to?: string | null; sprint?: number 
 export interface WhatifOptions {
   people?: readonly string[] | undefined; allowOverflow?: boolean; overflowLimit?: number; frozen?: ReadonlyMap<string, Placement>; strict?: boolean; noSuggest?: boolean;
   allowSlip?: boolean; allowEarlier?: boolean; allowOwnerChange?: boolean; budget?: number; workLimit?: number;
+  /** open-items register rows (the gate reads the open ones) and the as-of day (YYYY-MM-DD) for a sprint that ended */
+  items?: readonly PlanRecord[]; asOf?: string;
 }
 /** whatif and proposeMove reason codes (OUT_OF_RANGE and NO_REPAIR beyond the contract spec, see the header). */
-export type WhatifCode = 'UNKNOWN_TICKET' | 'UNKNOWN_PERSON' | 'OUT_OF_RANGE' | 'SAME_SLOT' | 'STARTED' | 'PRODUCER_LATE' | 'CONSUMER_EARLY' | 'CAPACITY' | 'NO_REPAIR';
+export type WhatifCode = 'UNKNOWN_TICKET' | 'UNKNOWN_PERSON' | 'OUT_OF_RANGE' | 'SAME_SLOT' | 'STARTED' | 'PRODUCER_LATE' | 'CONSUMER_EARLY' | 'CAPACITY' | 'NO_REPAIR' | 'BLOCKED' | 'SPRINT_CLOSED';
 /** One reason, discriminated on its code; warn (a STARTED warning only) does not stop the move. */
 export type WhatifReason = { [C in WhatifCode]: { code: C; key: string; detail: string; fix: string; warn?: boolean } }[WhatifCode];
 export interface LoadCell { before: number; after: number; cap: number }
@@ -38,18 +49,23 @@ export interface WhatifResult {
   freed?: { owner: string; sprint: number; sp: number };
   /** advisory lines (a capacity row above the config value) */
   notes?: string[];
+  /** the bounded `touches:` line, set by the caller (touchesLine) */
+  touches?: string;
 }
 /** What renderWhatif reads: a whatif result, or a hand-built one with only these fields (load is read only when ok). */
 export interface WhatifView {
   ok: boolean; reasons: ReadonlyArray<{ code: string; key: string; detail: string; fix?: string; warn?: boolean }>;
   ripple?: ReadonlyArray<{ key: string; to: { owner: string; sprint: number } }>; load?: Loads;
-  freed?: { owner: string; sprint: number; sp: number }; notes?: readonly string[]; suggestion?: { none?: boolean; sprint?: number; owner?: string; shifts?: number; ownerChanges?: number; flags?: string[] } | null;
+  freed?: { owner: string; sprint: number; sp: number }; notes?: readonly string[]; touches?: string | undefined; suggestion?: { none?: boolean; sprint?: number; owner?: string; shifts?: number; ownerChanges?: number; flags?: string[] } | null;
 }
 export interface Move { key: string; from: Slot; to: Slot }
 export type ProposeResult = { ok: true; moves: Move[]; reasons: WhatifReason[]; shifted: number; ownerChanges: number; slipped: number; searchComplete: boolean; nodes: number }
   | { ok: false; moves: Move[]; reasons: WhatifReason[]; searchComplete?: boolean; nodes?: number; shifted?: never; ownerChanges?: never; slipped?: never };
 
-const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE']);
+const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE', 'SPRINT_CLOSED']);
+/** A reason no move can repair: a hard code, or a STARTED or BLOCKED that stops (not a warning). */
+const stops = (r: { code: string; warn?: boolean | undefined }): boolean => HARD.has(r.code) || ((r.code === 'STARTED' || r.code === 'BLOCKED') && !r.warn);
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
 const spOf = (t: Ticket | undefined): number => (t && Number.isFinite(t.sp) ? t.sp as number : 0); // Number.isFinite is the check
 const d = (a: unknown, b: unknown): number => (a !== b ? 1 : 0);
 const cellKey = (o: unknown, s: unknown): string => `${o}\t${s}`;
@@ -131,6 +147,19 @@ export function whatif(model: Model, mv: MoveRequest, opts: WhatifOptions = {}):
     reasons.push({ code: 'STARTED', key, detail: `status ${status}`, fix: 'confirm with the assignee', ...(opts.strict ? {} : { warn: true }) });
   }
 
+  // Slot: a target sprint that is closed, or whose end is before the as-of day.
+  if (Number.isInteger(sprint)) {
+    const row = (model.sprints ?? []).find((x) => Number(x.n) === sprint), end = typeof row?.end === 'string' && ISO_DAY.test(row.end) ? row.end.slice(0, 10) : null;
+    if (row && String(row.state ?? '').toLowerCase() === 'closed') reasons.push({ code: 'SPRINT_CLOSED', key: `S${sprint}`, detail: `S${sprint} is closed`, fix: 'pick an open sprint' });
+    else if (end && opts.asOf && ISO_DAY.test(opts.asOf) && end < opts.asOf.slice(0, 10)) reasons.push({ code: 'SPRINT_CLOSED', key: `S${sprint}`, detail: `S${sprint} ended ${end}`, fix: 'pick a sprint that has not ended' });
+  }
+  // Gate: an open held_by item or a verdict other than READY on the moved ticket (producers still waiting are PRODUCER_LATE's business).
+  if (!isClosed(model, key)) {
+    const rd = readiness(model, key, { items: opts.items ?? [] });
+    const why = rd.found && !rd.done ? rd.reasons.flatMap((x) => (x.code === 'VERDICT' ? [`verdict ${x.verdict}`] : x.code === 'OPEN_ITEM' ? [`open ${x.kind}`] : [])) : [];
+    if (why.length) reasons.push({ code: 'BLOCKED', key, detail: why.slice(0, 3).join(', ') + (why.length > 3 ? ` +${why.length - 3}` : ''), fix: 'clear it first, or move it knowingly', ...(opts.strict ? {} : { warn: true }) });
+  }
+
   // A self-link (key needs key) is read through P on both ends: the moved ticket's NEW slot, so it never yields a phantom reason.
   const P = (k: string): Slot | undefined => (k === key ? { owner, sprint } : (model.sched as SchedView).get(k)); // schedule rows are read as placed slots: a null owner or sprint is compared and printed as before (unchecked, pre-existing)
   for (const p of model.prods.get(key) || []) {
@@ -178,7 +207,7 @@ export function whatif(model: Model, mv: MoveRequest, opts: WhatifOptions = {}):
   res.ripple = [...rip.values()];
 
   res.ok = !reasons.some((r) => !r.warn);
-  if (!res.ok && !opts.noSuggest && !reasons.some((r) => HARD.has(r.code) || (r.code === 'STARTED' && !r.warn))) {
+  if (!res.ok && !opts.noSuggest && !reasons.some(stops)) {
     const pm = proposeMove(model, mv, { ...opts, allowSlip: true, noSuggest: true });
     // flags: what applying the repair needs beyond the caller's own options (the search allowed slip; the user may not have)
     if (pm.ok) res.suggestion = { sprint: (pm.moves[0] as Move).to.sprint, owner: (pm.moves[0] as Move).to.owner, shifts: pm.moves.length - 1, ownerChanges: pm.moves.slice(1).filter((m) => m.from.owner !== m.to.owner).length, ...(pm.slipped > 0 && !opts.allowSlip ? { flags: ['slip'] } : {}) }; // an ok proposeMove has at least the requested move
@@ -211,7 +240,7 @@ type RunResult = { exhausted: true; pops: number; ov?: never; complete?: never; 
   | { infeasible: true; pops: number; ov?: never; complete?: never; exhausted?: never };
 export function proposeMove(model: Model, mv: MoveRequest, opts: WhatifOptions = {}): ProposeResult {
   const w = whatif(model, mv, { ...opts, noSuggest: true });
-  const hard = w.reasons.filter((r) => HARD.has(r.code) || (r.code === 'STARTED' && !r.warn));
+  const hard = w.reasons.filter(stops);
   if (hard.length) return { ok: false, moves: [], reasons: hard };
   const { key } = mv, cur = (model.sched as SchedView).get(key) as Slot; // whatif found it (no UNKNOWN_TICKET above); schedule rows are read as placed slots (unchecked, pre-existing)
   const owner = (w.ripple[0] as Ripple).to.owner, sprint = (w.ripple[0] as Ripple).to.sprint; // whatif returns an empty ripple only with a HARD reason (UNKNOWN_TICKET, SAME_SLOT), handled above
@@ -548,7 +577,7 @@ export function relieve(model: Model, { person, sprint }: { person: string; spri
 // false beyond). reasons: for the slots that are not valid, how many fail each blocking whatif code (a slot counts under each of its codes).
 // A ticket whatif stops with STARTED (closed, frozen; a started one under strict) has no slot: status 'frozen', after one try.
 export const FIND_MAX = 5000;
-export interface FindOptions { allowEarlier?: boolean; allowOwnerChange?: boolean; strict?: boolean; people?: readonly string[]; max?: number }
+export interface FindOptions { allowEarlier?: boolean; allowOwnerChange?: boolean; strict?: boolean; people?: readonly string[]; max?: number; items?: readonly PlanRecord[]; asOf?: string }
 export interface FoundSlot { owner: string; sprint: number; slip: number; sameOwner: boolean; load: number; cap: number; warn: boolean }
 /** from is null only for status unknown (the ticket is not in the plan). */
 export interface FindResult {
@@ -572,14 +601,14 @@ export function findSlots(model: Model, key: string, opts: FindOptions = {}): Fi
     if (o !== cur.owner && s < cur.sprint && !opts.allowEarlier) continue;
     if (res.tried >= max) { res.searchComplete = false; break outer; }
     res.tried++;
-    const w = whatif(model, { key, to: o, sprint: s }, { strict: !!opts.strict, people: opts.people, noSuggest: true });
+    const w = whatif(model, { key, to: o, sprint: s }, { strict: !!opts.strict, people: opts.people, noSuggest: true, ...(opts.items ? { items: opts.items } : {}), ...(opts.asOf ? { asOf: opts.asOf } : {}) });
     const stop = w.reasons.find((r) => r.code === 'STARTED' && !r.warn);
     if (stop) { res.frozen = stop.detail; break outer; } // a frozen (or, under strict, started) ticket keeps its slot: no slot can be valid
     if (!w.ok) { for (const c of new Set(w.reasons.filter((r) => !r.warn).map((r) => r.code))) res.reasons[c] = (res.reasons[c] || 0) + 1; continue; }
     const after = verifyPlan(model, applyMoves(model.sched, [{ key, to: { owner: o, sprint: s } }]), {});
     const bad = after.filter((v) => !was.has(sig(v)) && !(v.code === 'CAPACITY' && wasCap.has(v.key) && parseFloat(v.detail) <= (wasCap.get(v.key) as number))); // has() was just tested
     if (bad.length) throw new Error(`findSlots produced an invalid slot: ${bad.slice(0, 3).map(sig).join('; ')}`);
-    list.push({ owner: o, sprint: s, slip: Math.abs(s - cur.sprint), sameOwner: o === cur.owner, load: loads.get(cellKey(o, s)) || 0, cap: capacityFor(o, s, model.capacity ?? [], model.config), warn: w.reasons.some((r) => r.warn) });
+    list.push({ owner: o, sprint: s, slip: Math.abs(s - cur.sprint), sameOwner: o === cur.owner, load: loads.get(cellKey(o, s)) || 0, cap: capacityFor(o, s, model.capacity ?? [], model.config), warn: w.reasons.some((r) => r.warn && r.code === 'STARTED') });
   }
   list.sort((a, b) => a.slip - b.slip || Number(b.sameOwner) - Number(a.sameOwner) || a.load - b.load || (a.owner < b.owner ? -1 : a.owner > b.owner ? 1 : 0) || a.sprint - b.sprint);
   return Object.assign(res, { status: res.frozen ? 'frozen' : list.length ? 'found' : 'none', valid: list.length, slots: list });
@@ -647,6 +676,7 @@ export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): stri
     if (r.freed && r.freed.sp) s += ` Frees ${r.freed.sp} on ${r.freed.owner} S${r.freed.sprint}.`;
     if (warn) s += ` WARN ${shown}.`;
     if (r.notes?.length) s += ` Note: ${r.notes.join('; ')}.`;
+    if (r.touches) s += ` ${r.touches}`;
     return s;
   }
   let s = `NO: ${head}. ${shown}.`;
@@ -658,5 +688,104 @@ export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): stri
   } else if (g && g.none) s += ' Fix: none found; try --earlier or --owner-change.';
   else if (r.reasons[0] && r.reasons[0].fix) s += ` Fix: ${r.reasons[0].fix}.`;
   if (r.notes?.length) s += ` Note: ${r.notes.join('; ')}.`;
+  if (r.touches) s += ` ${r.touches}`;
   return s;
+}
+
+// ---- repair suggestion through the solver (amendment section 3.14 item 2) ----
+// The check is propagation (whatif); the solver runs only to suggest a repair. repairSpec gives the call: bin/plangraph-solve in repair mode with
+// every ticket outside the free scope fixed at its current slot (the scope: the requested ticket, the cone of its transitive consumers, the
+// tickets of the target cell), a complete hint (the naive forward ripple of the move, every ticket placed) and a stability objective (owner
+// changes, then sprint moves, then the usual stages). The scope rules are the ones of bin/plangraph-solve repair_scope (a test compares them).
+// suggestionFromSchedule turns the solver's schedule back into a Suggestion after checking it against the same safety net as proposeMove.
+/** The transitive consumers of `key` (not `key` itself); a closed ticket does not pass the move on, as in the ripple. */
+export function repairCone(model: Model, key: string): string[] {
+  const seen = new Set<string>(), todo = [key];
+  while (todo.length) {
+    const x = todo.pop() as string; // todo.length was tested
+    if (isClosed(model, x)) continue;
+    for (const c of model.cons.get(x) || []) if (c !== key && !seen.has(c)) { seen.add(c); todo.push(c); }
+  }
+  return [...seen].sort();
+}
+export interface RepairSpec {
+  /** the flags after `bin/plangraph-solve ... --out F` (the plan itself comes from --jsonl-dir or the index) */
+  args: string[];
+  /** the requested ticket, its cone and the target-cell tickets: the only tickets the solver may move (frozen history aside) */
+  free: string[]; cone: string[];
+  /** the complete hint: every placed ticket's slot after the naive ripple */
+  hint: Map<string, Slot>;
+  to: Slot;
+}
+/** The solver call for a repair, or null when whatif stops the move for a reason no move repairs (hard code, STARTED or BLOCKED stop). */
+export function repairSpec(model: Model, mv: MoveRequest, opts: WhatifOptions = {}): RepairSpec | null {
+  const w = whatif(model, mv, { ...opts, noSuggest: true });
+  if (w.reasons.some(stops) || !w.ripple.length) return null;
+  const to = (w.ripple[0] as Ripple).to, key = mv.key, cone = repairCone(model, key);
+  const cell = [...model.sched].filter(([, p]) => p.owner === to.owner && p.sprint === to.sprint).map(([k]) => k);
+  const fz = frozenTest(model, opts), free = [...new Set([key, ...cone, ...cell])].filter((k) => model.tickets.has(k) && (k === key || !fz(k))).sort(); // history never moves
+  const hint = new Map<string, Slot>();
+  for (const [k, p] of model.sched) if (model.tickets.has(k)) hint.set(k, { owner: p.owner as string, sprint: p.sprint as number });
+  for (const r of w.ripple) hint.set(r.key, { ...r.to });
+  const args = ['--baseline', 'current', '--repair', key, '--repair-to', to.owner, '--repair-sprint', String(to.sprint), ...(opts.allowOwnerChange ? ['--repair-owner-change'] : []), ...(opts.allowEarlier ? ['--repair-earlier'] : [])];
+  return { args, free, cone, hint, to };
+}
+/** A solver schedule row: the shape of the --out array. */
+export interface SolverRow { item: string; owner: string; sprint: number }
+/** The Suggestion a solver schedule makes for `mv`, or { none: true } when it is not a repair of that move (the requested ticket is not at the
+ * requested owner in the requested sprint or later, or a ticket outside the free scope moved). Throws like proposeMove when the schedule
+ * introduces a violation the plan did not have (the internal safety net). */
+export function suggestionFromSchedule(model: Model, mv: MoveRequest, rows: readonly SolverRow[], opts: WhatifOptions = {}): Suggestion {
+  const spec = repairSpec(model, mv, opts);
+  if (!spec) return { none: true };
+  const plan = new Map<string, Placement>(model.sched), free = new Set(spec.free), moves: Move[] = [];
+  for (const r of rows) {
+    const cur = (model.sched as SchedView).get(r.item);
+    if (!cur || (cur.owner === r.owner && cur.sprint === r.sprint)) continue;
+    if (!free.has(r.item)) return { none: true };
+    plan.set(r.item, { owner: r.owner, sprint: r.sprint }); moves.push({ key: r.item, from: { ...cur }, to: { owner: r.owner, sprint: r.sprint } });
+  }
+  const at = plan.get(mv.key) as Slot; // whatif found the ticket, so it is placed
+  if (at.owner !== spec.to.owner || at.sprint < spec.to.sprint) return { none: true };
+  const fz = frozenTest(model, opts);
+  assertPlanValid(model, plan, opts, (k) => k !== mv.key && fz(k));
+  const others = moves.filter((m) => m.key !== mv.key);
+  return { sprint: at.sprint, owner: at.owner, shifts: others.length, ownerChanges: others.filter((m) => m.from.owner !== m.to.owner).length, ...(at.sprint > spec.to.sprint && !opts.allowSlip ? { flags: ['slip'] } : {}) };
+}
+
+// ---- touchesLine: where a ticket's work is traced to, one bounded line. ----
+// Depth 2 over the trace and identity relations only (REL_SEMANTICS decides: group and info relations, and every extension relation, are
+// never read), in both directions, since implements runs from the plan task to the ticket and tracked_by from the ticket's xref row. The
+// second step never enters a plan task or a ticket (a plan's other tasks are siblings, not the ticket's trace). At most TOUCHES_TOKENS
+// estimated tokens: entries that do not fit are counted as "+N". note(node) may add a parenthetical, e.g. an assignee from the cache.
+export const TOUCHES_TOKENS = 40;
+const TRACE_RELS = (Object.keys(REL_SEMANTICS) as Array<keyof typeof REL_SEMANTICS>).filter((r) => REL_SEMANTICS[r] === 'trace' || REL_SEMANTICS[r] === 'identity') as Rel[];
+const LEVEL_CAP = 20, LABEL_MAX = 50;
+const tidy = (x: string): string => { const t = x.replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim(); return t.length > LABEL_MAX ? `${t.slice(0, LABEL_MAX - 1)}~` : t; };
+function touchLabel(n: NodeRef): string | null {
+  const type = n.type as string;
+  if (type === 'plan' || type === 'plantask') return `plan ${tidy(n.id)}`;
+  if (type === 'doc' || type === 'repo' || type === 'epic') return `${type} ${tidy(n.id)}`;
+  if (type.startsWith('x-')) return tidy(n.id.replace(':', ' '));
+  return null; // tickets, people, sprints and open items are not a trace target
+}
+export function touchesLine(g: Pick<GraphReader, 'reach'>, key: string, { note }: { note?: (n: NodeRef) => string | null } = {}): string | null {
+  const start: NodeRef = { id: key, type: 'ticket' as NodeType };
+  const step = (from: NodeRef): NodeRef[] => [false, true].flatMap((rv) => g.reach(from, TRACE_RELS, 1, rv).map((x): NodeRef => ({ id: x.id, type: x.type })));
+  const seen = new Set<string>([`${start.type}\t${start.id}`]), found: NodeRef[] = [], mark = (n: NodeRef): boolean => { const k = `${n.type}\t${n.id}`; if (seen.has(k)) return false; seen.add(k); return true; };
+  const first = step(start).filter(mark).slice(0, LEVEL_CAP);
+  found.push(...first);
+  for (const n of first) for (const m of step(n)) if ((m.type as string) !== 'plantask' && (m.type as string) !== 'ticket' && mark(m)) found.push(m);
+  const planOf = new Set(found.filter((n) => n.type === 'plantask').map((n) => n.id.split('#')[0]));
+  const items: string[] = [];
+  for (const n of found) {
+    if (n.type === 'plan' && planOf.has(n.id)) continue; // the task already names its plan
+    const l = touchLabel(n); if (!l) continue;
+    const nt = note?.(n); items.push(nt ? `${l} (${tidy(nt)})` : l);
+  }
+  if (!items.length) return null;
+  let out = items.slice(); const line = (a: string[], more: number): string => `touches: ${a.join(', ')}${more ? ` +${more}` : ''}`;
+  while (out.length > 1 && est(line(out, items.length - out.length)) > TOUCHES_TOKENS) out.pop();
+  if (est(line(out, items.length - out.length)) > TOUCHES_TOKENS) out = [`${(out[0] as string).slice(0, 120)}~`];
+  return line(out, items.length - out.length);
 }

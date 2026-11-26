@@ -17,7 +17,7 @@ import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, re
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { TableSpec } from '../db.ts';
-import type { Model } from '../../lib/model.ts';
+import type { Model, PlanRecord } from '../../lib/model.ts';
 import type { JiraSettings } from '../jira-tenant.ts';
 import type { MoveRequest } from '../../lib/whatif.ts';
 import type { DetectedTool } from '../../lib/integrations/detect.ts';
@@ -31,7 +31,7 @@ type WhatifValues = { to?: string; sprint?: number; earlier?: boolean; 'owner-ch
 // ---- reassignment safety ----
 // --json data of a dry run: the move, the broken rules (bounded like the text), the repair suggestion; next: the --apply-plan dry run of
 // the same move when one exists (allowed, or a repair was found) and the ticket in detail. Untrusted strings are one sanitized line.
-const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE']);
+const HARD = new Set(['UNKNOWN_TICKET', 'UNKNOWN_PERSON', 'SAME_SLOT', 'OUT_OF_RANGE', 'SPRINT_CLOSED']);
 const FLAGS = ['earlier', 'owner-change', 'slip', 'strict'] as const;
 function whatifData(r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifValues, limit: number) {
   const mv = r.ripple?.[0], g = r.suggestion, s = (x: unknown, n = 60) => oneLine(x ?? '', n);
@@ -39,10 +39,11 @@ function whatifData(r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifVa
     key: s(key, 120), ok: r.ok, to: mv ? { owner: s(mv.to.owner), sprint: mv.to.sprint } : null,
     reasons: r.reasons.slice(0, limit).map((x) => ({ code: s(x.code, 40), key: s(x.key, 120), detail: dataText(x.detail), ...(x.fix ? { fix: dataText(x.fix) } : {}), ...(x.warn ? { warn: true } : {}) })),
     more: Math.max(0, r.reasons.length - limit), ripple: (r.ripple || []).length,
+    ...(r.touches ? { touches: dataText(r.touches) } : {}),
     suggestion: g ? (g.none ? { none: true } : { owner: s(g.owner), sprint: g.sprint, shifts: g.shifts, ownerChanges: g.ownerChanges, ...(g.flags ? { flags: g.flags } : {}) }) : null,
   };
   const known = !r.reasons.some((x) => x.code === 'UNKNOWN_TICKET');
-  const repairable = (r.ok || (g && !g.none)) && !r.reasons.some((x) => HARD.has(x.code)) && (v.sprint === undefined || v.sprint >= 0);
+  const repairable = (r.ok || (g && !g.none)) && !r.reasons.some((x) => HARD.has(x.code) || (x.code === 'BLOCKED' && !x.warn)) && (v.sprint === undefined || v.sprint >= 0);
   // a suggestion was searched with slip allowed: its --apply-plan runs the same search (--slip), or it would not find the same repair
   const need = (f: typeof FLAGS[number]) => v[f] || (f === 'slip' && !r.ok && g && !g.none);
   const apply = repairable ? nextCommand(['whatif', [key], ...(v.to !== undefined ? ['--to', [v.to]] : []), ...(v.sprint !== undefined ? ['--sprint', String(v.sprint)] : []), ...FLAGS.filter(need).map((f) => `--${f}`), '--apply-plan']) : null;
@@ -71,9 +72,9 @@ function relieveCmd(ctx: Ctx, args: Args<WhatifValues>, W: WhatifLib, model: Mod
 
 // --find: every slot KEY may move to with no violation anywhere (lib/whatif.ts findSlots), ranked; read-only, bounded (FIND_MAX tries).
 // Exit 0 when at least one slot is valid, 1 when none (or the key is not in the plan). Names and keys are one sanitized line.
-function findCmd(ctx: Ctx, args: Args<WhatifValues>, W: WhatifLib, model: Model, key: string): number {
+function findCmd(ctx: Ctx, args: Args<WhatifValues>, W: WhatifLib, model: Model, key: string, gate: { items: readonly PlanRecord[]; asOf: string }): number {
   const v = args.values, s = (x: unknown, n = 60) => oneLine(x ?? '', n);
-  const r = W.findSlots(model, key, { allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), strict: Boolean(v.strict) });
+  const r = W.findSlots(model, key, { allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), strict: Boolean(v.strict), ...gate });
   const cmd = (x: ReturnType<WhatifLib['findSlots']>['slots'][number]) => nextCommand(['whatif', [key], ...(x.sameOwner ? [] : ['--to', [x.owner]]), '--sprint', String(x.sprint)]);
   for (const line of W.renderFind(r, { cmd, top: verbose(args) ? 20 : 5, name: (x: unknown) => s(x), key: (x: unknown) => s(x, 120) })) ctx.io.out(line);
   ctx.io.data?.({
@@ -99,11 +100,15 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
   if (badSprint || [...model.tickets.values()].some((t) => t.sp != null && !(Number.isFinite(t.sp) && t.sp >= 0))) {
     throw dataError('the index holds a sprint that is not a whole number or a negative sp', 'fix schedule.jsonl / tickets.jsonl, then `plangraph build` (it names the line)');
   }
+  const { items } = await readItems(ctx), asOf = ctx.now().toISOString().slice(0, 10);
   if (v.relieve !== undefined) return relieveCmd(ctx, args, W, model);
-  if (v.find) return findCmd(ctx, args, W, model, (key as string)); // a KEY is required without --relieve (checked above)
-  const o = { strict: Boolean(v.strict), allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), allowSlip: Boolean(v.slip) };
+  if (v.find) return findCmd(ctx, args, W, model, (key as string), { items, asOf }); // a KEY is required without --relieve (checked above)
+  const o = { strict: Boolean(v.strict), allowEarlier: Boolean(v.earlier), allowOwnerChange: Boolean(v['owner-change']), allowSlip: Boolean(v.slip), items, asOf };
   if (!v['apply-plan']) {
     const r = W.whatif(model, mv as MoveRequest, o), limit = verbose(args) ? 50 : 8; // key is defined past the --relieve return (checked above); whatif reads to and sprint with != null and ??, so undefined reads as absent
+    if (!ctx.db().older && !r.reasons.some((x) => x.code === 'UNKNOWN_TICKET')) { // the graph views exist only in an index of this version
+      const t = W.touchesLine((await import('../../lib/graph/views.ts')).graphReader(ctx.db(), items), mv.key as string); if (t) r.touches = t; // key is defined past the --relieve return
+    }
     out(dataText(W.renderWhatif(r, { limit }), 4000)); // one line: keys and owners from data cannot start a new line
     const { data, next } = whatifData(r, mv.key as string, v, limit); ctx.io.data?.(data, { next }); // key is defined past the --relieve return (checked above)
     return r.ok ? 0 : 1;
