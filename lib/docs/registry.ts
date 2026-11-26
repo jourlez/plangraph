@@ -10,6 +10,10 @@ import { roadmap } from './generators/roadmap.ts';
 import { rtm } from './generators/rtm.ts';
 import { adrIndex } from './generators/adr-index.ts';
 import { status } from './generators/status.ts';
+import { architecture } from './generators/architecture.ts';
+import { repoPage } from './generators/repo-page.ts';
+import { onboarding } from './generators/onboarding.ts';
+import { releaseNotes } from './generators/release-notes.ts';
 
 export type { DataPolicy } from './policy.ts';
 export type { Generator, Extras } from './types.ts';
@@ -18,7 +22,7 @@ export type { Generator, Extras } from './types.ts';
 export type FsLike = { read(path: string): string; write(path: string, text: string): void; exists(path: string): boolean; mkdirp(dir: string): void };
 export type DocsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
 
-export const GENERATORS: readonly Generator[] = [roadmap, rtm, adrIndex, status];
+export const GENERATORS: readonly Generator[] = [roadmap, rtm, adrIndex, status, architecture, repoPage, onboarding, releaseNotes];
 
 export const policyOf = (cfg: PlanConfig): DataPolicy => policyFromList(((cfg.docs ?? {}) as { include?: unknown }).include);
 
