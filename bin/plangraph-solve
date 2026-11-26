@@ -34,6 +34,7 @@ MAX_UNITS = 10 ** 9     # story points, caps and min_per_sprint: at most this af
 MAX_SPRINT = 10 ** 6    # first_sprint, end_sprint (--end), frozen_before_sprint: whole numbers within +-this (as lib/verify.ts bounds first_sprint)
 SCALED = ('shortfall', 'load_of', 'peak_load')   # stage values in story points (reported unscaled)
 SNAP_CAP = 64 << 20     # an existing --out larger than this is not snapshotted, and anytime writes are then off
+HINT_NO_INCLUSION = True  # hinted solves set presolve_inclusion_work_limit=0 (issue 5582 workaround; its cost is measured in docs/SOLVER.md, Trust)
 
 
 class Fail(Exception):
@@ -700,8 +701,9 @@ def gap_summary(stages, proved):
 
 def gap_lead(g):
     """The status-line part for the first unproved stage."""
-    if g.get('gap_pct') is None: return f" (gap={GAP_NA}, stage {g['name']})"
-    return f" (gap={g['gap_pct']}%, bound={g['bound']}, stage {g['name']})"
+    why = f"; solver claimed {g['solver_status']}, not trusted: {g['untrusted'][0]}" if g.get('untrusted') and g.get('solver_status') == 'OPTIMAL' else ''
+    if g.get('gap_pct') is None: return f" (gap={GAP_NA}, stage {g['name']}{why})"
+    return f" (gap={g['gap_pct']}%, bound={g['bound']}, stage {g['name']}{why})"
 
 
 class Clock:
@@ -710,12 +712,21 @@ class Clock:
     def left(s, frac=1.0): return s.total * frac - s.spent()
 
 
-def new_solver(cp, a, budget):
+def new_solver(cp, a, budget, hinted=False):
+    """A CP-SAT solver with the run's workers, seed and budget. hinted=True (the model carries a solution hint) sets
+    presolve_inclusion_work_limit=0: OR-Tools 9.15 can report OPTIMAL above the true optimum on a hinted run (upstream issue 5582), and
+    turning off presolve inclusion detection is the documented workaround. The result is still audited (audit in solve_all)."""
     sv = cp.CpSolver(); p = sv.parameters
     p.num_workers = 1 if a.deterministic else a.workers; p.random_seed = a.seed
     if a.deterministic: p.max_deterministic_time = max(budget, 0.0)
     else: p.max_time_in_seconds = max(budget, 0.0)
+    if hinted and HINT_NO_INCLUSION: p.presolve_inclusion_work_limit = 0
     return sv
+
+
+def has_hint(m):
+    """True when the model carries a solution hint (set_hint)."""
+    return len(m.Proto().solution_hint.vars) > 0
 
 
 # ------------------------------------------------------------------------------------------------------------ explain
@@ -730,18 +741,52 @@ def explain(pr, cp, a, clock, end, budget):
     if budget <= 0.2: out['note'] = 'explanation skipped: no time left'; return out
     bad = [f'{pr.T[c]}>{pr.T[p]}' for c, p in cx.static_bad]
     cx.m.Minimize(sum(s for _, _, s in cx.slack) if cx.slack else 0)
-    sv = new_solver(cp, a, budget); st = sv.Solve(cx.m)
+    sv = new_solver(cp, a, budget); t0 = time.time(); st = sv.Solve(cx.m)
     if a.deterministic: clock.dt += sv.deterministic_time
     if st not in (cp.OPTIMAL, cp.FEASIBLE):
         if st != cp.INFEASIBLE: out['note'] = f'explanation inconclusive ({sv.StatusName(st)}) within the time budget'; return out
         out.update(note=f'infeasible even with every link dropped: the capacity left beside the frozen tickets cannot hold the free tickets by sprint {end}', links=bad, n_links=len(bad)); return out
-    pinned = 0
-    for c, p, s in cx.slack:
-        if sv.Value(s): bad.append(f'{pr.T[c]}>{pr.T[p]}'); pinned += c in pr.frozen
+    drop = {(c, p) for c, p, s in cx.slack if sv.Value(s)}
+    nP = len(pr.P); witness = {i: (pr.frozen[i] if i in pr.frozen else (sv.Value(cx.oi[i]) if nP > 1 else 0, sv.Value(cx.spr[i]))) for i in range(pr.n)}
+    budget -= sv.deterministic_time if a.deterministic else time.time() - t0
+    drop, sure = minimize_links(pr, cp, a, clock, end, drop, witness, budget)
+    pinned = sum(1 for c, _ in drop if c in pr.frozen)
+    bad += [f'{pr.T[c]}>{pr.T[p]}' for c, p in drop]
     if pinned: out.update(pinned=pinned, first=pr.S0)   # links ending at a frozen consumer: a later end sprint does not help them
-    bad = sorted(bad); out.update(n_links=len(bad), links=bad[:8], more=max(0, len(bad) - 8), proved_minimal=(st == cp.OPTIMAL))
+    bad = sorted(bad); out.update(n_links=len(bad), links=bad[:8], more=max(0, len(bad) - 8), proved_minimal=sure)
     if not bad: out['note'] = 'no link blocks it: the capacity left beside the frozen tickets does'
     return out
+
+
+def holds_without(pr, end, drop, g):
+    """The independent verifier on a full assignment with the links in `drop` removed, and every sprint by `end`: True when it passes."""
+    sub = copy.copy(pr); sub.edges = [e for e in pr.edges if e not in drop]
+    return g is not None and max(s for _, s in g.values()) <= end and not verify(sub, names(sub, g))
+
+
+def minimize_links(pr, cp, a, clock, end, drop, witness, budget):
+    """Never trust a raw conflict set (a solver's sufficient_assumptions_for_infeasibility can name a literal that was never assumed when
+    presolve is on, upstream issue 5141; this solver does not use assumptions). The relaxed model's set of dropped links is checked and
+    minimised by deletion: the witness schedule must pass the independent verifier with those links removed; then each link in turn is put
+    back as a hard constraint: if the model is still feasible (its schedule verified), the link is not needed and leaves the set; if it is
+    INFEASIBLE, the link is confirmed. Returns (links, sure): sure is True only when the witness verified and every kept link was confirmed."""
+    if not holds_without(pr, end, drop, witness): return drop, False
+    drop = set(drop); sure = True; spent = 0.0; nP = len(pr.P)
+    todo = sorted(drop, key=lambda e: (pr.T[e[0]], pr.T[e[1]]))
+    for k, l in enumerate(todo):
+        b = (budget - spent) / (len(todo) - k)   # an equal share of what is left for each link still to check
+        if b <= 0.05: sure = False; break
+        rest = drop - {l}; t0 = time.time()
+        cx = build(pr, cp, end, [e for e in pr.live if e not in rest])
+        sv = new_solver(cp, a, b); st = sv.Solve(cx.m)
+        used = sv.deterministic_time if a.deterministic else time.time() - t0; spent += used
+        if a.deterministic: clock.dt += sv.deterministic_time
+        if st in (cp.OPTIMAL, cp.FEASIBLE):
+            g = {i: (pr.frozen[i] if i in pr.frozen else (sv.Value(cx.oi[i]) if nP > 1 else 0, sv.Value(cx.spr[i]))) for i in range(pr.n)}
+            if holds_without(pr, end, rest, g): drop = rest; continue
+            sure = False
+        elif st != cp.INFEASIBLE: sure = False
+    return drop, sure
 
 
 def explain_text(ex):
@@ -798,8 +843,8 @@ def objectives(pr, cx, E, end_fixed):
 
 
 def solve_with(cp, a, m, budget, on_solution, anytime):
-    """One CP-SAT solve; on_solution(value_fn) runs for every improving solution (anytime output)."""
-    sv = new_solver(cp, a, budget)
+    """One CP-SAT solve; on_solution(value_fn) runs for every improving solution (anytime output). A hinted model gets the hinted settings."""
+    sv = new_solver(cp, a, budget, has_hint(m))
     if on_solution is None: return sv, sv.Solve(m)
 
     class CB(cp.CpSolverSolutionCallback):
@@ -935,6 +980,52 @@ def solve_all(pr, cp, a, clock, anytime):
     nP = len(pr.P)
 
     def full(val): return {i: (pr.frozen[i] if i in pr.frozen else (val(cx.oi[i]) if nP > 1 else 0, val(cx.spr[i]))) for i in range(pr.n)}
+    end_lb = max([pr.lo] + [s for _, s in pr.frozen.values()] + ([pr.S0 + max(0, -(-work // sum(pr.capf(p) for p in pr.P)) - 1)] if cx.x else []))
+    glb = dict(global_lower_bounds(pr), end_sprint=end_lb)   # per stage, a bound every schedule meets: the fallback for an untrusted bound
+    fixed = {}   # stage name -> the value later stages are held to (model terms)
+
+    def model_value(name, g):
+        """A stage objective recomputed from a full assignment in the model's own terms (independent of the solver's report): as stage_value,
+        except that shortfall counts every sprint up to the end sprint once a stage has fixed it (the model's horizon is then that sprint)."""
+        if name != 'shortfall' or state['fix_end'] is None: return stage_value(pr, name, g)
+        ld = {}
+        for i, (pi, s) in g.items(): ld[(pi, s)] = ld.get((pi, s), 0) + pr.sp[i]
+        return sum(max(0, mn - ld.get((p, s), 0)) for p, mn in pr.minimum.items() for s in range(pr.S0, state['fix_end'] + 1))
+
+    def eligible(g):
+        """A verified schedule inside the model that keeps every earlier stage at or below the value it was fixed to."""
+        end = max(s for _, s in g.values())
+        if end > H or (state['fix_end'] is not None and end > state['fix_end']): return False
+        return all(model_value(nm, g) <= v for nm, v in fixed.items())
+
+    def audit(name, expr, st, hinted, cand, reported, bound, budget):
+        """Never take the solver's word for a stage (OR-Tools 9.15, upstream issue 5582: a hinted run can report OPTIMAL above the true
+        optimum). Checks: the schedule passes the independent verifier; its objective, recomputed from the schedule, matches the report
+        (equal for OPTIMAL, at most the report for FEASIBLE) and is not below the proven bound; no known verified schedule (the current plan,
+        the constructions, the incumbent) beats it; and a hinted OPTIMAL above the stage's trivial bound is re-proved by an unhinted solve of
+        `objective <= value - 1`, which must be INFEASIBLE. Returns (schedule, reasons): the best verified schedule seen (or the solver's
+        own schedule when the verifier rejects it), and why the stage is not proved (empty when it is)."""
+        # A schedule the verifier rejects means the model is wrong, not the bound: it is kept, so the final verifier gate refuses the run
+        # (VERIFY_FAILED, exit 6, nothing written) instead of a fallback hiding the defect.
+        if verify(pr, names(pr, cand)): return cand, ['the solver schedule fails the verifier']
+        why = []; v = model_value(name, cand)
+        if v != reported if st == cp.OPTIMAL else v > reported: why.append(f'objective mismatch: reported {reported}, the schedule has {v}')
+        if v < bound - 1e-6: why.append(f'the schedule ({v}) beats the proven bound ({round(bound, 6)})')
+        pool = [cand] + [g for g in [cur] + [c[2] for c in cands] if g is not None and eligible(g)]
+        pick = min(pool, key=lambda g: (model_value(name, g), lex(g)))
+        if st == cp.OPTIMAL and pick is not cand and model_value(name, pick) < v: why.append(f'a known verified schedule has {model_value(name, pick)}')
+        if st == cp.OPTIMAL and not why and hinted and v > glb[name]:
+            m2 = m.Clone(); m2.ClearHints(); m2.Add(expr <= v - 1)
+            if budget <= 0.05: why.append('not re-proved without the hint: no time left')
+            else:
+                sv2 = new_solver(cp, a, budget); st2 = sv2.Solve(m2)
+                if a.deterministic: clock.dt += sv2.deterministic_time
+                if st2 in (cp.OPTIMAL, cp.FEASIBLE):
+                    g = full(sv2.Value)
+                    if not verify(pr, names(pr, g)) and eligible(g) and model_value(name, g) < v: pick = g
+                    why.append('an unhinted re-solve found a better schedule')
+                elif st2 != cp.INFEASIBLE: why.append(f'not re-proved without the hint ({sv2.StatusName(st2)} within the time left)')
+        return pick, why
     conflicts = 0; cur = best; status1 = None
     for si, name in enumerate(plan):
         left_stages = len(plan) - si
@@ -945,7 +1036,8 @@ def solve_all(pr, cp, a, clock, anytime):
             if si == 0: status1 = 'UNKNOWN'
             continue
         expr = exprs[name](); m.Minimize(expr)
-        if cur is not None: set_hint(pr, cx, cur)
+        hinted = cur is not None
+        if hinted: set_hint(pr, cx, cur)
         else: m.ClearHints()
         t = time.time()
         sv, st = solve_with(cp, a, m, budget, lambda val, name=name: anytime.offer(lambda: full(val), 'cp-sat', name), anytime)
@@ -956,11 +1048,16 @@ def solve_all(pr, cp, a, clock, anytime):
         else: rec['wall_s'] = round(time.time() - t, 3)
         stages_meta.append(rec)
         if st in (cp.OPTIMAL, cp.FEASIBLE):
-            obj = int(round(sv.ObjectiveValue())); bound = sv.BestObjectiveBound()
+            cand = full(sv.Value); bound = sv.BestObjectiveBound()
+            pick, why = audit(name, expr, st, hinted, cand, int(round(sv.ObjectiveValue())), bound, clock.left(sfrac) / left_stages)
+            if why:   # never claim a proof the audit could not confirm: the stage is FEASIBLE, its bound the trivial one
+                rec.update(status='FEASIBLE', untrusted=why, solver_status=rec['status'], solver_bound=round(bound, 6)); bound = glb[name]
+            if pick is not cur:   # the incumbent keeps its source; a known candidate brings its own; anything else came from CP-SAT
+                src = ('current' if pick is current else 'constructive') if any(pick is c[2] for c in cands) else 'cp-sat'
+            obj = model_value(name, pick)
             rec.update({'objective': obj, 'bound': round(bound, 6), 'gap_pct': gap_pct(obj, bound)})
-            cur = best = full(sv.Value)
-            src = 'cp-sat'
-            anytime.offer(lambda: cur, 'cp-sat', name + ':done', force=True)
+            cur = best = pick; fixed[name] = obj
+            anytime.offer(lambda: cur, src, name + ':done', force=True)
             if name == 'end_sprint':
                 state['fix_end'] = max(s for _, s in cur.values()); m.Add(E <= state['fix_end'])
                 for i in cx.x: m.Add(cx.spr[i] <= state['fix_end'])
