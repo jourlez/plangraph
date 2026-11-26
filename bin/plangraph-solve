@@ -13,6 +13,10 @@ Strict handoff rule: sprint[consumer] >= sprint[producer] + (owner differs ? 1 :
 Stages (lexicographic, each later stage keeps the optimum of the earlier ones as a constraint):
   1 end sprint, 2 shortfall below min_per_sprint, 3 load of minimize_load_of (or peak load with --balance), 4 owner changes vs baseline;
   config stage_order reorders them (e.g. owner_changes before load_of). --out holds the best verified schedule while the solver runs.
+Repair mode (whatif repair suggestion, docs/SOLVER.md): --repair KEY --repair-to OWNER --repair-sprint N [--repair-owner-change] [--repair-earlier]
+  places KEY at OWNER in sprint N or later and frees only the cone of its transitive consumers and the tickets of that target cell; every other
+  ticket is fixed at its current slot. Stages: owner_changes, sprint_moves (tickets whose sprint differs from the baseline), then the usual
+  ones; the solve starts from a complete hint (the naive forward ripple of the move). Needs --baseline current. Output and checks as above.
 Status is honest: OPTIMAL only when every stage was proved; FEASIBLE otherwise (gap and bound reported); INFEASIBLE; UNKNOWN; MODEL_INVALID.
 Exit codes: 0 ok (proved, or feasible within the target end sprint), 1 infeasible, 2 usage / invalid model, 3 solver not installed,
 4 target end sprint missed (schedule still written), 5 unknown (no schedule found), 6 independent verifier rejected the result (nothing written).
@@ -421,6 +425,8 @@ def prepare(a, tickets, edges_raw, sched, cfg):
         if fst and pr.status[i] in fst: frozen.add(i)
         if i in pr.closed and i in pr.cur: frozen.add(i)
         if fb is not None and i in pr.cur and pr.cur[i][1] < fb: frozen.add(i)
+    pr.pin_owner = {}; pr.min_sprint = {}; pr.repair = None; pr.repair_hint = None
+    if getattr(a, 'repair', None) is not None: repair_scope(a, pr, ix, frozen)
     for i in sorted(frozen):
         if i not in pr.cur: raise invalid(f'frozen ticket {pr.T[i]} has no current schedule slot')
     pr.frozen = {i: (pr.Pi[pr.cur[i][0]], pr.cur[i][1]) for i in sorted(frozen)}
@@ -441,11 +447,14 @@ def prepare(a, tickets, edges_raw, sched, cfg):
         if any(x not in STAGES for x in so): raise invalid('stage_order names an unknown stage (known: ' + ', '.join(STAGES) + ')')
         if len(set(so)) != len(so): raise invalid('stage_order lists a stage twice')
     pr.stage_order = (so or []) + [x for x in STAGES if x not in (so or [])]   # listed stages first, the rest in the default order
+    if pr.repair is not None:   # stability first: owner changes, then sprint moves, then the stages as configured
+        pr.stage_order = ['owner_changes', 'sprint_moves'] + [x for x in pr.stage_order if x != 'owner_changes']
+        pr.repair_hint = repair_hint(pr)
     h = json.dumps({'tickets': [[pr.T[i], pr.sp[i], pr.status[i], pr.v2[i], pr.v2s[i]] for i in range(n)],
                     'edges': [[pr.T[c], pr.T[p]] for c, p in pr.edges], 'cur': sorted([pr.T[i], v[0], v[1]] for i, v in pr.cur.items()),
                     'base': [pr.baseline_name, sorted([pr.T[i], v[0], v[1]] for i, v in base.items())], 'frozen': sorted(pr.T[i] for i in frozen),
                     'cfg': [pr.S0, pr.target, caps, cfg.get('min_per_sprint', {}), cfg.get('minimize_load_of'), pr.balance]}
-                   | ({'stage_order': so} if so is not None else {}) | ({'scale': F} if F != 1 else {}),   # only when set: existing hashes stay
+                   | ({'stage_order': so} if so is not None else {}) | ({'scale': F} if F != 1 else {}) | ({'repair': pr.repair} if pr.repair is not None else {}),   # only when set: existing hashes stay
                    sort_keys=True, separators=(',', ':'))
     pr.input_hash = hashlib.sha256(h.encode()).hexdigest()
     return pr
@@ -479,6 +488,59 @@ def reduce_links(pr):
 
 
 # ------------------------------------------------------------------------------------------------- independent verifier
+def key_owner(place, key): return place.get(key, (None, None))[0]
+
+
+def repair_scope(a, pr, ix, frozen):
+    """--repair: fix every ticket outside the free scope at its current slot (adds them to `frozen`, a set of indexes, in place) and restrict the
+    free ones. Scope: the requested ticket, the cone of its transitive consumers (a closed ticket does not pass the move on, as in whatif) and the
+    tickets now in the target cell (owner, sprint). The requested ticket goes to the target owner, in the target sprint or later; the others keep
+    their owner unless --repair-owner-change and never move earlier unless --repair-earlier. Links between two fixed tickets are history, as for
+    any frozen ticket; every link to a free ticket still binds. Free tickets end by the target end sprint."""
+    if a.baseline != 'current': raise invalid('--repair needs --baseline current')
+    if a.repair not in ix: raise invalid(f'--repair names an unknown ticket: {a.repair}')
+    if a.repair_to not in pr.Pi: raise invalid(f'--repair-to names someone who owns no ticket in the plan: {a.repair_to}')
+    if a.repair_sprint is None or abs(a.repair_sprint) > MAX_SPRINT: raise invalid('--repair needs --repair-sprint N (a whole number)')
+    r = ix[a.repair]
+    if r in frozen: raise invalid(f'--repair {a.repair} is frozen: it cannot move')
+    if r not in pr.cur: raise invalid(f'--repair {a.repair} has no current schedule slot')
+    cone = set(); todo = [r]
+    while todo:
+        x = todo.pop()
+        if x in pr.closed: continue
+        for c in pr.cons[x]:
+            if c != r and c not in cone: cone.add(c); todo.append(c)
+    cell = {i for i, v in pr.cur.items() if tuple(v) == (a.repair_to, a.repair_sprint)}
+    scope = {r} | cone | cell
+    for i in pr.cur:
+        if i not in scope: frozen.add(i)
+    for i in sorted(scope - frozen):
+        if i == r: pr.pin_owner[i] = pr.Pi[a.repair_to]; pr.min_sprint[i] = a.repair_sprint; continue
+        if i not in pr.cur: continue
+        if not a.repair_owner_change: pr.pin_owner[i] = pr.Pi[pr.cur[i][0]]
+        if not a.repair_earlier: pr.min_sprint[i] = pr.cur[i][1]
+    pr.repair = {'key': a.repair, 'to': a.repair_to, 'sprint': a.repair_sprint, 'owner_change': bool(a.repair_owner_change), 'earlier': bool(a.repair_earlier),
+                 'free': len(scope - frozen)}
+
+
+def repair_hint(pr):
+    """The complete hint of a repair: the current plan with the requested ticket moved, then the naive forward ripple (consumers pushed later
+    until the handoff rule holds; capacity ignored, so the hint need not be feasible: a hint is only a start, and the audit never trusts it).
+    Every ticket gets a slot; the unplaced ones sit with their baseline owner in the first sprint."""
+    rp = pr.repair; r = pr.ix[rp['key']]
+    pl = {i: ((pr.Pi.get(pr.cur[i][0], 0), pr.cur[i][1]) if i in pr.cur and isinstance(pr.cur[i][1], int) else (pr.Pi.get(pr.base_owner[i], 0), pr.S0)) for i in range(pr.n)}
+    pl[r] = (pr.Pi[rp['to']], rp['sprint'])
+    todo = [r]; limit = rp['sprint'] + pr.n
+    while todo:
+        x = todo.pop(0)
+        if x in pr.closed: continue
+        for c in pr.cons[x]:
+            if c == r or c in pr.frozen: continue
+            need = pl[x][1] + (0 if pl[x][0] == pl[c][0] else 1)
+            if pl[c][1] < need <= limit: pl[c] = (pl[c][0], need); todo.append(c)
+    return pl
+
+
 def verify(pr, assign):
     """Written independently of the model: works on plain names/numbers and the original (unreduced) links. Returns a list of problems."""
     bad = []; place = {}
@@ -510,6 +572,15 @@ def verify(pr, assign):
             if sc < sp_ + (0 if oc == op else 1): bad.append(f'handoff {kc}>{kp}: S{sc}/{oc} vs S{sp_}/{op}')
     for i, (pi, s) in pr.frozen.items():
         if place.get(pr.T[i]) != (pr.P[pi], s): bad.append(f'frozen {pr.T[i]} moved')
+    if pr.repair is not None:   # the repair's own rules: the requested owner, no earlier than its sprint, and every free ticket by the end sprint
+        for i, o in pr.pin_owner.items():
+            if key_owner(place, pr.T[i]) != pr.P[o]: bad.append(f'repair {pr.T[i]} must stay with {pr.P[o]}')
+        for i, s0 in pr.min_sprint.items():
+            sp_ = place.get(pr.T[i], (None, None))[1]
+            if isinstance(sp_, int) and sp_ < s0: bad.append(f'repair {pr.T[i]} may not go before sprint {s0}')
+        for i in range(pr.n):
+            sp_ = place.get(pr.T[i], (None, None))[1]
+            if i not in pr.frozen and isinstance(sp_, int) and sp_ > pr.target: bad.append(f'repair {pr.T[i]} sprint {sp_} is after the end sprint {pr.target}')
     return bad
 
 
@@ -586,7 +657,7 @@ def global_lower_bounds(pr):
     cell = {}
     for i, (pi, s) in pr.frozen.items(): cell[(pi, s)] = cell.get((pi, s), 0) + pr.sp[i]
     pk = max([pr.sp[i] for i in free] + list(cell.values()) + [0])
-    return {'owner_changes': ch, 'load_of': lo, 'peak_load': pk, 'shortfall': 0}
+    return {'owner_changes': ch, 'load_of': lo, 'peak_load': pk, 'shortfall': 0, 'sprint_moves': 0}
 
 
 def metrics(pr, assign):
@@ -619,6 +690,7 @@ def stage_value(pr, name, assign):
     only; frozen tickets add the same constant to every schedule). Used to compare schedules lexicographically and to report objectives."""
     if name in ('end_sprint', 'shortfall', 'peak_load'): return metrics(pr, assign)[name]
     if name == 'load_of': return sum(pr.sp[i] for i, (pi, _) in assign.items() if i not in pr.frozen and pi == pr.load_of)
+    if name == 'sprint_moves': return sum(1 for i, (_, s) in assign.items() if i not in pr.frozen and pr.base_sprint[i] is not None and s != pr.base_sprint[i])
     return sum(1 for i, (pi, _) in assign.items() if i not in pr.frozen and pr.base_owner[i] in pr.Pi and pi != pr.Pi[pr.base_owner[i]])
 
 
@@ -650,6 +722,9 @@ def build(pr, cp, horizon, links, soft=False):
             cx.oi[i] = m.NewIntVar(0, nP - 1, '')
             m.Add(cx.oi[i] == cp.LinearExpr.WeightedSum(flat, [p for p in range(nP) for _ in range(K)]))
         else: cx.oi[i] = 0
+        if i in pr.pin_owner and nP > 1: m.Add(cx.oi[i] == pr.pin_owner[i])   # repair mode only (empty otherwise: the model is unchanged)
+        if i in pr.min_sprint: m.Add(cx.spr[i] >= pr.min_sprint[i])
+        if pr.repair is not None: m.Add(cx.spr[i] <= pr.target)
         for p in range(nP):
             for k in range(K): terms[p][k].append((xi[p][k], pr.sp[i])); tix[p][k].append(i)
     cx.load = {}
@@ -870,7 +945,9 @@ def objectives(pr, cx, E, end_fixed):
 
     return {'end_sprint': lambda: E, 'shortfall': short_expr, 'peak_load': peak_expr,
             'load_of': lambda: sum(pr.sp[i] * sum(cx.x[i][pr.load_of]) for i in cx.x),
-            'owner_changes': lambda: sum(1 - sum(cx.x[i][pr.Pi[pr.base_owner[i]]]) for i in cx.x if pr.base_owner[i] in pr.Pi)}
+            'owner_changes': lambda: sum(1 - sum(cx.x[i][pr.Pi[pr.base_owner[i]]]) for i in cx.x if pr.base_owner[i] in pr.Pi),
+            'sprint_moves': lambda: sum((1 - sum(cx.x[i][p][pr.base_sprint[i] - pr.lo] for p in range(len(pr.P)))) if pr.lo <= pr.base_sprint[i] <= cx.horizon else 1
+                                        for i in cx.x if pr.base_sprint[i] is not None)}
 
 
 def solve_with(cp, a, m, budget, on_solution, anytime):
@@ -965,7 +1042,7 @@ def solve_all(pr, cp, a, clock, anytime):
     stages_meta = []
     links = pr.live if a.no_reduce else reduce_links(pr)
     applies = {'end_sprint': True, 'shortfall': bool(pr.minimum), 'load_of': pr.load_of is not None, 'peak_load': pr.load_of is None and pr.balance,
-               'owner_changes': any(pr.base_owner[i] in pr.Pi for i in range(pr.n) if i not in pr.frozen)}
+               'owner_changes': any(pr.base_owner[i] in pr.Pi for i in range(pr.n) if i not in pr.frozen), 'sprint_moves': pr.repair is not None}
     plan = [nm for nm in pr.stage_order if applies[nm]]
     lex = lambda g: tuple(stage_value(pr, nm, g) for nm in plan)
     cands = [(max(s for _, s in g.values()), k, g) for k, g in enumerate((construct(pr), construct_free(pr)))]
@@ -1067,8 +1144,9 @@ def solve_all(pr, cp, a, clock, anytime):
             if si == 0: status1 = 'UNKNOWN'
             continue
         expr = exprs[name](); m.Minimize(expr)
-        hinted = cur is not None
-        if hinted: set_hint(pr, cx, cur)
+        hsrc = cur if cur is not None else pr.repair_hint   # a repair starts from the naive ripple of its move when no valid schedule is known
+        hinted = hsrc is not None
+        if hinted: set_hint(pr, cx, hsrc)
         else: m.ClearHints()
         t = time.time()
         sv, st = solve_with(cp, a, m, budget, lambda val, name=name: anytime.offer(lambda: full(val), 'cp-sat', name), anytime)
@@ -1241,6 +1319,10 @@ def main(argv=None):
     ap.add_argument('--balance', action='store_true', help='when minimize_load_of is unset, minimise the peak person-sprint load')
     ap.add_argument('--lns', action='store_true', help='after the stages, re-solve a seeded random 20%% of the tickets with the rest fixed, in rounds')
     ap.add_argument('--decompose', action='store_true', help='after the stages, re-solve each connected component of the link graph with the rest fixed')
+    ap.add_argument('--repair', metavar='KEY', help='repair mode: the ticket a whatif move places (needs --repair-to and --repair-sprint)')
+    ap.add_argument('--repair-to', metavar='OWNER'); ap.add_argument('--repair-sprint', type=int)
+    ap.add_argument('--repair-owner-change', action='store_true', help='repair mode: the freed tickets may change owner (default: they keep it)')
+    ap.add_argument('--repair-earlier', action='store_true', help='repair mode: the freed tickets may move to an earlier sprint (default: never earlier)')
     ap.add_argument('--verbose', action='store_true', help='print stage records and every anytime write to stderr')
     a = ap.parse_args(argv)
     t_start = time.time()
@@ -1269,6 +1351,7 @@ def main(argv=None):
     if clamped: meta['clamped'] = clamped
     if a.lns: meta['lns'] = True
     if a.decompose: meta['decompose'] = True
+    if pr.repair is not None: meta['repair'] = pr.repair
     anytime = Anytime(pr, a, dict(meta))
     res = solve_all(pr, cp, a, clock, anytime)
     unscale_stages(pr, res['stages'], res['polish'])

@@ -692,6 +692,67 @@ export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): stri
   return s;
 }
 
+// ---- repair suggestion through the solver (amendment section 3.14 item 2) ----
+// The check is propagation (whatif); the solver runs only to suggest a repair. repairSpec gives the call: bin/plangraph-solve in repair mode with
+// every ticket outside the free scope fixed at its current slot (the scope: the requested ticket, the cone of its transitive consumers, the
+// tickets of the target cell), a complete hint (the naive forward ripple of the move, every ticket placed) and a stability objective (owner
+// changes, then sprint moves, then the usual stages). The scope rules are the ones of bin/plangraph-solve repair_scope (a test compares them).
+// suggestionFromSchedule turns the solver's schedule back into a Suggestion after checking it against the same safety net as proposeMove.
+/** The transitive consumers of `key` (not `key` itself); a closed ticket does not pass the move on, as in the ripple. */
+export function repairCone(model: Model, key: string): string[] {
+  const seen = new Set<string>(), todo = [key];
+  while (todo.length) {
+    const x = todo.pop() as string; // todo.length was tested
+    if (isClosed(model, x)) continue;
+    for (const c of model.cons.get(x) || []) if (c !== key && !seen.has(c)) { seen.add(c); todo.push(c); }
+  }
+  return [...seen].sort();
+}
+export interface RepairSpec {
+  /** the flags after `bin/plangraph-solve ... --out F` (the plan itself comes from --jsonl-dir or the index) */
+  args: string[];
+  /** the requested ticket, its cone and the target-cell tickets: the only tickets the solver may move (frozen history aside) */
+  free: string[]; cone: string[];
+  /** the complete hint: every placed ticket's slot after the naive ripple */
+  hint: Map<string, Slot>;
+  to: Slot;
+}
+/** The solver call for a repair, or null when whatif stops the move for a reason no move repairs (hard code, STARTED or BLOCKED stop). */
+export function repairSpec(model: Model, mv: MoveRequest, opts: WhatifOptions = {}): RepairSpec | null {
+  const w = whatif(model, mv, { ...opts, noSuggest: true });
+  if (w.reasons.some(stops) || !w.ripple.length) return null;
+  const to = (w.ripple[0] as Ripple).to, key = mv.key, cone = repairCone(model, key);
+  const cell = [...model.sched].filter(([, p]) => p.owner === to.owner && p.sprint === to.sprint).map(([k]) => k);
+  const fz = frozenTest(model, opts), free = [...new Set([key, ...cone, ...cell])].filter((k) => model.tickets.has(k) && (k === key || !fz(k))).sort(); // history never moves
+  const hint = new Map<string, Slot>();
+  for (const [k, p] of model.sched) if (model.tickets.has(k)) hint.set(k, { owner: p.owner as string, sprint: p.sprint as number });
+  for (const r of w.ripple) hint.set(r.key, { ...r.to });
+  const args = ['--baseline', 'current', '--repair', key, '--repair-to', to.owner, '--repair-sprint', String(to.sprint), ...(opts.allowOwnerChange ? ['--repair-owner-change'] : []), ...(opts.allowEarlier ? ['--repair-earlier'] : [])];
+  return { args, free, cone, hint, to };
+}
+/** A solver schedule row: the shape of the --out array. */
+export interface SolverRow { item: string; owner: string; sprint: number }
+/** The Suggestion a solver schedule makes for `mv`, or { none: true } when it is not a repair of that move (the requested ticket is not at the
+ * requested owner in the requested sprint or later, or a ticket outside the free scope moved). Throws like proposeMove when the schedule
+ * introduces a violation the plan did not have (the internal safety net). */
+export function suggestionFromSchedule(model: Model, mv: MoveRequest, rows: readonly SolverRow[], opts: WhatifOptions = {}): Suggestion {
+  const spec = repairSpec(model, mv, opts);
+  if (!spec) return { none: true };
+  const plan = new Map<string, Placement>(model.sched), free = new Set(spec.free), moves: Move[] = [];
+  for (const r of rows) {
+    const cur = (model.sched as SchedView).get(r.item);
+    if (!cur || (cur.owner === r.owner && cur.sprint === r.sprint)) continue;
+    if (!free.has(r.item)) return { none: true };
+    plan.set(r.item, { owner: r.owner, sprint: r.sprint }); moves.push({ key: r.item, from: { ...cur }, to: { owner: r.owner, sprint: r.sprint } });
+  }
+  const at = plan.get(mv.key) as Slot; // whatif found the ticket, so it is placed
+  if (at.owner !== spec.to.owner || at.sprint < spec.to.sprint) return { none: true };
+  const fz = frozenTest(model, opts);
+  assertPlanValid(model, plan, opts, (k) => k !== mv.key && fz(k));
+  const others = moves.filter((m) => m.key !== mv.key);
+  return { sprint: at.sprint, owner: at.owner, shifts: others.length, ownerChanges: others.filter((m) => m.from.owner !== m.to.owner).length, ...(at.sprint > spec.to.sprint && !opts.allowSlip ? { flags: ['slip'] } : {}) };
+}
+
 // ---- touchesLine: where a ticket's work is traced to, one bounded line. ----
 // Depth 2 over the trace and identity relations only (REL_SEMANTICS decides: group and info relations, and every extension relation, are
 // never read), in both directions, since implements runs from the plan task to the ticket and tracked_by from the ticket's xref row. The
