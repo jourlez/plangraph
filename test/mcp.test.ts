@@ -9,7 +9,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
-import { createServer, serve, TOOLS, PROTOCOL_VERSIONS, LATEST_PROTOCOL, MAX_MESSAGE, SERVER_VERSION, toolArgv } from '../src/mcp.ts';
+import { createServer, serve, TOOLS, RESOURCE_TEMPLATES, PROTOCOL_VERSIONS, LATEST_PROTOCOL, MAX_MESSAGE, SERVER_VERSION, toolArgv, resourceArgv } from '../src/mcp.ts';
 import type { SpawnSyncReturns } from 'node:child_process';
 /** A JSON-RPC reply as these tests read it: every field the assertions touch (a reply without it fails the assertion, never passes). */
 interface Msg { jsonrpc: string; id: string | number | null; result: Result; error: { code: number; message: string } }
@@ -109,7 +109,7 @@ function hashTree(dir: string): string {
 test('initialize echoes a supported version and answers the latest one for an unsupported version', async () => {
   const r = await session(lines(INIT, req(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {} })));
   assert.equal(r.code, 0);
-  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION } } });
+  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION } } });
   assert.deepEqual(r.msgs[1].error.code, -32600, 'a second initialize is refused');
   for (const v of PROTOCOL_VERSIONS) {
     const [m] = await inproc(req(1, 'initialize', { protocolVersion: v, capabilities: {} }) + '\n');
@@ -133,7 +133,7 @@ test('replay of the exchange Claude Code 2.1.329 sent (captured live): discover 
     note('notifications/initialized'), JSON.stringify({ method: 'tools/list', jsonrpc: '2.0', id: 1 })));
   assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 'server-discover-probe-1', error: { code: -32601, message: 'method not found' } });
   assert.equal(r.msgs[1].result.protocolVersion, '2025-11-25');
-  assert.deepEqual(r.msgs[2].result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket']);
+  assert.deepEqual(r.msgs[2].result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph']);
   assert.equal(r.msgs.length, 3);
 });
 
@@ -145,10 +145,10 @@ test('ping works before and after initialize; tools/* before initialize is refus
   assert.deepEqual(byId(r.msgs, 'b'), { jsonrpc: '2.0', id: 'b', result: {} });
 });
 
-test('tools/list: exactly ready, whatif, ticket; read-only annotations; strict schemas; no write or apply argument anywhere', async () => {
+test('tools/list: exactly ready, whatif, ticket, graph; read-only annotations; strict schemas; no write or apply argument anywhere', async () => {
   const r = await session(lines(INIT, note('notifications/initialized'), req(1, 'tools/list'), req(2, 'tools/list', { cursor: 'x' })));
   const m = byId(r.msgs, 1);
-  assert.deepEqual(m.result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket']);
+  assert.deepEqual(m.result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph']);
   assert.equal('nextCursor' in m.result, false);
   for (const t of m.result.tools) {
     assert.equal(t.inputSchema.type, 'object'); assert.equal(t.inputSchema.additionalProperties, false); assert.deepEqual(t.inputSchema.required, ['key']);
@@ -162,7 +162,7 @@ test('tools/list: exactly ready, whatif, ticket; read-only annotations; strict s
 });
 
 test('unknown method -32601 (also the modern server/discover probe, so a dual-era client falls back); notifications never get a reply', async () => {
-  const r = await session(lines(note('notifications/whatever'), req(1, 'resources/list'), req(2, 'server/discover', {}), req(3, 'constructor'), req(4, '__proto__'), note('notifications/cancelled', { requestId: 1 })));
+  const r = await session(lines(note('notifications/whatever'), req(1, 'resources/subscribe'), req(2, 'server/discover', {}), req(3, 'constructor'), req(4, '__proto__'), note('notifications/cancelled', { requestId: 1 })));
   for (const id of [1, 2, 3, 4]) assert.deepEqual(byId(r.msgs, id), { jsonrpc: '2.0', id, error: { code: -32601, message: 'method not found' } });
   assert.equal(r.msgs.length, 4);
 });
@@ -341,4 +341,62 @@ test('default install declares no MCP server: no mcpServers in plugin.json, no .
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
   assert.match(doc, /off by default/i); assert.match(doc, /"mcpServers"/); assert.match(doc, /no worse than the CLI/i);
   assert.equal(SERVER_VERSION, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version);
+});
+
+// ---------- graph tool and resources (0.5.0, decision D25) ----------
+test('graph tool: text is the CLI text, structuredContent and resource_link ride along, tools/list stays within 2600 bytes', async () => {
+  const [list] = (await inproc(INIT + '\n' + req(1, 'tools/list') + '\n')).slice(1);
+  assert.ok(Buffer.byteLength(JSON.stringify(list)) <= 2600, 'tools/list reply bound');
+  const [, m] = await inproc(INIT + '\n' + call(1, 'graph', { key: 'T-3', depth: 2 }) + '\n');
+  assert.equal(m.result.isError, false);
+  const text = (m.result.content[0] as { text: string }).text;
+  assert.equal(text, cliText(cli(['graph', '--depth=2', '--', 'T-3'])));
+  const sc = m.result.structuredContent as { start: string; nodes: unknown[] };
+  assert.equal(sc.start, 'pg:ticket/T-3');
+  assert.ok(Array.isArray(sc.nodes) && sc.nodes.length <= 50);
+  for (const c of m.result.content.slice(1) as unknown as Array<{ type: string; uri: string }>) { assert.equal(c.type, 'resource_link'); assert.match(c.uri, /^plangraph:\/\/node\//); }
+  assert.ok(m.result.content.length <= 11);
+});
+
+test('graph tool arguments: only ticket keys and canonical pg: URIs; materialize and bad rel or depth are refused', () => {
+  assert.deepEqual(toolArgv('graph', { key: 'T-3', rel: 'needs,x-gh/closes', depth: 2, reverse: true, verbose: true }), ['graph', '--rel=needs,x-gh/closes', '--depth=2', '--reverse', '-v', '--', 'T-3']);
+  assert.deepEqual(toolArgv('graph', { key: 'pg:person/Ana%20B' }), ['graph', '--', 'pg:person/Ana%20B']);
+  for (const a of [{ key: 'materialize' }, { key: 'pg:person/Ana B' }, { key: 'pg:nope/x' }, { key: 'Ana' }, { key: 'T-3', rel: 'nope' }, { key: 'T-3', rel: 'needs,' }, { key: 'T-3', depth: 0 },
+    { key: 'T-3', depth: 21 }, { key: 'T-3', depth: 1.5 }, { key: 'T-3', depth: '2' }, { key: 'T-3', reverse: 1 }, { key: 'T-3', type: 'ticket' }, { key: 'T-3', write: true }]) {
+    assert.throws(() => toolArgv('graph', a), /./, JSON.stringify(a));
+  }
+  assert.throws(() => toolArgv('ticket', { key: 'T-3', depth: 2 }), /unknown argument/);
+});
+
+test('resource templates and an empty resources/list; no subscriptions', async () => {
+  const r = await inproc(lines(INIT, req(1, 'resources/templates/list'), req(2, 'resources/list'), req(3, 'resources/templates/list', { cursor: 'x' }), req(4, 'resources/subscribe', { uri: 'plangraph://node/ticket/T-3' })).join(''));
+  assert.deepEqual(byId(r, 1).result.resourceTemplates, RESOURCE_TEMPLATES);
+  assert.deepEqual((RESOURCE_TEMPLATES as readonly { uriTemplate: string }[]).map((t) => t.uriTemplate), ['plangraph://node/{type}/{id}', 'plangraph://graph/{type}/{id}{?rel,depth}']);
+  assert.deepEqual(byId(r, 2).result, { resources: [] });
+  assert.equal(byId(r, 3).error.code, -32602);
+  assert.equal(byId(r, 4).error.code, -32601);
+  const pre = await inproc(req(1, 'resources/read', { uri: 'plangraph://node/ticket/T-3' }) + '\n');
+  assert.equal(pre[0].error.code, -32600);
+});
+
+test('resources/read returns the graph command text; unknown nodes are -32002; bad URIs are -32602 with a fixed message', async () => {
+  const ok = ['plangraph://node/ticket/T-3', 'plangraph://graph/ticket/T-3?depth=2', 'plangraph://graph/ticket/T-3?rel=needs&depth=2'];
+  const bad = ['plangraph://node/ticket/T-3?depth=2', 'plangraph://graph/ticket/T-3?depth=0', 'plangraph://graph/ticket/T-3?depth=21', 'plangraph://graph/ticket/T-3?depth=1&depth=2',
+    'plangraph://graph/ticket/T-3?x=1', 'plangraph://graph/ticket/T-3?rel=nope', 'plangraph://other/ticket/T-3', 'plangraph://node/nope/T-3', 'plangraph://node/ticket/', 'plangraph://node/ticket/T-3/x',
+    'plangraph://node/person/Ana%2fB%2f', 'plangraph://node/ticket/%54-3', 'plangraph://node/ticket/T%2D3', 'plangraph://node/ticket/T-3%00', 'plangraph://node/ticket/materialize%', 'pg:ticket/T-3', 'plangraph://node/ticket/T-3#f', 5];
+  const r = await inproc(lines(INIT, ...ok.map((u, i) => req(10 + i, 'resources/read', { uri: u })), ...bad.map((u, i) => req(100 + i, 'resources/read', { uri: u })),
+    req(200, 'resources/read', { uri: 'plangraph://node/ticket/T-99999' }), req(201, 'resources/read', {})).join(''));
+  const want = [cliText(cli(['graph', '--depth=1', '--', 'pg:ticket/T-3'])), cliText(cli(['graph', '--depth=2', '--', 'pg:ticket/T-3'])), cliText(cli(['graph', '--rel=needs', '--depth=2', '--', 'pg:ticket/T-3']))];
+  ok.forEach((u, i) => assert.deepEqual(byId(r, 10 + i).result, { contents: [{ uri: u, mimeType: 'text/plain', text: want[i] }] }, u));
+  bad.forEach((u, i) => assert.deepEqual(byId(r, 100 + i).error, { code: -32602, message: 'invalid params: resource URI is not in the grammar' }, String(u)));
+  assert.deepEqual(byId(r, 200).error, { code: -32002, message: 'resource not found' });
+  assert.equal(byId(r, 201).error.code, -32602);
+});
+
+test('resourceArgv builds the fixed argv and never reaches the writing subcommand', () => {
+  assert.deepEqual(resourceArgv('plangraph://graph/ticket/T-3?rel=needs,x-gh%2Fcloses&depth=3'), ['graph', '--rel=needs,x-gh/closes', '--depth=3', '--', 'pg:ticket/T-3']);
+  assert.deepEqual(resourceArgv('plangraph://node/person/Ana%20B'), ['graph', '--depth=1', '--', 'pg:person/Ana%20B']);
+  assert.deepEqual(resourceArgv('plangraph://node/ticket/materialize'), ['graph', '--depth=1', '--', 'pg:ticket/materialize']); // a pg: URI names a node, never the subcommand
+  assert.equal(resourceArgv('plangraph://node/ticket/T-3?'), null);
+  assert.equal(resourceArgv('x'.repeat(900)), null);
 });
