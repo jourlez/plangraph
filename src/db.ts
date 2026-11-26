@@ -20,6 +20,9 @@
 //   query-only (handle.older), and an index writer refuses it with STALE. Every column name in the SQL built here is double-quoted
 //   (`from` and `to` are SQL keywords). A graph file adds bytes to the source fingerprint only when it is present, so a directory with
 //   none keeps its 0.3.0 fingerprint.
+// - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/provider.ts CACHE_FILES).
+//   A cache file adds bytes to the source fingerprint only when it is present, so a directory without a cache keeps its fingerprint. An index
+//   built before `obs` existed (0.4.0) has an unexpected schema: `plangraph build` rebuilds it. The table is advisory data, read by no solver.
 // The fingerprint lives in its own table, not in `meta`: `meta` mirrors meta.jsonl and is exported back to text, so a fingerprint row
 // there would leak into meta.jsonl (and collide with a user key of the same name).
 import fs from 'node:fs';
@@ -31,6 +34,7 @@ import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/j
 import { validators } from '../lib/schema.ts';
 import { GRAPH_FILES, parseGraphFile } from '../lib/graph/files.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
+import { CACHE_FILES, OBS_COLUMNS, obsProblem } from '../lib/graph/obs.ts';
 import { PlangraphError } from './errors.ts';
 import { nodeSupported, floorMessage } from './floor.js';
 import type { DatabaseSync, StatementSync, SQLInputValue } from 'node:sqlite';
@@ -42,6 +46,7 @@ export const CONTENT_KEY = 'content_digest';
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 
+const OBS_FILE = 'cache/obs'; // the name of the table's source in TABLES; the real files are CACHE_FILES
 // [table, file, primary key, INTEGER columns, upsert]. learnings and refs are INSERT OR REPLACE (a later line with the same id wins),
 // as in bin/plangraph; the other tables refuse a duplicate primary key.
 const DEFS: Array<[string, string, string[], string[], boolean]> = [
@@ -61,6 +66,7 @@ const DEFS: Array<[string, string, string[], string[], boolean]> = [
   ['capacity', 'capacity.jsonl', ['person', 'sprint'], ['sprint', 'sp', 'review_h'], false], // sp and review_h keep INTEGER affinity (a fractional value stays a number, as ticket.sp)
   ['link', 'links.jsonl', [], [], false],
   ['xref', 'xrefs.jsonl', ['type', 'id', 'sys', 'xid'], [], false],
+  ['obs', OBS_FILE, ['sys', 'xid'], [], false], // rows of every cache/<provider>.jsonl; no file of its own, so it is never exported
 ];
 const V1_TABLE_COUNT = 8; // the first eight rows of DEFS are the tables of format 1 (an index built by 0.3.0 holds exactly these)
 const q = (c: string): string => `"${c}"`; // every column name in SQL is quoted
@@ -79,6 +85,7 @@ const PREP = new Map<string, Prep>([
   ['person', [keep, canonConv]],
   ['link', [keep, canonConv]],
   ['repo', [keep, canonConv]],
+  ['obs', [keep, canonConv]],
   ['schedule', [(r) => ({ ...r, version: r.version ?? (SCHEMAS['schedule.jsonl'] as Schema).defaults.version }), toObj]], // a key SCHEMAS literally declares
   ['learning', [(r) => ({ ...r, why: r.why || '', source: r.source || '' }), same]],
   ['ref', [(r) => ({ ...r, plans: JSON.stringify(r.plans || []), files: JSON.stringify(r.files || {}), fp_files: r.fp_files || '', jira_updated: r.jira_updated || '', audited_at: r.audited_at || '' }), same]],
@@ -87,9 +94,9 @@ const PREP = new Map<string, Prep>([
 export interface TableSpec { name: string; file: string; columns: readonly string[]; upsert: boolean; known: Set<string>; text: Set<string>; scalar: readonly string[];
   columnList: string; placeholders: string; ddl: string; prep: Prep; order: string }
 // Columns whose record values are converted by PREP before the insert (refs.plans is an array, refs.files an object): not scalar-checked.
-const PREPPED = new Map([['ref', new Set(['plans', 'files'])], ['person', new Set(['active'])], ['link', new Set(['attrs'])], ['repo', new Set(['langs', 'frameworks', 'cmds', 'entry', 'owners', 'paths'])]]);
+const PREPPED = new Map([['ref', new Set(['plans', 'files'])], ['person', new Set(['active'])], ['link', new Set(['attrs'])], ['repo', new Set(['langs', 'frameworks', 'cmds', 'entry', 'owners', 'paths'])], ['obs', new Set(['fields', 'links'])]]);
 export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, file, pk, ints, upsert]) => {
-  const columns = Object.freeze([...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
+  const columns = Object.freeze(file === OBS_FILE ? [...OBS_COLUMNS] : [...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
   for (const c of [name, ...columns]) if (!IDENT.test(c) || c === 'extra') throw new Error(`bad identifier in schema: ${c}`);
   const all = [...columns, 'extra'];
   const types = columns.map((c: string) => `${q(c)} ${ints.includes(c) ? 'INTEGER' : 'TEXT'}`);
@@ -107,8 +114,8 @@ export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, file
   })];
 }));
 Object.freeze(TABLES);
-const SOURCE_FILES = Object.freeze([...TABLES.values()].map((t) => t.file).toSorted());
-const GRAPH_SET: ReadonlySet<string> = new Set(GRAPH_FILES);
+const SOURCE_FILES = Object.freeze([...[...TABLES.values()].map((t) => t.file).filter((f) => f !== OBS_FILE), ...CACHE_FILES].toSorted());
+const GRAPH_SET: ReadonlySet<string> = new Set([...GRAPH_FILES, ...CACHE_FILES]); // files that add bytes to the fingerprint only when present
 const V1_TABLES = Object.freeze([...TABLES.values()].slice(0, V1_TABLE_COUNT));
 const GRAPH_TABLE_NAMES = Object.freeze([...TABLES.values()].slice(V1_TABLE_COUNT).map((t) => t.name));
 const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n')
@@ -179,6 +186,7 @@ const validatorOf = (t: Readonly<TableSpec>): ((r: Record<string, unknown>) => s
 function readSources(dir: string): Array<[string, string | null]> {
   return SOURCE_FILES.map((f) => {
     // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
+    if (f.startsWith('cache/')) { let c = null; try { c = fs.lstatSync(path.join(dir, 'cache')); } catch { /* no cache */ } if (c?.isSymbolicLink()) throw new IngestError('cache: is a symlink, not a directory'); } // the cache directory itself is never followed
     let st = null; try { st = fs.lstatSync(path.join(dir, f)); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
     if (st?.isSymbolicLink()) throw new IngestError(`${f}: is a symlink, not a regular file`);
     try { return [f, readDataCapped(path.join(dir, f), MAX_SOURCE_BYTES)]; } // O_NOFOLLOW + dev/ino check: no swap after the lstat
@@ -284,6 +292,11 @@ function graphRows(t: Readonly<TableSpec>, text: string): readonly Record<string
   return recs;
 }
 
+/** The rows of every cache file, in file order; each row is checked like any input (obsProblem), a duplicate sys+xid is refused by the table's key. */
+function obsRows(text: ReadonlyMap<string, string | null>): readonly Record<string, unknown>[] {
+  return CACHE_FILES.flatMap((f) => parseJsonl(text.get(f) ?? '', f, { validate: obsProblem }));
+}
+
 /** Build the index for ctx.dir into `file` (default <dir>/plangraph.sqlite). Throws IngestError on bad data, keeping the old index. */
 export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, INDEX_FILE), now = Date.now() }: { file?: string; now?: number } = {}): { file: string; counts: Record<string, number>; fingerprint: string; digest: string } {
   let st = null;
@@ -295,7 +308,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   const sources = readSources(ctx.dir), text = new Map(sources);
   const fingerprint = fingerprintOf(sources);
   // parse everything before touching the database
-  const rows = [...TABLES.values()].map((t) => ([t, GRAPH_SET.has(t.file) ? graphRows(t, text.get(t.file) ?? '') : parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })] as const));
+  const rows = [...TABLES.values()].map((t) => ([t, t.file === OBS_FILE ? obsRows(text) : GRAPH_SET.has(t.file) ? graphRows(t, text.get(t.file) ?? '') : parseJsonl(text.get(t.file) ?? '', t.file, { validate: validatorOf(t) })] as const));
   const tmp = `${file}.tmp-${process.pid}`;
   // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it. removeStaleTemps above already
   // unlinked a REGULAR file at this name (our own pid: a leftover of a crashed build); a symlink or other non-file there, or any file that

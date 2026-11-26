@@ -171,6 +171,7 @@ INDEX_TABLES = {
     'capacity': (('person', 'sprint', 'sp', 'review_h'), ('person', 'sprint')),
     'link': (('from', 'from_type', 'rel', 'to', 'to_type', 'attrs'), ()),
     'xref': (('type', 'id', 'sys', 'xid', 'src', 'seen', 'note'), ('type', 'id', 'sys', 'xid')),
+    'obs': (('sys', 'xid', 'type', 'fields', 'links', 'fp', 'seen'), ('sys', 'xid')),   # the observation cache (advisory; the solver never reads it)
 }
 V1_TABLES = tuple(INDEX_TABLES)[:8]   # the tables of format 1: an index built by 0.3.0 holds exactly these
 # The two views of the graph (lib/graph/views.ts): accepted only with this exact SQL, as SQLite stores it in sqlite_master.

@@ -83,6 +83,7 @@ async function makeFixture(root: string) {
   put(root, 'docs/plan.md', `# Plan ${M('plantitle')}\n\n### Task 1: first ${M('tasktitle')}\nbuild a ${M('planbody')}\n\n### Task 2: second\nbuild b\n`);
   put(root, 'jt/H-1.txt', `Jira text ${M('jiratext')}\n`);
   put(root, 'sched.json', JSON.stringify([{ item: 'H-1', owner: OWNER, sprint: 2 }, { item: 'H-2', owner: 'Ana', sprint: 3 }]));
+  put(root, 'batch.json', JSON.stringify({ schema: 'plangraph-ext-batch@1', sys: 'x-fuzz', observations: [{ xid: 'H-1', type: 'x-fuzz.item', fields: { note: M('obsnote') }, links: [] }, { xid: M('obsxid'), type: 'x-fuzz.item', fields: {}, links: [] }] }));
   put(root, 'issue.json', JSON.stringify({ issues: [{ key: 'H-1', fields: { summary: M('jsummary'), status: { name: M('jstatus') }, description: M('jdesc'), assignee: { displayName: M('jassignee') }, updated: '2026-11-20T10:00:00.000+0000' } }], 'H-1': { key: 'H-1', fields: { summary: M('jsummary2'), description: M('jdesc2'), status: { name: M('jstatus2') } } } }));
   put(root, 'snap.json', JSON.stringify({ 'H-1': { status: M('snapstatus') }, [KEY]: { status: 'Done' } }));
   put(root, 'f.jsonl', jl([{ key: 'H-3', kind: 'late', text: M('findingsfile') }]));
@@ -122,7 +123,7 @@ const SHAPES = {
   units: [['--keys', 'H-1,H-2,H-3', '--out', 'u', '--text', 'jt'], [SAFE_REFS, '--stale', '--full', '--out', 'u2']], bundle: [['H-1', 'H-2', '--text', 'jt'], ['H-3']],
   'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['H-1', '--out', 'jtout', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],
   'open-items': [[], ['--write'], ['--suggest-from-status'], ['--close', 'H-2', OIKIND], ['--register', 'H-1', 'newkind', '--owner', M('regowner'), '--text', M('regtext')], ['--findings', 'f.jsonl'], ['--mine', '--me', OWNER]],
-  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]], 'migrate-names': [[]], repo: [['scan'], ['scan', '--check'], ['scan', '--all']], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], [FKIND], ['pg:ticket/T-2']],
+  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]], 'migrate-names': [[]], repo: [['scan'], ['scan', '--check'], ['scan', '--all']], import: [['--sys', 'generic', 'batch.json'], ['--sys', 'jira', 'issue.json', '--tenant', 'work'], ['--sys', 'sp', 'docs/superpowers/plans/2026-11-20-widget-export.md']], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], [FKIND], ['pg:ticket/T-2']],
   'sp-ingest': [['docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none']], 'sp-link': [['H-1', 'docs/plan.md']],
   // @handle: the handle `rules --repo` prints for the hostile rule (its exact text holds line breaks, so the text form finds no rule)
   learn: [['--from-wolf', RULE_TEXT], ['--from-wolf', '@handle']], report: [[]], explain: [[], ['ticket']],

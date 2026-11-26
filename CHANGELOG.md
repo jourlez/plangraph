@@ -4,6 +4,9 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+### Added
+- Provider seam: `plangraph import --sys jira|sp|generic FILE...` reads data another tool saved to a file into observations (`lib/graph/provider.ts`), kept in the uncommitted, git-ignored cache `<dir>/cache/<sys>.jsonl` (mode 0600) and in the index table `obs`. Observations are advisory: they never write tickets, edges or schedule. An index built by 0.4.0 has no `obs` table: run `plangraph build`.
+
 ## [0.4.0] - 2026-11-26
 
 Upgrade every team member to 0.4.0 before anyone commits node files: a 0.3.0 client cannot read them.

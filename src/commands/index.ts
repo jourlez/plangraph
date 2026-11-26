@@ -10,5 +10,6 @@ import { commands as explain } from './explain.ts';
 import { commands as migrateNames } from './migrate-names.ts';
 import { commands as repo } from './repo.ts';
 import { commands as graph } from './graph.ts';
+import { commands as importObs } from './import.ts';
 
-export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, migrateNames, repo, graph });
+export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, migrateNames, repo, graph, importObs });

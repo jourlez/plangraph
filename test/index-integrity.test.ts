@@ -18,7 +18,7 @@ after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true 
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data') } });
 
-// A repo whose fifteen index sources (eight v1 files, seven graph files) each hold at least one row, so every table can be tampered with.
+// A repo whose sixteen index sources (eight v1 files, seven graph files, the observation cache) each hold at least one row, so every table can be tampered with.
 function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-integrity-')); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
@@ -40,6 +40,8 @@ function repo() {
   put('capacity.jsonl', [{ person: 'Ana', sprint: 1, sp: 8 }]);
   put('links.jsonl', [{ from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'E-1', to_type: 'epic', attrs: { why: 'x' } }]);
   put('xrefs.jsonl', [{ type: 'ticket', id: 'T-1', sys: 'jira:acme', xid: 'ABC-1', note: 'n' }]);
+  fs.mkdirSync(path.join(b, 'cache'));
+  put('cache/generic.jsonl', [{ sys: 'x-demo', xid: 'item-1', type: 'x-demo.item', fields: { state: 'open' }, links: [], fp: '0123456789abcdef', seen: '2026-11-26' }]);
   assert.equal(run(d, ['build']).status, 0);
   return { d, b, file: path.join(b, INDEX_FILE) };
 }
@@ -61,6 +63,7 @@ const EDITS = {
   capacity: 'UPDATE capacity SET sp=9',
   link: 'UPDATE link SET "from"=\'forged\'', // from is a SQL keyword: the column is quoted
   xref: "UPDATE xref SET note='forged'",
+  obs: "UPDATE obs SET fp='fedcba9876543210'",
   index_meta: "UPDATE index_meta SET v='0000' WHERE k='source_fingerprint'",
 };
 

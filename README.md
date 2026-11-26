@@ -375,6 +375,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph export` | index to canonical text (refuses a stale index) | | text |
 | `plangraph findings` | finding counts by kind, or the findings of one kind | `[KIND]` | none |
 | `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
+| `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the merge driver | | text, git config |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
