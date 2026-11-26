@@ -167,20 +167,20 @@ export class EntityStore implements PlanStore {
   readValidated(kind: Kind, { validate }: { maxBytes?: number; maxLine?: number; validate?: ((r: Row) => string | null) | undefined } = {}): Row[] {
     if (kind === 'meta') return this.#j.readValidated(kind, validate ? { validate } : {});
     const file = kindFile(kind), check = validate ?? validators[file];
-    return parseJsonl(this.#canonText(kind), file, { validate: check });
+    return parseJsonl(this.#asText(kind), file, { validate: check });
   }
 
-  #canonText(kind: Kind): string { return canonFile(this.readKind(kind, { defaults: false }), SCHEMAS[kindFile(kind)] as Schema); }
+  #asText(kind: Kind): string { return canonFile(this.readKind(kind, { defaults: false }), SCHEMAS[kindFile(kind)] as Schema); }
 
   readText(kind: Kind, opts: ReadTextOpts = {}): string | null {
     if (kind === 'meta') return this.#j.readText(kind, opts);
-    return this.exists(kind) ? this.#canonText(kind) : null;
+    return this.exists(kind) ? this.#asText(kind) : null;
   }
 
   readSource(kind: Kind, maxBytes: number): string | null {
     if (kind === 'meta') return this.#j.readSource(kind, maxBytes);
     if (!this.exists(kind)) return null;
-    const t = this.#canonText(kind);
+    const t = this.#asText(kind);
     if (Buffer.byteLength(t) > maxBytes) throw new IngestError(`${kindFile(kind)}: file too large (limit ${maxBytes} bytes)`);
     return t;
   }
