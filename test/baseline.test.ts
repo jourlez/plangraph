@@ -176,3 +176,10 @@ test('bench prints a positive number of milliseconds and runs N times', { timeou
   assert.ok(Number(m[1]) > 0, `median ${m[1]} ms`);
   assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'scripts/baseline.ts'), 'bench', '--runs', 'x'], { encoding: 'utf8' }).status, 2);
 });
+
+test('captureAll refuses a capture that holds a stray old name (only the migrate-names probes may print them)', async () => {
+  const out = dir(), probe = { id: 'stray-old-name', run: () => `try: ${OB} doctor` };
+  PROBES.push(probe);
+  try { await assert.rejects(captureAll({ root: ROOT, outDir: out }), (e: Error) => /the capture holds old names/.test(e.message) && e.message.includes('probe.stray-old-name.json')); }
+  finally { PROBES.splice(PROBES.indexOf(probe), 1); }
+});
