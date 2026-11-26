@@ -4,6 +4,23 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-26
+
+Upgrade every team member to 0.4.0 before anyone commits node files: a 0.3.0 client cannot read them.
+
+### Added
+- Plan graph: seven optional node and link files (people, sprints, epics, repos, capacity, links, xrefs) next to the v1 data, node URIs `pg:<type>/<id>`, and the `g_nodes` and `g_links` views over v1 and v2 data. A v1-only directory behaves as in 0.3.0.
+- `plangraph graph`: query nodes and links, with a compact answer format chosen from the format benchmark (`evals/graph-format/`).
+- `plangraph repo scan` and `--check`: derive `repos.jsonl` rows from allowlisted files, through git only.
+- Referential integrity of the graph in `build`, `check` and `doctor`.
+- Per-sprint capacity rows are read by `whatif` and `relieve`; `forecast` and `report` print calendar end dates when every sprint is dated.
+- `blockers`, `ticket`, `person`, `sprint`, `neighbors` and `chain` answer from one shared blockers definition over the graph views.
+- Differential tests: rules, `whatif` and the solver against a brute-force oracle.
+
+### Changed
+- `build` now validates `open-items.jsonl` (invalid JSON is an error, exit 2).
+- `migrate-names` and the Jira registry messages no longer print repository text or the plan directory name.
+
 ## 0.3.0 - 2026-11-25
 
 ### Breaking
