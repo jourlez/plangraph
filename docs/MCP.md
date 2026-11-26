@@ -1,6 +1,6 @@
 # Optional read-only MCP adapter
 
-`mcp/plangraph-mcp.ts` is a small MCP server (stdio) with three read-only tools: `ready`, `whatif` (dry run only) and `ticket`. It is
+`mcp/plangraph-mcp.ts` is a small MCP server (stdio) with four read-only tools: `ready`, `whatif` (dry run only), `ticket` and `graph`, and two read-only resource templates. It is
 **off by default**. Installing the plugin does not start it and does not add it to any session: `plugin.json` has no `mcpServers` entry,
 there is no `.mcp.json` at the plugin root, and the file is not in `bin/`, so it is not a command on PATH. A default install pays zero
 tokens for it (checked with `claude plugin details`, below).
@@ -51,6 +51,23 @@ eval plan), so other servers do not skew the token counts.
 | `ready` | `key`, `verbose` | `plangraph ready KEY [-v]` |
 | `whatif` | `key`, `to`, `sprint`, `earlier`, `owner_change`, `slip`, `strict`, `verbose` | `plangraph whatif KEY [--to P] [--sprint N] [flags] [-v]`, never `--apply-plan` or `--write` |
 | `ticket` | `key`, `verbose` | `plangraph ticket KEY [-v]` |
+| `graph` | `key`, `rel`, `depth`, `reverse`, `verbose` | `plangraph graph KEY [--rel R,..] [--depth N] [--reverse] [-v]` |
+
+`graph`: `key` is a ticket key or a canonical `pg:<type>/<id>` URI (a bare id of another node type must be given as the URI; this also
+keeps the writing `graph materialize` subcommand out of reach). `rel` is known relation names, comma separated; `depth` is 1 to 20.
+The result carries the command's text, then `structuredContent` (the `--json` data of the same call, at most 50 nodes, 500 with
+`verbose`) and up to 10 `resource_link` entries (`plangraph://node/...`) for the nodes reached. When the second run does not give the
+envelope, the text stands alone.
+
+## Resources (read only, decision D25)
+
+`resources/templates/list` gives `plangraph://node/{type}/{id}` and `plangraph://graph/{type}/{id}{?rel,depth}`. `resources/read` returns
+the same text as `plangraph graph pg:<type>/<id>` (node form: depth 1; graph form: `--rel` and `--depth`) as `text/plain`.
+`resources/list` is always empty (bounded) and there are no subscriptions (0.6.0). `{id}` is percent-encoded exactly as
+`encodeURIComponent` writes it, one spelling per node; `{type}` is a node type; the id follows the graph id rule. A URI outside this
+grammar (other scheme or path, wrong encoding, unknown or repeated query key, `rel` or `depth` out of range, a query on the node form)
+gets -32602 "resource URI is not in the grammar"; a node that is not in the graph gets -32002 "resource not found". Both messages are
+fixed and never repeat the input. The `tools/list` reply is bounded at 2,600 bytes (`test/bench-mcp.ts` fails above it).
 
 Not exposed: `ready --jira FILE` (a path), `--dir`, `--json`, and every command that writes. The bulk forms `plangraph ready --person NAME
 --sprint N` and `plangraph whatif --relieve NAME --sprint N` are read-only and bounded, but they are CLI-only on purpose: adding their
@@ -87,11 +104,11 @@ Hand-written JSON-RPC 2.0, no SDK, no runtime dependency. What it does, and wher
 | stdio: one JSON-RPC message per line, no embedded newlines, nothing but MCP messages on stdout, nothing logged on stderr | spec 2025-06-18 basic/transports, verified |
 | No Content-Length framing (that is LSP). A `Content-Length:` line is invalid JSON and gets a parse error | spec: stdio messages are newline-delimited, verified |
 | `initialize`: echo the requested version if supported (2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05), else answer 2025-11-25 | spec 2025-06-18 basic/lifecycle "Version Negotiation", verified |
-| capabilities `{ tools: { listChanged: false } }`, serverInfo name and version, no `instructions` (they would cost tokens every session) | spec lifecycle and server/tools, verified |
+| capabilities `{ tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }`, serverInfo name and version, no `instructions` (they would cost tokens every session) | spec lifecycle and server/tools, verified |
 | `ping` answered with `{}` at any time, also before `initialize` | spec basic/utilities/ping, verified |
 | `tools/list` with every tool, no pagination (a `cursor` is refused with -32602) | spec server/tools, verified; the cursor refusal is our choice |
 | `tools/call`: unknown tool -32602; argument problems as a tool result with `isError: true` | spec server/tools and 2025-11-25 changelog (SEP-1303), verified |
-| Text only: no `structuredContent`, no `outputSchema` | allowed by the spec; our choice, to keep the CLI text as the one answer |
+| Text first; `graph` adds `structuredContent` and `resource_link`; no `outputSchema` yet | allowed by the spec; the CLI text stays the one answer |
 | Unknown method -32601, including the modern `server/discover` probe | JSON-RPC 2.0; spec 2026-07-28 versioning: a dual-era client falls back to `initialize` on any non-modern error, verified (and observed, below) |
 | Batches (a JSON array) refused with -32600 | batching was removed in 2025-06-18 (changelog, verified). A client that negotiates 2025-03-26 and sends a batch is refused: conservative, unverified against such a client |
 | `tools/*` before `initialize` -32600 "server not initialized"; a second `initialize` -32600 | the spec does not fix a code for these: our conservative choice, unverified against other clients |
@@ -140,12 +157,13 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 
 | up-front item | bytes | est tok |
 |---|--:|--:|
-| tool definitions (JSON of the 3 tools) | 1992 | 498 |
+| tool definitions (JSON of the 4 tools) | 2544 | 636 |
 | - ready | 617 | 155 |
 | - whatif | 837 | 210 |
 | - ticket | 534 | 134 |
-| tools/list reply line | 2036 | 509 |
-| initialize reply line | 165 | 42 |
+| - graph | 551 | 138 |
+| tools/list reply line | 2588 | 647 |
+| initialize reply line | 217 | 55 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|

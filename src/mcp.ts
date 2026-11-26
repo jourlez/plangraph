@@ -1,4 +1,4 @@
-// The optional, read-only MCP adapter: three tools (ready, whatif, ticket) over the stdio transport, hand-written JSON-RPC 2.0, no SDK.
+// The optional, read-only MCP adapter: four tools (ready, whatif, ticket, graph) and two resource templates (read only, decision D25) over the stdio transport, hand-written JSON-RPC 2.0, no SDK.
 // Off by default: nothing in the plugin starts it (no mcpServers in plugin.json, no .mcp.json at the plugin root); docs/MCP.md says how
 // an owner opts in. Each tool call runs the SAME command through src/cli.ts main() with a collecting io, so the text is byte for byte
 // what `plangraph ready|ticket|whatif` prints (fences, sanitization, the 40-line bound, the STALE warning, error lines), stdout then stderr.
@@ -8,6 +8,9 @@
 // Protocol (handshake-based revisions 2025-11-25 and earlier): see docs/MCP.md for what was verified against the spec and what was not.
 import { main as cliMain } from './cli.ts';
 import { makeContext } from './context.ts';
+import { DERIVED_RELATIONS, EXT_REL_RE, RELATIONS, idProblem, isNodeType } from '../lib/graph/files.ts';
+import { GRAPH_MAX_DEPTH } from '../lib/graph/views.ts';
+import { nodeUri, parseNodeUri } from '../lib/graph/uri.ts';
 
 export interface RunIO { out(line: string): void; err(line: string): void }
 export type Runner = (argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>; cwd: string }) => Promise<number>;
@@ -32,6 +35,12 @@ const validKey = (k: unknown): boolean => typeof k === 'string' && k.length <= M
 const PERSON = /^[\p{L}\p{N}][\p{L}\p{M}\p{N} ._'-]{0,79}$/u;
 const validPerson = (s: unknown): boolean => typeof s === 'string' && PERSON.test(s) && !s.endsWith(' ');
 const MAX_SPRINT = 100000;
+/** The `key` of the graph tool: a ticket key, or the canonical `pg:<type>/<id>` URI (a bare non-ticket id never reaches the command, so the
+ * `materialize` subcommand, which writes, cannot be named). */
+const validGraphKey = (k: unknown): boolean => validKey(k) || (typeof k === 'string' && parseNodeUri(k) !== null);
+const KNOWN_RELS: readonly string[] = [...RELATIONS, ...DERIVED_RELATIONS];
+const validRels = (v: unknown): v is string => typeof v === 'string' && v.length <= 400 && v.split(',').every((r) => KNOWN_RELS.includes(r) || EXT_REL_RE.test(r));
+const validDepth = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 1 && v <= GRAPH_MAX_DEPTH;
 
 const KEY_PROP = { type: 'string', description: 'Ticket key, e.g. ABC-123 or sp:<plan>/<task>' };
 const VERBOSE = { type: 'boolean', description: 'Longer answer (the CLI -v)' };
@@ -45,6 +54,9 @@ export const TOOLS = Object.freeze([
       earlier: { type: 'boolean' }, owner_change: { type: 'boolean' }, slip: { type: 'boolean' }, strict: { type: 'boolean' }, verbose: VERBOSE }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
   { name: 'ticket', title: 'One ticket', description: 'One ticket: size, status, verdict, placement, needs, findings (verbose adds evidence). Same text as `plangraph ticket KEY`.',
     inputSchema: { type: 'object', properties: { key: KEY_PROP, verbose: VERBOSE }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
+  { name: 'graph', title: 'Nodes around a node', description: 'Nodes reachable from a node, with the relations that led there. Text of `plangraph graph KEY`.',
+    inputSchema: { type: 'object', properties: { key: { type: 'string', description: 'Ticket key or pg:URI' }, rel: { type: 'string' }, depth: { type: 'integer', minimum: 1, maximum: GRAPH_MAX_DEPTH },
+      reverse: { type: 'boolean' }, verbose: { type: 'boolean' } }, required: ['key'], additionalProperties: false }, annotations: ANNOTATIONS },
 ].map((t) => Object.freeze(t)));
 const TOOL_BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 const WHATIF_FLAGS: ReadonlyArray<readonly [string, string]> = Object.freeze([['earlier', '--earlier'], ['owner_change', '--owner-change'], ['slip', '--slip'], ['strict', '--strict']]);
@@ -57,7 +69,7 @@ export function toolArgv(name: string, args: Record<string, unknown>): string[] 
   if (!tool) throw new ArgError('unknown tool');
   const props = tool.inputSchema.properties;
   for (const k of Object.keys(args)) if (!Object.hasOwn(props, k)) throw new ArgError('unknown argument (allowed: ' + Object.keys(props).join(', ') + ')');
-  if (!validKey(args.key)) throw new ArgError('key must be a ticket key such as ABC-123 or sp:<plan>/<task>');
+  if (name === 'graph' ? !validGraphKey(args.key) : !validKey(args.key)) throw new ArgError(name === 'graph' ? 'key must be a ticket key or a pg:<type>/<id> URI' : 'key must be a ticket key such as ABC-123 or sp:<plan>/<task>');
   for (const [k, p] of Object.entries(props)) if (p.type === 'boolean' && args[k] !== undefined && typeof args[k] !== 'boolean') throw new ArgError(`${k} must be true or false`);
   const argv = [name];
   if (name === 'whatif') {
@@ -68,10 +80,15 @@ export function toolArgv(name: string, args: Record<string, unknown>): string[] 
     }
     for (const [k, flag] of WHATIF_FLAGS) if (args[k] === true) argv.push(flag);
   }
+  if (name === 'graph') {
+    if (args.rel !== undefined) { if (!validRels(args.rel)) throw new ArgError('rel must be known relation names, comma separated'); argv.push(`--rel=${args.rel}`); }
+    if (args.depth !== undefined) { if (!validDepth(args.depth)) throw new ArgError(`depth must be a whole number from 1 to ${GRAPH_MAX_DEPTH}`); argv.push(`--depth=${args.depth}`); }
+    if (args.reverse === true) argv.push('--reverse');
+  }
   if (args.verbose === true) argv.push('-v');
   argv.push('--', (args.key as string)); // validKey checked it is a string
   // defense in depth: the dry-run guarantee does not rest on the allowlist above alone
-  if (argv.some((a) => a === '--write' || a.startsWith('--apply') || a === '--jira' || a === '--dir')) throw new ArgError('refused');
+  if (argv.some((a) => a === '--write' || a.startsWith('--apply') || a === '--jira' || a === '--dir' || a === 'materialize')) throw new ArgError('refused');
   return argv;
 }
 
@@ -92,6 +109,58 @@ function collector() {
     bytes += n; into.push(s);
   };
   return { io: { out: add(out), err: add(err) }, text: () => [...out, ...err].join('\n') + (cut ? `\n... output cut at ${MAX_TEXT} bytes` : '') };
+}
+
+/** The resource templates (decision D25: templates and reads only; resources/list stays empty, no subscriptions). */
+export const RESOURCE_TEMPLATES = Object.freeze([
+  { uriTemplate: 'plangraph://node/{type}/{id}', name: 'node', title: 'A node and its neighbours', description: 'Same text as `plangraph graph pg:<type>/<id>`', mimeType: 'text/plain' },
+  { uriTemplate: 'plangraph://graph/{type}/{id}{?rel,depth}', name: 'graph', title: 'Nodes reachable from a node', description: 'Same text as `plangraph graph pg:<type>/<id> --rel R --depth N`', mimeType: 'text/plain' },
+].map((t) => Object.freeze(t)));
+const MAX_LINKS = 10, MAX_STRUCT_NODES = 50;
+const RES_RE = /^plangraph:\/\/(node|graph)\/([^/?#]+)\/([^/?#]+)(?:\?([^#]*))?$/;
+/** The `graph` argv of a resource URI, or null when it is outside the grammar: type a node type, id percent-encoded exactly as
+ * encodeURIComponent writes it (one spelling per node), the id rule of the graph, and only `rel` and `depth` (once each, graph form only). */
+export function resourceArgv(uri: unknown): string[] | null {
+  if (typeof uri !== 'string' || uri.length > 800) return null;
+  const m = RES_RE.exec(uri);
+  if (!m) return null;
+  const [, kind, type, raw, query] = m;
+  if (!isNodeType(type)) return null;
+  let id: string;
+  try { id = decodeURIComponent(raw); } catch { return null; }
+  if (id.length === 0 || encodeURIComponent(id) !== raw || idProblem(id)) return null;
+  let pg: string;
+  try { pg = nodeUri(type, id); } catch { return null; }
+  const argv = ['graph'];
+  let depth = 1;
+  if (query !== undefined) {
+    if (kind !== 'graph') return null;
+    const seen = new Set<string>();
+    for (const part of query.split('&')) {
+      const eq = part.indexOf('=');
+      const k = eq < 0 ? part : part.slice(0, eq), v = eq < 0 ? '' : part.slice(eq + 1);
+      if (seen.has(k) || (k !== 'rel' && k !== 'depth')) return null;
+      seen.add(k);
+      let dv: string;
+      try { dv = decodeURIComponent(v); } catch { return null; }
+      if (k === 'rel') { if (!validRels(dv)) return null; argv.push(`--rel=${dv}`); }
+      else { if (!/^[1-9][0-9]?$/.test(dv) || !validDepth(Number(dv))) return null; depth = Number(dv); }
+    }
+  }
+  argv.push(`--depth=${depth}`, '--', pg);
+  return argv;
+}
+
+/** resource_link entries for the nodes of a graph answer (detail by link, never a body). */
+function nodeLinks(nodes: unknown): object[] {
+  if (!Array.isArray(nodes)) return [];
+  const links: object[] = [];
+  for (const n of nodes) {
+    if (links.length >= MAX_LINKS) break;
+    const u = isObject(n) && typeof n.id === 'string' ? parseNodeUri(n.id) : null;
+    if (u) links.push({ type: 'resource_link', uri: `plangraph://node/${u.type}/${encodeURIComponent(u.id)}`, name: `${u.type} ${u.id.length > 60 ? u.id.slice(0, 60) : u.id}`.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' '), mimeType: 'text/plain' });
+  }
+  return links;
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -115,7 +184,33 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: 
     }
     const col = collector();
     const code = await run(argv, col.io, { env, cwd });
-    return result(id, { content: [{ type: 'text', text: col.text() }], isError: code >= 2 });
+    const reply: { content: object[]; isError: boolean; structuredContent?: object } = { content: [{ type: 'text', text: col.text() }], isError: code >= 2 };
+    if (params.name === 'graph' && code === 0) await addStructured(reply, argv);
+    return result(id, reply);
+  }
+
+  /** graph only: the same command again with --json; its data becomes structuredContent (nodes capped) and resource_link entries. Best effort:
+   * if the second run does not give the envelope, the text answer stands alone. */
+  async function addStructured(reply: { content: object[]; structuredContent?: object }, argv: string[]) {
+    const j = collector(), at = argv.indexOf('--');
+    if (await run([...argv.slice(0, at), '--json', ...argv.slice(at)], j.io, { env, cwd }) !== 0) return;
+    let data: unknown;
+    try { data = (JSON.parse(j.text()) as { data?: unknown }).data; } catch { return; }
+    if (!isObject(data) || !Array.isArray(data.nodes)) return;
+    const cap = argv.includes('-v') ? MAX_STRUCT_NODES * 10 : MAX_STRUCT_NODES;
+    reply.structuredContent = { ...data, nodes: data.nodes.slice(0, cap), truncated: (typeof data.truncated === 'number' ? data.truncated : 0) + Math.max(0, data.nodes.length - cap) };
+    reply.content.push(...nodeLinks(data.nodes));
+  }
+
+  async function readResource(id: Id, params: unknown) {
+    const uri = isObject(params) ? params.uri : undefined;
+    const argv = resourceArgv(uri);
+    if (!argv) return error(id, ERR.PARAMS, 'invalid params: resource URI is not in the grammar');
+    const col = collector();
+    const code = await run(argv, col.io, { env, cwd });
+    if (code === 1) return error(id, -32002, 'resource not found');
+    if (code !== 0) return error(id, ERR.INTERNAL, 'resource could not be read');
+    return result(id, { contents: [{ uri: uri as string, mimeType: 'text/plain', text: col.text() }] });
   }
 
   async function dispatch(msg: unknown): Promise<object | null> {
@@ -141,7 +236,7 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: 
         if (!isObject(p) || typeof p.protocolVersion !== 'string') return error(id, ERR.PARAMS, 'invalid params: protocolVersion must be a string');
         initialized = true;
         const version = PROTOCOL_VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : LATEST_PROTOCOL;
-        return result(id, { protocolVersion: version, capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION } });
+        return result(id, { protocolVersion: version, capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION } });
       }
       case 'tools/list':
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
@@ -150,6 +245,16 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: 
       case 'tools/call':
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
         return callTool(id, msg.params);
+      case 'resources/list':
+        if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
+        return result(id, { resources: [] }); // bounded: nothing is enumerated
+      case 'resources/templates/list':
+        if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
+        if (isObject(msg.params) && msg.params.cursor !== undefined) return error(id, ERR.PARAMS, 'invalid params: unknown cursor');
+        return result(id, { resourceTemplates: RESOURCE_TEMPLATES });
+      case 'resources/read':
+        if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
+        return readResource(id, msg.params);
       default: return error(id, ERR.METHOD, 'method not found');
     }
   }
