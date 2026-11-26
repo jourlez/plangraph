@@ -19,6 +19,5 @@
  "lib/tracker.ts",
  "src/jira-tenant.ts",
  "src/entry.js",
- "src/merge-entry.js",
- "lib/migrate-names.ts"
+ "src/merge-entry.js"
 ]
