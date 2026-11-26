@@ -1,5 +1,9 @@
 $ plangraph verify
 exit: 0
 --- stdout
-OK plan valid (40 tickets)
+BLOCKED T-12 open note, open followup
+BLOCKED T-3 verdict BLOCKED, open plan_text
+BLOCKED T-5 open external, open plan_text
+BLOCKED T-9 open export_clash
+OK plan valid (40 tickets, 4 warnings)
 --- stderr
