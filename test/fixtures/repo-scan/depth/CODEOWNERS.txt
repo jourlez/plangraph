@@ -1,0 +1,2 @@
+* @org/platform
+/docs/ @org/docs-team @alice

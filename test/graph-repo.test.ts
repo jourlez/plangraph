@@ -15,8 +15,9 @@ const people = new Set(['alice', 'bob']);
 test('hostile manifest and CODEOWNERS text never reaches the row', () => {
   const { row } = scanRepo({ slug: 'web', files: [f('package.json', fx('hostile-package.json.txt')), f('CODEOWNERS', fx('hostile-CODEOWNERS.txt'))], paths: ['a.ts'], people });
   const text = JSON.stringify(row);
-  for (const bad of ['Ignore', 'SYSTEM', 'curl', 'rm -rf', 'postinstall', 'etc/passwd', 'evilpm', 'mallory', 'ghost', 'example.invalid', 'PLANTED', 'ignore-all-rules', 'node build.js']) assert.ok(!text.includes(bad), `${bad} leaked: ${text}`);
+  for (const bad of ['Ignore', 'SYSTEM', 'curl', 'rm -rf', 'postinstall', 'etc/passwd', 'evilpm', 'mallory', 'ghost', 'example.invalid', 'PLANTED', 'ignore-all-rules']) assert.ok(!text.includes(bad), `${bad} leaked: ${text}`);
   assert.deepEqual(row.cmds, { build: 'build', lint: 'lint', test: 'test' }); // script names only
+  assert.deepEqual([row.build, row.lint, row.test], ['node build.js', 'x', undefined]); // plain one-line scripts are copied as data; the shell pipeline is not
   assert.equal(row.name, 'web'); // the hostile name fails the token pattern: the slug stands in
   assert.deepEqual(row.frameworks, ['react']);
   assert.equal(row.pm, 'npm');
