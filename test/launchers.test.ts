@@ -48,6 +48,16 @@ test('the launcher turns a failed load into exit code 5 with one stderr line', (
   assert.deepEqual([r.status, r.stdout, r.stderr], [5, '', 'plangraph: boom\n']);
 });
 
+test('the merge launcher turns a failed load into exit code 2 with one stderr line', () => {
+  const dir = tmp('plangraph-merge-launch-');
+  fs.mkdirSync(path.join(dir, 'bin')); fs.mkdirSync(path.join(dir, 'src'));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{ "type": "module" }\n');
+  fs.copyFileSync(path.join(root, 'bin/plangraph-merge'), path.join(dir, 'bin/plangraph-merge'));
+  fs.writeFileSync(path.join(dir, 'src/merge-entry.js'), "throw new Error('boom');\n");
+  const r = spawnSync(process.execPath, [path.join(dir, 'bin/plangraph-merge'), 'a', 'b', 'c'], { encoding: 'utf8' });
+  assert.deepEqual([r.status, r.stdout, r.stderr], [2, '', 'plangraph-merge: boom\n']);
+});
+
 test('the SessionStart hook runs src/entry.js, not bin/plangraph', () => {
   const hook = JSON.parse(read('hooks/hooks.json')).hooks.SessionStart[0].hooks[0];
   assert.equal(hook.command, 'node');

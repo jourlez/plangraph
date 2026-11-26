@@ -24,6 +24,7 @@ test('the floor is 24.15 (no runtime warning from node:sqlite or type stripping 
 
 test('package.json, README, CONTRIBUTING, CONTRACT and CHANGELOG state the same floor', () => {
   assert.equal(JSON.parse(read('package.json')).engines.node, `>=${NODE_FLOOR}`);
+  assert.equal(JSON.parse(read('package-lock.json')).packages[''].engines.node, `>=${NODE_FLOOR}`, 'the lock root states the same floor');
   assert.match(read('README.md'), new RegExp(`Node ${esc} or newer`));
   assert.match(read('CONTRIBUTING.md'), new RegExp(`Node ${esc} or newer`));
   assert.match(read('docs/CONTRACT.md'), new RegExp(`Node >= ${esc}\\.`));

@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['24'] # the floor major (engines.node is >=24.2); add a newer major here to test it too
+        node: ['24'] # the floor major (engines.node is >=24.15); add a newer major here to test it too
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -211,16 +211,17 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       # No npm ci: the hook runs where nothing was installed. It must exit 0, write nothing, and print at most the one floor line in total
-      # (T11 prints it on stdout; the pattern accepts either stream), never anything else.
+      # (T11 prints it on stdout only), never anything else. The hook runs src/entry.js: the extensionless launcher is refused on Node 18 and 20.0 to 20.9 before any code runs.
       - name: SessionStart hook exits 0 with at most the floor line
         run: |
           out="$RUNNER_TEMP/hook.out"; err="$RUNNER_TEMP/hook.err"
           rc=0
-          node bin/plangraph card --if-present --heal >"$out" 2>"$err" || rc=$?
+          node src/entry.js card --if-present --heal >"$out" 2>"$err" || rc=$?
           echo "exit $rc"; echo "--- stdout"; cat "$out"; echo "--- stderr"; cat "$err"
           test "$rc" = 0
-          test "$(cat "$out" "$err" | grep -c '')" -le 1
-          if [ -n "$(cat "$out" "$err")" ]; then cat "$out" "$err" | grep -Eq '^plangraph:? needs Node'; fi
+          test ! -s "$err"
+          test "$(grep -c '' "$out")" = 1
+          grep -Eq '^plangraph: needs Node >= 24\.15, found v' "$out"
           test -z "$(git status --porcelain)"
   mutation:
     name: mutation
