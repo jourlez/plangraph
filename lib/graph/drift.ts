@@ -1,9 +1,12 @@
 // Drift between the plan and the observation cache (docs/superpowers/plans/2026-11-25-graph-v2-amendment.md section 3.4). Pure: rows in,
 // findings out, no file, no clock, no network. The plan files are the authority for the planned owner, sprint and `needs`; the tracker
 // observation is the authority for status, real assignee and real sprint. A finding is advisory: nothing here writes a file.
-// Codes: DRIFT_ASSIGNEE, DRIFT_SPRINT, DRIFT_DONE, DRIFT_LINK, XREF_STALE, XREF_ORPHAN. The same input gives the same findings in the same order.
+// Codes: DRIFT_ASSIGNEE, UNMAPPED_ASSIGNEE, DRIFT_SPRINT, DRIFT_DONE, DRIFT_LINK, XREF_STALE, XREF_ORPHAN. The same input gives the same findings in the same order.
 
-const DRIFT_CODES = Object.freeze(['DRIFT_ASSIGNEE', 'DRIFT_SPRINT', 'DRIFT_DONE', 'DRIFT_LINK', 'XREF_STALE', 'XREF_ORPHAN'] as const);
+import { resolve } from '../identity.ts';
+import type { IdentityMap } from '../identity.ts';
+
+const DRIFT_CODES = Object.freeze(['DRIFT_ASSIGNEE', 'UNMAPPED_ASSIGNEE', 'DRIFT_SPRINT', 'DRIFT_DONE', 'DRIFT_LINK', 'XREF_STALE', 'XREF_ORPHAN'] as const);
 type DriftCode = (typeof DRIFT_CODES)[number];
 export const DEFAULT_STALE_DAYS = 14;
 
@@ -17,6 +20,9 @@ export interface DriftInput {
   edges: readonly DriftEdge[]; xrefs: readonly DriftXref[]; obs: readonly DriftObs[];
   /** the closed tracker statuses (`Done` and config.closed_statuses), compared case-insensitively */ closed: ReadonlySet<string>;
   staleDays: number; /** YYYY-MM-DD */ today: string;
+  /** the local identity map (task 14). Absent: an assignee differing from the owner is DRIFT_ASSIGNEE as before. Present: DRIFT_ASSIGNEE only when
+   * `<sys>:<assignee>` resolves to a person other than the owner, and UNMAPPED_ASSIGNEE when it resolves to none. */
+  identities?: IdentityMap | undefined;
 }
 /** One finding. `key` is the plan node (a ticket key) or, for an xref finding that names no ticket, `<sys>:<xid>`. `plan` is the plan side
  * (plangraph text), `ext` the observed side (untrusted tracker text: the printer fences it). */
@@ -64,7 +70,14 @@ export function drift(inp: DriftInput): Finding[] {
     for (const key of keys) {
       const t = tickets.get(key) as DriftTicket, s = sched.get(key);
       const owner = str(s?.owner), who = str(f.assignee);
-      if (owner && who && owner.toLowerCase() !== who.toLowerCase()) push({ code: 'DRIFT_ASSIGNEE', key, ...base, plan: owner, ext: who });
+      if (owner && who && owner.toLowerCase() !== who.toLowerCase()) {
+        if (!inp.identities) push({ code: 'DRIFT_ASSIGNEE', key, ...base, plan: owner, ext: who });
+        else {
+          const person = resolve(inp.identities, `${o.sys}:${who}`);
+          if (person === null) push({ code: 'UNMAPPED_ASSIGNEE', key, ...base, plan: owner, ext: who });
+          else if (person.toLowerCase() !== owner.toLowerCase()) push({ code: 'DRIFT_ASSIGNEE', key, ...base, plan: owner, ext: who });
+        }
+      }
       const sp = Number.isSafeInteger(s?.sprint) ? String(s?.sprint) : '', real = str(f.sprint).split(',').map((x) => x.trim()).filter(Boolean).at(-1) ?? '';
       if (sp && real && sp !== real) push({ code: 'DRIFT_SPRINT', key, ...base, plan: `S${sp}`, ext: real });
       const status = str(f.status);
