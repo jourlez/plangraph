@@ -56,3 +56,11 @@ test('a short raw token and a windowed raw token in one text are merged in text 
   const tail = 'k-12xZzZzZzZzZzZzZzZzZzZz-End'; registerSecret({ raw: tail });
   assert.equal(redact(`>shorttok-12xzzzzzzzzzzzzzzzzzzz<`), `>${R}<`);
 });
+
+test('a short token at the end of a run of windows does not shorten the merged range', () => {
+  registerSecret({ raw: 'InnerShort-12' }); // 13 characters
+  const long = `${'y'.repeat(20)}${'InnerShort-12'.toLowerCase()}zz`; // 35 characters: its windows cover all of it, the short token sits near the end
+  registerSecret({ raw: long });
+  assert.equal(redact(`<${long}>`), `<${R}>`);
+  assert.equal(redact(`<${long.toUpperCase()}>`), `<${R}>`);
+});

@@ -177,3 +177,13 @@ test('resolveTenant finds the projects entry of a root written with trailing sla
   assert.equal(resolveTenant({ cloud_id: 'cid-committed-1' }, '/work/repomutant', w.env).tenant, 'cid-committed-1');
   assert.equal(resolveTenant({ cloud_id: 'cid-committed-1' }, '/work', w.env).tenant, 'cid-committed-1');
 });
+
+test('resolveTenant: a projects entry that names a tenant (found by its root without trailing slashes) outranks an alias that does not resolve', { skip: !posix }, () => {
+  const w = world('{"projects":{"/work/repo":{"cloud_id":"cid-user-0001"}}}');
+  for (const root of ['/work/repo', '/work/repo/']) {
+    const r = resolveTenant({ tenant: 'work', cloud_id: 'cid-committed-1' }, root, w.env);
+    assert.equal(r.tenant, 'cid-user-0001', root); assert.equal(r.aliasProblem, null); assert.equal(r.aliasMissing, false); assert.equal(r.alias, null);
+  }
+  const other = resolveTenant({ tenant: 'work', cloud_id: 'cid-committed-1' }, '/elsewhere', w.env);
+  assert.equal(other.aliasMissing, true); assert.match(other.aliasProblem ?? '', /^jira\.tenant names alias work, which is not defined in /);
+});

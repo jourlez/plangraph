@@ -168,6 +168,11 @@ test('each old trace alone makes the repository part run', () => {
   // an ignore file with nothing old in it, and an attribute file without the old driver, are no trace
   const quiet = repo({ entries: { [R_GI]: file(), [R_GA]: file(), [`${REPO}/.plangraphrc`]: file() }, texts: { [R_GI]: 'node_modules/\n', [R_GA]: '*.png binary\n', [`${REPO}/.plangraphrc`]: '{"dir":".c"}' } });
   assert.equal(quiet.plan.found, false);
+  // an ignore line that names the default directory is a trace only when that directory is really there to be moved
+  const noDir = repo({ entries: { [R_GI]: file() }, texts: { [R_GI]: `${OLD_DIR}/*.sqlite\n` } });
+  assert.equal(noDir.plan.found, false);
+  const withDir = repo({ entries: { [R_GI]: file(), [R_DIR]: dir() }, texts: { [R_GI]: `${OLD_DIR}/*.sqlite\n` } });
+  assert.equal(withDir.plan.found, true);
   // a failed status is also a refusal
   const failed = repo({ entries: { [R_RC]: file() }, texts: { [R_RC]: '{}' }, git: { 'status --porcelain --untracked-files=no': { ok: false, out: '' } } });
   assert.deepEqual(failed.plan.steps, []); assert.equal(failed.plan.refused.length, 1);
