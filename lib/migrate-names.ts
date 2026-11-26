@@ -41,7 +41,7 @@ interface Step { text: string; run(): void }
 export interface MigratePlan { steps: Step[]; refused: string[]; notes: string[]; found: boolean; copied: boolean; oldConfigDir: string }
 
 const OLD = Object.freeze({ configFolder: 'project-brain', rc: '.brainrc', dir: '.brain', driver: 'brain-jsonl', index: 'brain.sqlite', keychain: 'project-brain-jira' });
-const NEW = Object.freeze({ configFolder: 'plangraph', rc: '.plangraphrc', dir: '.plangraph', driver: 'plangraph-jsonl', index: 'plangraph.sqlite', keychain: 'plangraph-jira' });
+const NEW = Object.freeze({ rc: '.plangraphrc', dir: '.plangraph', driver: 'plangraph-jsonl', index: 'plangraph.sqlite', keychain: 'plangraph-jira' });
 const USER_FILES = Object.freeze(['jira-sites.json', 'autopilot.json']);
 const MAX = 64 * 1024;
 const MAX_TEXT = 1024 * 1024;
