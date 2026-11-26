@@ -14,7 +14,8 @@ import { NO_COVERAGE, groups, GROUP_NAMES } from '../scripts/ci-tests.ts';
 import type { GroupName } from '../scripts/ci-tests.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const all = fs.readdirSync(path.join(ROOT, 'test')).filter((f) => /\.test\.(mjs|ts)$/.test(f)).map((f) => `test/${f}`).sort();
+const ls = (d: string) => fs.readdirSync(path.join(ROOT, d)).filter((f) => /\.test\.(mjs|ts)$/.test(f)).map((f) => `${d}/${f}`);
+const all = [...ls('test'), ...ls('test/differential')].sort();
 const run = (args: string[]) => spawnSync(process.execPath, ['scripts/ci-tests.ts', ...args], { cwd: ROOT, encoding: 'utf8' });
 
 test('coverage, no-coverage and timing groups partition every test file', () => {

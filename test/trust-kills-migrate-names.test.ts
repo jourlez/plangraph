@@ -197,7 +197,7 @@ test('the rc file: renamed (plain or by git), refused when special or when the n
   const both = repo({ entries: { [R_RC]: file(), [`${REPO}/.plangraphrc`]: file() }, texts: { [R_RC]: '{}' } });
   assert.deepEqual(both.plan.refused, [`.plangraphrc exists: ${OLD_RC} not renamed (merge them by hand)`]); assert.deepEqual(both.plan.steps, []);
   const named = repo({ entries: { [R_RC]: file(), [R_DIR]: dir() }, texts: { [R_RC]: '{"dir":".custom"}' } });
-  assert.deepEqual(named.plan.notes, ['keep .custom: the directory is named by the rc file']); assert.equal(named.plan.steps.length, 1);
+  assert.deepEqual(named.plan.notes, ['keep the plan directory: it is named by the rc file (its name is not shown)']); assert.equal(named.plan.steps.length, 1);
   for (const text of ['not json', '[]', 'null', '5', '{"dir":5}', '{"other":1}']) {
     const r = repo({ entries: { [R_RC]: file(), [R_DIR]: dir() }, texts: { [R_RC]: text } });
     assert.equal(r.plan.steps.some((s) => s.text.includes(`${OLD_DIR} .plangraph`)), true, `default directory for ${text}`);
@@ -205,9 +205,9 @@ test('the rc file: renamed (plain or by git), refused when special or when the n
   }
   const withLine = { [R_GA]: file() }, lineText = { [R_GA]: `x merge=${OLD_DRIVER}\n` };
   const fromNew = repo({ entries: { [`${REPO}/.plangraphrc`]: file(), [R_DIR]: dir(), ...withLine }, texts: { [`${REPO}/.plangraphrc`]: '{"dir":".kept"}', ...lineText } });
-  assert.deepEqual(fromNew.plan.notes, ['keep .kept: the directory is named by the rc file']);
+  assert.deepEqual(fromNew.plan.notes, ['keep the plan directory: it is named by the rc file (its name is not shown)']);
   const rcDir = repo({ entries: { [R_RC]: { kind: 'dir', size: 0 }, [`${REPO}/.plangraphrc`]: file(), ...withLine }, texts: { [`${REPO}/.plangraphrc`]: '{"dir":".kept"}', ...lineText } });
-  assert.deepEqual(rcDir.plan.notes, ['keep .kept: the directory is named by the rc file'], 'only a regular old rc file is read first, else the new one');
+  assert.deepEqual(rcDir.plan.notes, ['keep the plan directory: it is named by the rc file (its name is not shown)'], 'only a regular old rc file is read first, else the new one');
   assert.deepEqual(rcDir.plan.refused, [`${OLD_RC} is not a regular file (a symlink is refused): not renamed`]);
 });
 
@@ -230,8 +230,8 @@ test('attribute and ignore files: only changed lines are listed, joined by "; ",
   const r = repo({ entries: { [R_DIR]: dir(), [R_GA]: file(), [R_GI]: file() }, texts: { [R_GA]: ga, [R_GI]: gi } });
   assert.deepEqual(r.plan.steps.map((s) => s.text), [
     `rename ${OLD_DIR} .plangraph`,
-    `.gitattributes: ${OLD_DIR}/*.jsonl merge=${OLD_DRIVER} to .plangraph/*.jsonl merge=plangraph-jsonl`,
-    `.gitignore: ${OLD_DIR}/*.sqlite to .plangraph/*.sqlite; ${OLD_INDEX} to plangraph.sqlite`,
+    '.gitattributes: rewrite the old names on line 1 (line text not shown)',
+    '.gitignore: rewrite the old names on line 2, line 5 (line text not shown)',
     `git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim)`,
   ]);
   assert.deepEqual(r.plan.notes, [`.gitignore line 4 still names ${OLD_DIR} after the rewrite: change it by hand to .plangraph (printed only, not edited)`]);
@@ -240,15 +240,15 @@ test('attribute and ignore files: only changed lines are listed, joined by "; ",
   assert.ok(r.log.includes(`write ${R_GI} ${JSON.stringify(`node_modules/\n.plangraph/*.sqlite\n# ${OLD_DIR}\nnotes/${OLD_DIR}/x\nplangraph.sqlite\n`)}`));
   // when the directory is not moved, nothing is noted and the directory part of a line stays
   const kept = repo({ entries: { [R_GI]: file(), [R_RC]: file() }, texts: { [R_GI]: `${OLD_DIR}/x\n${OLD_INDEX}\n`, [R_RC]: '{"dir":".c"}' } });
-  assert.deepEqual(kept.plan.steps.map((s) => s.text), [`rename ${OLD_RC} .plangraphrc (content unchanged)`, `.gitignore: ${OLD_INDEX} to plangraph.sqlite`]);
-  assert.deepEqual(kept.plan.notes, ['keep .c: the directory is named by the rc file']);
+  assert.deepEqual(kept.plan.steps.map((s) => s.text), [`rename ${OLD_RC} .plangraphrc (content unchanged)`, '.gitignore: rewrite the old names on line 2 (line text not shown)']);
+  assert.deepEqual(kept.plan.notes, ['keep the plan directory: it is named by the rc file (its name is not shown)']);
   // a file with nothing to change adds no step
   const same = repo({ entries: { [R_GI]: file(), [R_RC]: file() }, texts: { [R_GI]: 'node_modules/\n', [R_RC]: '{}' } });
   assert.deepEqual(same.plan.steps.map((s) => s.text), [`rename ${OLD_RC} .plangraphrc (content unchanged)`]);
   // a refused file is named, and a missing one is skipped
   const sym = repo({ entries: { [R_GA]: { kind: 'symlink', size: 0 }, [R_GI]: file() }, texts: { [R_GI]: `${OLD_INDEX}\n` } });
   assert.deepEqual(sym.plan.refused, ['.gitattributes is not a regular file (a symlink is refused): not rewritten']);
-  assert.deepEqual(sym.plan.steps.map((s) => s.text), [`.gitignore: ${OLD_INDEX} to plangraph.sqlite`]);
+  assert.deepEqual(sym.plan.steps.map((s) => s.text), ['.gitignore: rewrite the old names on line 1 (line text not shown)']);
 });
 
 test('the merge driver config: set name and driver, remove the old section only when it exists; each failure names its step', () => {
@@ -260,7 +260,7 @@ test('the merge driver config: set name and driver, remove the old section only 
     'git config merge.plangraph-jsonl.name plangraph jsonl three-way merge', 'git config merge.plangraph-jsonl.driver shim %O %A %B %P', `git config --local --remove-section merge.${OLD_DRIVER}`,
   ]);
   const lineOnly = repo({ entries: { [R_GA]: file() }, texts: { [R_GA]: `x merge=${OLD_DRIVER}\n` } });
-  assert.deepEqual(lineOnly.plan.steps.map((s) => s.text), [`.gitattributes: merge=${OLD_DRIVER} to merge=plangraph-jsonl`.replace('.gitattributes: merge', `.gitattributes: x merge`).replace(` to merge=plangraph-jsonl`, ` to x merge=plangraph-jsonl`), 'git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim)']);
+  assert.deepEqual(lineOnly.plan.steps.map((s) => s.text), ['.gitattributes: rewrite the old names on line 1 (line text not shown)', 'git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim)']);
   applyMigration(lineOnly.plan); assert.equal(lineOnly.log.some((l) => l.includes('--remove-section')), false);
   const blankCfg = repo({ entries: { [R_GA]: file() }, texts: { [R_GA]: `x merge=${OLD_DRIVER}\n` }, git: { [`config --local --get-regexp ^merge\\.${OLD_DRIVER}\\.`]: { ok: true, out: '  \n' } } });
   assert.equal(blankCfg.plan.steps[1]?.text, 'git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim)');
@@ -281,7 +281,7 @@ test('printed-only notes: CLAUDE.md names the old directory, settings rules star
   const names = repo({ entries: { [R_DIR]: dir(), [claudeMd]: file() }, texts: { [claudeMd]: `see ${OLD_DIR}/*.jsonl\n` } });
   assert.deepEqual(names.plan.notes, [`CLAUDE.md names ${OLD_DIR}/*.jsonl: change it to .plangraph/*.jsonl in the plan-questions lines (printed only, not edited)`]);
   const custom = repo({ entries: { [R_RC]: file(), [claudeMd]: file() }, texts: { [R_RC]: '{"dir":".c"}', [claudeMd]: `see ${OLD_DIR}/*.jsonl\n` } });
-  assert.deepEqual(custom.plan.notes, ['keep .c: the directory is named by the rc file']);
+  assert.deepEqual(custom.plan.notes, ['keep the plan directory: it is named by the rc file (its name is not shown)']);
   const none = repo({ entries: { [R_DIR]: dir(), [claudeMd]: file() }, texts: { [claudeMd]: 'nothing\n' } });
   assert.deepEqual(none.plan.notes, []);
   const word = 'brain';

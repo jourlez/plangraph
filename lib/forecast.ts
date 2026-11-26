@@ -49,7 +49,7 @@ export type ForecastState = (typeof STATES)[number];
 export interface ForecastInput {
   history?: readonly HistoryRecord[]; actuals?: readonly ActualRow[]; model?: Model | null; config?: PlanConfig; runs?: number; seed?: number; remaining?: number;
   block?: number | null; mode?: string; targets?: number[]; doneKeys?: Iterable<string> | null; horizon?: number; start?: number;
-  sprints?: ReadonlyArray<{ n: unknown; end?: unknown }>; // the sprint table: when every row has a real end date, the text gains a calendar part
+  sprints?: ReadonlyArray<{ n: unknown; end?: unknown }> | undefined; // the sprint table: when every row has a real end date, the text gains a calendar part
 }
 /** The probability of being done by one sprint; lo/hi only with n < 10 or a PRIOR-ONLY state. */
 interface ForecastProb { sprint: number; p: number; se: number; lo?: number; hi?: number }

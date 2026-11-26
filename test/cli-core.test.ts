@@ -475,7 +475,8 @@ test('fingerprint: content, not mtime; a missing file differs from an empty one;
     using h = openIndex(legacyBuild(dir), { dir });
     assert.equal(h.stale, true);
   }
-  assert.equal(brainBuild(root).status, 0); // `plangraph build` stores the fingerprint: fresh
+  fs.rmSync(path.join(dir, 'open-items.jsonl'), { force: true }); // build validates the register now (graph nodes); the garbage above only had to leave the fingerprint alone
+  { const bb = brainBuild(root); assert.equal(bb.status, 0, bb.stderr); } // `plangraph build` stores the fingerprint: fresh
   using h = openIndex(path.join(dir, INDEX_FILE), { dir });
   assert.equal(h.stale, false);
   void ctx;

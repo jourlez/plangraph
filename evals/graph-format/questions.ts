@@ -9,7 +9,7 @@ const by = new Map<string, Ticket>(TICKETS.map((t) => [t.key, t]));
 const get = (k: string): Ticket => by.get(k) as Ticket;
 
 // every ticket that needs `key`, directly or not, by repeated widening until nothing new appears
-export function downstream(key: string): string[] {
+function downstream(key: string): string[] {
   const seen = new Set<string>([key]);
   for (let grew = true; grew; ) {
     grew = false;

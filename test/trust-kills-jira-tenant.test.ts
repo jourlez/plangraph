@@ -86,7 +86,7 @@ test('approveAlias writes the key once, keeps everything else, mode 0600, 2-spac
 });
 
 test('approveAlias refuses an unusable file or alias with the reason, and writes nothing', { skip: !posix }, () => {
-  const unusable = (file: string) => `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`;
+  const unusable = (file: string) => new RegExp(`^${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} (is missing or refused: .+|is not valid JSON)$`); // the registry reader names the reason (hardened in 0.3.0)
   const none = world(); assert.throws(() => approveAlias(none.env, 'work', H64), bad('bad_config', unusable(none.file)));
   const dirW = world(); fs.mkdirSync(dirW.file); assert.throws(() => approveAlias(dirW.env, 'work', H64), bad('bad_config', unusable(dirW.file)));
   const linkW = world(); fs.writeFileSync(path.join(linkW.d, 'real.json'), aliasFile()); fs.symlinkSync(path.join(linkW.d, 'real.json'), linkW.file);

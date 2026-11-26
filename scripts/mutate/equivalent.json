@@ -1795,27 +1795,9 @@
  },
  {
   "file": "src/jira-tenant.ts",
-  "line": "const { reg, projects, aliases, problems } = parseSiteRegistry(fs.readFileSync(file, 'utf8'));",
-  "mutated": "const { reg, projects, aliases, problems } = parseSiteRegistry(fs.readFileSync(file, ''));",
-  "why": "JSON.parse reads a Buffer exactly as its utf8 text, so the encoding argument changes nothing"
- },
- {
-  "file": "src/jira-tenant.ts",
   "line": "export function effectiveJira(committed: JiraSettings = {}, root = '', env: Record<string, string | undefined> = {}, via: { alias?: ProjectEntry; blocked?: boolean } = {}, registry: LoadedRegistry = loadRegistry(env)): JiraSettings {",
   "mutated": "export function effectiveJira(committed: JiraSettings = {}, root = 'mutant', env: Record<string, string | undefined> = {}, via: { alias?: ProjectEntry; blocked?: boolean } = {}, registry: LoadedRegistry = loadRegistry(env)): JiraSettings {",
   "why": "no project root can be 'mutant' (a registry root must start with a slash), so the default root finds no entry either way"
- },
- {
-  "file": "src/jira-tenant.ts",
-  "line": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
-  "mutated": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error(''); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
-  "why": "the message of the error thrown inside the try is never shown (the catch throws its own), and a Buffer parses as its utf8 text"
- },
- {
-  "file": "src/jira-tenant.ts",
-  "line": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
-  "mutated": "try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, '')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }",
-  "why": "the message of the error thrown inside the try is never shown (the catch throws its own), and a Buffer parses as its utf8 text"
  },
  {
   "file": "src/entry.js",

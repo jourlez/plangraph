@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 
 export const MAX_FILE = 256 * 1024;
-export const SCANNER = 'plangraph-scan/1';
+const SCANNER = 'plangraph-scan/1';
 const FIXED = new Set(['package.json', 'pyproject.toml', 'Cargo.toml', 'go.mod', '.nvmrc', '.node-version', '.python-version', '.tool-versions', 'CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS', 'Dockerfile']);
 /** True for a repo-relative path the scan may read. */
 export const isScanFile = (p: string): boolean => FIXED.has(p);

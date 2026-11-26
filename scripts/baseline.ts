@@ -255,6 +255,7 @@ function stable(v: unknown): unknown {
   if (typeof v === 'number' && !Number.isFinite(v)) return String(v);
   return v === undefined ? null : v;
 }
+const attemptSync = (f: () => unknown) => { try { return f(); } catch (e) { return { __error: (e as Error).message }; } };
 const attempt = async (f: () => unknown) => { try { return await f(); } catch (e) { return e; } };
 
 async function genModel(o: Record<string, unknown> = {}) {
@@ -278,6 +279,26 @@ export const PROBES: Probe[] = [
     const { integrity, renderViolation } = await lib('lib/graph/integrity.ts');
     const files = { people: [], sprints: [{ n: 1, start: '2026-01-05', end: '2026-01-16' }, { n: 2 }], epics: [], repos: [], capacity: [], links: [], xrefs: [], ext: 0, warnings: [] };
     return integrity(files, {}, []).map(renderViolation);
+  } },
+  { id: 'capacity-for', run: async () => {
+    const { capacityFor, capacityAdvice } = await lib('lib/capacity.ts'); const { model } = await genModel();
+    const rows = [{ person: 'Ana', sprint: 1, sp: 2 }, { person: 'Ben', sprint: 2, sp: 99 }, { person: 'Ana', sprint: 3, sp: 'x' }];
+    return { low: capacityFor('Ana', 1, rows, model.config), high: capacityFor('Ben', 2, rows, model.config), none: capacityFor('Ana', 4, rows, model.config), bad: capacityFor('Ana', 3, rows, model.config), advice: capacityAdvice('Ben', 2, rows, model.config), noAdvice: capacityAdvice('Ana', 1, rows, model.config) };
+  } },
+  { id: 'capacity-whatif', run: async () => {
+    const { whatif, relieve } = await lib('lib/whatif.ts'); const { model } = await genModel();
+    const m = { ...model, capacity: [{ person: 'Ana', sprint: 1, sp: 1 }, { person: 'Ben', sprint: 2, sp: 1 }] };
+    return { later: whatif(m, { key: 'T-3', sprint: 4 }), owner: whatif(m, { key: 'T-3', to: 'Ben' }), relieve: relieve(m, { person: 'Ana', sprint: 1 }) };
+  } },
+  { id: 'graph-uri', run: async () => {
+    const { nodeUri, parseNodeUri } = await lib('lib/graph/uri.ts');
+    const ids = ['T-1', 'a b', 'x/y', 'é', '%41', ''];
+    return ids.map((id) => { const u = attemptSync(() => nodeUri('ticket', id)); return { u, back: typeof u === 'string' ? parseNodeUri(u) : null }; }).concat([{ u: 'pg:nope', back: parseNodeUri('pg:nope') }, { u: 'x', back: parseNodeUri('x') }]);
+  } },
+  { id: 'graph-blockers', run: async () => {
+    const { blockersOf, modelSource } = await lib('lib/graph/blockers.ts'); const { closedStatuses } = await lib('lib/ready.ts'); const { model } = await genModel();
+    const src = modelSource(model), closed = closedStatuses(model.config);
+    return [...model.tickets.keys()].map((k) => blockersOf(src, k as string, { closed })).concat([blockersOf(src, 'NOPE-1', { closed })]);
   } },
   { id: 'whatif', run: async () => {
     const { whatif, findSlots, relieve } = await lib('lib/whatif.ts'); const { model } = await genModel();

@@ -10,7 +10,7 @@ import type { ModelRecords, PlanConfig, ScheduleRow } from '../model.ts';
 import type { OpenItem } from '../openitems.ts';
 import { oneLine } from '../sanitize.ts';
 
-export type IntegrityCode = 'LINK_MISSING_NODE' | 'XREF_MISSING_NODE' | 'XREF_DUPLICATE' | 'UNDATED_SPRINT' | 'DOUBLE_PLACED_WORK';
+type IntegrityCode = 'LINK_MISSING_NODE' | 'XREF_MISSING_NODE' | 'XREF_DUPLICATE' | 'UNDATED_SPRINT' | 'DOUBLE_PLACED_WORK';
 export interface IntegrityViolation { code: IntegrityCode; file: string; line: number | null; detail: string; warning: boolean }
 
 const s = (x: unknown, n = 80): string => oneLine(String(x), n);

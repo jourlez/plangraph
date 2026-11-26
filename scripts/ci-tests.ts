@@ -43,7 +43,8 @@ if (import.meta.main) {
     process.exit(2);
   }
   const root = path.join(import.meta.dirname, '..');
-  const files = fs.readdirSync(path.join(root, 'test')).filter((f) => /\.test\.(mjs|ts)$/.test(f)).map((f) => `test/${f}`);
+  const ls = (d: string) => (fs.existsSync(path.join(root, d)) ? fs.readdirSync(path.join(root, d)) : []).filter((f) => /\.test\.(mjs|ts)$/.test(f)).map((f) => `${d}/${f}`);
+  const files = [...ls('test'), ...ls('test/differential')]; // test/differential/*.test.ts: the brute-force oracle tests (Task 7C)
   const g = groups(files)[args[0] as GroupName]; // args[0] was checked against the group names above
   process.stdout.write(`${g.join('\n')}\n`);
 }

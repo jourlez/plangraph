@@ -187,7 +187,7 @@ test('every import in lib, src, scripts, mcp and the node entry points is relati
   for (const f of fs.readdirSync(path.join(root, 'bin'))) if (fs.statSync(path.join(root, 'bin', f)).isFile() && read(path.join('bin', f)).startsWith('#!/usr/bin/env node')) files.push(path.join('bin', f));
   assert.ok(files.length > 20);
   for (const f of files) {
-    for (const m of read(f).matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]/gm)) {
+    for (const m of read(f).matchAll(/(?:(?<!['"])\bfrom\s*|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]/gm)) {
       assert.ok(m[1].startsWith('.') || m[1].startsWith('node:'), `${f} imports ${m[1]}`);
     }
   }

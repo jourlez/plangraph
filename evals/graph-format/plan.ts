@@ -3,8 +3,8 @@ export type Ticket = { key: string; owner: string; sprint: string; epic: string;
 
 export const PEOPLE = ['Ana', 'Ben', 'Cy', 'Dee'];
 export const SPRINTS = ['S1', 'S2', 'S3', 'S4', 'S5'];
-export const EPICS = ['E-A', 'E-B', 'E-C'];
-export const N = 30;
+const EPICS = ['E-A', 'E-B', 'E-C'];
+const N = 30;
 
 export const TICKETS: Ticket[] = Array.from({ length: N }, (_, k) => {
   const i = k + 1;

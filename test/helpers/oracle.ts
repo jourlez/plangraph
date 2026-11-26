@@ -39,7 +39,7 @@ export const assignOf = (plan: GenPlan): Map<string, Slot> => new Map(plan.sched
 export const slots = (people: readonly string[], sprints: number): Slot[] => people.flatMap((owner) => Array.from({ length: sprints }, (_, i) => ({ owner, sprint: i + 1 })));
 
 /** calls fn for each of the (people*sprints)^n assignments; stops early when fn returns true */
-export function eachAssign(plan: GenPlan, sprints: number, fn: (a: Assign) => boolean | void): void {
+export function eachAssign(plan: GenPlan, sprints: number, fn: (a: Assign) => unknown): void {
   const keys = plan.tickets.map((t) => t.key), all = slots(peopleOf(plan), sprints), cur = new Map<string, Slot>();
   const rec = (i: number): boolean => {
     if (i === keys.length) return fn(cur) === true;

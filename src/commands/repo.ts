@@ -21,7 +21,7 @@ const isRepoDir = (p: string): boolean => { try { return !fs.lstatSync(p).isSymb
 function readRepo(dir: string): { files: ScanFile[]; paths: string[] } {
   const git = makeGit(dir), files: ScanFile[] = [], paths: string[] = [];
   for (const rec of git(...SAFE_GIT, 'ls-files', '-s', '-z').split('\0')) {
-    const m = /^(\d{6}) ([0-9a-f]{40}) 0\t([^]+)$/.exec(rec);
+    const m = /^(\d{6}) ([0-9a-f]{40}) 0\t([\s\S]+)$/.exec(rec);
     if (!m || m[1] === '120000' || m[1] === '160000') continue; // a symlink or a submodule is never read
     const [, , sha, p] = m as unknown as [string, string, string, string];
     paths.push(p);
