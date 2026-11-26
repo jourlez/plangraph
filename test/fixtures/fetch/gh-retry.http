@@ -1,0 +1,5 @@
+HTTP/2.0 403 Forbidden
+Retry-After: 30
+Content-Type: application/json; charset=utf-8
+
+{"message":"You have exceeded a secondary rate limit."}

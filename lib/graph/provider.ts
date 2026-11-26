@@ -158,6 +158,29 @@ const github: GraphProvider = {
   },
 };
 
+// ---------- confluence: pages fetched by lib/fetch/confluence.ts (or saved by another tool) ----------
+// Input: { space: "<id>", pages: [{ id, title, status, version, updated, labels: [..], text }] }. The text is already plain; it is capped again here.
+const confluence: GraphProvider = {
+  sys: 'confluence', schema: 1, input: 'json', validXid: (x) => /^\d{1,20}$/.test(x),
+  normalize(input, opts) {
+    const b = batch(), sys = `confluence:${opts.tenant}`;
+    if (!sysOk(sys)) throw new Error('confluence needs a tenant alias (--tenant ALIAS or jira.tenant in the config)');
+    if (!isObj(input) || !Array.isArray(input.pages)) throw new Error('a confluence input needs "pages": [..]');
+    const space = typeof input.space === 'string' && /^\d{1,20}$/.test(input.space) ? input.space : '';
+    for (const p of input.pages) {
+      const id = isObj(p) ? p.id : undefined;
+      if (!isObj(p) || typeof id !== 'string' || !confluence.validXid(id)) { b.dropped++; continue; }
+      const fields: Record<string, FieldValue> = { title: text(p.title), status: text(p.status), updated: text(p.updated), text: oneLine(p.text, 4 * TEXT - 100) };
+      if (typeof p.version === 'number' && Number.isFinite(p.version)) fields.version = p.version;
+      if (Array.isArray(p.labels)) fields.labels = p.labels.filter((l): l is string => typeof l === 'string').slice(0, 10).map((l) => oneLine(l, 40)).join(',');
+      if (space) fields.space = space;
+      add(b, build(sys, id, 'x-confluence.page', fields, []));
+    }
+    if (b.dropped) warn(b, `${b.dropped} page(s) dropped (bad shape or id)`);
+    return b;
+  },
+};
+
 /** The built-in providers (nothing loads dynamically): frozen, null-prototype; look up with providerOf (Object.hasOwn), never by a bare key. */
-export const PROVIDERS: Readonly<Record<string, GraphProvider>> = Object.freeze(Object.assign(Object.create(null) as Record<string, GraphProvider>, { jira, sp, generic, github }));
+export const PROVIDERS: Readonly<Record<string, GraphProvider>> = Object.freeze(Object.assign(Object.create(null) as Record<string, GraphProvider>, { jira, sp, generic, github, confluence }));
 export const providerOf = (name: string): GraphProvider | null => (Object.hasOwn(PROVIDERS, name) ? (PROVIDERS[name] as GraphProvider) : null);

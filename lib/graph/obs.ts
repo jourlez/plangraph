@@ -6,7 +6,7 @@ export const MAX_FIELDS = 40, MAX_LINKS = 100, TEXT = 200;
 export const FIELD_KEY = /^[a-z][a-z0-9_]{0,31}$/;
 const isObj = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x);
 /** The cache file of each built-in provider, relative to the plan directory (a test pins this list to PROVIDERS). */
-export const CACHE_FILES: readonly string[] = Object.freeze(['cache/generic.jsonl', 'cache/github.jsonl', 'cache/jira.jsonl', 'cache/sp.jsonl']);
+export const CACHE_FILES: readonly string[] = Object.freeze(['cache/confluence.jsonl', 'cache/generic.jsonl', 'cache/github.jsonl', 'cache/jira.jsonl', 'cache/sp.jsonl']);
 
 /** The problem with a cache row (a line of cache/<provider>.jsonl), or null. The cache is local text and may be edited by hand: it is checked like any input. */
 export function obsProblem(r: Record<string, unknown>): string | null {
