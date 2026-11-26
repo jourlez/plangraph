@@ -52,3 +52,9 @@ test('doctor says a multi-host Data Center tenant needs a binding; one host may 
   const one = jiraLine(run(dir, { ...gen, PLANGRAPH_JIRA_DC_HOSTS: 'jira.beta.example' }, ['doctor']));
   assert.match(one, /generic env JIRA_EMAIL \+ JIRA_API_TOKEN set$/);
 });
+
+test('doctor says a committed tenant that is not an alias name makes the config invalid', () => {
+  const dir = repo();
+  setJira(dir, { tenant: 'Work', jql: 'project = ABC' });
+  assert.match(jiraLine(run(dir, {}, ['doctor'])), /^jira: invalid config: jira\.tenant must be an alias name \(ALIAS_RE /);
+});

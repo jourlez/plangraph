@@ -107,13 +107,31 @@ Resolution for a tenant T, first hit wins:
 
 `plangraph doctor` shows the tenant and which binding applies, without printing a secret.
 
-### Keep the tenant out of the repository
+### Keep the tenant out of the repository, portably
 
 A public project must not have to commit its company's Jira site, cloud id or JQL. Put them in the same user-level file instead, keyed by the repository's absolute path; they are laid over the (possibly empty) committed `config.json` "jira" block:
 
 `{"projects": {"/path/to/repo": {"auth": {"mode": "site-token"}, "base_url": "https://acme.atlassian.net", "jql": "project = ABC"}}}`
 
 Allowed fields: `auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`. An entry that names any tenant field (`auth`, `base_url` or `cloud_id`) decides the WHOLE tenant: the committed `auth`, `base_url` and `cloud_id` are then ignored, so give the mode and its tenant field together (`auth.mode` defaults to `scoped`, which needs `cloud_id`; `site-token` and `datacenter` need `base_url`). The committed `jql`, `sprint_field` and `full_reconcile_every` still apply unless the entry sets them. The tenant field named here is trusted as the user's own choice, so the generic `JIRA_*` credentials may be used for it; a site that comes only from a committed config is untrusted and needs a registry entry, a per-site credential or a `PLANGRAPH_JIRA_SITES` pin.
+
+A path-keyed entry is tied to one machine's checkout path. To commit something every clone can share, name the tenant with an **alias**: the committed `config.json` holds only a name, `{"jira": {"tenant": "work", "jql": "project = ABC"}}`, never a host, and each person defines that name in their own file, with the names of their own credentials:
+
+`{"aliases": {"work": {"cloud_id": "<your cloud id>", "jql": "project = ABC", "credentials": {"email_env": "WORK_JIRA_EMAIL", "token_env": "WORK_JIRA_TOKEN"}}}}`
+
+An alias takes the same fields as a `projects` entry (`auth.mode`, `base_url`, `cloud_id`, `jql`, `sprint_field`) plus `credentials`, which names ONE credential source (`email_env` and `token_env`, or `op_ref`, or `keychain`; names only, never a secret). A bad value there (for example a `token_env` that is not an environment-variable name) is an invalid config that names the field. An alias name matches `^[a-z][a-z0-9_-]{0,31}$` and is never a member of `Object.prototype` (so `constructor` is refused); a committed `tenant` that breaks the rule is a data error (exit 2) for `jira-pull`, and `plangraph ticket` and `plangraph check` do not read it. Precedence, lowest first: the committed fields, then the alias, then your `projects` entry for the root. A resolved alias that names a tenant field decides the whole tenant, like a `projects` entry: the committed `base_url`, `cloud_id` and `auth` are ignored. A named alias is never replaced by the committed fields: if your file does not define it, `jira-pull` exits 3 with one line naming the alias and the file (`plangraph doctor` warns), even when the committed config also holds a `base_url` or `cloud_id`.
+
+### Approving an alias
+
+An alias resolves only for a repository you approved. The approval is the SHA-256 of the real path of the repository's git common directory, kept in the alias's `repos` list in your file. Without it `jira-pull` exits 3 with `alias work is not approved for this repository; approve it yourself in an interactive terminal`, runs no credential helper and sends no request. Outside a git repository an alias never resolves.
+
+Why this exists: a hostile repository can commit `"tenant": "work"` and hope your work credentials follow the name. The approval is a decision only you make, so it is interactive on purpose, and the refusal prints no command to run: an agent that follows a printed hint in a hostile repository must not be able to grant it.
+
+To approve, open a terminal in the repository and run `plangraph doctor --fix --alias work`. It shows the alias host (the cloud id for a scoped alias) and the repository path, then asks you to type the host; only that exact answer writes the approval (the file is rewritten atomically with mode 0600, other content kept). It refuses with exit 2, writing nothing, when stdin is not a terminal. Note that this is a `doctor --fix` run, so it also wires the merge driver and records `plangraph.heal` for this clone, like `plangraph init`.
+
+The approval is keyed by the clone's path: a different repository cloned at the same path inherits it, and a moved clone must be approved again. This differs from the heal consent (`plangraph.heal`), which lives in the clone's git config and moves with it.
+
+Limit: the terminal check stops an agent that follows a printed hint, not a prompt-injected agent with shell access, which can fake a terminal (`script(1)`) or edit `jira-sites.json` directly. Only you should approve aliases, and the host is shown so that a wrong request is visible. See SECURITY.md.
 
 Output files of `plangraph jira-pull --out`, `plangraph jira-import --out` and `plangraph jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.
 

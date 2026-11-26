@@ -11,7 +11,7 @@ import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, TABL
 import { checkRepoPath } from '../../lib/gitsafe.ts';
 import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
-import { resolveTenant } from '../jira-tenant.ts';
+import { resolveTenant, loadRegistry, repoKey, approveAlias, isAliasName } from '../jira-tenant.ts';
 import { siteTag } from '../../lib/tracker.ts';
 import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
@@ -250,8 +250,32 @@ async function migrate(ctx: Ctx, args: Args<{ write?: boolean }>): Promise<numbe
 }
 
 // ---- doctor: data format, merge driver, node, solver runtime; warnings never change the exit code ----
-async function doctor(ctx: Ctx, args: Args<{ fix?: boolean }>): Promise<number> {
+// `doctor --fix --alias NAME`: the user approves the alias for THIS repository. It needs a terminal on stdin (an agent that follows a printed hint
+// has none) and a typed host, and writes nothing before the confirmation. Returns false when the user did not confirm.
+async function approveAliasHere(ctx: Ctx, name: string): Promise<boolean> {
+  if (!isAliasName(name)) throw usage(`--alias needs an alias name (ALIAS_RE ^[a-z][a-z0-9_-]{0,31}$)`);
+  if (!ctx.stdin.isTTY) throw usage(`doctor --fix --alias needs an interactive terminal on stdin: the user approves an alias there; nothing was written (docs/JIRA.md, Approving an alias)`);
+  const reg = loadRegistry(ctx.env), entry = Object.hasOwn(reg.aliases, name) ? reg.aliases[name] : undefined;
+  if (!entry) throw usage(`alias ${name} is not defined in ${reg.file}; add it under "aliases" first (docs/JIRA.md, Keep the tenant out of the repository, portably)`);
+  const key = repoKey(ctx.root);
+  if (!key) throw usage(`alias ${name} can be approved only inside a git repository; this directory is not one`);
+  let host = ''; try { host = entry.base_url ? new URL(entry.base_url).host.toLowerCase() : String(entry.cloud_id || '').toLowerCase(); } catch { host = ''; }
+  const expect = host || name;
+  ctx.io.out(`approve alias ${name} for the repository ${oneLine(ctx.root, 200)}`);
+  ctx.io.out(`alias ${name} points at ${host ? oneLine(host, 200) : '(no host: the credentials only)'}; approving lets this repository's jira-pull use the credentials you bound to it`);
+  ctx.io.out(`type ${oneLine(expect, 200)} to approve, anything else to cancel:`);
+  const typed = String(ctx.stdin.readLine ? ctx.stdin.readLine(256) : ctx.stdin.read(256)).trim().toLowerCase();
+  if (typed !== expect.toLowerCase()) { ctx.io.out(`alias ${name} not approved; nothing was written`); return false; }
+  try { approveAlias(ctx.env, name, key); } catch (e) { throw usage(oneLine(String((e as Error).message).split('\n')[0], 300)); } // a JiraError: its message names the file or the alias
+  ctx.io.out(`alias ${name} approved for this repository`);
+  return true;
+}
+async function doctor(ctx: Ctx, args: Args<{ fix?: boolean; alias?: string }>): Promise<number> {
   const S = await import('../../lib/store.ts'), out = ctx.io.out, dir = rel(ctx, ctx.dir); let bad = 0;
+  if (args.values.alias !== undefined) {
+    if (!args.values.fix) throw usage('--alias goes with --fix: plangraph doctor --fix --alias NAME');
+    if (!(await approveAliasHere(ctx, args.values.alias))) return 1;
+  }
   const f = S.readFormat(ctx.dir);
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
   out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `plangraph migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
@@ -285,11 +309,12 @@ function doctorJira(ctx: Ctx): void {
   let committed: JiraSettings | undefined; try { committed = ctx.config().jira as JiraSettings | undefined; } catch { return; /* a bad config is reported by the data checks */ } // config.json's jira block: PlanConfig does not type it
   let t: ReturnType<typeof resolveTenant>;
   try { t = resolveTenant(committed, ctx.root, env); } catch (e) {
-    if (e instanceof Error && e.name === 'JiraError' && (e as Error & { code: string }).code === 'bad_config') out(`jira: invalid config: ${oneLine(e.message, 160)}; \`plangraph jira-pull\` refuses it (fix config.json "jira" or your projects entry; see docs/JIRA.md)`); // a JiraError has a code
+    if (e instanceof Error && e.name === 'JiraError' && ['bad_config', 'bad_input'].includes((e as Error & { code: string }).code)) out(`jira: invalid config: ${oneLine(e.message, 160)}; \`plangraph jira-pull\` refuses it (fix config.json "jira" or your projects entry; see docs/JIRA.md)`); // a JiraError has a code
     return;
   }
   const { jira: j, tenant, mode, registry: reg, entry: e, allowGeneric } = t;
   const set = (k: string) => String(env[k] || '').trim() !== '';
+  if (t.aliasProblem) out(`warning: ${oneLine(t.aliasProblem, 300)}; \`plangraph jira-pull\` refuses it`);
   if (!j.jql && !j.cloud_id && !j.base_url) { out('jira: not configured (config.json "jira" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it'); return; }
   const tag = tenant ? siteTag(tenant) : '';
   let cred: string;
@@ -298,7 +323,7 @@ function doctorJira(ctx: Ctx): void {
   else if (set(`JIRA_API_TOKEN__${tag}`) || set(`JIRA_OP_REF__${tag}`)) cred = `bound by env JIRA_*__${tag}`;
   else if (allowGeneric) cred = set('JIRA_EMAIL') && set('JIRA_API_TOKEN') ? 'generic env JIRA_EMAIL + JIRA_API_TOKEN set' : set('JIRA_OP_REF') ? 'generic env JIRA_OP_REF set' : 'no credentials in env (OS keychain not checked)';
   else cred = `NO credential bound to ${tenant}: add it to ${reg.file} or set JIRA_EMAIL__${tag} and JIRA_API_TOKEN__${tag}`;
-  out(`jira: ${mode}, tenant ${tenant || '?'}, jql ${j.jql ? 'set' : 'missing'}, ${cred}`);
+  out(`jira: ${mode}, tenant ${tenant || '?'}${t.alias ? ` (alias ${t.alias})` : ''}, jql ${j.jql ? 'set' : 'missing'}, ${cred}`);
   if (tenant) out(`jira connector: use the Atlassian connector only if getAccessibleAtlassianResources lists ${tenant === (j.cloud_id || '').toLowerCase() ? `cloud id ${tenant}` : tenant}; otherwise use \`plangraph jira-pull\` (read-only) and make no Jira write`);
   for (const p of reg.problems) out(`warning: ${oneLine(p, 160)} (${reg.file})`);
 }
@@ -377,5 +402,5 @@ export const commands: CommandMap = {
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },
   init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the plan directory, config, generic learnings and the merge driver' },
   migrate: { run: migrate, positionals: [0, 0], writes: 'text', guard: 'none', options: { write: B }, summary: 'upgrade the data format (dry run unless --write)' },
-  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
+  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING }, alias: { type: 'string' } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
 };

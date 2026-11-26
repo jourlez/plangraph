@@ -28,7 +28,11 @@ export type Exec = (file: string, args: string[]) => Promise<string>;
 export interface SiteEntry { email_env?: string; token_env?: string; op_ref?: string; keychain?: string }
 /** One repository root in the registry's `projects` map: the tenant settings kept out of the repository. */
 export interface ProjectEntry { auth?: { mode: AuthMode }; base_url?: string; cloud_id?: string; jql?: string; sprint_field?: string }
-export interface ParsedRegistry { reg: Record<string, SiteEntry>; projects: Record<string, ProjectEntry>; problems: string[] }
+/** One named tenant in the registry's `aliases` map (a committed `"tenant": "work"` names it). `credentials` names the credential source of
+ * the alias host; `repos` lists the approved repositories (each the SHA-256 hex of the real path of a git common directory), written only by
+ * `plangraph doctor --fix --alias NAME` after an interactive confirmation; `invalid` is the first bad credentials field (resolution refuses it). */
+export interface AliasEntry extends ProjectEntry { credentials?: SiteEntry; repos?: string[]; invalid?: string }
+export interface ParsedRegistry { reg: Record<string, SiteEntry>; projects: Record<string, ProjectEntry>; aliases: Record<string, AliasEntry>; problems: string[] }
 /** Overrides of the variable names and helper references getCredentials reads (getCredentialsFor binds them to one host). */
 interface CredentialNames { emailVar?: string; tokenVar?: string; opVar?: string; opRef?: string | undefined; service?: string }
 export interface CredentialOptions { env?: Record<string, string | undefined>; exec?: Exec; platform?: string; names?: CredentialNames }
@@ -128,8 +132,9 @@ export interface RawAdf { // content: an array of RawAdf or strings (contentOf c
   type?: unknown; text?: unknown; content?: unknown;
   attrs?: { level?: unknown; text?: unknown } | null }
 /** The registry file before parseSiteRegistry checks it. */
-export interface RawRegistryFile { projects?: Record<string, RawProjectEntry | null>; sites?: Record<string, RawSiteEntry | null> }
+export interface RawRegistryFile { projects?: Record<string, RawProjectEntry | null>; sites?: Record<string, RawSiteEntry | null>; aliases?: Record<string, RawAliasEntry | null> }
 interface RawProjectEntry { base_url?: string; cloud_id?: string; jql?: string; sprint_field?: string; auth?: { mode?: unknown } | null }
+interface RawAliasEntry extends RawProjectEntry { credentials?: RawSiteEntry | null; repos?: unknown }
 interface RawSiteEntry { email_env?: string; token_env?: string; op_ref?: string; keychain?: string }
 
 

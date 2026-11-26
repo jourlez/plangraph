@@ -53,3 +53,10 @@ test('a user entry with any tenant field replaces every committed tenant field; 
   const noTenant = effectiveJira(committed, '/work/repo', envWith({ projects: { '/work/repo': { jql: 'project = U' } } }));
   assert.deepEqual([noTenant.auth, noTenant.base_url, noTenant.jql, noTenant.userTenant], [{ mode: 'site-token' }, 'https://evil.atlassian.net', 'project = U', false]);
 });
+
+test('aliases are read beside projects and sites, and a registry of aliases alone is valid', () => {
+  const { aliases, projects, problems } = parseSiteRegistry(JSON.stringify({ aliases: { work: { cloud_id: 'acme-cloud-0001', jql: 'project = W' } } }));
+  assert.deepEqual(aliases.work, { cloud_id: 'acme-cloud-0001', jql: 'project = W' }); assert.deepEqual(Object.keys(projects), []); assert.deepEqual(problems, []);
+  const none = envWith({ sites: {} });
+  assert.equal(effectiveJira({ tenant: 'work', cloud_id: 'committed-cloud-1' }, '/r', none).cloud_id, 'committed-cloud-1', 'effectiveJira alone does not resolve an alias: resolveTenant does, after the approval check');
+});
