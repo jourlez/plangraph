@@ -11,6 +11,7 @@
 // the planned file-extension rename (.mjs to .ts) is the only accepted difference.
 // NOT covered: the Python solver (own tests), live network calls (Jira is only probed over a stub fetch), the real clock.
 // `--data DIR` is a real plan directory: it is copied to a temporary directory first and the original is never written.
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -226,6 +227,24 @@ export function runMcpSession(root: string): string[] {
 
 // ---------------------------------------------------------------------------------------------------------------- library probes
 const lib = (p: string) => import(path.join(PLUGIN, p));
+
+/** A real git repository with a .plangraph/config.json (`jira` block) and a user config dir whose alias map is built from the approval key of that repository. */
+function aliasWorld(jira: Record<string, unknown>, aliases: (key: string) => Record<string, unknown>) {
+  const w = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'baseline-alias-'))), root = path.join(w, 'repo'), cfg = path.join(w, 'cfg'), home = path.join(w, 'home');
+  fs.mkdirSync(path.join(root, '.plangraph'), { recursive: true }); fs.mkdirSync(cfg); fs.mkdirSync(home);
+  spawnSync('git', ['init', '-q'], { cwd: root, env: { ...process.env, ...GIT_ENV }, stdio: 'ignore' });
+  fs.writeFileSync(path.join(root, '.plangraph', 'config.json'), JSON.stringify(Object.keys(jira).length ? { jira } : {}));
+  const key = crypto.createHash('sha256').update(fs.realpathSync(path.join(root, '.git'))).digest('hex');
+  fs.writeFileSync(path.join(cfg, 'jira-sites.json'), JSON.stringify({ aliases: aliases(key) }));
+  return { root, cfg, env: { PATH: process.env.PATH as string, HOME: home, CLAUDE_PLUGIN_DATA: path.join(home, 'data'), PLANGRAPH_CONFIG_DIR: cfg } as Record<string, string>, done: () => fs.rmSync(w, { recursive: true, force: true }) };
+}
+/** One command in-process (the real shell and context) in an alias world; `seams` are the exec and fetch test doubles. */
+async function aliasRun(argv: string[], w: { root: string }, env: Record<string, string>, seams: Record<string, unknown>) {
+  const { main } = await lib('src/cli.ts'), { makeContext } = await lib('src/context.ts'), out: string[] = [], err: string[] = [];
+  const io = { out: (l: string) => out.push(l), err: (l: string) => err.push(l), raw: (l: string) => out.push(l) };
+  const code = await main(argv, { io, env, cwd: w.root, makeContext: (o: object) => makeContext({ ...o, ...seams }) });
+  return { code, out, err };
+}
 /** A stable JSON form: sorted keys, Maps and Sets expanded, errors as code and message. @param {unknown} v @returns {unknown} */
 function stable(v: unknown): unknown {
   if (v instanceof Map) return { __map: [...v.entries()].map(([k, x]) => [stable(k), stable(x)]) };
@@ -351,6 +370,50 @@ export const PROBES: Probe[] = [
       const code = await main(['jira-pull', '--out', out], { io, env: { PLANGRAPH_CONFIG_DIR: path.join(w, 'cfg') }, cwd: w, makeContext: (o: object) => makeContext({ ...o, tracker: fake }) });
       return { code, lines, file: fs.readFileSync(out, 'utf8'), expected: snapshotToJsonl(snapshot) };
     } finally { fs.rmSync(w, { recursive: true, force: true }); }
+  } },
+  // The neutral tenant alias (Task 19): in-process runs of the real commands in a real git repository, a recording exec and a stub fetch.
+  { id: 'alias-resolved', run: async () => {
+    const w = aliasWorld({ tenant: 'work', cloud_id: 'committed-cloud-1', jql: 'project = COMMITTED' }, (key) => ({ work: { cloud_id: 'probe-cloud-0001', jql: 'project = PRB', credentials: { email_env: 'PROBE_MAIL', token_env: 'PROBE_TOKEN' }, repos: [key] } }));
+    try {
+      const { resolveTenant } = await lib('src/jira-tenant.ts'), env = { ...w.env, PROBE_MAIL: 'p@example.invalid', PROBE_TOKEN: 'probe-token-0123456789' };
+      const t = resolveTenant({ tenant: 'work', cloud_id: 'committed-cloud-1', jql: 'project = COMMITTED' }, w.root, env), urls: string[] = [], execCalls: string[] = [];
+      const fetch = async (url: string, init: { method?: string }) => {
+        urls.push(url);
+        const reply = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+        if (url.endsWith('/myself')) return reply({ accountId: 'acct-1', timeZone: 'UTC' });
+        if (init.method === 'POST') return reply({ issues: [], isLast: true, count: 0 });
+        return new Response('{}', { status: 404 });
+      };
+      const exec = async (f: string, a: string[]) => { execCalls.push(`${f} ${a.join(' ')}`); throw new Error('no helper'); };
+      const r = await aliasRun(['jira-pull', '--out', path.join(w.root, 'snap.jsonl')], w, env, { exec, fetch });
+      return { alias: t.alias, tenant: t.tenant, jql: t.jira.jql, entry: t.entry, userTenant: t.jira.userTenant, urlsAllOnTenant: urls.length > 0 && urls.every((u) => u.startsWith('https://api.atlassian.com/ex/jira/probe-cloud-0001/')) && execCalls.length === 0, code: r.code };
+    } finally { w.done(); }
+  } },
+  { id: 'alias-missing-ticket', run: async () => {
+    const w = aliasWorld({ tenant: 'work', cloud_id: 'committed-cloud-1' }, () => ({})), plain = aliasWorld({}, () => ({}));
+    try {
+      const answer = async (argv: string[], x: ReturnType<typeof aliasWorld>) => { const r = await aliasRun(argv, x, x.env, {}); return JSON.stringify([r.code, ...r.out, ...r.err]).split(x.root).join('<repo>'); };
+      return { check: (await answer(['check'], w)) === (await answer(['check'], plain)) ? 'same' : 'differ', ticket: (await answer(['ticket', 'TST-1'], w)) === (await answer(['ticket', 'TST-1'], plain)) ? 'same' : 'differ' };
+    } finally { w.done(); plain.done(); }
+  } },
+  { id: 'alias-missing-pull', run: async () => {
+    const w = aliasWorld({ tenant: 'work', cloud_id: 'committed-cloud-1', jql: 'project = TST' }, () => ({}));
+    try {
+      const r = await aliasRun(['jira-pull', '--out', path.join(w.root, 'snap.jsonl')], w, w.env, {});
+      return { code: r.code, err: r.err.filter((l) => l.startsWith('error:')).map((l) => l.split(w.cfg).join('<cfg>')) };
+    } finally { w.done(); }
+  } },
+  { id: 'alias-proto', run: async () => {
+    const w = aliasWorld({}, () => ({}));
+    try {
+      const codes: Record<string, number> = {}, messages = new Set<string>();
+      for (const name of ['__proto__', 'constructor', 'toString', 'Work', 'a b']) {
+        fs.writeFileSync(path.join(w.root, '.plangraph', 'config.json'), JSON.stringify({ jira: { tenant: name, jql: 'project = TST' } }));
+        const r = await aliasRun(['jira-pull', '--out', path.join(w.root, 'snap.jsonl')], w, w.env, {});
+        codes[name] = r.code as number; for (const l of r.err) if (l.startsWith('error:')) messages.add(l.split(w.cfg).join('<cfg>'));
+      }
+      return { codes, messages: [...messages] };
+    } finally { w.done(); }
   } },
   { id: 'migrate-names', run: () => {
     // a user and a repository as 0.2.x left them; dry run, --apply, then a second run (the no-op line)

@@ -4,7 +4,7 @@
 // stripped by redact() from every message. No fs, no process.exit, no console: callers print and write.
 // This file re-exports the frozen public list by name (no export *), so a helper shared between modules never becomes public.
 export { AUTH_MODES, isAuthMode, KEY_RE } from './types.ts';
-export type { AuthMode, ChangelogClient, ChangelogEntry, ClientOptions, CredentialOptions, Exec, FetchLike, ImportResult, IssueTextClient, JiraClient, JiraCredentials, JiraErrorCode, JiraIssue, JiraSprint, LegacyIssue, ParsedRegistry, ProjectEntry, PullOptions, PullResult, RawAdf, RawIssue, SearchPage, SearchQuery, SiteEntry, Snapshot, SnapshotClient, ValidateOptions, ValidatedBase } from './types.ts';
+export type { AliasEntry, AuthMode, ChangelogClient, ChangelogEntry, ClientOptions, CredentialOptions, Exec, FetchLike, ImportResult, IssueTextClient, JiraClient, JiraCredentials, JiraErrorCode, JiraIssue, JiraSprint, LegacyIssue, ParsedRegistry, ProjectEntry, PullOptions, PullResult, RawAdf, RawIssue, SearchPage, SearchQuery, SiteEntry, Snapshot, SnapshotClient, ValidateOptions, ValidatedBase } from './types.ts';
 export { redact } from './redact.ts';
 export { JiraError } from './error.ts';
 export { dcHostsFromEnv, parseDcHosts, siteHostsFromEnv, validateBase } from './host.ts';
