@@ -3,7 +3,7 @@
 Contribute through issues and pull requests on the project's GitHub repository (jourlez/plangraph): open an issue first for anything larger than a small fix, then send a pull request that passes the checks below.
 
 ## Setup
-- Node 24.2 or newer. There are no runtime dependencies and nothing to install to run the tests.
+- Node 24.15 or newer (see the README for nvm and fnm). There are no runtime dependencies and nothing to install to run the tests.
 - Dev-only tooling (never needed at run time, never shipped: `node_modules/` is git-ignored): `npm ci` installs the exact-pinned `typescript`, `@types/node`, `@biomejs/biome`, `knip` and `lefthook` from `package-lock.json`. `.ts` files run directly on Node 24 (type stripping, no build step).
 - Native ES modules only (`import`, `import.meta.dirname`); no `require`.
 
@@ -32,8 +32,20 @@ Contribute through issues and pull requests on the project's GitHub repository (
 - Text from tickets, Jira, plans or people is untrusted: sanitize it and fence it before it reaches output.
 - Do not make claims in docs that the code and tests do not prove; mark what is unverified.
 
+## How CI works
+`.github/workflows/ci.yml` runs on every pull request and on `main`: unit tests with coverage, the slow solver and eval tests, typecheck, lint and plugin layout, a macOS test shard, the mutation gate and secret scanning. All of them must be green before a squash merge. `npm run bulletproof:check` is the quick local version of the lint, typecheck and test part; run `npm run validate` before a larger change (it needs the network for the audit).
+
 ## Commits
-Lowercase imperative subject, for example `add license, changelog, security policy and complete manifests`. Commit only the files your change needs.
+Plain imperative subject, lower case, no trailing period, for example `add license, changelog, security policy and complete manifests`. Say why in the body when it is not obvious. Commit only the files your change needs. Dependabot pull requests keep Dependabot's default messages.
+
+## Identity and secrets
+Commit with your GitHub noreply address (turn on "Keep my email private" in your GitHub settings). Never commit a token, a credential, a private email address, a company name or host, or a home path. The secret scan catches credentials, and `test/public-clean.test.ts` checks author addresses; review catches the rest. Do not add an AI tool as a co-author or contributor.
+
+## Pull request flow
+1. Branch from `main`, one change per branch.
+2. Open the pull request with the template's checklist filled in.
+3. Wait for CI. Fix a red job with a new commit, not by weakening the check.
+4. The maintainer squash-merges with a plain subject. Releases are annotated `vX.Y.Z` tags on `main`.
 
 ## Conduct
 Participation is governed by [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

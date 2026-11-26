@@ -50,14 +50,18 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 
 ## Requirements
 
+**Windows is not supported** (the merge driver shim is POSIX shell). Use macOS or Linux, or WSL.
+
+> **Which Node, how to get it.** Node.js 24.15 or newer (the floor; the index uses the built-in `node:sqlite`). Check with `node --version`. If it is older, install a current one with nvm (`nvm install 24`) or fnm (`fnm install 24`). The repository's `.node-version` file holds the Node major that development and CI use; `fnm use` reads it, and with nvm you pass the number yourself (`nvm use 24`).
+
 | Requirement | Version | Needed for |
 |---|---|---|
-| Node.js | 24.2 or newer (`engines.node` is `>=24.2`; the index uses the built-in `node:sqlite`) | everything |
+| Node.js | 24.15 or newer (the index uses the built-in `node:sqlite`) | everything |
 | git | any recent version | the data, the merge driver, stale detection |
 | Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hook, skills, `plangraph` on the Bash PATH |
 | uv (recommended), or Python 3.10 to 3.14 | any uv; OR-Tools has no wheel for Python 3.15 yet | the solver only (`plangraph-solve-run`) |
 
-In short: Node 24.2 or newer, git, and Claude Code 2.1.329 or newer. The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
+In short: Node 24.15 or newer, git, and Claude Code 2.1.329 or newer. The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
 
 ## Installation
 
@@ -469,7 +473,7 @@ As printed by `plangraph explain`: `exit: 0 ok, 1 negative answer, 2 usage or da
 | 0 | ok |
 | 1 | negative answer: `check`, `verify`, `ready`, `whatif` or `doctor` found a problem |
 | 2 | usage or data error: unknown command or option, bad argument, unreadable or invalid input, no index, corrupt index, `export` over a stale index |
-| 3 | environment missing: Node older than 24.2, Jira credentials or configuration missing or rejected |
+| 3 | environment missing: Node older than 24.15, Jira credentials or configuration missing or rejected |
 | 4 | refused: a plan directory outside the repository, a write target that is a symlink or not a regular file, a `whatif --write` that would add violations, a schedule that moves a frozen ticket |
 | 5 | internal error |
 
@@ -659,7 +663,7 @@ What is verified live, and what only against fixtures:
 
 ## Development
 
-Node 24.2 or newer runs the TypeScript and JavaScript sources directly (type stripping, no build step). The plugin has no runtime dependencies; `npm ci` installs only the dev tools.
+Node 24.15 or newer runs the TypeScript and JavaScript sources directly (type stripping, no build step). The plugin has no runtime dependencies; `npm ci` installs only the dev tools.
 
 | Script | What it does |
 | --- | --- |

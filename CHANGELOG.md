@@ -4,6 +4,18 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+Added for 0.3.0 (Keep a Changelog form):
+
+### Added
+- `docs/TEAM.md`: the path for a second teammate (project-scope install, `plangraph doctor --fix` once per clone and why, per-person Jira credentials, what to commit, upgrading together, pinning a release by tag, resolving merge conflicts), checked by `test/team-docs.test.ts`.
+- README: a "Which Node, how to get it" box (nvm, fnm, `.node-version`; Node 24.15 or newer) and "Windows is not supported" at the top of Requirements.
+- `CONTRIBUTING.md`: how CI works, commit style, identity and secrets, pull request flow. `SECURITY.md`: one line on response (best effort, single maintainer, private reporting).
+- `.github/dependabot.yml`: `dependencies` and `ci` labels, and an ignore of `@types/node` major updates.
+
+### Changed
+- Skills that write to Jira or change state carry `disable-model-invocation: true`: `autopilot`, `onboard` and `plan` (with `audit` and `init`, which already did), because they write Jira, plan data or the schedule; read-only query skills stay invocable by the model.
+
+### Breaking
 Breaking: the whole tool is renamed to plangraph. Every name changes at once and nothing falls back to an old name.
 - Command and files: `brain` is `plangraph` (`bin/plangraph`, `bin/plangraph-merge`, `bin/plangraph-solve`, `bin/plangraph-solve-run`, `mcp/plangraph-mcp.ts`); the `package.json` bin keys are `plangraph` and `plangraph-merge`. Every hint, `try:` line, error and usage line says `plangraph`; the error code `NO_BRAIN` is `NO_PLANGRAPH` in the JSON envelope.
 - Skills: `plangraph:brain` is `plangraph:plangraph`; `brain-audit`, `brain-autopilot`, `brain-init`, `brain-onboard`, `brain-plan` and `brain-report` are `plangraph:audit`, `:autopilot`, `:init`, `:onboard`, `:plan` and `:report`. `plangraph:whatif` is unchanged. Re-point any CLAUDE.md line or permission rule that names `Bash(brain` to `Bash(plangraph`.
