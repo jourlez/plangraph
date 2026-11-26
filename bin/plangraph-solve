@@ -177,6 +177,8 @@ INDEX_TABLES = {
     'xref': (('type', 'id', 'sys', 'xid', 'src', 'seen', 'note'), ('type', 'id', 'sys', 'xid')),
     'obs': (('sys', 'xid', 'type', 'fields', 'links', 'fp', 'seen'), ('sys', 'xid')),   # the observation cache (advisory; the solver never reads it)
 }
+# Tables the solver never reads: schema_kind and content_digest ignore them, and their shape is not checked (src/db.ts ADVISORY_TABLES; test/solver-contract.test.ts keeps the two lists equal).
+ADVISORY_TABLES = frozenset(('source_file', 'identity', 'module', 'requirement', 'decision', 'team', 'event'))
 V1_TABLES = tuple(INDEX_TABLES)[:8]   # the tables of format 1: an index built by 0.3.0 holds exactly these
 # The two views of the graph (lib/graph/views.ts): accepted only with this exact SQL, as SQLite stores it in sqlite_master.
 GRAPH_VIEWS = {
@@ -209,11 +211,11 @@ def schema_kind(db):
     tables, views = set(), set()
     for typ, name, tbl, sql in objects:
         if typ == 'table':
-            if name not in family or name != tbl or not isinstance(sql, str) or VIRTUAL_RE.match(sql): return None
+            if not (name in family or name in ADVISORY_TABLES) or name != tbl or not isinstance(sql, str) or VIRTUAL_RE.match(sql): return None
             tables.add(name)
         elif typ == 'index':
             auto = isinstance(name, str) and name.startswith(f'sqlite_autoindex_{tbl}_') and sql is None
-            if not (tbl in family if auto else EXPECTED_INDEXES.get(name) == tbl): return None
+            if not (tbl in family or tbl in ADVISORY_TABLES if auto else EXPECTED_INDEXES.get(name) == tbl): return None
         elif typ == 'view' and current:
             if name != tbl or GRAPH_VIEWS.get(name) != sql: return None   # a view whose body differs could forge every answer
             views.add(name)
@@ -221,6 +223,7 @@ def schema_kind(db):
     if any(t != 'index_meta' and t not in tables for t in family): return None
     if current and views != set(GRAPH_VIEWS): return None
     for t in tables:
+        if t in ADVISORY_TABLES: continue   # an advisory table is only a plain table: the solver reads none of it
         info = list(db.execute('SELECT name, hidden FROM pragma_table_xinfo(?)', (t,)))
         if any(h != 0 for _, h in info) or ','.join(n for n, _ in info) != EXPECTED_COLUMNS[t]: return None
     return 'prev' if prev else 'current' if current else 'older'
@@ -237,6 +240,7 @@ def content_digest(db, tables=None):
         h.update(name.encode() + b'\0')
         for (row,) in db.execute(sql, args): h.update(row.encode('utf8') + b'\n')
     for t in tables or INDEX_TABLES:
+        if t in ADVISORY_TABLES: continue   # never part of the digest
         cols, _ = INDEX_TABLES[t]
         feed(t, f"SELECT json_array({','.join(quote(c) for c in cols + ('extra',))}) FROM {t} ORDER BY {index_order(t)}", ())
     feed('index_meta', 'SELECT json_array(k, v) FROM index_meta WHERE k <> ? ORDER BY k, v', (CONTENT_KEY,))
