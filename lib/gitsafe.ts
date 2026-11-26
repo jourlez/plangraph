@@ -1,5 +1,5 @@
 // lib/gitsafe.ts: refs and paths that come from committed data are untrusted. Pure helpers, no I/O except makeGit.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 
 const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9_.\/@^~{}+-]*$/; // never starts with '-', no spaces, no ':' (path separator in `ref:path`)
 export type SafeRef = string & { readonly __brand: 'SafeRef' };
@@ -13,6 +13,35 @@ export function checkRepoPath(p: unknown): string {
 }
 export const makeGit = (root: string, { timeoutMs = 30000 }: { timeoutMs?: number } = {}): ((...args: string[]) => string) => (...args: string[]) =>
   execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });
+
+// Streaming line reader over spawn: no shell, no timeout, no buffering of the whole output. `git` is the executable (argv is everything after
+// it, `-C root` included). onLine gets each line without its terminator (delimiter default "\n"; a NUL delimiter suits `-z` output). Output
+// over maxBytes (default 64 MiB) kills the child and rejects with code TOO_LARGE; a non-zero exit rejects with the first stderr bytes.
+export function spawnLines(git: string, argv: readonly string[], onLine: (line: string) => void, { maxBytes = 64 * 1024 * 1024, delimiter = '\n' }: { maxBytes?: number; delimiter?: string } = {}): Promise<void> {
+  const sep = delimiter.charCodeAt(0);
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(git, [...argv], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });
+    let total = 0, rest: Buffer = Buffer.alloc(0), stderr = '', done = false;
+    const fail = (e: Error) => { if (done) return; done = true; child.kill('SIGKILL'); reject(e); };
+    child.stderr.on('data', (d: Buffer) => { if (stderr.length < 400) stderr += d.toString('utf8').slice(0, 400); });
+    child.stdout.on('data', (d: Buffer) => {
+      if (done) return;
+      total += d.length;
+      if (total > maxBytes) { fail(Object.assign(new Error(`output over ${maxBytes} bytes`), { code: 'TOO_LARGE' })); return; }
+      let buf = rest.length ? Buffer.concat([rest, d]) : d, from = 0, i: number;
+      try { while ((i = buf.indexOf(sep, from)) !== -1) { onLine(buf.toString('utf8', from, i)); from = i + 1; } } catch (e) { fail(e as Error); return; }
+      rest = from < buf.length ? Buffer.from(buf.subarray(from)) : Buffer.alloc(0);
+    });
+    child.on('error', (e) => fail(e));
+    child.on('close', (code) => {
+      if (done) return;
+      done = true;
+      if (code !== 0) { reject(Object.assign(new Error(`git exited ${code}: ${stderr.trim().slice(0, 200)}`), { code: 'GIT_FAILED' })); return; }
+      try { if (rest.length) onLine(rest.toString('utf8')); } catch (e) { reject(e as Error); return; }
+      resolve();
+    });
+  });
+}
 
 // Heading template grammar (not a regex): optional leading ^, literal text and '#', fixed `#{a}` runs, at most ONE variable `#{a,b}` run
 // (a < b), and exactly one {id}.
