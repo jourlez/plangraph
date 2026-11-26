@@ -59,7 +59,7 @@ test('dry run (the default) lists every change and changes nothing, in HOME, the
   const r = w.run([]);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(snapshot(w.home, w.repo, w.data), before);
-  for (const want of ['would: copy ~/.config/' + OLD_FOLDER + '/jira-sites.json to ~/.config/plangraph/jira-sites.json (mode 0600)', 'would: copy ~/.config/' + OLD_FOLDER + '/autopilot.json', `would: git mv ${OLD_DIR} .plangraph`, `would: .gitattributes: ${OLD_DIR}/*.jsonl merge=${OLD_DRIVER} to .plangraph/*.jsonl merge=plangraph-jsonl`, `would: .gitignore: ${OLD_DIR}/*.sqlite to .plangraph/*.sqlite; ${OLD_DIR}/brain.sqlite-journal to .plangraph/plangraph.sqlite-journal`, `would: git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim), remove merge.${OLD_DRIVER}`, 'keychain: never read or written here', 'dry run: nothing changed']) assert.ok(r.stdout.includes(want), `missing ${want}\n${r.stdout}`);
+  for (const want of ['would: copy ~/.config/' + OLD_FOLDER + '/jira-sites.json to ~/.config/plangraph/jira-sites.json (mode 0600)', 'would: copy ~/.config/' + OLD_FOLDER + '/autopilot.json', `would: git mv ${OLD_DIR} .plangraph`, 'would: .gitattributes: rewrite the old names on line 1 (line text not shown)', 'would: .gitignore: rewrite the old names on line 2, line 3 (line text not shown)', `would: git config: set merge.plangraph-jsonl.name and .driver (the stable merge shim), remove merge.${OLD_DRIVER}`, 'keychain: never read or written here', 'dry run: nothing changed']) assert.ok(r.stdout.includes(want), `missing ${want}\n${r.stdout}`);
   assert.doesNotMatch(r.stdout, /the old index/, 'no old index in this repository, so no note about one');
   assert.match(r.stdout, /note: CLAUDE\.md names \.brain\/\*\.jsonl: change it to \.plangraph\/\*\.jsonl/);
   assert.ok(fs.existsSync(path.join(w.repo, OLD_DIR)) && !fs.existsSync(w.nd));
@@ -160,7 +160,7 @@ test('a directory named by the rc file keeps its path; only the rc file, the dri
   const r = w.run(['--apply']);
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.ok(r.stdout.includes(`done: git mv ${OLD_RC} .plangraphrc (content unchanged)`), r.stdout);
-  assert.ok(r.stdout.includes('note: keep docs/plan-graph: the directory is named by the rc file'), r.stdout);
+  assert.ok(r.stdout.includes('note: keep the plan directory: it is named by the rc file (its name is not shown)'), r.stdout);
   assert.equal(fs.readFileSync(path.join(w.repo, '.plangraphrc'), 'utf8'), rc);
   assert.ok(!fs.existsSync(path.join(w.repo, OLD_RC)));
   assert.ok(fs.existsSync(path.join(w.repo, 'docs/plan-graph/tickets.jsonl')) && !fs.existsSync(path.join(w.repo, '.plangraph')));

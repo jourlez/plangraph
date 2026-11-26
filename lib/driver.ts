@@ -79,6 +79,8 @@ export function ensureStableDriver({ dataDir, target, nodePath = process.execPat
   const bin = path.join(dataDir, 'bin');
   checkPrivateDir(dataDir, 'directory'); checkPrivateDir(bin, 'bin/');
   fs.mkdirSync(bin, { recursive: true, mode: 0o700 });
+  // mkdir -p may have created or walked into directories made after the first check: refuse again before anything is written
+  if (!checkPrivateDir(dataDir, 'directory') || !checkPrivateDir(bin, 'bin/')) throw new TypeError(`data directory is not private: ${dataDir} could not be created`);
   const shim = path.join(bin, 'plangraph-merge');
   // node FIRST, target LAST: a merge running between the two writes sees a consistent old pair or (new node, old target),
   // which is benign (an older target still runs under a newer node binary). Each write is atomic.

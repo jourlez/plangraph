@@ -131,7 +131,7 @@ To approve, open a terminal in the repository and run `plangraph doctor --fix --
 
 The approval is keyed by the clone's path: a different repository cloned at the same path inherits it, and a moved clone must be approved again. This differs from the heal consent (`plangraph.heal`), which lives in the clone's git config and moves with it.
 
-Limit: the terminal check stops an agent that follows a printed hint, not a prompt-injected agent with shell access, which can fake a terminal (`script(1)`) or edit `jira-sites.json` directly. Only you should approve aliases, and the host is shown so that a wrong request is visible. See SECURITY.md.
+Limit: the terminal check stops an agent that follows a printed hint, not a prompt-injected agent with shell access, which can fake a terminal (`script(1)`) or edit `jira-sites.json` directly. Only you should approve aliases, and the host is shown so that a wrong request is visible. The command refuses when `CLAUDECODE` or any `CLAUDE_CODE_*` variable is set (approve it in your own terminal outside Claude Code) and reads the typed host from `/dev/tty`, not from stdin. A pty-capable agent that unsets those variables can still drive the prompt, so add a permission deny rule for `Bash(plangraph doctor --fix*)` in your Claude Code settings. The registry file and its directory must be owned by you with no group or world write bit, and the file must not be a symlink, or it is not read. See SECURITY.md.
 
 Output files of `plangraph jira-pull --out`, `plangraph jira-import --out` and `plangraph jira-text --out` are written with mode 0600 (minus the umask): they hold your company's Jira data.
 

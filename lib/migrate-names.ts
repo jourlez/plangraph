@@ -128,7 +128,7 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
     else move(OLD.rc, NEW.rc, ' (content unchanged)');
   }
   let moved = false;
-  if (!defaultDir) plan.notes.push(`keep ${rcDir}: the directory is named by the rc file`);
+  if (!defaultDir) plan.notes.push('keep the plan directory: it is named by the rc file (its name is not shown)');
   else if (dirOld) {
     if (dirOld.kind !== 'dir') plan.refused.push(`${OLD.dir} is not a directory (a symlink is refused): not moved`);
     else if (dirNew) plan.refused.push(`${NEW.dir} exists: ${OLD.dir} not moved`);
@@ -139,8 +139,8 @@ function repoPart(input: MigrateInput, plan: MigratePlan): void {
     const next = rewriteText(t, moved);
     if (moved) next.split('\n').forEach((l, i) => { if (stillNamesDir(l)) plan.notes.push(`${name} line ${i + 1} still names ${OLD.dir} after the rewrite: change it by hand to ${NEW.dir} (printed only, not edited)`); });
     if (next === t) continue;
-    const changed = t.split('\n').map((l, i) => [l, next.split('\n')[i] as string] as const).filter(([a, b]) => a !== b).map(([a, b]) => `${a.trim()} to ${b.trim()}`);
-    plan.steps.push({ text: `${name}: ${changed.join('; ')}`, run: () => fs.write(at(name), next) });
+    const changed = t.split('\n').flatMap((l, i) => (l !== next.split('\n')[i] ? [`line ${i + 1}`] : [])); // line numbers only: the text is the repository's, never printed
+    plan.steps.push({ text: `${name}: rewrite the old names on ${changed.join(', ')} (line text not shown)`, run: () => fs.write(at(name), next) });
   }
   const hasOldCfg = cfgOld.ok && cfgOld.out.trim() !== '';
   if (hasOldCfg || oldDriverLine(ga.text)) {

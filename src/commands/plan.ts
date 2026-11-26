@@ -254,6 +254,7 @@ async function migrate(ctx: Ctx, args: Args<{ write?: boolean }>): Promise<numbe
 // has none) and a typed host, and writes nothing before the confirmation. Returns false when the user did not confirm.
 async function approveAliasHere(ctx: Ctx, name: string): Promise<boolean> {
   if (!isAliasName(name)) throw usage(`--alias needs an alias name (ALIAS_RE ^[a-z][a-z0-9_-]{0,31}$)`);
+  if (Object.keys(ctx.env).some((k) => k === 'CLAUDECODE' || k.startsWith('CLAUDE_CODE_'))) throw usage('doctor --fix --alias refuses to run inside Claude Code: approve it in your own terminal outside Claude Code; nothing was written (docs/JIRA.md, Approving an alias)');
   if (!ctx.stdin.isTTY) throw usage(`doctor --fix --alias needs an interactive terminal on stdin: the user approves an alias there; nothing was written (docs/JIRA.md, Approving an alias)`);
   const reg = loadRegistry(ctx.env), entry = Object.hasOwn(reg.aliases, name) ? reg.aliases[name] : undefined;
   if (!entry) throw usage(`alias ${name} is not defined in ${reg.file}; add it under "aliases" first (docs/JIRA.md, Keep the tenant out of the repository, portably)`);
@@ -264,7 +265,9 @@ async function approveAliasHere(ctx: Ctx, name: string): Promise<boolean> {
   ctx.io.out(`approve alias ${name} for the repository ${oneLine(ctx.root, 200)}`);
   ctx.io.out(`alias ${name} points at ${host ? oneLine(host, 200) : '(no host: the credentials only)'}; approving lets this repository's jira-pull use the credentials you bound to it`);
   ctx.io.out(`type ${oneLine(expect, 200)} to approve, anything else to cancel:`);
-  const typed = String(ctx.stdin.readLine ? ctx.stdin.readLine(256) : ctx.stdin.read(256)).trim().toLowerCase();
+  let typed = '';
+  try { typed = String(ctx.stdin.readTty ? ctx.stdin.readTty(256) : ctx.stdin.readLine ? ctx.stdin.readLine(256) : ctx.stdin.read(256)).trim().toLowerCase(); } // the real stdin reads /dev/tty, never fd 0
+  catch { throw usage('doctor --fix --alias could not open the terminal (/dev/tty) to read your answer; nothing was written'); }
   if (typed !== expect.toLowerCase()) { ctx.io.out(`alias ${name} not approved; nothing was written`); return false; }
   try { approveAlias(ctx.env, name, key); } catch (e) { throw usage(oneLine(String((e as Error).message).split('\n')[0], 300)); } // a JiraError: its message names the file or the alias
   ctx.io.out(`alias ${name} approved for this repository`);

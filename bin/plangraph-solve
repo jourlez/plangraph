@@ -67,8 +67,11 @@ def confine(path):
 def brain_dir():
     root = repo_root()
     if os.environ.get('PLANGRAPH_DIR'): return confine(os.path.join(root, os.environ['PLANGRAPH_DIR']))
-    rc = os.path.join(root, '.plangraphrc')
-    if os.path.exists(rc): return confine(os.path.join(root, json.load(open(rc))['dir']))
+    text = read_capped(os.path.join(root, '.plangraphrc'), cap=64 << 10)  # a regular file only: no symlink, never blocks on a FIFO
+    if text is not None:
+        try: rc = json.loads(text)
+        except ValueError: raise invalid('.plangraphrc: not valid JSON')
+        if isinstance(rc, dict) and isinstance(rc.get('dir'), str) and rc['dir']: return confine(os.path.join(root, rc['dir']))
     return confine(os.path.join(root, '.plangraph'))
 
 

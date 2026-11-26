@@ -2,10 +2,11 @@
 // repo's CLAUDE.md) and the `plangraph doctor` info check. Pure: no I/O. The plan dir is the only input; it comes from .plangraphrc or PLANGRAPH_DIR
 // (repo-controlled text), so it is one sanitized capped line before it is printed.
 import { oneLine } from './sanitize.ts';
+import { SAFE_ATTR_DIR } from './store.ts';
 
 export const STEER_COMMANDS = 'ticket, ready, whatif, blockers, sprint, person';
 /** The plan dir as printed: one line, forward slashes, no trailing slash, at most 80 characters; empty or `.` means `.plangraph`. */
-const dirOf = (dir: unknown = undefined) => { const d = oneLine(dir ?? '', 80).replace(/\\/g, '/').replace(/\/+$/, ''); return d && d !== '.' ? d : '.plangraph'; };
+const dirOf = (dir: unknown = undefined) => { const d = oneLine(dir ?? '', 80).replace(/\\/g, '/').replace(/\/+$/, ''); return d && d !== '.' && d.length <= 40 && SAFE_ATTR_DIR.test(d) ? d : '.plangraph'; }; // a plain short name only: it is repository text
 /** The text whose presence `hasSteer` checks: `<dir>/*.jsonl`. */
 const steerMarker = (dir: unknown = undefined): string => `${dirOf(dir)}/*.jsonl`;
 /** The card's last line. */

@@ -343,7 +343,16 @@ const readLine = (f: string, nofollow = false): string => { // reads at most 409
 const sameFile = (a: string, b: string): boolean => { try { return fs.realpathSync.native(a) === fs.realpathSync.native(b); } catch { return false; } };
 // expected: the plangraph-merge of the RUNNING plugin. After a plugin update the old versioned install may still exist, so a readable
 // driver.target is not enough: one that resolves to a different file is reported, and `doctor --fix` / `card --heal` repoint it.
+// A path of the shim's data dir that is not ours or that others can write: a later widening of what ensureStableDriver made private.
+const widened = (p: string): string => {
+  if (process.platform === 'win32' || typeof process.getuid !== 'function') return '';
+  try { const st = fs.lstatSync(p); if (st.uid !== process.getuid()) return 'is not owned by the current user'; if (st.mode & 0o022) return `is group or world writable (mode ${(st.mode & 0o777).toString(8)})`; } catch { /* a missing path is reported by the readers below */ }
+  return '';
+};
 function shimProblems(dataDir: string, problems: string[], expected: string | undefined): void {
+  for (const p of [dataDir, path.join(dataDir, 'bin'), path.join(dataDir, 'driver.target'), path.join(dataDir, 'driver.node')]) {
+    const why = widened(p); if (why) problems.push(`merge driver shim path ${path.basename(p)} ${why} in ${dataDir}: run \`chmod go-w\` on it, then \`plangraph doctor --fix\``);
+  }
   const t = readLine(path.join(dataDir, 'driver.target'), true), n = readLine(path.join(dataDir, 'driver.node'), true);
   if (!t) problems.push(`merge driver shim has an unreadable or empty driver.target in ${dataDir}: run \`plangraph doctor --fix\``);
   else if (!fs.existsSync(t)) problems.push(`merge driver.target points to a missing file: ${t}: run \`plangraph doctor --fix\``);

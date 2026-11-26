@@ -42,7 +42,7 @@ if command -v uv >/dev/null 2>&1; then
   # Both preparation calls run from this bin directory: uv reads a uv.toml (or pyproject.toml [tool.uv]) from the directory it runs in, even
   # with --script, so the caller's repository could otherwise point uv at another index. User-level uv config and UV_* variables still apply.
   if [ "${PLANGRAPH_SOLVE_LAUNCH:-}" != "uv-run" ] && (cd "$HERE" && uv sync --quiet --locked --script "$LOCKED") >/dev/null 2>&1 \
-     && PY="$(cd "$HERE" && uv python find --script "$LOCKED" 2>/dev/null)" && [ -x "$PY" ]; then
+     && PY="$(cd "$HERE" && uv python find --script "$LOCKED" 2>/dev/null)" && case "$PY" in /*) true ;; *) false ;; esac && [ -x "$PY" ]; then
     exec "$PY" "$SCRIPT" "$@"
   fi
   # The `uv run` fallbacks run in the caller's directory, where uv would pick the interpreter from a committed .venv (every uv version) or

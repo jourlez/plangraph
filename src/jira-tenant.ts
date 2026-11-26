@@ -58,13 +58,34 @@ export function configDir(env: Record<string, string | undefined> = {}): string 
 }
 export const registryFile = (env: Record<string, string | undefined> = {}): string => path.join(configDir(env), 'jira-sites.json');
 
+/** Reads the user registry as a trust root: the config directory and the file must belong to the current user and carry no group or world write bit, and the file is opened with O_NOFOLLOW (a symlink is refused) and checked with fstat on the open descriptor. Returns `missing` when there is no file, a fixed one-line `problem` (never any content) when it is refused. */
+function readRegistryText(file: string): { text: string } | { missing: true } | { problem: string } {
+  const posix = process.platform !== 'win32' && typeof process.getuid === 'function';
+  const unsafe = (st: fs.Stats): boolean => posix && (st.uid !== (process.getuid as () => number)() || (st.mode & 0o022) !== 0);
+  try { const d = fs.statSync(path.dirname(file)); if (!d.isDirectory() || unsafe(d)) return { problem: 'the config directory is not owned by you or is group or world writable; jira-sites.json was not read' }; }
+  catch (e) { return (e as NodeJS.ErrnoException).code === 'ENOENT' ? { missing: true } : { problem: 'the config directory cannot be read; jira-sites.json was not read' }; }
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0) | (fs.constants.O_NONBLOCK || 0));
+    const st = fs.fstatSync(fd);
+    if (!st.isFile()) return { problem: 'jira-sites.json is not a regular file (a symlink is refused)' };
+    if (unsafe(st)) return { problem: 'jira-sites.json is not owned by you or is group or world writable; it was not read' };
+    if (st.size > MAX_REGISTRY) return { problem: 'jira-sites.json is larger than 64 KiB' };
+    return { text: fs.readFileSync(fd, 'utf8') };
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') return { missing: true };
+    return { problem: code === 'ELOOP' ? 'jira-sites.json is not a regular file (a symlink is refused)' : 'jira-sites.json cannot be read' };
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+
 export function loadRegistry(env: Record<string, string | undefined> = {}): LoadedRegistry {
   const file = registryFile(env);
   const none = (exists: boolean, problems: string[]): LoadedRegistry => ({ file, exists, reg: Object.create(null), projects: Object.create(null), aliases: Object.create(null), problems });
-  let st: fs.Stats; try { st = fs.lstatSync(file); } catch { return none(false, []); }
-  if (!st.isFile()) return none(true, ['jira-sites.json is not a regular file (a symlink is refused)']);
-  if (st.size > MAX_REGISTRY) return none(true, ['jira-sites.json is larger than 64 KiB']);
-  const { reg, projects, aliases, problems } = parseSiteRegistry(fs.readFileSync(file, 'utf8'));
+  const r = readRegistryText(file);
+  if ('missing' in r) return none(false, []);
+  if ('problem' in r) return none(true, [r.problem]);
+  const { reg, projects, aliases, problems } = parseSiteRegistry(r.text);
   return { file, exists: true, reg, projects, aliases, problems };
 }
 
@@ -120,7 +141,9 @@ export function aliasNamed(committed: JiraSettings): string | null {
 export function approveAlias(env: Record<string, string | undefined>, name: string, key: string): void {
   const file = registryFile(env);
   let j: { aliases?: Record<string, { repos?: unknown } | null> } | null;
-  try { const st = fs.lstatSync(file); if (!st.isFile() || st.size > MAX_REGISTRY) throw new Error('not usable'); j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { throw new JiraError('bad_config', `${file} is missing, a symlink, larger than 64 KiB or not valid JSON`); }
+  const r = readRegistryText(file);
+  if (!('text' in r)) throw new JiraError('bad_config', `${file} is missing or refused: ${'problem' in r ? r.problem : 'no such file'}`);
+  try { j = JSON.parse(r.text); } catch { throw new JiraError('bad_config', `${file} is not valid JSON`); }
   const e = j && typeof j === 'object' && j.aliases && typeof j.aliases === 'object' && isAliasName(name) && Object.hasOwn(j.aliases, name) ? j.aliases[name] : null;
   if (!e || typeof e !== 'object') throw new JiraError('bad_config', `alias ${name} is not defined in ${file}`);
   const repos = Array.isArray(e.repos) ? e.repos.filter((x): x is string => typeof x === 'string') : [];

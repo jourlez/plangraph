@@ -44,7 +44,7 @@ if (import.meta.main) {
   const files = shellFiles(root);
   for (const f of files) {
     const ex = EXCLUDE[f];
-    const r = spawnSync('shellcheck', [...(ex ? ['--exclude', ex.codes.join(',')] : []), f], { cwd: root, stdio: 'inherit' });
+    const r = spawnSync('shellcheck', [...(ex ? ['--exclude', ex.codes.join(',')] : []), '--', f], { cwd: root, stdio: 'inherit' });
     if (r.status !== 0) bad++;
   }
   console.log(`lint:sh: ${files.length} scripts, ${bad} with findings`);

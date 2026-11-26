@@ -19,8 +19,8 @@ import type { Exec, FetchLike } from '../lib/jira.ts';
 // IO: out(line) takes exactly ONE line (src/cli.ts makeCollector: a line break is a programmer error); outBlock(lines) is the explicit
 // multi-line form (an array of single lines, such as a fence block); raw(text) is prepared text printed as is (card, bundle).
 export interface IO { out(line: string): void; outBlock?(lines: string[]): void; err(line: string): void; raw?(text: string): void; data?(d: unknown, opts?: { next?: string[] }): void }
-/** readLine (the real stdin has it): one line of at most `max` bytes, without waiting for the end of the input; a test double may omit it. */
-export interface Stdin { readonly isTTY: boolean; read(max: number): string; readLine?(max: number): string }
+/** readTty (the real stdin has it): one line read from the controlling terminal /dev/tty, never from fd 0; throws when it cannot be opened. readLine (the real stdin has it): one line of at most `max` bytes, without waiting for the end of the input; a test double may omit it. */
+export interface Stdin { readonly isTTY: boolean; read(max: number): string; readLine?(max: number): string; readTty?(max: number): string }
 /** The parsed command line of one command. `values` holds what src/args.ts parse() produced for the command's option spec (string, boolean,
  * number, or an array of them for a `multiple` option); a handler names the options it reads in V. */
 export interface Args<V extends object = Record<string, unknown>> { values: V; positionals: string[] }
@@ -107,6 +107,7 @@ const withBlock = (io: IO | undefined) => (io && !io.outBlock ? { ...io, outBloc
 const processStdin = (): Stdin => ({
   get isTTY() { return Boolean(process.stdin.isTTY); },
   read: (max: number) => readStreamCapped(0, max),
+  readTty: (max: number) => { const fd = fs.openSync('/dev/tty', fs.constants.O_RDONLY); try { const b = Buffer.alloc(max), n = fs.readSync(fd, b, 0, max, null); return b.subarray(0, n).toString('utf8').split(/\r?\n/)[0] as string; } finally { fs.closeSync(fd); } },
   readLine: (max: number) => { const b = Buffer.alloc(max), n = fs.readSync(0, b, 0, max, null); return b.subarray(0, n).toString('utf8').split(/\r?\n/)[0] as string; }, // one read of a terminal in line mode returns one line
 });
 
