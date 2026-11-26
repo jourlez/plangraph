@@ -18,6 +18,7 @@ const EXEMPT = new Set([
   'scripts/rename-check.ts', 'test/rename-check.test.ts',
   'test/superpowers-ingest.test.ts', // cites the historical plan file `2026-11-22-project-<old>-excellence.md`
   'CHANGELOG.md', 'PENDING_DECISIONS.md', // history
+  'docs/superpowers/plans/2026-11-26-graph-v2-requoted.md', // the graph brief carries the old-to-new name map
 ]);
 const RENAME_DATE = '2026-11-25'; // plans and specs of that day define the rename (the name map) or amend plans that predate it, so they name the old names too
 /** True for a file that may name the old names: the exempt list, research, the controller's reports and dated plans and specs before the rename. */
