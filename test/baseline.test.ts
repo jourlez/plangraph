@@ -67,14 +67,6 @@ test('compareDirs maps old names on the old side only', () => {
   assert.deepEqual(compareDirs(a, b), { same: 1, differing: [], added: [] });
   assert.deepEqual(compareDirs(b, a), { same: 0, differing: ['x'], added: [] }, 'an old name on the new side is a difference');
 });
-test('the migrate-names probe: a dry run, an apply and a one-line second run', async () => {
-  const p = PROBES.find((x) => x.id === 'migrate-names');
-  const r = (await (p as NonNullable<typeof p>).run()) as Record<string, { code: number; stdout: string }> & { driver: string }; // the probe returns these runs
-  assert.equal(r.dry.code, 0); assert.match(r.dry.stdout, /^would: git mv \.brain \.plangraph$/m); assert.match(r.dry.stdout, /^dry run: nothing changed/m);
-  assert.equal(r.apply.code, 0); assert.match(r.apply.stdout, /^applied 4 change\(s\)$/m);
-  assert.equal(r.again.stdout, `migrate-names: already migrated, nothing to do (~/.config/${OPB} can be deleted once you no longer need it)\n`);
-  assert.match(r.driver, /\/data\/bin\/plangraph-merge %O %A %B %P\n$/);
-});
 
 test('compare --only-common ignores ids present on one side and prints new: N', () => {
   const a = dir(), b = dir();

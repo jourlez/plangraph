@@ -461,19 +461,6 @@ export const PROBES: Probe[] = [
       return { codes, messages: [...messages] };
     } finally { w.done(); }
   } },
-  { id: 'migrate-names', run: () => {
-    // a user and a repository as 0.2.x left them; dry run, --apply, then a second run (the no-op line)
-    const w = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'baseline-mn-'))), home = path.join(w, 'home'), repo = path.join(w, 'repo');
-    try {
-      const od = path.join(home, '.config', PB); fs.mkdirSync(od, { recursive: true }); fs.writeFileSync(path.join(od, 'jira-sites.json'), '{"sites":{}}\n');
-      fs.mkdirSync(path.join(repo, `.${B}`), { recursive: true }); gitInit(repo);
-      fs.writeFileSync(path.join(repo, `.${B}`, 'tickets.jsonl'), ''); fs.writeFileSync(path.join(repo, '.gitattributes'), `.${B}/*.jsonl merge=${B}-jsonl\n`);
-      const env = childEnv(home), g = (...a: string[]) => spawnSync('git', a, { cwd: repo, env, stdio: 'ignore' });
-      g('config', `merge.${B}-jsonl.driver`, 'old %O %A %B %P'); g('add', '-A'); g('commit', '-qm', 'old names');
-      const run = (args: string[]) => brainRun(['migrate-names', ...args], repo, env);
-      return { dry: run([]), apply: run(['--apply']), again: run([]), driver: spawnSync('git', ['config', '--get', 'merge.plangraph-jsonl.driver'], { cwd: repo, env, encoding: 'utf8' }).stdout };
-    } finally { fs.rmSync(w, { recursive: true, force: true }); }
-  } },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------- capture and compare

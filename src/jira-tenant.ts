@@ -50,7 +50,7 @@ export function resolutionOf(t: Trust): TenantResolution {
 
 const MAX_REGISTRY = 64 * 1024;
 
-/** Directory of the user-level config: PLANGRAPH_CONFIG_DIR, else $XDG_CONFIG_HOME/plangraph, else ~/.config/plangraph. A binding kept under the pre-rename folder is not read: `plangraph migrate-names` copies it. */
+/** Directory of the user-level config: PLANGRAPH_CONFIG_DIR, else $XDG_CONFIG_HOME/plangraph, else ~/.config/plangraph. */
 export function configDir(env: Record<string, string | undefined> = {}): string {
   if (env.PLANGRAPH_CONFIG_DIR) return path.resolve(String(env.PLANGRAPH_CONFIG_DIR));
   const base = env.XDG_CONFIG_HOME ? String(env.XDG_CONFIG_HOME) : path.join(env.HOME || os.homedir(), '.config');

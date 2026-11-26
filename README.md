@@ -386,7 +386,6 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph jira-text` | full description and comments of tickets as text files (read-only) | `KEY...`, `--out DIR`, `--from-json FILE` | file |
 | `plangraph learn` | copy one OpenWolf repo rule into `learnings.jsonl` | `--from-wolf HANDLE\|"text"` | text |
 | `plangraph migrate` | upgrade the data format (dry run unless `--write`) | `--write` | text |
-| `plangraph migrate-names` | move user and repository state from the names used before 0.3.0 to the plangraph names (dry run unless `--apply`; never run by a hook) | `--apply` | text |
 | `plangraph neighbors` | what a ticket needs and what needs it, to a depth | `KEY [DEPTH]` | none |
 | `plangraph open-items` | open items from findings: compact view, close, reopen, register | `--close KEY KIND`, `--reopen KEY KIND`, `--register KEY KIND --owner O --due N --text T`, `--findings FILE\|-`, `--mine`, `--write`, `--suggest-from-status` | text |
 | `plangraph person` | one person's load per sprint | `NAME` | none |
