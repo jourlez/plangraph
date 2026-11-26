@@ -252,19 +252,32 @@ test('a stolen stale lock leaves no renamed file behind', () => {
 });
 test('steal race, real processes: four contenders on one stale lock never overlap inside fn', async () => {
   const { spawn } = await import('node:child_process');
-  const d = tmp('lock-'), lock = path.join(d, 'x.lock'), marker = path.join(d, 'inside'), log = path.join(d, 'log');
+  const d = tmp('lock-'), lock = path.join(d, 'x.lock'), log = path.join(d, 'log');
   fs.writeFileSync(lock, JSON.stringify({ pid: DEAD_PID, token: 'dead' })); fs.utimesSync(lock, OLD(), OLD());
   const script = path.join(d, 'c.mjs');
+  // Each contender imports the module, prints "ready", then blocks reading stdin until the parent closes every pipe at once (the barrier).
+  // The log records enter and exit order; the assertion reads that order, never elapsed time.
   fs.writeFileSync(script, `import fs from 'node:fs'; import { withLock } from ${JSON.stringify(new URL('../lib/store.ts', import.meta.url).href)};
-const [lock, marker, log] = process.argv.slice(2);
+const [lock, log] = process.argv.slice(2);
+process.stdout.write('ready\\n');
+try { fs.readSync(0, Buffer.alloc(1), 0, 1, null); } catch {}
 withLock(lock, () => {
-  if (fs.existsSync(marker)) fs.appendFileSync(log, 'OVERLAP\\n'); else fs.writeFileSync(marker, String(process.pid));
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60);
-  fs.appendFileSync(log, 'ran\\n'); fs.rmSync(marker);
-}, { retries: 2000, waitMs: 5, staleMs: 10 });`);
-  const codes = await Promise.all([1, 2, 3, 4].map(() => new Promise((res) => spawn(process.execPath, [script, lock, marker, log], { stdio: 'inherit' }).on('exit', res))));
-  assert.deepEqual(codes, [0, 0, 0, 0]);
-  assert.equal(fs.readFileSync(log, 'utf8'), 'ran\nran\nran\nran\n');
+  fs.appendFileSync(log, 'enter ' + process.pid + '\\n');
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20); // widens the overlap window only; correctness does not depend on it
+  fs.appendFileSync(log, 'exit ' + process.pid + '\\n');
+}, { retries: 100000, waitMs: 5, staleMs: 10 });`);
+  const kids = [1, 2, 3, 4].map(() => spawn(process.execPath, [script, lock, log], { stdio: ['pipe', 'pipe', 'inherit'] }));
+  const exits = kids.map((k) => new Promise((res) => k.on('exit', res)));
+  await Promise.all(kids.map((k) => new Promise<void>((res) => k.stdout.once('data', () => res()))));
+  for (const k of kids) k.stdin.end(); // release all four together
+  assert.deepEqual(await Promise.all(exits), [0, 0, 0, 0]);
+  const events = fs.readFileSync(log, 'utf8').trim().split('\n').map((l) => l.split(' '));
+  assert.equal(events.length, 8);
+  for (let i = 0; i < 8; i += 2) {
+    assert.equal(events[i][0], 'enter', `event ${i} must be an enter: ${JSON.stringify(events)}`);
+    assert.deepEqual(events[i + 1], ['exit', events[i][1]], `contender ${events[i][1]} must exit before the next enter: ${JSON.stringify(events)}`);
+  }
+  assert.equal(new Set(events.filter((e) => e[0] === 'enter').map((e) => e[1])).size, 4);
 });
 
 // ---- composite keys and undefined fields (mutation-tested by scripts/mutate.ts) ----

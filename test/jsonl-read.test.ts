@@ -71,14 +71,14 @@ test('readStreamCapped: the timeout is idle time, so a slow steady writer is not
   try { execFileSync('mkfifo', [p]); } catch { t.skip('no mkfifo'); return; }
   const rfd = fs.openSync(p, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
   const keep = fs.openSync(p, fs.constants.O_WRONLY | fs.constants.O_NONBLOCK); // no EOF while the child is between writes
-  // 30 single bytes, one every 50 ms: 1.5 s of total time against a 500 ms idle bound (10x margin per gap for loaded CI runners).
-  const child = spawn('/bin/sh', ['-c', `i=0; while [ $i -lt 30 ]; do printf x; sleep 0.05; i=$((i+1)); done > ${JSON.stringify(p)}`], { stdio: 'ignore' });
-  const t0 = Date.now();
+  // 10 single bytes, one every 50 ms (0.5 s of writing) against a 1000 ms idle bound: 20x margin per gap for loaded CI runners.
+  const child = spawn('/bin/sh', ['-c', `i=0; while [ $i -lt 10 ]; do printf x; sleep 0.05; i=$((i+1)); done > ${JSON.stringify(p)}`], { stdio: 'ignore' });
+  const LIMIT = 1000, t0 = Date.now();
   try {
-    assert.throws(() => readStreamCapped(rfd, 1024, { timeoutMs: 500 }), code('TIMEOUT'));
+    assert.throws(() => readStreamCapped(rfd, 1024, { timeoutMs: LIMIT }), code('TIMEOUT'));
     const dt = Date.now() - t0;
-    assert.ok(dt >= 1400, `gave up after ${dt} ms: the clock was not reset by arriving data`);
-    assert.ok(dt < 5000, `took ${dt} ms`);
+    assert.ok(dt >= 1400,  `gave up after ${dt} ms: the clock was not reset by arriving data`);
+    assert.ok(dt < LIMIT * 4, `took ${dt} ms`);
   } finally { child.kill(); fs.closeSync(rfd); fs.closeSync(keep); }
 });
 
