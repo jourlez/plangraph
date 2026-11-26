@@ -2,7 +2,7 @@
   "id": "jinja-set-in-if",
   "repo": "https://github.com/pallets/jinja",
   "commit": "fbc3a696c729d177340cc089531de7e2e5b6f065",
-  "task": "A Jinja template that assigns a variable with set inside an if block can fail to compile or render with an undefined-variable style error depending on how the name is used afterwards. Fix the identifier tracking so set within if behaves consistently.",
+  "task": "A template that reads a variable passed to render() and then assigns the same name with set in every branch of an if/elif/else, e.g. {% if True %}{{ a.b }}{% set a = 1 %}{% elif False %}{% set a = 2 %}{% else %}{% set a = 3 %}{% endif %}{{ a }}, raises UndefinedError (\"'a' is undefined\") when rendered with a={'b': 0}. Expected output is \"01\".",
   "hiddenTests": {
     "fromCommit": "66587ce989e5a478e0bb165371fa2b9d42b7040f",
     "files": [
@@ -11,5 +11,10 @@
     "command": "python -m pytest -x -q tests/test_regression.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12",
+    "uv pip install -e . pytest trio"
+  ],
+  "timeoutSec": 120
 }

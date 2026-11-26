@@ -2,7 +2,7 @@
   "id": "cachetools-cached-qualname",
   "repo": "https://github.com/tkem/cachetools",
   "commit": "56e0fd5c73ecc8a203618290238431b2f4e79570",
-  "task": "Copying a function wrapped with the cached decorator fails when the wrapped callable has no __qualname__. Make wrapper copying tolerate callables without that attribute.",
+  "task": "Calling copy.copy or copy.deepcopy on a function decorated with cachetools.cached raises AttributeError ('... object has no attribute __qualname__') when the decorated callable is something like a functools.partial, which has no __qualname__. Expected: copying the decorated function works and returns the same wrapper.",
   "hiddenTests": {
     "fromCommit": "163d67d7b16287fb30a2986fd35898092a4d475c",
     "files": [
@@ -11,5 +11,10 @@
     "command": "python -m pytest -x -q tests/test_cached.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12",
+    "uv pip install -e . pytest"
+  ],
+  "timeoutSec": 120
 }

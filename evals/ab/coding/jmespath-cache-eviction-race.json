@@ -2,14 +2,20 @@
   "id": "jmespath-cache-eviction-race",
   "repo": "https://github.com/jmespath/jmespath.py",
   "commit": "1c0f538a82fbdea49a9df6b0710367dd7f401533",
-  "task": "The jmespath parser cache can raise when two threads evict entries at the same time. Make cache eviction safe under concurrent parsing.",
+  "task": "Parsing expressions from many threads at once with a small parser cache sometimes raises KeyError from the cache eviction code (for example KeyError: 'foo') because two threads try to evict the same entry. Expected: concurrent parsing never raises.",
   "hiddenTests": {
     "fromCommit": "c50175160605c4a4a5bc77bdd460061822416fa6",
     "files": [
       "tests/test_parser.py"
     ],
-    "command": "python -m pytest -x -q tests/test_parser.py"
+    "command": "python -m pytest -x -q tests/test_parser.py -k test_free_cache_entries"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.9",
+    "uv pip install -e . pytest hypothesis"
+  ],
+  "timeoutSec": 180,
+  "note": "The whole file passes at the parent commit (test order); only the selected race test fails there, 6 of 6 runs."
 }

@@ -2,7 +2,7 @@
   "id": "flask-ipv6-server-name",
   "repo": "https://github.com/pallets/flask",
   "commit": "de8429ffda8cfb54db175529e2bae72a24e1fa7e",
-  "task": "Flask misparses a SERVER_NAME configured as an IPv6 literal with a port, for example \"[::1]:5000\": URL matching and host handling treat the colons inside the address as port separators. Make server name parsing understand bracketed IPv6 hosts.",
+  "task": "app.run() with SERVER_NAME set to an IPv6 literal with a port, for example \"[::1]:8080\", fails with ValueError: invalid literal for int() with base 10: ':1]:8080'. Expected: host ::1 and port 8080 are used, the same as for IPv4 or a host name.",
   "hiddenTests": {
     "fromCommit": "7203feabf723edae0286ae5dc64fec8ac4c91735",
     "files": [
@@ -11,5 +11,10 @@
     "command": "python -m pytest -x -q tests/test_basic.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12",
+    "uv pip install -e . pytest"
+  ],
+  "timeoutSec": 120
 }

@@ -11,5 +11,6 @@
     "command": "python -m pytest -x -q tests/test_api.py"
   },
   "language": "python",
-  "validated": false
+  "validated": false,
+  "reason": "Hidden test test_overlay_enable_async passes at the parent commit (34 passed): it only checks overlays of a sync environment, so it does not exercise the bug. Needs a test that overlays an enable_async=True environment."
 }

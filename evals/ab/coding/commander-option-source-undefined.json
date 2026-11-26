@@ -2,14 +2,19 @@
   "id": "commander-option-source-undefined",
   "repo": "https://github.com/tj/commander.js",
   "commit": "c807ce933836d0d99719bac82ee477f3d7eb4268",
-  "task": "In commander, optsWithGlobals can mask an option value when the source of the value on a subcommand is unknown (undefined). Fix the merge so a known source from a parent is not overridden by an undefined source.",
+  "task": "When the same option is defined on a program and its subcommand and the program value was stored with an unknown (undefined) source, getOptionValueSourceWithGlobals('common') on the subcommand reports the subcommand's own source ('cli') instead of the program's undefined source. A global source that is known already wins correctly, so the global should win here as well.",
   "hiddenTests": {
     "fromCommit": "1536d5bb9da38d1d94926aedfa31c8ece1f7dce5",
     "files": [
       "tests/options.optsWithGlobals.test.js"
     ],
-    "command": "npx jest tests/options.optsWithGlobals.test.js"
+    "command": "node --test tests/options.optsWithGlobals.test.js"
   },
   "language": "javascript",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "npm ci --ignore-scripts"
+  ],
+  "timeoutSec": 120,
+  "note": "Repository uses node:test at this commit, jest is not installed; needs Node >= 22.12."
 }

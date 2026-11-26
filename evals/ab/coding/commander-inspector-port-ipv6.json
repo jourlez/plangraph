@@ -2,14 +2,19 @@
   "id": "commander-inspector-port-ipv6",
   "repo": "https://github.com/tj/commander.js",
   "commit": "b2be0c76ceb565c0833aaeba8baed1d546f61bae",
-  "task": "Incrementing the node inspector port for a --inspect option with an IPv6 host, such as \"[::1]:9229\", produces a wrong address. Fix the port increment to handle bracketed IPv6 hosts.",
+  "task": "When a program is run with an IPv6 inspector option such as --inspect=[::1] or --inspect=[::1]:9229 and spawns an executable subcommand, the inspector option is passed on with the wrong address instead of having its port incremented. Expected: --inspect=[::1] becomes --inspect=[::1]:9230 and --inspect=[::1]:100 becomes --inspect=[::1]:101, as already happens for IPv4 and host names.",
   "hiddenTests": {
     "fromCommit": "6320660fcbced18d458eac165f992440d45a1ae2",
     "files": [
       "tests/incrementNodeInspectorPort.test.cjs"
     ],
-    "command": "npx jest tests/incrementNodeInspectorPort.test.cjs"
+    "command": "node --test tests/incrementNodeInspectorPort.test.cjs"
   },
   "language": "javascript",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "npm ci --ignore-scripts"
+  ],
+  "timeoutSec": 120,
+  "note": "Repository uses node:test at this commit, jest is not installed; needs Node >= 22.12."
 }
