@@ -53,7 +53,7 @@ export function integrity(files: GraphFiles, v1: ModelRecords, items: readonly O
   const dated = files.sprints.filter((x) => text(x.start) && text(x.end)).length;
   if (dated > 0 && dated < files.sprints.length) put('UNDATED_SPRINT', 'sprints.jsonl', `${files.sprints.length - dated} of ${files.sprints.length} sprints have no start and end date; give every sprint both, or none`, true);
   const placed = new Set((v1.schedule ?? []).filter((r) => (r.version ?? 'current') === 'current' && Number.isInteger(r.sprint)).map((r) => r.key));
-  for (const x of files.xrefs) if (x.type === 'ticket' && x.id.startsWith('sp:') && x.sys.split(':')[0] === 'jira' && placed.has(x.id) && placed.has(x.xid)) put('DOUBLE_PLACED_WORK', 'xrefs.jsonl', `${s(x.id)} and ${s(x.xid)} are one work item and both are placed, so capacity counts it twice; keep one of the two placed (`sp-link --track` records the link, it does not unplace either)`, true);
+  for (const x of files.xrefs) if (x.type === 'ticket' && x.id.startsWith('sp:') && x.sys.split(':')[0] === 'jira' && placed.has(x.id) && placed.has(x.xid)) put('DOUBLE_PLACED_WORK', 'xrefs.jsonl', `${s(x.id)} and ${s(x.xid)} are one work item and both are placed, so capacity counts it twice; keep one of the two placed (\`sp-link --track\` records the link, it does not unplace either)`, true);
   return out;
 }
 

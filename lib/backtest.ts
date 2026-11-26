@@ -7,11 +7,11 @@ import type { HItem } from './heuristic.ts';
 export interface Done { key: string; sprint: number; sp: number; owner: string; deps: readonly string[] }
 /** A planner: from the tickets finished before sprint `from` (known) and the rest (open), a predicted sprint per open key. */
 export type Planner = (known: readonly Done[], open: readonly Done[], from: number) => Map<string, number>;
-export interface Window { from: number; n: number; hits: number; within1: number }
+interface Window { from: number; n: number; hits: number; within1: number }
 export type Replay = { ok: false; reason: string } | { ok: true; windows: Window[]; n: number; hits: number; hitRate: number; within1Rate: number };
 
 /** Default planner: capacity per owner = the most points that owner finished in one past sprint; list scheduling from sprint `from`. */
-export const heuristicPlanner: Planner = (known, open, from) => {
+const heuristicPlanner: Planner = (known, open, from) => {
   const per = new Map<string, number>();
   const sums = new Map<string, number>();
   for (const k of known) sums.set(`${k.owner}|${k.sprint}`, (sums.get(`${k.owner}|${k.sprint}`) ?? 0) + k.sp);
@@ -58,11 +58,11 @@ export function monteCarlo(throughput: readonly number[], remaining: number, opt
   const out: number[] = []; let never = 0;
   for (let i = 0; i < runs; i++) {
     let left = remaining, n = 0;
-    while (left > 0 && n < horizon) { left -= hist[Math.floor(r() * hist.length)]; n++; }
+    while (left > 0 && n < horizon) { left -= hist[Math.floor(r() * hist.length)] as number; n++; }
     if (left > 0) { never++; out.push(Infinity); } else out.push(n);
   }
   out.sort((a, b) => a - b);
-  const q = (p: number) => out[Math.min(runs - 1, Math.floor(p * runs))];
+  const q = (p: number) => out[Math.min(runs - 1, Math.floor(p * runs))] as number;
   return { ok: true, runs, p10: q(0.1), p50: q(0.5), p90: q(0.9), neverDone: never };
 }
 
@@ -71,6 +71,6 @@ export function throughputOf(done: readonly Done[]): number[] {
   if (!done.length) return [];
   const lo = Math.min(...done.map((d) => d.sprint)), hi = Math.max(...done.map((d) => d.sprint));
   const arr = new Array<number>(hi - lo + 1).fill(0);
-  for (const d of done) arr[d.sprint - lo] += d.sp;
+  for (const d of done) arr[d.sprint - lo] = (arr[d.sprint - lo] as number) + d.sp;
   return arr;
 }

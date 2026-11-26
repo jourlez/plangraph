@@ -199,12 +199,13 @@ def index_order(t):
 
 
 def schema_kind(db):
-    """src/db.ts schemaKind: 'current' (every table, plus exactly the two views with their exact SQL), 'older' (only the eight tables of
+    """src/db.ts schemaKind: 'current' (every table, plus exactly the two views with their exact SQL), 'prev' (0.4.0: no obs table), 'older' (only the eight tables of
     0.3.0 and no view: an index built before the graph existed) or None. Only the tables, columns and indexes `plangraph build` writes; no
     other view, trigger, virtual table or hidden column."""
     objects = list(db.execute('SELECT type, name, tbl_name, sql FROM sqlite_master'))
     current = any(typ == 'table' and name in INDEX_TABLES and name not in V1_TABLES for typ, name, _, _ in objects)
-    family = {t: c for t, c in EXPECTED_COLUMNS.items() if current or t == 'index_meta' or t in V1_TABLES}
+    prev = current and not any(typ == 'table' and name == 'obs' for typ, name, _, _ in objects)   # 0.4.0: no obs table
+    family = {t: c for t, c in EXPECTED_COLUMNS.items() if (current and not (prev and t == 'obs')) or t == 'index_meta' or t in V1_TABLES}
     tables, views = set(), set()
     for typ, name, tbl, sql in objects:
         if typ == 'table':
@@ -222,7 +223,7 @@ def schema_kind(db):
     for t in tables:
         info = list(db.execute('SELECT name, hidden FROM pragma_table_xinfo(?)', (t,)))
         if any(h != 0 for _, h in info) or ','.join(n for n, _ in info) != EXPECTED_COLUMNS[t]: return None
-    return 'current' if current else 'older'
+    return 'prev' if prev else 'current' if current else 'older'
 
 
 VIRTUAL_RE = re.compile(r'\s*CREATE\s+VIRTUAL\b', re.I)
@@ -269,10 +270,10 @@ def open_index(dbp):
         if not kind: raise refuse('the index has an unexpected schema (not built by plangraph build)')
         row = db.execute('SELECT v FROM index_meta WHERE k = ?', (CONTENT_KEY,)).fetchone() if 'index_meta' in {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")} else None
         if row is None: raise refuse('the index has no integrity digest (built by an older plangraph)')
-        try: got = content_digest(db, V1_TABLES if kind == 'older' else None)
+        try: got = content_digest(db, V1_TABLES if kind == 'older' else tuple(t for t in INDEX_TABLES if t != 'obs') if kind == 'prev' else None)
         except (sqlite3.Error, AttributeError): got = None
         if got != row[0]: raise refuse('the index content does not match its integrity digest (it was edited outside plangraph)')
-        if kind == 'older': raise refuse('the index was built by an older plangraph')
+        if kind != 'current': raise refuse('the index was built by an older plangraph')
     except BaseException:
         db.close(); raise
     return db

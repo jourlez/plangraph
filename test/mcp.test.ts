@@ -387,8 +387,8 @@ test('resources/read returns the graph command text; unknown nodes are -32002; b
   const r = await inproc(lines(INIT, ...ok.map((u, i) => req(10 + i, 'resources/read', { uri: u })), ...bad.map((u, i) => req(100 + i, 'resources/read', { uri: u })),
     req(200, 'resources/read', { uri: 'plangraph://node/ticket/T-99999' }), req(201, 'resources/read', {})).join(''));
   const want = [cliText(cli(['graph', '--depth=1', '--', 'pg:ticket/T-3'])), cliText(cli(['graph', '--depth=2', '--', 'pg:ticket/T-3'])), cliText(cli(['graph', '--rel=needs', '--depth=2', '--', 'pg:ticket/T-3']))];
-  ok.forEach((u, i) => assert.deepEqual(byId(r, 10 + i).result, { contents: [{ uri: u, mimeType: 'text/plain', text: want[i] }] }, u));
-  bad.forEach((u, i) => assert.deepEqual(byId(r, 100 + i).error, { code: -32602, message: 'invalid params: resource URI is not in the grammar' }, String(u)));
+  ok.forEach((u, i) => { assert.deepEqual(byId(r, 10 + i).result, { contents: [{ uri: u, mimeType: 'text/plain', text: want[i] }] }, u); });
+  bad.forEach((u, i) => { assert.deepEqual(byId(r, 100 + i).error, { code: -32602, message: 'invalid params: resource URI is not in the grammar' }, String(u)); });
   assert.deepEqual(byId(r, 200).error, { code: -32002, message: 'resource not found' });
   assert.equal(byId(r, 201).error.code, -32602);
 });

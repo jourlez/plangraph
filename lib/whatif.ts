@@ -778,7 +778,8 @@ export function touchesLine(g: Pick<GraphReader, 'reach'>, key: string, { note }
   for (const n of first) for (const m of step(n)) if ((m.type as string) !== 'plantask' && (m.type as string) !== 'ticket' && mark(m)) found.push(m);
   const planOf = new Set(found.filter((n) => n.type === 'plantask').map((n) => n.id.split('#')[0]));
   const items: string[] = [];
-  for (const n of found) {
+  const rank = (t: string): number => (t === 'plantask' || t === 'plan' ? 0 : t === 'repo' ? 1 : 2); // the plan first, then the code, then the tracker
+  for (const n of found.toSorted((a, b) => rank(a.type) - rank(b.type))) {
     if (n.type === 'plan' && planOf.has(n.id)) continue; // the task already names its plan
     const l = touchLabel(n); if (!l) continue;
     const nt = note?.(n); items.push(nt ? `${l} (${tidy(nt)})` : l);

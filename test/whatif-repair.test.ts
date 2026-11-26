@@ -17,7 +17,7 @@ const RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
 const T = (key: string, sp: number, extra: Record<string, unknown> = {}) => ({ key, sp, jira_status: 'To Do', ...extra });
 const TICKETS = [T('A', 2), T('B', 2), T('C', 2), T('D', 1), T('X', 1)];
 const EDGES = [{ consumer: 'B', producer: 'A' }, { consumer: 'C', producer: 'B' }]; // each hop changes owner: the handoff rule needs a later sprint
-const SCHEDULE = [['A', 'Ana', 1], ['B', 'Ben', 2], ['C', 'Cleo', 3], ['D', 'Cleo', 4], ['X', 'Ben', 1]].map(([key, owner, sprint]) => ({ key, owner, sprint }));
+const SCHEDULE = ([['A', 'Ana', 1], ['B', 'Ben', 2], ['C', 'Cleo', 3], ['D', 'Cleo', 4], ['X', 'Ben', 1]] as Array<[string, string, number]>).map(([key, owner, sprint]) => ({ key, owner, sprint }));
 const CONFIG = { first_sprint: 1, end_sprint: 5, caps: { default: 4 } };
 const model = () => buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHEDULE, config: CONFIG });
 

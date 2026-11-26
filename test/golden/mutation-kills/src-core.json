@@ -337,11 +337,15 @@
      "capabilities": {
       "tools": {
        "listChanged": false
+      },
+      "resources": {
+       "subscribe": false,
+       "listChanged": false
       }
      },
      "serverInfo": {
       "name": "plangraph",
-      "version": "0.4.0"
+      "version": "0.5.0"
      }
     }
    },
@@ -456,6 +460,44 @@
          "verbose": {
           "type": "boolean",
           "description": "Longer answer (the CLI -v)"
+         }
+        },
+        "required": [
+         "key"
+        ],
+        "additionalProperties": false
+       },
+       "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+       }
+      },
+      {
+       "name": "graph",
+       "title": "Nodes around a node",
+       "description": "Nodes reachable from a node, with the relations that led there. Text of `plangraph graph KEY`.",
+       "inputSchema": {
+        "type": "object",
+        "properties": {
+         "key": {
+          "type": "string",
+          "description": "Ticket key or pg:URI"
+         },
+         "rel": {
+          "type": "string"
+         },
+         "depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+         },
+         "reverse": {
+          "type": "boolean"
+         },
+         "verbose": {
+          "type": "boolean"
          }
         },
         "required": [
@@ -600,11 +642,15 @@
     "capabilities": {
      "tools": {
       "listChanged": false
+     },
+     "resources": {
+      "subscribe": false,
+      "listChanged": false
      }
     },
     "serverInfo": {
      "name": "plangraph",
-     "version": "0.4.0"
+     "version": "0.5.0"
     }
    }
   },
@@ -618,7 +664,7 @@
   }
  ],
  "mcp-serve": [
-  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"plangraph\",\"version\":\"0.4.0\"}}}",
+  "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"tools\":{\"listChanged\":false},\"resources\":{\"subscribe\":false,\"listChanged\":false}},\"serverInfo\":{\"name\":\"plangraph\",\"version\":\"0.5.0\"}}}",
   "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}",
   "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"message too large\"}}",
   "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{}}"
@@ -1190,7 +1236,8 @@
   [
    "ready",
    "whatif",
-   "ticket"
+   "ticket",
+   "graph"
   ],
   [
    "2025-11-25",

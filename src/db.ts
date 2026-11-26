@@ -22,7 +22,7 @@
 //   none keeps its 0.3.0 fingerprint.
 // - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/provider.ts CACHE_FILES).
 //   A cache file adds bytes to the source fingerprint only when it is present, so a directory without a cache keeps its fingerprint. An index
-//   built before `obs` existed (0.4.0) has an unexpected schema: `plangraph build` rebuilds it. The table is advisory data, read by no solver.
+//   built before `obs` existed (0.4.0) is a known older schema like 0.3.0's (digest over the 0.4.0 table list, stale, query-only, handle.older). The table is advisory data, read by no solver.
 // The fingerprint lives in its own table, not in `meta`: `meta` mirrors meta.jsonl and is exported back to text, so a fingerprint row
 // there would leak into meta.jsonl (and collide with a user key of the same name).
 import fs from 'node:fs';
@@ -117,6 +117,7 @@ Object.freeze(TABLES);
 const SOURCE_FILES = Object.freeze([...[...TABLES.values()].map((t) => t.file).filter((f) => f !== OBS_FILE), ...CACHE_FILES].toSorted());
 const GRAPH_SET: ReadonlySet<string> = new Set([...GRAPH_FILES, ...CACHE_FILES]); // files that add bytes to the fingerprint only when present
 const V1_TABLES = Object.freeze([...TABLES.values()].slice(0, V1_TABLE_COUNT));
+const PREV_TABLES = Object.freeze([...TABLES.values()].filter((t) => t.name !== 'obs')); // the table list of 0.4.0
 const GRAPH_TABLE_NAMES = Object.freeze([...TABLES.values()].slice(V1_TABLE_COUNT).map((t) => t.name));
 const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n')
   + '\nCREATE INDEX edge_p ON edge(producer); CREATE INDEX ev_k ON evidence(key);\nCREATE TABLE index_meta(k TEXT PRIMARY KEY, v TEXT);\n'
@@ -141,7 +142,7 @@ export class IndexHandle {
   /** sha256 hex of the text now / of the text the index was built from (null: not verified, or an index without one). The built one is read
    * from the index as stored (index_meta.v of an index without a digest is not verified), so readers convert it with String(). */
   fingerprint: string | null = null; builtFingerprint: unknown = null;
-  /** true: built by a plangraph before the graph views existed (the 0.3.0 table list, no view): answers v1 questions, refuses writes. */
+  /** true: built by a plangraph before this table list (0.3.0: the eight v1 tables and no view; 0.4.0: no obs table): answers v1 questions, refuses writes. */
   older = false;
   constructor(db: DatabaseSync) { this.#db = db; }
   get isOpen(): boolean { return this.#db.isOpen; }
@@ -361,14 +362,15 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
 // every table of TABLES as a plain table with exactly its columns plus `extra` (no hidden or generated column), optionally index_meta(k, v),
 // the indexes edge_p and ev_k, the automatic primary-key indexes, and exactly the two views g_nodes and g_links with `sql` byte-equal to
 // lib/graph/views.ts; no other view, no trigger, virtual table or any other object. The one other accepted shape is the schema of 0.3.0 and
-// of the old bin/plangraph (only the eight v1 tables, no view): 'older', opened stale and query-only (see openIndex).
+// of the old bin/plangraph (only the eight v1 tables, no view): 'older', and that of 0.4.0 (every table but obs, both views): 'prev'; both open stale and query-only (see openIndex).
 export const EXPECTED_COLUMNS = new Map([...[...TABLES.values()].map((t) => ([t.name, [...t.columns, 'extra'].join(',')] as [string, string])), ['index_meta', 'k,v']]); // a [table name, column list] pair
 export const EXPECTED_INDEXES = new Map([['edge_p', 'edge'], ['ev_k', 'evidence']]);
 const EXPECTED_VIEWS = new Map(GRAPH_VIEWS);
-function schemaKind(h: IndexHandle): 'current' | 'older' | null {
+function schemaKind(h: IndexHandle): 'current' | 'prev' | 'older' | null {
   const objects = h.all('SELECT type, name, tbl_name, sql FROM sqlite_master') as Array<{ type: string; name: string; tbl_name: string; sql: string | null }>; // sqlite_master's schema
   const current = objects.some((o) => o.type === 'table' && GRAPH_TABLE_NAMES.includes(o.name)); // any graph table: the full schema is required
-  const family = new Map([...EXPECTED_COLUMNS].filter(([n]) => current || n === 'index_meta' || V1_TABLES.some((t) => t.name === n)));
+  const prev = current && !objects.some((o) => o.type === 'table' && o.name === 'obs'); // 0.4.0: every graph table and both views, no obs table
+  const family = new Map([...EXPECTED_COLUMNS].filter(([n]) => (current && !(prev && n === 'obs')) || n === 'index_meta' || V1_TABLES.some((t) => t.name === n)));
   const tables = new Set<string>(), views = new Set<string>();
   for (const o of objects) {
     if (o.type === 'table') {
@@ -388,7 +390,7 @@ function schemaKind(h: IndexHandle): 'current' | 'older' | null {
     const info = h.all('SELECT name, hidden FROM pragma_table_xinfo(?)', t) as Array<{ name: string; hidden: number }>; // the pragma's columns
     if (info.some((c) => c.hidden !== 0) || info.map((c) => c.name).join(',') !== EXPECTED_COLUMNS.get(t)) return null;
   }
-  return current ? 'current' : 'older';
+  return prev ? 'prev' : current ? 'current' : 'older';
 }
 
 // ---------- open ----------
@@ -429,9 +431,9 @@ export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: b
     h?.close();
     throw new PlangraphError('DATA', 'the index is not a readable SQLite database', { hint: 'run `plangraph build` to rebuild it', cause: e });
   }
-  let kind: 'current' | 'older' | null = null;
+  let kind: 'current' | 'prev' | 'older' | null = null;
   try { kind = schemaKind(h); } catch { kind = null; }
-  const older = kind === 'older';
+  const older = kind === 'older', prev = kind === 'prev'; // prev: built by 0.4.0 (no obs table); older: 0.3.0 (the eight v1 tables)
   if (!kind) { h.close(); throw new PlangraphError('DATA', 'the index has an unexpected schema (not built by plangraph build)', { hint: 'run `plangraph build` to rebuild it' }); }
   try {
     const has = h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='index_meta'");
@@ -441,16 +443,16 @@ export function openIndex(file: string, { readOnly = true, dir }: { readOnly?: b
       if (!readOnly) throw new PlangraphError('DATA', 'the index has no integrity digest (built by an older plangraph)', { hint: 'run `plangraph build` to rebuild it' });
     } else {
       let got = null;
-      try { got = contentDigest(h, older ? V1_TABLES : undefined); } catch { got = null; } // an older index holds the 0.3.0 table list only // a value SQLite cannot hand back (an out-of-range integer) is tampering too
+      try { got = contentDigest(h, older ? V1_TABLES : prev ? PREV_TABLES : undefined); } catch { got = null; } // an older index holds the 0.3.0 table list only // a value SQLite cannot hand back (an out-of-range integer) is tampering too
       if (got !== want) throw new PlangraphError('DATA', 'the index content does not match its integrity digest (it was edited outside plangraph)', { hint: 'run `plangraph build` to rebuild it' });
     }
-    if (older && !readOnly) throw new PlangraphError('STALE', 'the index was built by an older plangraph', { hint: 'run `plangraph build`' }); // before any write
+    if ((older || prev) && !readOnly) throw new PlangraphError('STALE', 'the index was built by an older plangraph', { hint: 'run `plangraph build`' }); // before any write
     if (dir !== undefined) {
       const stored = meta(FINGERPRINT_KEY);
       h.fingerprint = sourceFingerprint(dir); h.builtFingerprint = stored ?? null;
       h.stale = stored !== h.fingerprint || want === undefined;
     }
-    if (older) { h.older = true; h.stale = true; } // the text may be unchanged: the index still lacks the graph tables, so it counts as stale
+    if (older || prev) { h.older = true; h.stale = true; } // the text may be unchanged: the index still lacks the graph tables, so it counts as stale
     if (h.stale) h.exec('PRAGMA query_only = ON');
   } catch (e) { h.close(); throw e; }
   return h;

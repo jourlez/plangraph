@@ -127,7 +127,7 @@ test('(d2) learnings and refs keep unknown fields in the index extra column', ()
 test('(f) source scan: the INSERT column lists come from constants, never from record keys', () => {
   // `plangraph build` is src/db.ts buildIndex (bin/plangraph only dispatches to src/cli.ts).
   const code = fs.readFileSync(path.join(import.meta.dirname, '../src/db.ts'), 'utf8');
-  assert.match(code, /const columns(?:: [^=]+)? = Object\.freeze\(\[\.\.\.(?:SCHEMAS\[file\]|\(SCHEMAS\[file\] as \w+\))\.order\]\)/, 'columns come from the frozen SCHEMAS lists');
+  assert.match(code, /const columns(?:: [^=]+)? = Object\.freeze\((?:file === OBS_FILE \? \[\.\.\.OBS_COLUMNS\] : )?\[\.\.\.(?:SCHEMAS\[file\]|\(SCHEMAS\[file\] as \w+\))\.order\]\)/, 'columns come from the frozen SCHEMAS lists');
   assert.ok(!/Object\.keys\(r(ec)?\)\s*\.(map|join)|\bcols\b/.test(code), 'no per-record column list');
   // every template literal that builds SQL may interpolate only the table name, the verb, or the constant column list / placeholders
   const sqlTemplates = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE)\b[^`]*)`/g)];

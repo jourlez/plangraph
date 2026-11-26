@@ -1,5 +1,5 @@
 $ plangraph whatif T-9 --sprint 4
 exit: 1
 --- stdout
-NO: T-9 -> Ben S4. CONSUMER_EARLY T-22 (S2 Cleo, needs S5) | CONSUMER_EARLY T-31 (S4 Cleo, needs S5). Fix: keep S4 (4 others shift, 0 owner changes).
+NO: T-9 -> Ben S4. BLOCKED T-9 (open export_clash) | CONSUMER_EARLY T-22 (S2 Cleo, needs S5) | CONSUMER_EARLY T-31 (S4 Cleo, needs S5). Fix: keep S4 (4 others shift, 0 owner changes).
 --- stderr

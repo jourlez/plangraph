@@ -42,7 +42,7 @@ export function listSchedule(items: readonly HItem[], opts: HOpts): HResult {
   const tail = new Map<string, number>(); const cons = new Map<string, HItem[]>();
   for (const i of order) for (const d of new Set(i.deps)) (cons.get(d) ?? cons.set(d, []).get(d)!).push(i);
   for (let n = order.length - 1; n >= 0; n--) {
-    const i = order[n]; let t = 0;
+    const i = order[n] as HItem; let t = 0;
     for (const c of cons.get(i.key) ?? []) t = Math.max(t, (c.owner === i.owner ? 0 : 1) + (tail.get(c.key) ?? 0));
     tail.set(i.key, t);
   }

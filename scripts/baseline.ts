@@ -290,6 +290,21 @@ export const PROBES: Probe[] = [
     const m = { ...model, capacity: [{ person: 'Ana', sprint: 1, sp: 1 }, { person: 'Ben', sprint: 2, sp: 1 }] };
     return { later: whatif(m, { key: 'T-3', sprint: 4 }), owner: whatif(m, { key: 'T-3', to: 'Ben' }), relieve: relieve(m, { person: 'Ana', sprint: 1 }) };
   } },
+  { id: 'graph-github-ticket-keys', run: async () => {
+    const { ticketKeys } = await lib('lib/graph/github.ts');
+    return ['feature/abc-101-retry', 'ABC-9 and ABC-9 and xy-7', 'utf-8 and ABC-1', 'A-1 xABC-2x'].map((t) => ticketKeys(t, null));
+  } },
+  { id: 'graph-heuristic', run: async () => {
+    const { listSchedule } = await lib('lib/heuristic.ts');
+    const items = [{ key: 'A', sp: 2, owner: 'Ana', deps: [] }, { key: 'B', sp: 2, owner: 'Ben', deps: ['A'] }, { key: 'C', sp: 1, owner: 'Ana', deps: ['B'] }];
+    const r = listSchedule(items, { first: 1, cap: 4 });
+    return { ...r, sprint: [...r.sprint.entries()] };
+  } },
+  { id: 'graph-drift', run: async () => {
+    const { drift } = await lib('lib/graph/drift.ts');
+    const ob = (xid: string, fields: object) => ({ sys: 'jira:acme', xid, type: 'ticket', fields: JSON.stringify(fields), links: '[]', seen: '2026-11-22' });
+    return drift({ tickets: [{ key: 'T-1', jira_status: 'To Do' }, { key: 'T-2', jira_status: 'To Do' }], schedule: [{ key: 'T-1', owner: 'Ana', sprint: 2 }], edges: [], xrefs: [], obs: [ob('T-1', { assignee: 'Ben', sprint: '1,3' }), ob('T-2', { status: 'done' })], closed: new Set(['Done']), staleDays: 14, today: '2026-11-26' });
+  } },
   { id: 'graph-uri', run: async () => {
     const { nodeUri, parseNodeUri } = await lib('lib/graph/uri.ts');
     const ids = ['T-1', 'a b', 'x/y', 'é', '%41', ''];

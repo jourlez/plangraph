@@ -14,7 +14,7 @@ export { CACHE_FILES, OBS_COLUMNS, obsProblem } from './obs.ts';
 
 export type FieldValue = string | number | boolean | null;
 export interface Observation { sys: string; xid: string; type: NodeType; fields: Readonly<Record<string, FieldValue>>; links: ReadonlyArray<{ rel: string; sys: string; xid: string }>; fp: string }
-export interface ProviderBatch { observations: Observation[]; warnings: string[]; dropped: number }
+interface ProviderBatch { observations: Observation[]; warnings: string[]; dropped: number }
 export interface GraphProvider {
   readonly sys: string; readonly schema: 1;
   /** How `plangraph import` reads a file for this provider: parsed JSON, or the text itself. */

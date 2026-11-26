@@ -6,8 +6,9 @@
 export function dominanceWeights(ranges: readonly number[]): number[] {
   const w = new Array<number>(ranges.length).fill(1);
   for (let i = ranges.length - 2; i >= 0; i--) {
-    if (!(ranges[i + 1] >= 0) || !Number.isInteger(ranges[i + 1])) throw new RangeError(`stage range ${i + 1} must be a non-negative integer`);
-    w[i] = w[i + 1] * (ranges[i + 1] + 1);
+    const nx = ranges[i + 1] as number;
+    if (!(nx >= 0) || !Number.isInteger(nx)) throw new RangeError(`stage range ${i + 1} must be a non-negative integer`);
+    w[i] = (w[i + 1] as number) * (nx + 1);
   }
   if (w.some((x) => !Number.isSafeInteger(x))) throw new RangeError('dominance weights exceed the safe integer range');
   return w;
@@ -17,7 +18,7 @@ export function dominanceWeights(ranges: readonly number[]): number[] {
 export interface Run { seed: number; wallS: number; objectives: readonly number[]; verified: boolean }
 export interface Verdict { keep: boolean; reason: string; medianBase: number; medianVariant: number }
 
-const median = (a: readonly number[]): number => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const median = (a: readonly number[]): number => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? (s[m] as number) : ((s[m - 1] as number) + (s[m] as number)) / 2; };
 
 /** Keep the variant only if, on every seed, it verifies and its objectives equal the baseline's, and its median wall time is lower. */
 export function keepVariant(base: readonly Run[], variant: readonly Run[]): Verdict {
@@ -28,7 +29,7 @@ export function keepVariant(base: readonly Run[], variant: readonly Run[]): Verd
     const v = variant.find((x) => x.seed === b.seed);
     if (!v) return out(false, `seed ${b.seed} missing from the variant`);
     if (!v.verified || !b.verified) return out(false, `seed ${b.seed}: a schedule failed verify`);
-    if (v.objectives.length !== b.objectives.length || v.objectives.some((x, i) => x !== b.objectives[i])) return out(false, `seed ${b.seed}: objectives differ`);
+    if (v.objectives.length !== b.objectives.length || v.objectives.some((x, i) => x !== (b.objectives[i] as number))) return out(false, `seed ${b.seed}: objectives differ`);
   }
   return mv < mb ? out(true, 'same results, faster') : out(false, 'not faster');
 }
@@ -36,6 +37,6 @@ export function keepVariant(base: readonly Run[], variant: readonly Run[]): Verd
 /** Structured neighborhoods win only when they beat random ones on the end-to-end objective in a majority of seeds (5 seeds in the spec). */
 export function neighborhoodWins(structured: readonly number[], random: readonly number[]): boolean {
   if (!structured.length || structured.length !== random.length) return false;
-  let w = 0, l = 0; structured.forEach((s, i) => { if (s < random[i]) w++; else if (s > random[i]) l++; });
+  let w = 0, l = 0; structured.forEach((s, i) => { const q = random[i] as number; if (s < q) w++; else if (s > q) l++; });
   return w > l && w * 2 > structured.length;
 }

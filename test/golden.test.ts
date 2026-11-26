@@ -94,6 +94,7 @@ const CASES: Case[] = [
   { name: 'neighbors', args: ['neighbors', 'T-12', '2'] }, { name: 'neighbors-json', args: J('neighbors', 'T-12', '2') },
   { name: 'chain', args: ['chain', 'T-30'] }, { name: 'chain-json', args: J('chain', 'T-30') },
   { name: 'graph', args: ['graph', 'T-12', '--depth', '2'] }, { name: 'graph-json', args: J('graph', 'T-12', '--depth', '2') }, { name: 'graph-uri-bad', args: ['graph', 'pg:ticket/%2e%2e'] },
+  { name: 'graph-materialize', args: ['graph-materialize'], files: ['.plangraph/people.jsonl', '.plangraph/sprints.jsonl', '.plangraph/epics.jsonl'] },
   { name: 'repo', args: ['repo'] }, { name: 'repo-badpath', args: ['repo', 'scan', 'nope'] },
   { name: 'sync-noarg', args: ['sync'] }, { name: 'import-noarg', args: ['import'] }, { name: 'import-unknown-sys', args: ['import', '--sys', 'nope', 'x.json'] },
   { name: 'sprint', args: ['sprint', '3'] }, { name: 'sprint-json', args: ['sprint', '3', '--json'] }, { name: 'sprint-verbose', args: ['sprint', '3', '-v'] },

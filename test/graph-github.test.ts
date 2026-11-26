@@ -27,7 +27,7 @@ test('github provider: PRs and keyed branches become observations with links to 
   const r = gh.normalize(input, opts);
   const byXid = new Map(r.observations.map((o) => [o.xid, o]));
   assert.deepEqual([...byXid.keys()].sort(), ['acme/web#12', 'acme/web#13', 'acme/web#14', 'acme/web:abc-205-cleanup']);
-  assert.equal(r.dropped, 1, 'the PR with a bad number');
+  assert.equal(r.dropped, 2, 'the PR with a bad number and the branch that is not a string');
   const pr = byXid.get('acme/web#12');
   assert.deepEqual([pr?.sys, pr?.type, pr?.fields.state], ['github:acme/web', 'x-github.pr', 'open']);
   assert.deepEqual(pr?.links, [{ rel: 'x-github/closes', sys: 'jira:acme', xid: 'ABC-101' }]);

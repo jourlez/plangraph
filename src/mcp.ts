@@ -16,7 +16,7 @@ export interface RunIO { out(line: string): void; err(line: string): void }
 export type Runner = (argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>; cwd: string }) => Promise<number>;
 type Id = string | number;
 
-export const SERVER_VERSION = '0.4.0';
+export const SERVER_VERSION = '0.5.0';
 /** Newest first. A requested version in this list is echoed; any other gets the first (the spec: answer the latest one we support). */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];
@@ -36,7 +36,7 @@ const PERSON = /^[\p{L}\p{N}][\p{L}\p{M}\p{N} ._'-]{0,79}$/u;
 const validPerson = (s: unknown): boolean => typeof s === 'string' && PERSON.test(s) && !s.endsWith(' ');
 const MAX_SPRINT = 100000;
 /** The `key` of the graph tool: a ticket key, or the canonical `pg:<type>/<id>` URI (a bare non-ticket id never reaches the command, so the
- * `materialize` subcommand, which writes, cannot be named). */
+ * `graph-materialize` command, which writes, is not a tool). */
 const validGraphKey = (k: unknown): boolean => validKey(k) || (typeof k === 'string' && parseNodeUri(k) !== null);
 const KNOWN_RELS: readonly string[] = [...RELATIONS, ...DERIVED_RELATIONS];
 const validRels = (v: unknown): v is string => typeof v === 'string' && v.length <= 400 && v.split(',').every((r) => KNOWN_RELS.includes(r) || EXT_REL_RE.test(r));
@@ -88,7 +88,7 @@ export function toolArgv(name: string, args: Record<string, unknown>): string[] 
   if (args.verbose === true) argv.push('-v');
   argv.push('--', (args.key as string)); // validKey checked it is a string
   // defense in depth: the dry-run guarantee does not rest on the allowlist above alone
-  if (argv.some((a) => a === '--write' || a.startsWith('--apply') || a === '--jira' || a === '--dir' || a === 'materialize')) throw new ArgError('refused');
+  if (argv.some((a) => a === '--write' || a.startsWith('--apply') || a === '--jira' || a === '--dir' || a === 'materialize' || a === 'graph-materialize')) throw new ArgError('refused');
   return argv;
 }
 
@@ -127,7 +127,7 @@ export function resourceArgv(uri: unknown): string[] | null {
   const [, kind, type, raw, query] = m;
   if (!isNodeType(type)) return null;
   let id: string;
-  try { id = decodeURIComponent(raw); } catch { return null; }
+  try { id = decodeURIComponent(raw as string); } catch { return null; }
   if (id.length === 0 || encodeURIComponent(id) !== raw || idProblem(id)) return null;
   let pg: string;
   try { pg = nodeUri(type, id); } catch { return null; }

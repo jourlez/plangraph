@@ -241,11 +241,11 @@ test('docs/MCP.md token table equals the benchmark output (bench-mcp --check), f
     const ok = run(real);
     assert.equal(ok.status, 0, `docs/MCP.md drifted: paste node test/bench-mcp.ts into it\n${ok.stderr.slice(0, 400)}`);
     const drifted = path.join(dir, 'MCP.md');
-    fs.writeFileSync(drifted, before.replace('| tool definitions (JSON of the 3 tools) |', '| tool definitions (JSON of the 3 tools) | 1 |'));
+    fs.writeFileSync(drifted, before.replace('| tool definitions (JSON of the 4 tools) |', '| tool definitions (JSON of the 4 tools) | 1 |'));
     const bad = run(drifted);
     assert.equal(bad.status, 1, 'a drifted table must fail the check');
     assert.match(bad.stderr, /stale/);
-    assert.equal(fs.readFileSync(drifted, 'utf8'), before.replace('| tool definitions (JSON of the 3 tools) |', '| tool definitions (JSON of the 3 tools) | 1 |'), 'check must not write');
+    assert.equal(fs.readFileSync(drifted, 'utf8'), before.replace('| tool definitions (JSON of the 4 tools) |', '| tool definitions (JSON of the 4 tools) | 1 |'), 'check must not write');
     assert.equal(fs.readFileSync(real, 'utf8'), before, 'check must not touch docs/MCP.md');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

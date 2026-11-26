@@ -372,6 +372,26 @@ test('an index with the v1 tables and no index_meta (the old bin/plangraph) open
   assert.throws(() => reach(h, T('A'), ['needs'], 1, false), (e) => e instanceof PlangraphError && e.code === 'STALE');
 });
 
+test('an index built by 0.4.0 (every table but obs, both views) opens as an older schema: stale, query-only, graph readers refuse it with STALE; one build repairs it', () => {
+  const p = plan({ 'tickets.jsonl': [tk('T-1'), tk('T-2')] });
+  { // make the 0.4.0 shape: no obs table, the digest taken over the 0.4.0 table list
+    const db = new DatabaseSync(p.file);
+    db.exec('DROP TABLE obs');
+    const prev = [...TABLES.values()].filter((t) => t.name !== 'obs');
+    const h = { prepare: (q: string) => db.prepare(q) } as unknown as Parameters<typeof contentDigest>[0];
+    const want = contentDigest(h, prev);
+    db.prepare('UPDATE index_meta SET v = ? WHERE k = ?').run(want, 'content_digest');
+    db.close();
+  }
+  using h = openIndex(p.file, { dir: path.dirname(p.file) });
+  assert.deepEqual([h.older, h.stale], [true, true]);
+  assert.equal((h.get('SELECT COUNT(*) n FROM ticket') as { n: number }).n, 2);
+  assert.throws(() => openIndex(p.file, { readOnly: false }), (e) => e instanceof PlangraphError && e.code === 'STALE');
+  assert.throws(() => graphReader(h, []), (e) => e instanceof PlangraphError && e.code === 'STALE');
+  buildIndex({ dir: path.dirname(p.file) });
+  assert.equal(openIndex(p.file, { dir: path.dirname(p.file) }).older, false);
+});
+
 // ---------- the exact views ----------
 const edit = (file: string, sql: string) => { const db = new DatabaseSync(file); try { db.exec(sql); } finally { db.close(); } };
 const refused = (file: string, dir: string) => assert.throws(() => openIndex(file, { dir }), (e) => e instanceof PlangraphError && e.code === 'DATA' && e.message === 'the index has an unexpected schema (not built by plangraph build)');

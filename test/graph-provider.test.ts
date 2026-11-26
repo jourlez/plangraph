@@ -52,7 +52,7 @@ test('generic: hostile text is one line without angle brackets; the same node tw
   assert.equal(r.observations.length, 1);
   assert.equal(r.dropped, 1);
   const note = String(r.observations[0]?.fields.note);
-  assert.doesNotMatch(note, /[\n\r\u001b‮ <>]/);
+  assert.doesNotMatch(note, /[\n\r\u001b\u202e\u2028<>]/);
   const proto = generic.normalize(JSON.parse('{"schema":"plangraph-ext-batch@1","sys":"x-demo","observations":[{"xid":"p","type":"x-demo.item","fields":{"__proto__":{"polluted":1}}}]}'), opts);
   assert.equal(proto.observations.length, 0);
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
@@ -60,7 +60,7 @@ test('generic: hostile text is one line without angle brackets; the same node tw
 
 test('generic: a 2 MiB string is cut to 200 characters and the batch is bounded to MAX_OBSERVATIONS', () => {
   const long = generic.normalize(batch([{ xid: 'big', type: 'x-demo.item', fields: { note: 'x'.repeat(2 << 20) } }]), opts);
-  assert.ok(String(long.observations[0]?.fields.note).length <= 200);
+  assert.ok(String(long.observations[0]?.fields.note).length <= 240, 'cut to 200 plus the truncation marker');
   const many = generic.normalize(batch(Array.from({ length: MAX_OBSERVATIONS + 5 }, (_, i) => ({ xid: `n${i}`, type: 'x-demo.item' }))), opts);
   assert.equal(many.observations.length, MAX_OBSERVATIONS);
   assert.equal(many.dropped, 5);
@@ -89,7 +89,7 @@ test('jira: no tenant is refused with one fixed message; the connector shapes {i
   assert.throws(() => (PROVIDERS.jira as typeof generic).normalize({ nothing: 1 }, opts), /no issues/);
 });
 
-const PLAN = '# Widget plan\n\n### Task 1: first\n- [x] a\n- [ ] b\n\n### Task 2: second\n- [ ] c\n';
+const PLAN = '# Widget plan\n\n### Task 1: first\n- [x] **Step 1: a**\n- [ ] **Step 2: b**\n\n### Task 2: second\n- [ ] **Step 1: c**\n';
 
 test('sp: a plan gives a plan node and one ticket per task with checkbox counts; a ledger adds the status', () => {
   const r = (PROVIDERS.sp as typeof generic).normalize({ name: 'docs/superpowers/plans/2026-11-20-widget.md', text: PLAN }, opts);

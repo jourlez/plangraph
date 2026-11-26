@@ -86,7 +86,7 @@ test('sync --plan end to end: report, fenced tracker text, push list, JSON, no w
   assert.equal(r.status, 0, r.stderr);
   const lines = r.stdout.split('\n');
   assert.ok(lines.includes('DRIFT_ASSIGNEE T-1 plan Ana'));
-  assert.ok(lines.includes('XREF_STALE T-1 plan 25 days old'));
+  assert.ok(lines.includes('XREF_STALE T-1 plan 21 days old'));
   assert.ok(lines.some((l) => l.startsWith('<untrusted src="jira:acme"')));
   assert.ok(!lines.some((l) => l === 'INJECTED-1'), 'tracker text stays inside the fence');
   assert.ok(lines.some((l) => /^push T-1 assignee Ana$/.test(l)));

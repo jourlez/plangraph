@@ -7,8 +7,8 @@
 // No signal, a low best, or a tie at the top gives `unknown`/`ask`, never a guess.
 import { globRe } from './repo.ts';
 
-export type Conf = 'high' | 'medium' | 'low';
-export interface RepoRef { id: string; name?: string; github?: readonly string[]; deps?: readonly string[]; paths?: ReadonlyArray<{ glob: string; sub: string }> }
+type Conf = 'high' | 'medium' | 'low';
+interface RepoRef { id: string; name?: string; github?: readonly string[]; deps?: readonly string[]; paths?: ReadonlyArray<{ glob: string; sub: string }> }
 export interface TouchInput {
   repos: readonly RepoRef[];
   explicit?: ReadonlyArray<{ repo: string; conf?: Conf; why?: string }>; // links.jsonl `touches` rows and `repo:<slug>` labels
@@ -18,13 +18,13 @@ export interface TouchInput {
   words?: readonly string[];                                               // title and label words for keyword overlap
   paths?: readonly string[];                                               // repo-relative paths or globs the ticket names
 }
-export interface Touch { repo: string; sub?: string; conf: Conf; why: string; possible?: boolean }
-export type Verdict = 'touched' | 'ask' | 'unknown';
+interface Touch { repo: string; sub?: string; conf: Conf; why: string; possible?: boolean }
+type Verdict = 'touched' | 'ask' | 'unknown';
 export interface TouchResult { verdict: Verdict; touches: Touch[] }
 
 const RANK: Record<Conf, number> = { high: 3, medium: 2, low: 1 };
 const MAX_WHY = 60, CLOSURE_DEPTH = 3;
-export const nodeId = (t: Pick<Touch, 'repo' | 'sub'>): string => (t.sub === undefined ? t.repo : `${t.repo}#${t.sub}`);
+const nodeId = (t: Pick<Touch, 'repo' | 'sub'>): string => (t.sub === undefined ? t.repo : `${t.repo}#${t.sub}`);
 
 /** The monorepo sub-units a path names: the `paths` globs it falls under, most specific (longest glob) only. A ticket path `packages/web/**` names the directory. */
 export function subsFor(paths: ReadonlyArray<{ glob: string; sub: string }> | undefined, named: readonly string[]): string[] {

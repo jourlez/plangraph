@@ -7,9 +7,9 @@ import { oneLine } from '../sanitize.ts';
 import { sysOk, xidOk } from './files.ts';
 import type { FieldValue } from './provider.ts';
 
-export const MAX_KEYS = 5;
+const MAX_KEYS = 5;
 const REPO_RE = /^[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/;
-const KEY_RE = /(?<![A-Za-z0-9])([A-Za-z][A-Za-z0-9]{1,9})-(\d{1,7})(?![0-9])/g;
+const KEY_RE = /(?<![A-Za-z0-9])([A-Za-z][A-Za-z0-9]{1,9})-(\d{1,7})(?![A-Za-z0-9])/g;
 const STATES = new Set(['open', 'closed', 'merged']);
 const isObj = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x);
 
@@ -25,7 +25,7 @@ export function ticketKeys(text: string, projects: ReadonlySet<string> | null): 
   return out;
 }
 
-export interface RawObservation { xid: string; type: 'x-github.pr' | 'x-github.branch'; fields: Record<string, FieldValue>; links: Array<{ rel: string; sys: string; xid: string }> }
+interface RawObservation { xid: string; type: 'x-github.pr' | 'x-github.branch'; fields: Record<string, FieldValue>; links: Array<{ rel: string; sys: string; xid: string }> }
 export interface GithubRead { sys: string; observations: RawObservation[]; warnings: string[]; dropped: number }
 
 /** Normalize one GitHub input. Throws on a wrong top-level shape; a bad entry is dropped and counted. */

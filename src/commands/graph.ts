@@ -2,7 +2,7 @@
 // with its relation path (breadth first, shortest path, `current` schedule version only). KEY is a raw id or a `pg:<type>/<id>` URI. Ids are
 // untrusted text: a ticket key prints through oneLine, every other id inside a fence (an xref under its system's name). The answer stays
 // under about 250 tokens by default; what is left out is counted on a last line, `-v` lifts the cap.
-// plangraph graph materialize: appends the people, sprints and epics that the v1 files name (schedule owners and sprints, ticket epics) and that
+// plangraph graph-materialize (the only writer of this file; `graph` itself is read-only): appends the people, sprints and epics that the v1 files name (schedule owners and sprints, ticket epics) and that
 // have no row in people.jsonl, sprints.jsonl or epics.jsonl, one bare row each (decision D23: no format bump, no v1 file written, idempotent).
 import path from 'node:path';
 import { oneLine } from '../../lib/sanitize.ts';
@@ -66,7 +66,6 @@ function materialize(ctx: Ctx): number {
 }
 
 async function graph(ctx: Ctx, args: Args<Values>): Promise<number> {
-  if (args.positionals[0] === 'materialize') return materialize(ctx); // a ticket with that exact key is asked as pg:ticket/materialize
   const raw = args.positionals[0] as string, v = args.values, out = ctx.io.out;
   const depth = v.depth ?? 1;
   if (!Number.isInteger(depth) || depth < 1 || depth > GRAPH_MAX_DEPTH) throw usage(`--depth must be a whole number from 1 to ${GRAPH_MAX_DEPTH}`);
@@ -114,7 +113,11 @@ async function graph(ctx: Ctx, args: Args<Values>): Promise<number> {
 const B = { type: 'boolean' };
 export const commands: CommandMap = {
   graph: {
-    run: graph as never, positionals: [1, 1], writes: 'text', guard: 'strict', options: { rel: { type: 'string' }, depth: { type: 'integer' }, reverse: B, type: { type: 'string' } },
-    summary: 'KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only; `graph materialize` appends the people, sprints and epics the v1 files name to their node files (idempotent)',
+    run: graph as never, positionals: [1, 1], writes: 'none', guard: 'soft', options: { rel: { type: 'string' }, depth: { type: 'integer' }, reverse: B, type: { type: 'string' } },
+    summary: 'KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only',
+  },
+  'graph-materialize': {
+    run: materialize as never, positionals: [0, 0], writes: 'text', guard: 'strict',
+    summary: 'append the people, sprints and epics the v1 files name to their node files, one bare row each (idempotent; decision D23)',
   },
 };

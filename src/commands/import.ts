@@ -34,9 +34,9 @@ function ignoreCache(ctx: Ctx): void {
 async function importCmd(ctx: Ctx, args: Args<{ sys?: string; tenant?: string; ledger?: string }>): Promise<number> {
   const { providerOf, MAX_INPUT_BYTES, MAX_OBSERVATIONS, CACHE_FILES, OBS_COLUMNS, obsProblem } = await import('../../lib/graph/provider.ts');
   const v = args.values, files = args.positionals;
-  if (!v.sys || !files.length) throw usage('usage: plangraph import --sys jira|sp|generic FILE... [--tenant ALIAS] [--ledger FILE]');
+  if (!v.sys || !files.length) throw usage('usage: plangraph import --sys jira|sp|generic|github FILE... [--tenant ALIAS] [--ledger FILE]');
   const provider = providerOf(v.sys);
-  if (!provider) throw usage(`unknown provider ${oneLine(v.sys, 40)}; known: generic, jira, sp`);
+  if (!provider) throw usage(`unknown provider ${oneLine(v.sys, 40)}; known: generic, github, jira, sp`);
   if (v.ledger !== undefined && (v.sys !== 'sp' || files.length !== 1)) throw usage('--ledger goes with --sys sp and exactly one plan file');
   needBrain(ctx);
   const cfgTenant = (ctx.config() as { jira?: { tenant?: unknown } }).jira?.tenant;
@@ -98,6 +98,6 @@ export const commands: CommandMap = {
   import: {
     run: importCmd as never, positionals: [0, Infinity], writes: 'text', guard: 'soft',
     options: { sys: S, tenant: S, ledger: S },
-    summary: '--sys jira|sp|generic FILE... [--tenant ALIAS] [--ledger FILE]: saved tool output to observations in the git-ignored cache (advisory; never writes plan files)',
+    summary: '--sys jira|sp|generic|github FILE... [--tenant ALIAS] [--ledger FILE]: saved tool output to observations in the git-ignored cache (advisory; never writes plan files)',
   },
 };

@@ -1,5 +1,5 @@
 $ plangraph whatif T-9 --sprint 4 --json
 exit: 1
 --- stdout
-{"v":2,"cmd":"whatif","ok":false,"exit":1,"data":{"key":"T-9","ok":false,"to":{"owner":"Ben","sprint":4},"reasons":[{"code":"CONSUMER_EARLY","key":"T-22","detail":"S2 Cleo, needs S5","fix":"move T-22 to S5+ or T-9 to <=S1"},{"code":"CONSUMER_EARLY","key":"T-31","detail":"S4 Cleo, needs S5","fix":"move T-31 to S5+ or T-9 to <=S3"}],"more":0,"ripple":5,"suggestion":{"owner":"Ben","sprint":4,"shifts":4,"ownerChanges":0}},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["plangraph whatif T-9 --sprint 4 --slip --apply-plan","plangraph ticket T-9 -v"]}
+{"v":2,"cmd":"whatif","ok":false,"exit":1,"data":{"key":"T-9","ok":false,"to":{"owner":"Ben","sprint":4},"reasons":[{"code":"BLOCKED","key":"T-9","detail":"open export_clash","fix":"clear it first, or move it knowingly","warn":true},{"code":"CONSUMER_EARLY","key":"T-22","detail":"S2 Cleo, needs S5","fix":"move T-22 to S5+ or T-9 to <=S1"},{"code":"CONSUMER_EARLY","key":"T-31","detail":"S4 Cleo, needs S5","fix":"move T-31 to S5+ or T-9 to <=S3"}],"more":0,"ripple":5,"suggestion":{"owner":"Ben","sprint":4,"shifts":4,"ownerChanges":0}},"fresh":{"fp":"0512544c","built":"0512544c"},"next":["plangraph whatif T-9 --sprint 4 --slip --apply-plan","plangraph ticket T-9 -v"]}
 --- stderr

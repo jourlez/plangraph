@@ -3,15 +3,15 @@
 // observation is the authority for status, real assignee and real sprint. A finding is advisory: nothing here writes a file.
 // Codes: DRIFT_ASSIGNEE, DRIFT_SPRINT, DRIFT_DONE, DRIFT_LINK, XREF_STALE, XREF_ORPHAN. The same input gives the same findings in the same order.
 
-export const DRIFT_CODES = Object.freeze(['DRIFT_ASSIGNEE', 'DRIFT_SPRINT', 'DRIFT_DONE', 'DRIFT_LINK', 'XREF_STALE', 'XREF_ORPHAN'] as const);
-export type DriftCode = (typeof DRIFT_CODES)[number];
+const DRIFT_CODES = Object.freeze(['DRIFT_ASSIGNEE', 'DRIFT_SPRINT', 'DRIFT_DONE', 'DRIFT_LINK', 'XREF_STALE', 'XREF_ORPHAN'] as const);
+type DriftCode = (typeof DRIFT_CODES)[number];
 export const DEFAULT_STALE_DAYS = 14;
 
-export interface DriftTicket { key: string; jira_status?: unknown; impl_status?: unknown }
-export interface DriftSchedule { key: string; owner?: unknown; sprint?: unknown }
-export interface DriftEdge { consumer: string; producer: string }
-export interface DriftXref { type: string; id: string; sys: string; xid: string }
-export interface DriftObs { sys: string; xid: string; type: string; fields: unknown; links: unknown; seen: string }
+interface DriftTicket { key: string; jira_status?: unknown; impl_status?: unknown }
+interface DriftSchedule { key: string; owner?: unknown; sprint?: unknown }
+interface DriftEdge { consumer: string; producer: string }
+interface DriftXref { type: string; id: string; sys: string; xid: string }
+interface DriftObs { sys: string; xid: string; type: string; fields: unknown; links: unknown; seen: string }
 export interface DriftInput {
   tickets: readonly DriftTicket[]; /** rows of the `current` schedule version only */ schedule: readonly DriftSchedule[];
   edges: readonly DriftEdge[]; xrefs: readonly DriftXref[]; obs: readonly DriftObs[];
@@ -32,7 +32,7 @@ const linksOf = (o: DriftObs): Array<{ rel: string; sys: string; xid: string }> 
 const str = (v: unknown): string => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
 const lc = (v: unknown): string => str(v).toLowerCase();
 /** Whole days from `a` to `b` (YYYY-MM-DD each); NaN when either is not a date. */
-export function daysBetween(a: string, b: string): number { return Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000); }
+function daysBetween(a: string, b: string): number { return Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000); }
 const sysName = (s: string): string => (s.includes(':') ? s.slice(0, s.indexOf(':')) : s);
 /** Providers whose observation id is the plan ticket key itself (`jira:<alias>` and `sp`). */
 const DIRECT = new Set(['jira', 'sp']);
