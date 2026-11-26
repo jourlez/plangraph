@@ -1,0 +1,6 @@
+$ plangraph resolve
+exit: 1
+--- stdout
+left nodes/ticket/ab/x~00000000.pg: field owner (line 2) needs a person
+resolve: 0 resolved, 1 left for a person
+--- stderr
