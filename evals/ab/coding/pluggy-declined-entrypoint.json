@@ -2,7 +2,7 @@
   "id": "pluggy-declined-entrypoint",
   "repo": "https://github.com/pytest-dev/pluggy",
   "commit": "0224f79fc75efadaafe24dbab9deee2ff616ecd7",
-  "task": "PluginManager.load_setuptools_entrypoints tracks distributions for entry point plugins that were declined (registration returned nothing), so they show up as loaded. Fix the tracking so declined plugins are not recorded.",
+  "task": "A plugin manager loads plugins from setuptools entry points, and a plugin can decline registration (register() returns None, for example a blocked name or a subclass that refuses it). After load_setuptools_entrypoints, such declined plugins still show up as loaded: the count includes them and the distribution list reports them, even though they were never registered. Declined plugins should not appear as loaded or be counted.",
   "hiddenTests": {
     "fromCommit": "4d6b10d28b7af1b0a64e19cd2a709d519f2e06f4",
     "files": [
@@ -11,5 +11,11 @@
     "command": "python -m pytest -x -q testing/test_pluginmanager.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12 .venv",
+    "uv pip install --python .venv/bin/python -e . pytest setuptools",
+    "# run with: env -i PATH=<clone>/.venv/bin:/usr/bin:/bin HOME=<tmpdir> <hiddenTests.command>"
+  ],
+  "timeoutSec": 120
 }
