@@ -54,7 +54,7 @@ eval plan), so other servers do not skew the token counts.
 | `graph` | `key`, `rel`, `depth`, `reverse`, `verbose` | `plangraph graph KEY [--rel R,..] [--depth N] [--reverse] [-v]` |
 
 `graph`: `key` is a ticket key or a canonical `pg:<type>/<id>` URI (a bare id of another node type must be given as the URI; this also
-keeps the writing `graph materialize` subcommand out of reach). `rel` is known relation names, comma separated; `depth` is 1 to 20.
+keeps the writing `graph-materialize` command out of reach). `rel` is known relation names, comma separated; `depth` is 1 to 20.
 The result carries the command's text, then `structuredContent` (the `--json` data of the same call, at most 50 nodes, 500 with
 `verbose`) and up to 10 `resource_link` entries (`plangraph://node/...`) for the nodes reached. When the second run does not give the
 envelope, the text stands alone.
@@ -172,8 +172,8 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | 15 | ticket {"key":"T-1200"} | 318 | 318 | yes | 413 | 95 | 79 | 103 |
 | 21 | ticket {"key":"T-20"} | 296 | 296 | yes | 391 | 95 | 74 | 98 |
 | 22 | ticket {"key":"T-99999"} | 95 | 95 | yes | 186 | 91 | 24 | 47 |
-| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 530 | 530 | yes | 621 | 91 | 133 | 156 |
-| | total | 2071 | | | 2638 | 567 | | |
+| whatif (no bench question) | whatif {"key":"T-700","sprint":3} | 569 | 569 | yes | 660 | 91 | 143 | 165 |
+| | total | 2110 | | | 2677 | 567 | | |
 <!-- MCP-BENCH:END -->
 
 Reading it:

@@ -376,7 +376,8 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph sync` | read-only drift report between the plan files and the observation cache (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) plus a tracker push list; `config.graph.stale_days` (default 14) | `--plan` | none |
 | `plangraph findings` | finding counts by kind, or the findings of one kind | `[KIND]` | none |
 | `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
-| `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |
+| `plangraph graph-materialize` | append the people, sprints and epics the v1 files name to `people.jsonl`, `sprints.jsonl` and `epics.jsonl`, one bare row each; idempotent, writes no v1 file | none | text |
+| `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic\|github`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the merge driver | | text, git config |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
@@ -396,7 +397,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph schedule-load` | keep the current plan under an archive name and load a new schedule (refuses to move a frozen ticket) | `FILE NAME` | index |
 | `plangraph simulate` | Monte Carlo of the plan with noisy ticket sizes | `--runs N`, `--sigma X`, `--seed N`, `--limit N` | none |
 | `plangraph sp-ingest` | superpowers plan and ledger to tickets, edges, findings and refs (read-only on superpowers files) | `PLAN`, `--ledger FILE\|none`, `--owner NAME --sprint N` | text |
-| `plangraph sp-link` | point a ticket at superpowers plan tasks | `TICKET PLAN`, `--tasks 1,3` | text |
+| `plangraph sp-link` | point a ticket at superpowers plan tasks | `TICKET PLAN`, `--tasks 1,3`; `sp:SLUG/N --track ABC-123` records the Jira ticket it tracks | text |
 | `plangraph sprint` | load per person in one sprint | `N` | none |
 | `plangraph stale` | which verdicts no longer match their inputs | `--list`, `--ref R`, `--jira SNAPSHOT`, `--full` | none |
 | `plangraph ticket` | one ticket: size, status, verdict, placement, needs, findings, evidence | `KEY` (`-v` for detail) | none |
