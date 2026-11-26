@@ -374,6 +374,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph explain` | what each command does, from the registry | `[COMMAND]`, `--json` | none |
 | `plangraph export` | index to canonical text (refuses a stale index) | | text |
 | `plangraph findings` | finding counts by kind, or the findings of one kind | `[KIND]` | none |
+| `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the merge driver | | text, git config |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |

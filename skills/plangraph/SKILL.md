@@ -1,7 +1,7 @@
 ---
 name: plangraph
 description: Route planning work in a project with plangraph by detecting the companion tools, then following the ordered steps for onboarding, planning, replanning, reassigning, reporting or handoff, and by answering questions from the plan graph (tickets, owners, sprints, dependencies, readiness verdicts, learnings) with one terse command instead of reading plan files. Use when the owner asks who owns a ticket, what sprint it is in, whether it can start, what blocks it, what a move or reassignment would break, capacity, a report or a handoff, or before spending tokens on planning agents. Not for writing code or editing Jira.
-allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line), mcp__*Atlassian*__getJiraIssue, mcp__*Atlassian*__searchJiraIssuesUsingJql
+allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph graph:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line), mcp__*Atlassian*__getJiraIssue, mcp__*Atlassian*__searchJiraIssuesUsingJql
 ---
 
 # Plangraph
@@ -56,6 +56,7 @@ plangraph whatif --relieve "Name" --sprint N   smallest valid moves that bring t
 plangraph ticket KEY            verdict, owner, sprint, needs, evidence
 plangraph neighbors KEY 2       what it needs and what needs it
 plangraph chain KEY             longest chain behind it: hops, handoffs, critical paths
+plangraph graph KEY [--rel R] [--depth N] [--reverse] [--type T]   nodes reachable from a key (id or pg: URI) with their relation path
 plangraph sprint N | person "Name" | blockers | findings [kind] | rules [topic]
 plangraph check                 strict handoff rule, caps, loops, unplaced tickets (exit 1 on a violation, for CI)
 plangraph verify [schedule.json]   independent plan verifier

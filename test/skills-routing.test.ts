@@ -136,7 +136,7 @@ test('the superpowers guard itself rejects an automatic call (self-check of the 
 
 test('allowed-tools lists only read-only Bash(plangraph ...) patterns and named connector globs', () => {
   const APPROVED_BRAIN = new Set([
-    ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale'].map((c) => `Bash(plangraph ${c}:*)`),
+    ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale', 'graph'].map((c) => `Bash(plangraph ${c}:*)`),
     'Bash(plangraph doctor)', 'Bash(plangraph blockers)', 'Bash(plangraph check)', 'Bash(plangraph forecast)', 'Bash(plangraph open-items)', 'Bash(plangraph card --line)',
   ]);
   for (const n of names) {
