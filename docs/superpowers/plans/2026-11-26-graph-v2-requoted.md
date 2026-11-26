@@ -250,3 +250,18 @@ Notes: `test/json-envelope.test.ts` and `test/hostile-fuzz.test.ts` are edited b
 10. `specified_by` (plan to doc) is not derivable from the epic's `refs` row alone: `sp-ingest` writes the spec into the epic row's `files` with `plans: []` (`superpowers.ts:559`), and the plan path lives on the task rows. Recommended: derive plan P of an epic E from the tickets whose `epic = E` and whose `refs.plans` hold P, and the doc from `refs.files` keys of the row whose ticket key is E; an epic with no task row has no `specified_by` edge.
 11. `DOUBLE_PLACED_WORK` (Task 3, 0.4.0) refers to `sp-link --track`, which is Task 13 of 0.5.0, and the implicit default Jira alias of 3.2 has no source in this tree (`config.json` has only `jira: { base_url, jql }`). Recommended: in 0.4.0 the warning fires only on explicit `xrefs.jsonl` rows (`tracked_by`) and its fix line says "keep one of the two placed", naming no future command; implicit references stay documentation until the 0.5.0 import.
 12. Task 2 requires `npm run lint:py` at zero findings, but `package.json` has no `lint:py` script (0.3.0 Task 15 is not in this tree). Recommended: Task 2 keeps the existing Python style, runs `python3 -m py_compile bin/plangraph-solve` and its tests, and applies the ruff gate only if that script exists when the task starts.
+
+## 9. Controller rulings on the open items (2026-11-26; binding)
+
+1. No `v0.3.0` tag exists until the 0.3.0 release merges. Task 1 and every mixed-version test start from the 0.3.0 release commit (the squash commit on `main`); the freeze script takes that revision. Graph work does not start before it.
+2. `.baseline/pre-040` is captured from that same release tree in the same controller step.
+3. Seven graph files after 0.4.0: people, sprints, epics, repos, capacity, links, xrefs (no `plantasks.jsonl`). `GRAPH_SRC_FILES` follows that list; the amendment's "6 to 7" is read as "seven files".
+4. `g_nodes` stays a view over indexed data; open-item nodes and `held_by` edges are added in `graphReader` in TypeScript.
+5. Task 2A is dropped (`checkFormat` already has a read mode). Old Task 8 becomes `plangraph graph materialize` (0.5.0, no format bump) per the amendment.
+6. Use the current config file names (`biome.json`, `knip.json`) when excluding the frozen fixture.
+7. D23, D24 and D25 are recorded in `PENDING_DECISIONS.md` before any commit cites them.
+8. `REL_SEMANTICS` is declared in `lib/graph/files.ts`; Task 4 asserts it and the reader rule.
+9. Relations: hand-authored (stored in `links.jsonl`) = `relates_to`, `depends_on`, `touches`; derived = `needs`, `assigned_to`, `scheduled_in`, `belongs_to`, `implements`, `held_by`, `part_of`, `specified_by`, `tracked_by`, `owned_by`. The repo-to-system edge is dropped (no `system` type). Decision D18's recorded answer is widened accordingly.
+10. `specified_by` is derived from the epic's task rows (plan) and the epic row's `files` (doc); `plans: []` in the epic row is not a source.
+11. `DOUBLE_PLACED_WORK` fires in 0.4.0 only on explicit `xrefs.jsonl` rows; its fix line names no future command.
+12. Task 2 uses `python3 -m py_compile` plus the solver tests; ruff only if a `lint:py` script exists when it starts.

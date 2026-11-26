@@ -169,3 +169,17 @@ Rule (the same as the plans' Global Constraints and Definition of done): the pla
 - Cost if overruled: the launcher runs `uv python install` itself, which on uv 0.8.8 also writes executables into `~/.local/bin` (measured), or passes an unpinned interpreter request, which brings back the repository-chosen interpreter.
 - Tasks: 0.3.0 Task 0 (0.2.4), Task 12 (keeps it).
 - Decided 2026-11-24: refuse (exit 3), the recommendation, shipped in 0.2.4 (`da30467`, published with the owner's go-ahead). An overruling answer later becomes a 0.3.0 change in Task 12.
+
+## Decided 2026-11-25 to 2026-11-26 (graph amendment and revised plan)
+
+### D23: Hard rename to plangraph
+- Decided: every command, variable, folder, keychain service, merge driver and skill is named plangraph; one explicit `plangraph migrate-names` moves existing state; no fallback code.
+
+### D24: External reference scheme
+- Decided: xref `sys` grammar as in the graph amendment section 3.2; no URLs, account ids or emails are committed; people hold at most a display name and a tracker alias reference.
+
+### D25: MCP resources in 0.5.0
+- Decided: resource templates and read only, a `graph` tool, no subscriptions (0.6.0); conformance with MCP 2026-07-28 while answering older clients.
+
+### D18 (widened)
+- Decided: hand-authored links in `links.jsonl` are `relates_to`, `depends_on` and `touches`; all other relations are derived.
