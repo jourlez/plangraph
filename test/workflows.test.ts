@@ -135,7 +135,14 @@ test('ci.yml: the slow job runs the no-coverage group with uv, smoke first, with
 });
 
 // unit, macos and compat run test/types.test.ts, which runs tsc from node_modules, so they install the locked dev tools too (lifecycle scripts off).
-test('ci.yml: npm ci runs in static, unit, macos and compat only, always with the npm cache (the three test jobs: lockfile-exact, no scripts)', () => {
+test('ci.yml: the slow job also runs the timing group alone and serially, after the other groups, on one Python leg', () => {
+  const s = job(read('workflows', 'ci.yml'), 'slow');
+  assert.ok(s.indexOf('ci-tests.ts nocoverage') < s.indexOf('ci-tests.ts timing'), 'timing runs last');
+  assert.match(s, /^ {8}if: matrix\.python == '3\.14'\n {8}run: \|\n {10}files=\$\(node scripts\/ci-tests\.ts timing\)\n {10}test -n "\$files"\n(?: {10}#.*\n)? {10}node --test --test-concurrency=1 \$files$/m);
+  assert.ok(!/run: npm ci/.test(s));
+});
+
+// unit, macos and compat run test/types.test.ts' + '\ntest('ci.yml: npm ci runs in static, unit, macos and compat only, always with the npm cache (the three test jobs: lockfile-exact, no scripts)', () => {
   const t = read('workflows', 'ci.yml');
   const install = new Set(['static', 'unit', 'macos', 'compat']);
   for (const name of jobNames(t)) {

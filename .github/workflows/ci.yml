@@ -87,6 +87,13 @@ jobs:
           test -n "$files"
           # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
           node --test $files
+      - name: timing group (size-ratio tests, run alone and serially so parallel load cannot fail them; no coverage and no npm ci because they read no node_modules)
+        if: matrix.python == '3.14'
+        run: |
+          files=$(node scripts/ci-tests.ts timing)
+          test -n "$files"
+          # shellcheck disable=SC2086 # the list is split on purpose: one argument per test file (no spaces in test file names)
+          node --test --test-concurrency=1 $files
   static:
     name: typecheck, lint, knip, shellcheck, actionlint, package contents, plugin layout
     runs-on: ubuntu-24.04
