@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { tokenize, mutantsFor, applyMutant, parseArgs, select, testMap, importsOf, checkEquivalents, isEquivalent, mutantId } from '../scripts/mutate-all.ts';
+import { spawnSync } from 'node:child_process';
+import { tokenize, mutantsFor, applyMutant, parseArgs, select, testMap, importsOf, checkEquivalents, isEquivalent, mutantId, isSource, makeCopy, scoreOf, timeoutsOf, tailLines, redReport } from '../scripts/mutate-all.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
 /** @param {string} src */
@@ -141,4 +142,66 @@ test('equivalents allowlist: shape is checked, matching is on file plus original
   assert.equal(isEquivalent({ ...m, file: 'y.mjs' }, list), false);
   const real = checkEquivalents(JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/mutate/equivalent.json'), 'utf8')));
   for (const e of real) assert.ok(e.why.length >= 20 && !e.why.includes('\n'), `${e.file}: a one-line justification is required`);
+});
+
+// ---------------------------------------------------------------- runner behaviour (Task 22A)
+const run = (cwd: string, args: string[], cmd = process.execPath) => spawnSync(cmd, args, { cwd, encoding: 'utf8', maxBuffer: 1 << 26 });
+/** a tiny git repository holding the runner, one library file and the given test files @param {Record<string, string>} tests */
+function fixtureRepo(tests: Record<string, string>) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mutate-fixture-'));
+  const put = (f: string, text: string) => { fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true }); fs.writeFileSync(path.join(dir, f), text); };
+  put('scripts/mutate-all.ts', fs.readFileSync(path.join(ROOT, 'scripts/mutate-all.ts'), 'utf8'));
+  put('scripts/mutate/equivalent.json', '[]\n');
+  put('package.json', '{"type":"module"}\n');
+  put('lib/a.ts', 'export const f = (x: number): number => x + 1;\n');
+  for (const [f, t] of Object.entries(tests)) put(`test/${f}`, t);
+  run(dir, ['init', '-q'], 'git'); run(dir, ['add', '-A'], 'git');
+  return dir;
+}
+const head = "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { f } from '../lib/a.ts';\n";
+
+test('isSource accepts src/entry.js, src/merge-entry.js and src/floor.js, still refuses lib/x.js', () => {
+  for (const f of ['src/entry.js', 'src/merge-entry.js', 'src/floor.js', 'lib/x.ts']) assert.equal(isSource(f), true, f);
+  for (const f of ['lib/x.js', 'src/other.js', 'src/sub/entry.js', 'entry.js']) assert.equal(isSource(f), false, f);
+});
+
+test('a red baseline names the failing test file and prints its not-ok block', () => {
+  const dir = fixtureRepo({ 'a.test.ts': `${head}test('boom-marker', () => assert.equal(f(1), 99));\n`, 'b.test.ts': `${head}test('fine', () => assert.equal(f(1), 2));\n` });
+  try {
+    const r = run(dir, ['scripts/mutate-all.ts', '--files', 'lib/a.ts', '--fresh', '--state', path.join(dir, '.state')]);
+    assert.match(r.stdout, /RED BASELINE test\/a\.test\.ts/);
+    assert.match(r.stdout, /\| not ok 1 - boom-marker/);
+    assert.doesNotMatch(r.stdout, /RED BASELINE test\/b\.test\.ts/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('every test file passes in a mutation copy: the copy is a git repository that lists its files and not node_modules', () => {
+  const dir = fixtureRepo({ 'g.test.ts': `${head}import { execFileSync } from 'node:child_process';\ntest('git ls-files works', () => {\n  const files = execFileSync('git', ['ls-files'], { cwd: import.meta.dirname + '/..', encoding: 'utf8' }).split('\\n');\n  assert.ok(files.includes('lib/a.ts'));\n  assert.equal(f(1), 2);\n});\n` });
+  fs.mkdirSync(path.join(dir, 'node_modules'));
+  try {
+    const dest = path.join(dir, '.copy');
+    makeCopy(dir, ['lib/a.ts', 'test/g.test.ts', 'package.json'], dest);
+    const ls = run(dest, ['ls-files'], 'git');
+    assert.deepEqual(ls.stdout.split('\n').filter(Boolean).sort(), ['lib/a.ts', 'package.json', 'test/g.test.ts']);
+    assert.ok(fs.statSync(path.join(dest, '.git', 'no-hooks')).isDirectory());
+    assert.equal(run(dest, ['config', 'core.hooksPath'], 'git').stdout.trim(), path.join(dest, '.git', 'no-hooks'));
+    const r = run(dir, ['scripts/mutate-all.ts', '--files', 'lib/a.ts', '--fresh', '--state', path.join(dir, '.state')]);
+    assert.doesNotMatch(r.stdout, /RED BASELINE/);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a timeout is not a kill: listed apart and left out of the score', () => {
+  const row = { mutants: 10, killed: 6, timeout: 2, equivalent: 0, invalid: 0 };
+  assert.equal(scoreOf(row), 75, '6 killed of 8 decided');
+  assert.equal(scoreOf({ ...row, killed: 0, timeout: 10 }), 100, 'nothing decided scores like an empty file');
+  const ms = [{ file: 'lib/a.ts', line: 3, op: 'relational' }, { file: 'lib/a.ts', line: 4, op: 'return' }];
+  assert.deepEqual(timeoutsOf(ms, [{ status: 'killed' }, { status: 'timeout' }]), [{ file: 'lib/a.ts', line: 4, op: 'return' }]);
+  assert.deepEqual(timeoutsOf(ms, [{ status: 'killed' }, { status: 'survived' }]), []);
+});
+
+test('tailLines and redReport keep the last lines and name the file', () => {
+  assert.equal(tailLines('a\nb\nc\n', 2), 'b\nc');
+  assert.deepEqual(redReport([['test/x.test.ts', 'not ok 1\n  boom']]), ['RED BASELINE test/x.test.ts: fails on the unmutated copy, left out of the mapping', '  | not ok 1', '  |   boom']);
+  assert.match(redReport([['test/y.test.ts', undefined]])[1], /no output kept/);
 });

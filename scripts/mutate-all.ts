@@ -1,8 +1,8 @@
 // Whole-library mutation testing, zero dependencies. A small tokenizer (strings, templates, comments, regex literals, numbers, names,
 // punctuators) finds mutation points in each target file; every mutant is applied to a temporary COPY of the repository (never the working
 // tree), syntax-checked with `node --check` (a mutant that does not parse is "invalid" and left out of the score), then the test files mapped
-// to that file run against it. A failing test kills the mutant; a run past the per-mutant timeout also counts as killed and is shown in its
-// own "timeout" column. Surviving mutants that a person reviewed as equivalent are listed with a reason in scripts/mutate/equivalent.json.
+// to that file run against it. A failing test kills the mutant; a run past the per-mutant timeout is neither killed nor survived: it is
+// listed apart (TIMEOUT lines, "timeouts" in --json) and left out of the score. Surviving mutants that a person reviewed as equivalent are listed with a reason in scripts/mutate/equivalent.json.
 //
 // Operators: relational (< <= > >= == != === !==), arithmetic (+ - * / % += -= *= /= ++ --), logical (&& || and removing a unary !),
 // boolean literals (true/false), conditional negation (if/while condition wrapped in !( )), return-value replacement (null, or 0 for
@@ -30,12 +30,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'lib/jira/*', 'src/*', 'src/commands/*', 'mcp/*'];
-/** a source file whatever its extension during the .mjs to .ts migration; src/floor.js is the one plain .js file (the Node floor guard) @param {string} f */
-export const isSource = (f: string) => /\.(mjs|ts)$/.test(f) || f === 'src/floor.js';
+/** the plain .js files that are mutated: the Node floor guard and the two launcher entry files */
+const PLAIN_JS = new Set(['src/floor.js', 'src/entry.js', 'src/merge-entry.js']);
+/** a source file whatever its extension during the .mjs to .ts migration; PLAIN_JS lists the plain .js files that count @param {string} f */
+export const isSource = (f: string) => /\.(mjs|ts)$/.test(f) || PLAIN_JS.has(f);
 /** a test file whatever its extension @param {string} f */
 const isTestFile = (f: string) => /^test\/[^/]+\.test\.(mjs|ts)$/.test(f);
 // Test files never used: the solver test needs Python and OR-Tools, the bench files are not tests.
@@ -397,9 +400,15 @@ function repoFiles(root: string) {
   return r.stdout.split('\0').filter((f) => f && fs.existsSync(path.join(root, f)) && fs.lstatSync(path.join(root, f)).isFile());
 }
 /** @param {string} root @param {string[]} files @param {string} dest */
-function makeCopy(root: string, files: string[], dest: string) {
+export function makeCopy(root: string, files: string[], dest: string) {
   fs.rmSync(dest, { recursive: true, force: true });
   for (const f of files) { fs.mkdirSync(path.dirname(path.join(dest, f)), { recursive: true }); fs.copyFileSync(path.join(root, f), path.join(dest, f)); fs.chmodSync(path.join(dest, f), fs.statSync(path.join(root, f)).mode); }
+  // tests that run `git ls-files` at the root need a repository: index every copied file (before node_modules is linked in), no hooks
+  const git = (...a: string[]) => { const r = spawnSync('git', a, { cwd: dest, encoding: 'utf8' }); if (r.status !== 0) throw new Error(`git ${a[0]} failed in the mutation copy: ${r.stderr}`); };
+  git('init', '-q'); git('add', '-A');
+  fs.mkdirSync(path.join(dest, '.git', 'no-hooks'));
+  git('config', 'core.hooksPath', path.join(dest, '.git', 'no-hooks'));
+  fs.appendFileSync(path.join(dest, '.git', 'info', 'exclude'), 'node_modules\n');
   if (fs.existsSync(path.join(root, 'node_modules'))) fs.symlinkSync(fs.realpathSync(path.join(root, 'node_modules')), path.join(dest, 'node_modules'));
 }
 /** @param {string} pattern */
@@ -408,23 +417,27 @@ const sha = (/** @type {string} */ s: string) => crypto.createHash('sha256').upd
 
 // ------------------------------------------------------------------ running
 /** @typedef {{ status: 'killed'|'timeout'|'survived'|'invalid'|'notests', tier?: number, upTo?: number, src: string, tests: string }} Result */
-/** Run test files in `cwd`; resolves 'fail' at the first failing test (the process group is killed), 'pass', or 'timeout'.
- * @param {string} cwd @param {string[]} files @param {number} timeout @param {number} conc @returns {Promise<{ verdict: 'pass'|'fail'|'timeout', ms: number }>} */
-function runTests(cwd: string, files: string[], timeout: number, conc: number) {
-  return new Promise<{ verdict: 'pass' | 'fail' | 'timeout'; ms: number }>((resolve) => {
+/** the last `n` lines of `text` */
+export const tailLines = (text: string, n: number) => text.replace(/\n+$/, '').split('\n').slice(-n).join('\n');
+/** Run test files in `cwd`; resolves 'fail' at the first failing test (the process group is killed unless `keep`), 'pass', or 'timeout'.
+ * `out` holds the tail of the output (only kept when `keep`, for a baseline whose failure is shown to the person).
+ * @param {string} cwd @param {string[]} files @param {number} timeout @param {number} conc @param {boolean} keep @returns {Promise<{ verdict: 'pass'|'fail'|'timeout', ms: number, out: string }>} */
+function runTests(cwd: string, files: string[], timeout: number, conc: number, keep = false) {
+  return new Promise<{ verdict: 'pass' | 'fail' | 'timeout'; ms: number; out: string }>((resolve) => {
     /** @type {NodeJS.ProcessEnv} */ const env: NodeJS.ProcessEnv = { ...process.env, PLANGRAPH_PERF_FACTOR: process.env.PLANGRAPH_PERF_FACTOR ?? '2' };
     delete env.NODE_TEST_CONTEXT;
     const t0 = performance.now();
-    const child = spawn(process.execPath, ['--test', '--test-reporter=tap', `--test-concurrency=${conc}`, ...files], { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'ignore'] });
-    let done = false, buf = '';
+    const child = spawn(process.execPath, ['--test', '--test-reporter=tap', `--test-concurrency=${conc}`, ...files], { cwd, env, detached: true, stdio: ['ignore', 'pipe', keep ? 'pipe' : 'ignore'] }) as ChildProcessByStdio<null, Readable, Readable | null>;
+    let done = false, buf = '', all = '';
     const finish = (/** @type {'pass'|'fail'|'timeout'} */ v: 'pass' | 'fail' | 'timeout') => {
       if (done) return; done = true; clearTimeout(timer);
       try { if (child.pid) process.kill(-child.pid, 'SIGKILL'); } catch { /* already gone */ }
-      resolve({ verdict: v, ms: performance.now() - t0 });
+      resolve({ verdict: v, ms: performance.now() - t0, out: all });
     };
     const timer = setTimeout(() => finish('timeout'), timeout);
     child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (d) => { buf = (buf + d).slice(-4096); if (/^\s*not ok \d+/m.test(buf)) finish('fail'); else buf = buf.slice(buf.lastIndexOf('\n') + 1); });
+    if (keep) { child.stderr?.setEncoding('utf8'); child.stderr?.on('data', (d) => { all = (all + d).slice(-200000); }); }
+    child.stdout.on('data', (d) => { if (keep) all = (all + d).slice(-200000); buf = (buf + d).slice(-4096); if (!keep && /^\s*not ok \d+/m.test(buf)) finish('fail'); else buf = buf.slice(buf.lastIndexOf('\n') + 1); });
     child.on('close', (code) => finish(code === 0 ? 'pass' : 'fail'));
     child.on('error', () => finish('fail'));
   });
@@ -436,6 +449,18 @@ function syntaxOk(cwd: string, file: string) {
     c.on('close', (code) => resolve(code === 0)); c.on('error', () => resolve(false));
   });
 }
+
+/** kill score in percent: timeouts are neither killed nor survived, so they leave both the numerator and the denominator (K13) */
+export const scoreOf = (r: { mutants: number; killed: number; timeout: number; equivalent: number; invalid: number }) => {
+  const denom = r.mutants - r.invalid - r.equivalent - r.timeout;
+  return denom ? (100 * r.killed) / denom : 100;
+};
+/** the mutants whose run timed out, in generation order @param {Array<{ file: string, line: number, op: string }>} mutants @param {Array<{ status: string }>} results */
+export const timeoutsOf = (mutants: Array<{ file: string; line: number; op: string }>, results: Array<{ status: string }>) =>
+  mutants.flatMap((m, k) => (results[k]?.status === 'timeout' ? [{ file: m.file, line: m.line, op: m.op }] : []));
+/** the report lines for test files whose unmutated run was red: the file and the tail of its output @param {Array<[string, string | undefined]>} red */
+export const redReport = (red: Array<[string, string | undefined]>) =>
+  red.flatMap(([f, tail]) => [`RED BASELINE ${f}: fails on the unmutated copy, left out of the mapping`, ...(tail ? tail.split('\n').map((l) => `  | ${l}`) : ['  | (no output kept: re-run with --fresh)'])]);
 
 /** @param {string[]} argv */
 async function main(argv: string[]) {
@@ -459,8 +484,8 @@ async function main(argv: string[]) {
   const base = o.state ? path.resolve(o.state) : path.join(os.tmpdir(), 'plangraph-mutate-all', sha(ROOT));
   fs.mkdirSync(base, { recursive: true });
   const progressFile = path.join(base, 'progress.json');
-  /** @type {{ results: Record<string, Result>, baseline: Record<string, { hash: string, ok: boolean, ms: number }> }} */
-  let progress: { results: Record<string, Result>; baseline: Record<string, { hash: string; ok: boolean; ms: number }> } = { results: {}, baseline: {} };
+  /** @type {{ results: Record<string, Result>, baseline: Record<string, { hash: string, ok: boolean, ms: number, tail?: string }> }} */
+  let progress: { results: Record<string, Result>; baseline: Record<string, { hash: string; ok: boolean; ms: number; tail?: string }> } = { results: {}, baseline: {} };
   if (!o.fresh) { try { progress = JSON.parse(fs.readFileSync(progressFile, 'utf8')); } catch { /* none yet */ } }
   progress.results ??= {}; progress.baseline ??= {};
   let saveAt = 0;
@@ -488,8 +513,8 @@ async function main(argv: string[]) {
       p = (async () => {
         const c = await acquire();
         try {
-          const r = await runTests(c, [test], 600000, 1);
-          progress.baseline[test] = { hash: repoHash, ok: r.verdict === 'pass', ms: Math.round(r.ms) };
+          const r = await runTests(c, [test], 600000, 1, true);
+          progress.baseline[test] = { hash: repoHash, ok: r.verdict === 'pass', ms: Math.round(r.ms), ...(r.verdict === 'pass' ? {} : { tail: r.verdict === 'timeout' ? `timed out after 600 s\n${tailLines(r.out, 40)}` : tailLines(r.out, 40) }) };
           save();
           return r.verdict === 'pass';
         } finally { free.push(c); }
@@ -563,10 +588,7 @@ async function main(argv: string[]) {
     else if (isEquivalent(m, equivalents)) row.equivalent++;
     else { if (r.status === 'notests') row.notests++; row.survived++; survivors.push(m); }
   }
-  const score = (/** @type {{ mutants: number, killed: number, timeout: number, equivalent: number, invalid: number }} */ r: { mutants: number; killed: number; timeout: number; equivalent: number; invalid: number }) => {
-    const denom = r.mutants - r.invalid - r.equivalent;
-    return denom ? (100 * (r.killed + r.timeout)) / denom : 100;
-  };
+  const score = scoreOf;
   const pad = (/** @type {unknown} */ v: unknown, /** @type {number} */ n: number) => String(v).padStart(n);
   const lines = [`${'file'.padEnd(34)} ${pad('mutants', 7)} ${pad('killed', 7)} ${pad('timeout', 7)} ${pad('survived', 8)} ${pad('equiv', 5)} ${pad('invalid', 7)} ${pad('score', 7)}`];
   const total = { mutants: 0, killed: 0, timeout: 0, survived: 0, equivalent: 0, invalid: 0, notests: 0 };
@@ -576,9 +598,11 @@ async function main(argv: string[]) {
   }
   lines.push(`${'total'.padEnd(34)} ${pad(total.mutants, 7)} ${pad(total.killed, 7)} ${pad(total.timeout, 7)} ${pad(total.survived, 8)} ${pad(total.equivalent, 5)} ${pad(total.invalid, 7)} ${pad(score(total).toFixed(1), 6)}%`);
   for (const l of lines) console.log(l);
-  if (total.timeout) console.log(`(${total.timeout} mutant(s) timed out and are counted as killed)`);
-  const red = Object.entries(progress.baseline).filter(([f, b]) => b.hash === repoHash && !b.ok).map(([f]) => f);
-  if (red.length) console.log(`test files red on the unmutated copy, left out of the mapping: ${red.join(' ')}`);
+  const timeouts = timeoutsOf(mutants, results);
+  if (timeouts.length) console.log(`${timeouts.length} mutant(s) timed out: neither killed nor survived, left out of the score`);
+  for (const t of timeouts) console.log(`TIMEOUT ${t.file}:${t.line} [${t.op}]`);
+  const red = Object.entries(progress.baseline).filter(([, b]) => b.hash === repoHash && !b.ok);
+  if (red.length) { console.log(`test files red on the unmutated copy, left out of the mapping: ${red.map(([f]) => f).join(' ')}`); for (const l of redReport(red.map(([f, b]) => [f, b.tail]))) console.log(l); }
   const unreached = targets.filter((f) => { const t = map.get(f); return !t || (!t.direct.length && !t.extended.length); });
   if (unreached.length) console.log(`no mapped test file: ${unreached.join(' ')}`);
   for (const m of survivors) console.log(`SURVIVED ${m.file}:${m.line} [${m.op}] ${m.mutatedLine.slice(0, 200)}`);
@@ -586,7 +610,7 @@ async function main(argv: string[]) {
   const scopeAll = !o.limit && o.shard[1] === 1 && !o.files;
   const staleEq = scopeAll ? equivalents.filter((e) => !used.has(`${e.file}\0${e.line}\0${e.mutated}`)) : [];
   for (const e of staleEq) console.log(`STALE EQUIVALENT (no such mutant now): ${e.file}: ${e.mutated}`);
-  if (o.json) fs.writeFileSync(o.json, `${JSON.stringify({ rows: Object.fromEntries(rows), total, score: score(total), survivors: survivors.map((m) => ({ file: m.file, line: m.line, op: m.op, mutated: m.mutatedLine })) }, null, 1)}\n`);
+  if (o.json) fs.writeFileSync(o.json, `${JSON.stringify({ rows: Object.fromEntries(rows), total, score: score(total), timeouts, survivors: survivors.map((m) => ({ file: m.file, line: m.line, op: m.op, mutated: m.mutatedLine })) }, null, 1)}\n`);
   if (o.informational && process.env.GITHUB_STEP_SUMMARY) {
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### mutation smoke (informational)\n\n\`\`\`\n${lines.join('\n')}\n${survivors.map((m) => `SURVIVED ${m.file}:${m.line} ${m.mutatedLine.slice(0, 160)}`).join('\n')}\n\`\`\`\n`);
   }

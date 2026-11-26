@@ -81,7 +81,7 @@ test('scripts/mutate-all finds at least the target files it found before (and sr
   const files = new Set(r.stdout.split('\n').map((l) => /^(\S+?):\d+ \[/.exec(l)?.[1]).filter(Boolean));
   assert.ok(files.size >= MIN.lib + MIN['lib/integrations'] + (MIN.src - 1) + MIN['src/commands'] + MIN.mcp - 1, `mutants found in ${files.size} files`);
   assert.ok(files.has('src/floor.js'), 'the plain-JS floor guard is still a mutation target');
-  for (const f of ['lib/x.mjs', 'lib/x.ts', 'src/floor.js', 'test/a.test.ts']) assert.equal(isSource(f), true, f);
+  for (const f of ['lib/x.mjs', 'lib/x.ts', 'src/floor.js', 'src/entry.js', 'src/merge-entry.js', 'test/a.test.ts']) assert.equal(isSource(f), true, f);
   for (const f of ['lib/x.js', 'lib/x.json', 'src/other.js', 'lib/x.mts', 'README.md']) assert.equal(isSource(f), false, f);
 });
 

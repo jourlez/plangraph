@@ -25,8 +25,11 @@ logical, boolean, condition negation, return value, string literal, off-by-one, 
 literals or import specifiers), applies each to a temporary copy of the repository, syntax-checks it and runs the test files mapped to
 that file (tier 1: direct importers that run in under 10 s; tier 2, only for tier-1 survivors: slower importers and tests reaching it
 transitively or through `bin/plangraph`). A failing
-test or a timeout kills a mutant (timeouts are counted in their own column); a mutant that does not parse is left out. The score is
-(killed + timeout) / (mutants - invalid - reviewed equivalents). Equivalent mutants are listed, each with a one-line reason, in
+test kills a mutant; a timeout is neither killed nor survived (listed as `TIMEOUT file:line [operator]` and under `timeouts` in `--json`,
+left out of the score); a mutant that does not parse is left out. The score is
+killed / (mutants - invalid - timeouts - reviewed equivalents). Each copy is a git repository (the tests that run `git ls-files` pass in it);
+a test file that is red on the unmutated copy is left out of the mapping and printed with its file name and the tail of its output
+(`RED BASELINE`). `src/entry.js`, `src/merge-entry.js` and `src/floor.js` are mutated with the `.ts` files. Equivalent mutants are listed, each with a one-line reason, in
 `scripts/mutate/equivalent.json`; keep that list tiny and re-justify an entry when its line changes (a stale entry fails a full run).
 Results are resumable from `$TMPDIR/plangraph-mutate-all/`; `--files`, `--limit N --seed S`, `--shard N/M`, `--jobs J`, `--max-tier 1`.
 `npm run mutate:smoke` (40 seeded mutants of core modules with fast tests: verify, whatif, merge, gitsafe, fsafe, forecast, report; tier 1) runs weekly and on demand as the informational `mutation`
