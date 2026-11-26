@@ -443,9 +443,14 @@ function runTests(cwd: string, files: string[], timeout: number, conc: number, k
   });
 }
 /** @param {string} cwd @param {string} file @returns {Promise<boolean>} */
-function syntaxOk(cwd: string, file: string) {
+export function syntaxOk(cwd: string, file: string) {
   return new Promise((resolve) => {
-    const c = spawn(process.execPath, ['--check', file], { cwd, stdio: 'ignore' });
+    // `node --check` cannot parse some TypeScript (a generic call such as `new Set<string>()` reads as a comparison): a .ts file is checked
+    // after its types are stripped, which also throws on a real syntax error; a plain .js file is checked as it is
+    const args = file.endsWith('.ts')
+      ? ['--no-warnings', '-e', "const m = require('node:module'), fs = require('node:fs'), os = require('node:os'), path = require('node:path'), cp = require('node:child_process'); const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-syntax-')); try { const out = path.join(dir, 'x.mjs'); fs.writeFileSync(out, m.stripTypeScriptTypes(fs.readFileSync(process.argv[1], 'utf8'))); process.exitCode = cp.spawnSync(process.execPath, ['--check', out], { stdio: 'ignore' }).status; } catch { process.exitCode = 1; } finally { fs.rmSync(dir, { recursive: true, force: true }); }", file]
+      : ['--check', file];
+    const c = spawn(process.execPath, args, { cwd, stdio: 'ignore' });
     c.on('close', (code) => resolve(code === 0)); c.on('error', () => resolve(false));
   });
 }

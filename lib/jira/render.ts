@@ -23,13 +23,14 @@ const headingLevel = (n: RawAdf): number => { const l = n.attrs && n.attrs.level
 /** Plain text of an ADF document (untrusted JSON); a string passes through, anything deeper than 100 levels is dropped. */
 export function adfToText(n: RawAdf | string | null | undefined, depth = 0): string {
   if (n == null || depth > 100) return ''; if (typeof n === 'string') return n;
-  const kids = contentOf(n).map((c) => adfToText(c, depth + 1)).join('');
+  // each child is walked once (a list used to walk its items a second time, doubling the work per nesting level)
+  const parts = contentOf(n).map((c) => adfToText(c, depth + 1)), kids = parts.join('');
   switch (n.type) {
     case 'text': return (n.text as string) || ''; // as before: a non-string text is returned as is
     case 'hardBreak': return '\n';
     case 'paragraph': return kids + '\n\n';
     case 'heading': return '#'.repeat(headingLevel(n)) + ' ' + kids + '\n';
-    case 'bulletList': case 'orderedList': return contentOf(n).map((li) => '- ' + adfToText(li, depth + 1).trim() + '\n').join('') + '\n';
+    case 'bulletList': case 'orderedList': return parts.map((li) => '- ' + li.trim() + '\n').join('') + '\n';
     case 'codeBlock': return '```\n' + kids + '\n```\n';
     case 'mention': return '@' + ((n.attrs && n.attrs.text) || '');
     default: return kids;
