@@ -20,7 +20,7 @@
 //   query-only (handle.older), and an index writer refuses it with STALE. Every column name in the SQL built here is double-quoted
 //   (`from` and `to` are SQL keywords). A graph file adds bytes to the source fingerprint only when it is present, so a directory with
 //   none keeps its 0.3.0 fingerprint.
-// - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/provider.ts CACHE_FILES).
+// - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/obs.ts CACHE_FILES).
 //   A cache file adds bytes to the source fingerprint only when it is present, so a directory without a cache keeps its fingerprint. An index
 //   built before `obs` existed (0.4.0) is a known older schema like 0.3.0's (digest over the 0.4.0 table list, stale, query-only, handle.older). The table is advisory data, read by no solver.
 // The fingerprint lives in its own table, not in `meta`: `meta` mirrors meta.jsonl and is exported back to text, so a fingerprint row

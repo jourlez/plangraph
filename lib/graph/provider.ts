@@ -10,7 +10,7 @@ import { EXT_REL_RE, EXT_TYPE_RE, isNodeType, sysOk, xidOk } from './files.ts';
 import type { NodeType } from './files.ts';
 import { readGithub } from './github.ts';
 import { FIELD_KEY, MAX_FIELDS, MAX_LINKS, TEXT } from './obs.ts';
-export { CACHE_FILES, OBS_COLUMNS, obsProblem } from './obs.ts';
+export { OBS_COLUMNS, obsProblem } from './obs.ts';
 
 export type FieldValue = string | number | boolean | null;
 export interface Observation { sys: string; xid: string; type: NodeType; fields: Readonly<Record<string, FieldValue>>; links: ReadonlyArray<{ rel: string; sys: string; xid: string }>; fp: string }
