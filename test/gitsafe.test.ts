@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkRef, checkRepoPath, compileHeading, makeGit } from '../lib/gitsafe.ts';
 import { rng } from './fixtures/gen.ts';
-import { budget, scaling, workScaling } from './helpers/perf.ts';
+import { workScaling } from './helpers/perf.ts';
 
 test('checkRef rejects option-shaped and traversal refs, accepts normal refs', () => {
   for (const bad of ['--output=/tmp/x', '-x', '--upload-pack=sh', 'a..b', '', ' HEAD', 'a b', 'ref\n', 'x:y/../z']) assert.throws(() => checkRef(bad), TypeError, bad);
@@ -39,7 +39,7 @@ test('compileHeading: any template over the allowed alphabet either throws TypeE
   const alpha = ['^', '#', '#{2,3}', '#{3,2}', '#{0}', '#{1,}', '{', '}', '{id}', ' ', ':', '.', '-', '_', ')', '(', 'a', 'Task ', '9', '#{5,5}', '#{10,2}', '#{1,99}', '#{2}', '#{a,b}', '#{1,2}', '#{12,34}'];
   const quant = ['#{a,b}', '#{1,2}', '#{2,3}', '#{3}', '#{0,99}', '#{10,2}', '#{1,}', '#{,2}'];
   const r = rng(20240607), rnd = (n: number) => Math.floor(r() * n);
-  const t0 = Date.now(); let compiled = 0, rejected = 0;
+  let compiled = 0, rejected = 0;
   for (let k = 0; k < 2000; k++) {
     let t = ''; const len = 1 + rnd(8);
     for (let i = 0; i < len; i++) t += k % 3 === 0 ? (rnd(3) === 0 ? quant[rnd(quant.length)] : alpha[rnd(alpha.length)]) : alpha[rnd(alpha.length)];
@@ -49,23 +49,13 @@ test('compileHeading: any template over the allowed alphabet either throws TypeE
     compiled++;
     assert.doesNotThrow(() => { h.find('## Task 1: x\n', '1'); h.find('#'.repeat(5000) + 'x', '1.2-3_4'); h.nextIndex('x'); h.nextIndex('#'.repeat(5000)); }, t);
   }
-  assert.ok(Date.now() - t0 < budget(2000), `fuzz took ${Date.now() - t0} ms`);
   assert.ok(compiled > 50 && rejected > 50, `fuzz must exercise both outcomes (compiled ${compiled}, rejected ${rejected})`);
 });
 test('compileHeading: at most one variable #{a,b} repetition (two adjacent ones backtrack: about 2 s per 1000 # with three of them)', () => {
   for (const bad of ['#{1,99}#{1,99} {id}', '#{1,99}#{1,99}#{1,99} {id}', '#{0,9}a#{2,3} {id}', '^#{2,3}#{1,2} Task {id}:']) assert.throws(() => compileHeading(bad), (/** @type {any} */ e) => e instanceof TypeError && /one #\{a,b\}/.test(e.message), bad);
   for (const ok of ['^#{2,3} Task {id}:', '#{3}#{1,99} {id}', '#{2}#{3}x{id}', '#{1,99}#### {id}', '#{5,5}#{1,2} {id}']) assert.doesNotThrow(() => compileHeading(ok), ok);
-  const worst = compileHeading('#{1,99}#### {id}'), t0 = performance.now();
+  const worst = compileHeading('#{1,99}#### {id}'); // its cost on 1 MiB of # is a size-ratio check in test/gitsafe-timing.test.ts
   worst.find(`${'#'.repeat(1 << 20)}x`, '1'); worst.nextIndex(`${'#'.repeat(1 << 20)}x`);
-  assert.ok(performance.now() - t0 < budget(3000), `1 MiB of # against the worst allowed template took ${(performance.now() - t0).toFixed(0)} ms`);
-});
-// Size axis: find() and nextIndex() over hostile plan text of n and 4n characters (min of 3 each): linear gives about 4x, quadratic about 16x.
-// Proved by a deliberately quadratic nextIndex (a search from every offset), which scripts/mutate.ts keeps applying.
-test('compileHeading: find and nextIndex scale linearly with the text (n vs 4n, worst allowed templates, hostile texts)', () => {
-  const hs = ['^#{2,3} Task {id}:', '#{0,99} {id}', '#{1,99}#### x{id}', 'Task {id}:', '{id}'].map((t) => compileHeading(t));
-  const texts = [(n: number) => `${'#'.repeat(n)}x`, (n: number) => '## Task 1.\n'.repeat(Math.ceil(n / 11)), (n: number) => `${'#'.repeat(98)} `.repeat(Math.ceil(n / 99))];
-  const s = scaling((n: number) => { for (const mk of texts) { const t = mk(n); for (const h of hs) { h.find(t, '1.2'); h.nextIndex(t); } } }, 40000) as NonNullable<ReturnType<typeof scaling>>; // scaling runs at least one attempt, so its best result is set
-  assert.ok(s.ratio < s.maxRatio, `compileHeading scaling ratio ${s.ratio.toFixed(1)} (${s.small.toFixed(1)} ms at n, ${s.large.toFixed(1)} ms at 4n; linear ~4, quadratic ~16)`);
 });
 // The same size axis without a clock (test/helpers/perf.ts workScaling): the elements the Array and String built-ins touch, n vs 4n
 // characters. Deterministic on every machine; the deliberately quadratic nextIndex in scripts/mutate.ts runs an indexOf from every offset.

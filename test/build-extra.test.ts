@@ -8,7 +8,6 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import * as S from '../lib/store.ts';
-import { budget } from './helpers/perf.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -123,24 +122,6 @@ test('(d2) learnings and refs keep unknown fields in the index extra column', ()
   assert.equal((db.prepare("SELECT extra FROM learning WHERE id='L2'").get() as Record<string, unknown>).extra, null); // the query has a row
   assert.equal((db.prepare('SELECT extra FROM ref').get() as Record<string, unknown>).extra, '{"note":"n"}'); // the query has a row
   db.close();
-});
-
-test('(e) 100k ticket records build quickly', () => {
-  const d = repo();
-  // build N records, min of `reps` runs; returns ms. Relative check (N vs 4N must stay near-linear) plus a load-scaled absolute ceiling.
-  const timeBuild = (n: number, reps: number) => {
-    const lines = [];
-    for (let i = 0; i < n; i++) lines.push(JSON.stringify(tk('K-' + i, i % 10 === 0 ? { extra_x: i } : {})));
-    fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), lines.join('\n') + '\n');
-    let best = Infinity;
-    for (let k = 0; k < reps; k++) { const t0 = performance.now(); run(d, 'build'); best = Math.min(best, performance.now() - t0); }
-    assert.equal(count(d, 'ticket'), n);
-    return best;
-  };
-  const small = timeBuild(25000, 3), large = timeBuild(100000, 3);
-  // linear => about 4x (node start-up only lowers it), quadratic => about 16x; prepared-once statements, no per-record prepare.
-  assert.ok(large / small < 9, `build is not linear: 25k took ${small.toFixed(0)} ms, 100k took ${large.toFixed(0)} ms`);
-  assert.ok(large < budget(30000), `build took ${large} ms`); // about 3.5 s alone since the index digest (it was about 1 s before); the n-vs-4n ratio above is the linearity check, this ceiling only catches a hang
 });
 
 test('(f) source scan: the INSERT column lists come from constants, never from record keys', () => {

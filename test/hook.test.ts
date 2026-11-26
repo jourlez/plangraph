@@ -1,8 +1,7 @@
 // The SessionStart hook, run exactly as hooks/hooks.json declares it: parsed from the JSON, spawned (no shell) with `command` and
 // `args`, ${CLAUDE_PLUGIN_ROOT} substituted. PATH holds only node and git (so `uv` is absent). Real git, temp repos and data dirs.
-// Timing: the p95 over 20 runs must stay under 150 ms (the brief's number; the assertion is a PERFORMANCE contract). Node start-up
-// alone can approach that on a loaded CI box, so the p95 is only enforced when PLANGRAPH_STRICT_PERF=1, and the always-on assertion is
-// a generous 10x bound (1.5 s) on the p95 plus the median under 150 ms x 4. Measured numbers are printed by the test.
+// No wall-clock limit lives here (Task 21A: the old p95 and median gates are retired); the hook's cost is checked by the work-count test
+// below (size axis, no clock).
 import baseTest, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
-import { budget, workScaling } from './helpers/perf.ts';
+import { workScaling } from './helpers/perf.ts';
 import { genPlan } from './fixtures/gen.ts';
 import { main } from '../src/cli.ts';
 
@@ -136,17 +135,6 @@ test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence 
     assert.ok(ok(w.run({ ...w.env, [key]: 'auto' })).stdout.length > 0);
   }
   assert.ok(ok(w.plangraph(['card'])).stdout.length > 0); // a manual card is unaffected
-});
-
-test('timing: 20 runs, p95 under the contract (see header for how it is enforced)', () => {
-  const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
-  w.run(); // warm the file cache
-  const ms = [];
-  for (let i = 0; i < 20; i++) { const t = process.hrtime.bigint(); const r = w.run(); ms.push(Number(process.hrtime.bigint() - t) / 1e6); assert.equal(r.status, 0); assert.equal(r.stderr, ''); }
-  ms.sort((a, b) => a - b); const p95 = ms[18], median = (ms[9] + ms[10]) / 2;
-  console.log(`# hook timing ms: median ${median.toFixed(0)}, p95 ${p95.toFixed(0)}, max ${ms[19].toFixed(0)}`);
-  assert.ok(p95 < budget(1500), `p95 ${p95} ms`); assert.ok(median < budget(600), `median ${median} ms`);
-  if (process.env.PLANGRAPH_STRICT_PERF === '1') assert.ok(p95 < 150, `p95 ${p95} ms over the 150 ms contract`);
 });
 
 // Size axis: the hook path (card --if-present --heal: heal check, index open with its source fingerprint, model, card) on a plan of n and

@@ -6,7 +6,6 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync, execFileSync } from 'node:child_process';
 
-import { budget } from './helpers/perf.ts';
 import { parsePlan, parseLedger, ingestPlan, findLedgers, readSpFile, firstLineNamesPlan, LIMITS } from '../lib/integrations/superpowers.ts';
 import { canonFile, SCHEMAS } from '../lib/store.ts';
 import type { Rec } from '../lib/store.ts';
@@ -399,12 +398,9 @@ test('real 6.1.1 pair parses: one task per Task heading, statuses only from ledg
 
 // ======================= review fixes =======================
 // ---------- 1. linear-time parsing on hostile lines ----------
-// Each case runs in a child process with a 15 s kill timer, so a super-linear regex fails the test instead of hanging the suite.
-// The bound (3000 ms for every case of one test together) is loose on purpose, so a loaded CI machine cannot make it flaky: measured
-// totals are 114-244 ms, and the old cubic/quadratic regexes miss the bound by orders of magnitude (the old H1 regex took 15.7 s on a
-// 4 KB line). The 15 s kill timer below is the hard stop.
+// These cases check the RESULTS on 1-2 MiB hostile lines, in a child process; they carry no clock and no kill timer (Task 21A). That
+// the parse is linear is a size-ratio check in test/superpowers-ingest-timing.test.ts.
 const MOD_URL = new URL('../lib/integrations/superpowers.ts', import.meta.url).href;
-const HOSTILE_BOUND_MS = budget(3000); // scaled by the calibrated CPU baseline: a slower runner gets a proportionally larger bound; a super-linear parse still takes minutes
 function hostileRun(cases: Record<string, string>): Record<string, { ms: number; ok: boolean; msg: string }> {
   const src = `import { parsePlan, parseLedger } from ${JSON.stringify(MOD_URL)};
 const M = 1 << 20, out = {};
@@ -415,15 +411,12 @@ for (const [name, code] of Object.entries(${JSON.stringify(cases)})) {
   out[name] = { ms: performance.now() - t, ok, msg };
 }
 process.stdout.write(JSON.stringify(out));`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', src], { encoding: 'utf8', timeout: budget(15000), maxBuffer: 1 << 20 });
-  assert.equal(r.signal, null, `the hostile parse did not finish within the scaled time limit (killed by ${r.signal}): super-linear parsing`);
+  const r = spawnSync(process.execPath, ['--input-type=module', '-e', src], { encoding: 'utf8', maxBuffer: 1 << 20 });
   assert.equal(r.status, 0, r.stderr);
-  const out: Record<string, { ms: number; ok: boolean; msg: string }> = JSON.parse(r.stdout), total = Object.values(out).reduce((a, x) => a + x.ms, 0);
-  assert.ok(total < HOSTILE_BOUND_MS, `hostile inputs took ${total.toFixed(0)} ms in all (bound ${HOSTILE_BOUND_MS}): ${JSON.stringify(Object.fromEntries(Object.entries(out).map(([k, v]) => [k, Math.round(v.ms)])))}`);
-  return out;
+  return JSON.parse(r.stdout) as Record<string, { ms: number; ok: boolean; msg: string }>;
 }
 const T1 = '\\n### Task 1: x\\n';
-test('hostile H1 lines (2 MiB of spaces, # or tabs, a 1 MiB title of spaces) parse in linear time with the old results', () => {
+test('hostile H1 lines (2 MiB of spaces, # or tabs, a 1 MiB title of spaces) parse with the old results', () => {
   const o = hostileRun({
     spaces: `return parsePlan('# a' + ' '.repeat(2 * M) + 'b${T1}', 'p.md').header.title`,
     hashes: `return parsePlan('# a ' + '#'.repeat(2 * M) + ' x${T1}', 'p.md').header.title.slice(0, 5)`,
@@ -436,7 +429,7 @@ test('hostile H1 lines (2 MiB of spaces, # or tabs, a 1 MiB title of spaces) par
     spaces: [true, 'a b'], hashes: [true, 'a ###'], trailingHashes: [true, 'Title'], tabsImplPlan: [true, 'Widget'], titleOfSpaces: [true, 'T'], lineSep: [true, 'a b'],
   });
 });
-test('hostile ledger lines (Task + 1. x 1M, tabs, identity lines, parked, deferred) parse in linear time', () => {
+test('hostile ledger lines (Task + 1. x 1M, tabs, identity lines, parked, deferred) parse with the old results', () => {
   const o = hostileRun({
     dots: `return parseLedger('Task ' + '1.'.repeat(M), 'l').mentioned[0].length`,
     dotsAlias: `return parseLedger('Task ' + '1.'.repeat(M) + '1 (' + 'x'.repeat(M), 'l').entries.length`,
@@ -453,7 +446,7 @@ test('hostile ledger lines (Task + 1. x 1M, tabs, identity lines, parked, deferr
     parked: [true, '0'], parkedDashes: [true, '0'], deferredCr: [true, 'a b'],
   });
 });
-test('hostile plan body lines (task headings, bullets with CR, Consumes, Points, Files, comments) parse in linear time', () => {
+test('hostile plan body lines (task headings, bullets with CR, Consumes, Points, Files, comments) parse with the old results', () => {
   const o = hostileRun({
     titleColonLs: `const p = parsePlan('# P\\n### Task 1: :' + ' '.repeat(2 * M) + '\\u2028x\\n', 'p.md'); return p.tasks.length + ' ' + p.tasks[0].title`,
     bulletCr: `return parsePlan('# P\\n## Global Constraints\\n- ' + ' '.repeat(2 * M) + 'a\\rb${T1}', 'p.md').globalConstraints[0]`,

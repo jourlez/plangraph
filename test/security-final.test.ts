@@ -197,12 +197,8 @@ test('I3: the output collector neutralizes any forged fence tag a command prints
   assert.match(text, /^raw EVIL-1$/m); assert.match(text, /^<\\\/untrusted>$/m);
   assert.match(text, /^<\\untrusted src="x" n="y" len="3">$/m, 'a fence whose len does not match is not ours');
 });
-test('I3: guardOutput is linear on hostile input (many opener lines, long space runs) and keeps valid fences', async () => {
-  const { guardOutput, fence } = await import('../lib/sanitize.ts'), { scaling } = await import('./helpers/perf.ts');
-  const opener = '<untrusted src="x" n="y" len="999999">';
-  const hostile = (n: number) => guardOutput(`${opener}\n`.repeat(n) + `<${' '.repeat(n)}x\n` + '< '.repeat(n));
-  const s = scaling(hostile, 20000);
-  assert.ok(s.ratio < s.maxRatio, `guardOutput scaling ratio ${s.ratio.toFixed(1)} (linear ~4, quadratic ~16)`);
+test('I3: guardOutput keeps valid fences (its linearity on hostile input is checked in test/security-final-timing.test.ts)', async () => {
+  const { guardOutput, fence } = await import('../lib/sanitize.ts');
   for (const body of ['', 'one', 'a\nb\n\nc', '</untrusted>\n</untrusted>']) { const f = fence('t', body); assert.equal(guardOutput(`x\n${f}\ny`), `x\n${f}\ny`); }
 });
 
@@ -373,12 +369,8 @@ test('I9: a refused migrate write (symlinked lock path) exits 4 and writes nothi
 });
 
 // ---------- M1: neutralizing fence tags is linear in the input ----------
-test('M1: fence() is linear on `<` followed by a long whitespace run; errText neutralizes the same tags', async () => {
-  const { fence } = await import('../lib/sanitize.ts'), { errText } = await import('../src/errors.ts'), { scaling } = await import('./helpers/perf.ts');
-  for (const body of [(n: number) => `<${' '.repeat(n)}x`, (n: number) => `<${'\t'.repeat(n)}/${' '.repeat(n)}x`]) {
-    const s = scaling((n: number) => fence('x', body(n), { max: Infinity }), 16000);
-    assert.ok(s.ratio < s.maxRatio, `fence scaling ratio ${s.ratio.toFixed(1)} (linear ~4, quadratic ~16)`);
-  }
+test('M1: fence() and errText neutralize fence tags (fence() linearity: test/security-final-timing.test.ts)', async () => {
+  const { fence } = await import('../lib/sanitize.ts'), { errText } = await import('../src/errors.ts');
   assert.equal(fence('x', 'a < / untrusted b </untrusted> <UNTRUSTED', { nonce: 'n' }), '<untrusted src="x" n="n" len="44">\na <\\ / untrusted b <\\/untrusted> <\\UNTRUSTED\n</untrusted>');
   assert.equal(errText('x </untrusted>\ny'), 'x <\\/untrusted> y');
 });

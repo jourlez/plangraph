@@ -254,7 +254,7 @@ test('ci.yml: the unit job runs the coverage group once with the floors; `npm te
   const run = steps[1][1];
   assert.equal(run, 'node scripts/test-coverage.ts --group coverage', 'the floors and includes live in scripts/test-coverage.ts, checked in the floors test');
   assert.ok(!/npm test|npm run mutate|npm run smoke/.test(j), 'npm test would run the suite a second time; the mutation run and smoke belong to their own jobs');
-  assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.test, 'node --test "test/*.test.{mjs,ts}"', 'local npm test unchanged');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).scripts.test, 'node --test $(node scripts/ci-tests.ts nontiming) && node --test --test-concurrency=1 $(node scripts/ci-tests.ts timing)', 'local npm test: the non-timing files, then the timing files serially');
 });
 
 test('ci.yml: the mutation job is its own required job, ubuntu only, same Node and uv setup, 15 minute cap, never allowed to fail', () => {
