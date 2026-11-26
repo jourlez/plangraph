@@ -1,0 +1,4 @@
+HTTP/2.0 200 OK
+Content-Type: application/json
+
+{"issues":[{"key":"ABC-9","fields":{"summary":"Loop","status":{"name":"To Do"},"updated":"2026-11-01T10:00:00.000+0000"}}],"nextPageToken":"tok-same","isLast":false}

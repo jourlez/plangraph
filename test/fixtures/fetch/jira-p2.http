@@ -1,0 +1,5 @@
+HTTP/2.0 200 OK
+Content-Type: application/json
+
+{"issues":[{"key":"ABC-2","fields":{"summary":"Second copy","status":{"name":"To Do"},"updated":"2026-11-03T10:00:00.000+0000","issuelinks":[]}},
+{"key":"ABC-3","fields":{"summary":"Docs","status":{"name":"Done"},"updated":"2026-11-04T10:00:00.000+0000","resolutiondate":"2026-11-04T10:00:00.000+0000","issuelinks":[]}}],"isLast":true}

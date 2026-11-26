@@ -1,0 +1,5 @@
+HTTP/2.0 200 OK
+Etag: W/"bbb222"
+Content-Type: application/json; charset=utf-8
+
+[{"number":13,"title":"ABC-3 docs","state":"open","merged_at":null,"updated_at":"2026-11-03T10:00:00Z","head":{"ref":"abc-3-docs"}}]

@@ -1,0 +1,4 @@
+HTTP/2.0 200 OK
+Content-Type: application/json
+
+{"results":[{"id":"5002","title":"Unlabelled","status":"current","version":{"number":1,"createdAt":"2026-11-02T10:00:00.000Z"},"labels":{"results":[]},"body":{"storage":{"value":"<p>Plain.</p>"}}}],"_links":{}}
