@@ -14,8 +14,8 @@ const W = 'br' + 'ain';
 const OLD = new RegExp(`(?<![A-Za-z0-9_])${W}(?![A-Za-z0-9_])|${W.toUpperCase()}_|project-${W}`);
 
 const EXEMPT = new Set([
-  'lib/migrate-names.ts', 'test/migrate-names.test.ts', 'test/trust-kills-migrate-names.test.ts', 'test/env-names.test.ts', 'scripts/baseline.ts', 'test/baseline.test.ts', 'scripts/repin.ts', 'test/repin.test.ts',
-  'scripts/rename-check.ts', 'test/rename-check.test.ts',
+  'test/env-names.test.ts', 'scripts/baseline.ts', 'test/baseline.test.ts', 'scripts/repin.ts', 'test/repin.test.ts',
+  'docs/audit/compat-inventory.md', // lists the old names it proposes to remove
   'test/superpowers-ingest.test.ts', // cites the historical plan file `2026-11-22-project-<old>-excellence.md`
   'CHANGELOG.md', 'PENDING_DECISIONS.md', // history
   'docs/superpowers/plans/2026-11-26-graph-v2-requoted.md', // the graph brief carries the old-to-new name map

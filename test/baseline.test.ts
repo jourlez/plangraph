@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { MATRIX, PROBES, bench, captureAll, compareDirs, mapOldNames, normalizeOutput, oldNameHits, runMcpSession, runMergeDriver } from '../scripts/baseline.ts';
+import { MATRIX, PROBES, bench, captureAll, compareDirs, normalizeOutput, runMcpSession, runMergeDriver } from '../scripts/baseline.ts';
 import { fixture, made, tmp } from './helpers/cli-fixture.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -45,27 +45,6 @@ test('compareDirs lists the id of a changed file', () => {
   fs.writeFileSync(path.join(b, 'one.json'), '{"x":2}\n');
   fs.writeFileSync(path.join(b, 'three.json'), '{}\n');
   assert.deepEqual(compareDirs(a, b), { same: 1, differing: ['one', 'three'], added: [] });
-});
-
-// The 0.3.0 rename: the OLD side (a) of a compare is mapped to the new names, the NEW side (b) never is, and a new capture holding an old
-// name is refused. Old names are assembled so that this file names them only here.
-const OB = 'brain', OPB = ['project', OB].join('-');
-test('the name map: whole token, longest first, never inside brainstorm; the command word and the plugin file names follow', () => {
-  assert.equal(mapOldNames(`~/.config/${OPB}/a ${OPB}-jira:h .${OB}/*.jsonl merge=${OB}-jsonl .${OB}rc ${OB}.sqlite-journal <ROOT>/home/data/bin/${OB}-merge %O ${OB.toUpperCase()}_DIR`),
-    '~/.config/plangraph/a plangraph-jira:h .plangraph/*.jsonl merge=plangraph-jsonl .plangraphrc plangraph.sqlite-journal <ROOT>/home/data/bin/plangraph-merge %O PLANGRAPH_DIR');
-  for (const keep of ['brainstorm.sqlite', `NO_${OB.toUpperCase()}_X`, `.${OB}stormy`, 'brain_rules_version', 'superpowers:brainstorming']) assert.equal(mapOldNames(keep), keep, keep);
-  // the command word, the plugin's file names, the skill names and the error code
-  assert.equal(mapOldNames(`${OB}: 3 tickets; try: ${OB} doctor --fix; <ROOT>/bin/${OB}-merge; ${OB}-solve: x; no ${OB} directory: run ${OB} init; plangraph:${OB}-plan plangraph:${OB} NO_${OB.toUpperCase()}`),
-    'plangraph: 3 tickets; try: plangraph doctor --fix; <ROOT>/bin/plangraph-merge; plangraph-solve: x; no plan directory: run plangraph init; plangraph:plan plangraph:plangraph NO_PLANGRAPH');
-  assert.deepEqual(oldNameHits('.plangraph/*.jsonl merge=plangraph-jsonl PLANGRAPH_DIR brainstorm plangraph: x'), []);
-  assert.ok(oldNameHits(`try: ${OB} doctor`).length >= 1);
-  assert.equal(oldNameHits(`.${OB}/x merge=${OB}-jsonl`).length, 3); // the directory, the driver and the bare word
-});
-test('compareDirs maps old names on the old side only', () => {
-  const a = dir(), b = dir();
-  fs.writeFileSync(path.join(a, 'x.json'), `{"dir":".${OB}"}\n`); fs.writeFileSync(path.join(b, 'x.json'), '{"dir":".plangraph"}\n');
-  assert.deepEqual(compareDirs(a, b), { same: 1, differing: [], added: [] });
-  assert.deepEqual(compareDirs(b, a), { same: 0, differing: ['x'], added: [] }, 'an old name on the new side is a difference');
 });
 
 test('compare --only-common ignores ids present on one side and prints new: N', () => {
@@ -169,9 +148,3 @@ test('bench prints a positive number of milliseconds and runs N times', { timeou
   assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'scripts/baseline.ts'), 'bench', '--runs', 'x'], { encoding: 'utf8' }).status, 2);
 });
 
-test('captureAll refuses a capture that holds a stray old name (only the migrate-names probes may print them)', async () => {
-  const out = dir(), probe = { id: 'stray-old-name', run: () => `try: ${OB} doctor` };
-  PROBES.push(probe);
-  try { await assert.rejects(captureAll({ root: ROOT, outDir: out }), (e: Error) => /the capture holds old names/.test(e.message) && e.message.includes('probe.stray-old-name.json')); }
-  finally { PROBES.splice(PROBES.indexOf(probe), 1); }
-});

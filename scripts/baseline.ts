@@ -17,7 +17,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { RULES as COMMAND_RULES } from './rename-check.ts';
 
 const PLUGIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BRAIN = path.join(PLUGIN, 'bin/plangraph');
@@ -44,8 +43,8 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * @param {string} text @param {string[]} [roots] extra absolute directories to mask, besides the plugin directory and temp locations
  * @returns {string}
  */
-export function normalizeOutput(text: string, roots: string[] = [], { oldNames = false }: { oldNames?: boolean } = {}) {
-  let s = oldNames ? mapOldNames(String(text)) : String(text);
+export function normalizeOutput(text: string, roots: string[] = []) {
+  let s = String(text);
   const byLength = (list: string[]) => [...new Set(list.filter((r) => r && r !== '/'))].sort((a, b) => b.length - a.length);
   for (const r of byLength([...roots, PLUGIN, fs.realpathSync(PLUGIN)])) s = s.split(r).join('<ROOT>');
   // The temp directory (/tmp on Linux, /var/folders/../T on macOS) takes the per-run directory below it along, whatever the platform,
@@ -56,34 +55,6 @@ export function normalizeOutput(text: string, roots: string[] = [], { oldNames =
   s = s.replace(/node v\d+\.\d+\.\d+/g, 'node vX').replace(/solver runtime: [^\n\\]*/g, 'solver runtime: X');
   return s.replace(/\.(mjs|ts|js)\b/g, '.EXT');
 }
-
-// ---------------------------------------------------------------------------------------------------------------- the 0.3.0 rename
-// The plangraph rename (0.3.0) changed names, not behavior. A capture of a tree from before it holds the old names, so the OLD side of a
-// compare is mapped to the new names first: whole token, longest first, never inside `brainstorm` (the command word and the file names too). The NEW side is never mapped, and a
-// capture asserts it holds no old name (OLD_NAMES), so a stray old name in the new tree cannot hide behind the mapping. Old names are
-// assembled from pieces so that this file names them only here.
-const B = 'brain', PB = ['project', B].join('-');
-/** Old name to new name, applied in this order (longest first). */
-export const NAME_MAP: ReadonlyArray<readonly [RegExp, string]> = Object.freeze([
-  [new RegExp(`(?<![\\w-])${PB}-jira(?![\\w-])`, 'g'), 'plangraph-jira'],
-  [new RegExp(`(?<![\\w-])${PB}(?![\\w-])`, 'g'), 'plangraph'],
-  [new RegExp(`(?<![\\w-])${B}-jsonl(?![\\w-])`, 'g'), 'plangraph-jsonl'],
-  [new RegExp(`/data/bin/${B}-merge(?![\\w-])`, 'g'), '/data/bin/plangraph-merge'],
-  [new RegExp(`(?<![\\w.])\\.${B}rc(?![\\w-])`, 'g'), '.plangraphrc'],
-  [new RegExp(`(?<![\\w.-])${B}\\.sqlite(?!\\w)`, 'g'), 'plangraph.sqlite'],
-  [new RegExp(`(?<![\\w.])\\.${B}(?![\\w-])`, 'g'), '.plangraph'],
-  [new RegExp(`(?<!\\w)${B.toUpperCase()}_(?=[A-Z0-9])`, 'g'), 'PLANGRAPH_'],
-  // the command word and the file names of the plugin's bin/, mcp/ and skills (scripts/rename-check.ts holds the rules)
-  ...COMMAND_RULES,
-] as const);
-/** The OLD capture side in the new names. */
-export const mapOldNames = (text: string): string => NAME_MAP.reduce((s, [re, to]) => s.replace(re, to), text);
-/** Each old name a new capture must not hold (the ids that print them on purpose, migrate-names, are exempt). */
-export const OLD_NAMES: ReadonlyArray<RegExp> = Object.freeze(NAME_MAP.map(([re]) => new RegExp(re.source)));
-/** Ids whose output names the old names on purpose (migrate-names): never mapped, never checked for old names. */
-const namesOldNames = (id: string): boolean => id.startsWith('probe.migrate-names');
-/** The old names found in a capture's text, as their patterns' sources. */
-export const oldNameHits = (text: string): string[] => OLD_NAMES.filter((re) => re.test(text)).map((re) => re.source);
 
 // ---------------------------------------------------------------------------------------------------------------- the CLI matrix
 function brainRun(args: string[], cwd: string, env: Record<string, string>) {
@@ -504,8 +475,6 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
     const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.plangraph'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-plangraph', ...runHook(hookAgain) });
     for (const variant of ((['clean', 'conflict']) as const)) save(`merge-driver.${variant}`, { id: `merge-driver-${variant}`, ...runMergeDriver(copyPlan(), variant) });
     save('mcp.session', { id: 'mcp', responses: runMcpSession(copyPlan()) });
-    const stray = fs.readdirSync(outDir).filter((f) => !namesOldNames(f)).flatMap((f) => oldNameHits(fs.readFileSync(path.join(outDir, f), 'utf8')).map((h) => `${f}: ${h}`));
-    if (stray.length) throw new Error(`the capture holds old names:\n${stray.join('\n')}`);
   } finally { fs.rmSync(work, { recursive: true, force: true }); if (planSrc) fs.rmSync(planSrc, { recursive: true, force: true }); }
   return { count };
 }
@@ -519,8 +488,7 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
 export function compareDirs(a: string, b: string, opts: { onlyCommon?: boolean } = {}): { same: number; differing: string[]; added: string[] } {
   for (const d of [a, b]) if (!fs.existsSync(d) || !fs.statSync(d).isDirectory()) throw new Error(`not a directory: ${path.basename(d)}`);
   const ids = (d: string) => fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5));
-  // `a` is the OLD side (a capture before the rename, such as .baseline/pre-030): its old names are mapped first (NAME_MAP)
-  const read = (d: string, id: string) => { try { return normalizeOutput(fs.readFileSync(fileFor(d, id), 'utf8'), [], { oldNames: d === a && !namesOldNames(id) }); } catch { return null; } };
+  const read = (d: string, id: string) => { try { return normalizeOutput(fs.readFileSync(fileFor(d, id), 'utf8'), []); } catch { return null; } };
   const na = ids(a).length, nb = ids(b).length;
   if (!na || !nb) throw new Error(`no captured files in ${na ? 'the second' : 'the first'} directory`);
   const all = [...new Set([...ids(a), ...ids(b)])].sort();
