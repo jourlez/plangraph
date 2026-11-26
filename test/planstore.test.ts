@@ -118,6 +118,7 @@ const EXCEPTIONS: Array<{ file: string; line: RegExp; reason: string }> = [
   { file: 'src/commands/openitems.ts', line: /writeState/, reason: 'open-items --write also writes OPEN-ITEMS.md, a rendered document and not a plan kind' },
   { file: 'src/commands/queries.ts', line: /writeState/, reason: 'card --write writes CARD.md, not a plan kind' },
   { file: 'src/commands/report.ts', line: /writeState/, reason: 'report writes REPORT.md and REPORT.html, not plan kinds' },
+  { file: 'lib/store2/entitystore.ts', line: /canonFile/, reason: 'the entity backend of the PlanStore: it builds the canonical row order and text of a kind from entity files' },
   { file: 'src/commands/import.ts', line: /canonFile/, reason: 'cache/obs.jsonl is an observation cache, not a plan kind (it has its own column order)' },
 ];
 const CALLS = /\b(readRecords|canonFile|canonText|writeState|readJsonl)\b/;

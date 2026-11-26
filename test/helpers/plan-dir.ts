@@ -2,7 +2,9 @@
 // adoptPlanDir(dir) before the first read; on the jsonl backend that is a no-op, on the entity backend (task 9) it converts the old files.
 import fs from 'node:fs';
 import path from 'node:path';
-import { readStoreAt } from '../../lib/planstore.ts';
+import { readStoreAt, JsonlStore, KINDS, kindFile } from '../../lib/planstore.ts';
+import { EntityStore } from '../../lib/store2/entitystore.ts';
+import { writeFormat, readFormat, FORMAT_VERSION } from '../../lib/store.ts';
 import type { Kind, Row } from '../../lib/planstore.ts';
 import type { GenPlan } from '../fixtures/gen.ts';
 
@@ -14,8 +16,14 @@ export type Extras = Partial<Record<Kind, readonly Row[]>>;
 export function adoptPlanDir(dir: string, opts: { backend?: Backend } = {}): void {
   const backend = opts.backend ?? 'jsonl';
   if (backend === 'jsonl') return;
-  void dir;
-  throw new Error('not implemented until task 9');
+  // entity: every old-layout file of a kind (meta.jsonl stays a file in the entity layout) becomes entity files through EntityStore; the old file is removed
+  const old = new JsonlStore({ dir, root: dir }), entity = new EntityStore({ dir, root: dir });
+  const found = KINDS.filter((k) => k !== 'meta' && fs.existsSync(path.join(dir, kindFile(k))));
+  const rows = new Map(found.map((k) => [k, old.readKind(k, { defaults: false })]));
+  let fmt: Record<string, unknown> = {}; try { fmt = readFormat(dir); } catch { /* none yet */ }
+  writeFormat(dir, { format_version: Number(fmt.format_version) || FORMAT_VERSION, min_reader: Number(fmt.min_reader) || FORMAT_VERSION });
+  fs.writeFileSync(path.join(dir, 'format.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(dir, 'format.json'), 'utf8')), storage: 'entity' }) + '\n');
+  for (const k of found) { entity.writeKind(k, rows.get(k) as Row[]); fs.rmSync(path.join(dir, kindFile(k))); }
 }
 
 /** Writes a genPlan-style plan (tickets, edges, schedule, config.json) and any extras through the PlanStore of `dir`. */

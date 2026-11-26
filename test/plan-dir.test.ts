@@ -20,8 +20,16 @@ test('adoptPlanDir is a no-op on the jsonl backend', () => {
   assert.deepEqual(fs.readdirSync(d), ['tickets.jsonl']);
   assert.equal(fs.readFileSync(path.join(d, 'tickets.jsonl'), 'utf8'), '{"key":"A-1"}\n');
 });
-test('adoptPlanDir throws on the entity backend until task 9', () => {
-  assert.throws(() => adoptPlanDir(tmp(), { backend: 'entity' }), /not implemented until task 9/);
+test('adoptPlanDir on the entity backend converts the old files and removes them', () => {
+  const d = tmp(), p = genPlan({ n: 5, seed: 2 });
+  writePlanDir(d, p);
+  adoptPlanDir(d, { backend: 'entity' });
+  assert.ok(!fs.existsSync(path.join(d, 'tickets.jsonl')));
+  const s = readStoreAt(d);
+  assert.equal(s.describe().backend, 'entity');
+  assert.equal(s.readKind('ticket').length, 5);
+  assert.equal(s.readKind('edge').length, p.edges.length);
+  assert.equal(s.readKind('schedule').length, 5);
 });
 test('writePlanDir writes a genPlan through the store', () => {
   const d = tmp(), p = genPlan({ n: 6, seed: 3 });

@@ -9,7 +9,7 @@ export type PgProblem = 'CONFLICT_MARKERS' | 'BAD_LINE' | 'ID_MISMATCH';
 export type ParseResult = { node: Node } | { problem: PgProblem; line: number };
 
 /** Fields that repeat their name once per element; the value is always an array. */
-export const COLLECTION_FIELDS: ReadonlySet<string> = new Set(['links', 'xrefs', 'acceptance', 'members', 'owns', 'affects']);
+export const COLLECTION_FIELDS: ReadonlySet<string> = new Set(['links', 'xrefs', 'acceptance', 'members', 'owns', 'affects', 'capacity']);
 export const MAX_LINE = 8 * 1024;
 const NAME_RE = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 const MARKER_RE = /^(<{7}( |$)|={7}$|>{7}( |$)|\|{7}( |$))/;

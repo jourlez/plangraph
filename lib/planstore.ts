@@ -4,13 +4,14 @@
 // file order (a canonical file is sorted by the kind's key; a hand-edited one is read as it is, as before).
 import fs from 'node:fs';
 import path from 'node:path';
-import { canonFile, readRecords, SCHEMAS } from './store.ts';
+import { canonFile, readRecords, readFormat, SCHEMAS } from './store.ts';
 import type { Rec } from './store.ts';
 import { readJsonl, readDataCapped, presentDataFile, parseJsonl, IngestError, DATA_REFUSALS } from './jsonl.ts';
 import { validators } from './schema.ts';
 import { assertInside, writeAtomicSafe } from './fsafe.ts';
 import { oneLine } from './sanitize.ts';
 import { PlangraphError } from '../src/errors.ts';
+import { EntityStore } from './store2/entitystore.ts';
 
 /** One plan record. */
 export type Row = Rec;
@@ -152,7 +153,11 @@ export class JsonlStore implements PlanStore {
   describe(): { backend: 'jsonl' | 'entity'; root: string } { return { backend: 'jsonl', root: this.ctx.dir }; }
 }
 
-/** The store of a plan directory. root: the repository the writes are confined to. */
-export const openStore = (ctx: StoreCtx): PlanStore => new JsonlStore(ctx);
+/** The storage of a plan directory: `"storage": "entity"` in format.json selects the entity backend; anything else (no file, an unreadable or odd one) is JSONL. */
+const storageOf = (dir: string): 'jsonl' | 'entity' => {
+  try { return readFormat(dir).storage === 'entity' ? 'entity' : 'jsonl'; } catch { return 'jsonl'; } // a bad format.json is reported by checkFormat, not here
+};
+/** The store of a plan directory, by format.json. root: the repository the writes are confined to. */
+export const openStore = (ctx: StoreCtx): PlanStore => (storageOf(ctx.dir) === 'entity' ? new EntityStore(ctx) : new JsonlStore(ctx));
 /** A store for reading a plan directory when no repository root is at hand (a reader never writes). */
-export const readStoreAt = (dir: string): PlanStore => new JsonlStore({ dir, root: dir });
+export const readStoreAt = (dir: string): PlanStore => openStore({ dir, root: dir });
