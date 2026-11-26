@@ -1,0 +1,15 @@
+{
+  "id": "jinja-overlay-async-default",
+  "repo": "https://github.com/pallets/jinja",
+  "commit": "48b0687e05a5466a91cd5812d604fa37ad0943b4",
+  "task": "Environment.overlay() uses the wrong default for its enable_async parameter, so an overlay of an async-enabled environment silently changes the async setting. Make the default preserve the parent environment behaviour.",
+  "hiddenTests": {
+    "fromCommit": "e45bc745a76b7aa573e68888bf49ecef70001815",
+    "files": [
+      "tests/test_api.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_api.py"
+  },
+  "language": "python",
+  "validated": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "httpx-send-timeout",
+  "repo": "https://github.com/encode/httpx",
+  "commit": "df5345140e09ac6c2de0d9589bcd6f3e31c6aa3f",
+  "task": "When Client.send() is given a request, the timeout that applies is taken from the wrong place and a new Request instance created later loses the per-request timeout. Fix timeout handling so a timeout set on the request is honoured when sending.",
+  "hiddenTests": {
+    "fromCommit": "6d852d319acd5d97caf14037dff15ede04b37542",
+    "files": [
+      "tests/test_timeouts.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_timeouts.py"
+  },
+  "language": "python",
+  "validated": false
+}

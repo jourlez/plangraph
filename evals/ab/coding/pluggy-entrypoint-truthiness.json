@@ -1,0 +1,15 @@
+{
+  "id": "pluggy-entrypoint-truthiness",
+  "repo": "https://github.com/pytest-dev/pluggy",
+  "commit": "60b15251ee18560f781c557b6b9ef3de4d786bee",
+  "task": "Loading setuptools entry points skips an already registered plugin by checking the truthiness of the plugin object, so a plugin object that is falsy is loaded again. Compare registration without relying on truthiness.",
+  "hiddenTests": {
+    "fromCommit": "e108fa4490564b9f252fe7a8a4d1969f6f996641",
+    "files": [
+      "testing/test_pluginmanager.py"
+    ],
+    "command": "python -m pytest -x -q testing/test_pluginmanager.py"
+  },
+  "language": "python",
+  "validated": false
+}

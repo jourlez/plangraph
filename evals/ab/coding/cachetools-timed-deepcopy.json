@@ -1,0 +1,16 @@
+{
+  "id": "cachetools-timed-deepcopy",
+  "repo": "https://github.com/tkem/cachetools",
+  "commit": "498bd83c1938d9dd5d9aaf4dab3043fb15fb1e42",
+  "task": "Deep-copying a timed cache (TTL or TLRU) fails when its timer object defines a custom __deepcopy__. Fix the copy logic so the timer copy is used correctly.",
+  "hiddenTests": {
+    "fromCommit": "5af4208d6c182176b7d620ec04632664ec6e30a2",
+    "files": [
+      "tests/test_tlru.py",
+      "tests/test_ttl.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_tlru.py tests/test_ttl.py"
+  },
+  "language": "python",
+  "validated": false
+}

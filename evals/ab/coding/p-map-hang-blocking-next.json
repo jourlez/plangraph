@@ -1,0 +1,15 @@
+{
+  "id": "p-map-hang-blocking-next",
+  "repo": "https://github.com/sindresorhus/p-map",
+  "commit": "669fdc68b8443f153184916f9deba226cd7e6a38",
+  "task": "pMap can hang forever when the source iterator blocks in next() after it has already been exhausted. Fix the concurrency loop so completion does not wait on another next() call.",
+  "hiddenTests": {
+    "fromCommit": "7c5cee7db0c6b2e3355e5598e05caaa9a02c7872",
+    "files": [
+      "test.js"
+    ],
+    "command": "npx ava test.js"
+  },
+  "language": "javascript",
+  "validated": false
+}

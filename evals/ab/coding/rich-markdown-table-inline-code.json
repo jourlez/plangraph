@@ -1,0 +1,15 @@
+{
+  "id": "rich-markdown-table-inline-code",
+  "repo": "https://github.com/Textualize/rich",
+  "commit": "19c67b9a3479841e9133bea94607c89ee931d3fc",
+  "task": "Rich Markdown rendering drops or mis-renders inline code spans inside table cells. Fix the markdown renderer so inline code in a table cell is displayed with its content intact.",
+  "hiddenTests": {
+    "fromCommit": "7ef2d05ca8aa3cb405dab2fdf3282e69cf8089e3",
+    "files": [
+      "tests/test_markdown.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_markdown.py"
+  },
+  "language": "python",
+  "validated": false
+}

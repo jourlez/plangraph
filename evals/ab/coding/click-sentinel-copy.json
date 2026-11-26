@@ -1,0 +1,15 @@
+{
+  "id": "click-sentinel-copy",
+  "repo": "https://github.com/pallets/click",
+  "commit": "420c8fb44eeadb537cae69d2fee3796e808558dd",
+  "task": "Members of the internal Sentinel enum in click are not preserved by copy.copy, copy.deepcopy or pickle: a copied or unpickled sentinel is a different object, so identity checks against the original sentinel fail. Fix the sentinel implementation so copies and round trips return the same member.",
+  "hiddenTests": {
+    "fromCommit": "f58ca3e81424a35626c8a475eb59ab95589008ce",
+    "files": [
+      "tests/test_utils/test_sentinel.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_utils/test_sentinel.py"
+  },
+  "language": "python",
+  "validated": false
+}

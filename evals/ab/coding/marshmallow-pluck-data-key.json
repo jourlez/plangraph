@@ -1,0 +1,15 @@
+{
+  "id": "marshmallow-pluck-data-key",
+  "repo": "https://github.com/marshmallow-code/marshmallow",
+  "commit": "d08471b17880c62b789971ada638707a11d3f8d4",
+  "task": "marshmallow Pluck field mishandles a nested schema field whose data_key is empty: serialisation or deserialisation uses the wrong key. Fix Pluck so an empty data_key is handled as the declared key.",
+  "hiddenTests": {
+    "fromCommit": "5761beab3985d654d712f9326e08bfb2e2ec9c4c",
+    "files": [
+      "tests/test_fields.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_fields.py"
+  },
+  "language": "python",
+  "validated": false
+}

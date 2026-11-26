@@ -1,0 +1,15 @@
+{
+  "id": "tqdm-concurrent-length",
+  "repo": "https://github.com/tqdm/tqdm",
+  "commit": "4a7f422734a765d3df89ad7dbfec3ef1baf53b30",
+  "task": "tqdm.contrib.concurrent map helpers pick the wrong total when the iterable has no usable length. Fix length detection so the progress total is correct or unset.",
+  "hiddenTests": {
+    "fromCommit": "0eaee96e4fd5ccf18e5bc2a637aa19a280e54bc3",
+    "files": [
+      "tests/tests_concurrent.py"
+    ],
+    "command": "python -m pytest -x -q tests/tests_concurrent.py"
+  },
+  "language": "python",
+  "validated": false
+}

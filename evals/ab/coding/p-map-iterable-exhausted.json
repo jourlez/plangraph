@@ -1,0 +1,15 @@
+{
+  "id": "p-map-iterable-exhausted",
+  "repo": "https://github.com/sindresorhus/p-map",
+  "commit": "7c5cee7db0c6b2e3355e5598e05caaa9a02c7872",
+  "task": "pMapIterable calls next() on the source iterator again after the source is exhausted, which breaks sources that throw or restart. Make it stop calling next() once the source reports done.",
+  "hiddenTests": {
+    "fromCommit": "70479bf6675049d13df22c42ff351663071dec2c",
+    "files": [
+      "test.js"
+    ],
+    "command": "npx ava test.js"
+  },
+  "language": "javascript",
+  "validated": false
+}

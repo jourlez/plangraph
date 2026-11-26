@@ -1,0 +1,15 @@
+{
+  "id": "loguru-rotation-time-string",
+  "repo": "https://github.com/Delgan/loguru",
+  "commit": "e695c954089944fcd47a6e866fd25fe3fccb9ea8",
+  "task": "In loguru a file rotation string such as \"5 PM\" is parsed as a duration instead of a time of day, so rotation never happens when expected. Fix the rotation string parser to prefer time-of-day interpretation where it is valid.",
+  "hiddenTests": {
+    "fromCommit": "b2e6ac85a005c002ac9c057964a8a602cd14b734",
+    "files": [
+      "tests/test_filesink_rotation.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_filesink_rotation.py"
+  },
+  "language": "python",
+  "validated": false
+}

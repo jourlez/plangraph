@@ -1,0 +1,15 @@
+{
+  "id": "jinja-set-in-if",
+  "repo": "https://github.com/pallets/jinja",
+  "commit": "fbc3a696c729d177340cc089531de7e2e5b6f065",
+  "task": "A Jinja template that assigns a variable with set inside an if block can fail to compile or render with an undefined-variable style error depending on how the name is used afterwards. Fix the identifier tracking so set within if behaves consistently.",
+  "hiddenTests": {
+    "fromCommit": "66587ce989e5a478e0bb165371fa2b9d42b7040f",
+    "files": [
+      "tests/test_regression.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_regression.py"
+  },
+  "language": "python",
+  "validated": false
+}

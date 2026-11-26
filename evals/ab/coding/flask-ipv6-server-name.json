@@ -1,0 +1,15 @@
+{
+  "id": "flask-ipv6-server-name",
+  "repo": "https://github.com/pallets/flask",
+  "commit": "de8429ffda8cfb54db175529e2bae72a24e1fa7e",
+  "task": "Flask misparses a SERVER_NAME configured as an IPv6 literal with a port, for example \"[::1]:5000\": URL matching and host handling treat the colons inside the address as port separators. Make server name parsing understand bracketed IPv6 hosts.",
+  "hiddenTests": {
+    "fromCommit": "7203feabf723edae0286ae5dc64fec8ac4c91735",
+    "files": [
+      "tests/test_basic.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_basic.py"
+  },
+  "language": "python",
+  "validated": false
+}

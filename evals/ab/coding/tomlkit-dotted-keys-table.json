@@ -1,0 +1,15 @@
+{
+  "id": "tomlkit-dotted-keys-table",
+  "repo": "https://github.com/python-poetry/tomlkit",
+  "commit": "543fcef39c6aceb4f5ebca15ec0def00d5568386",
+  "task": "tomlkit raises or corrupts a document when a table header appears out of order after dotted keys that already defined part of the same table. Make parsing accept this valid TOML and keep round-trip output identical.",
+  "hiddenTests": {
+    "fromCommit": "f91f20ca955cb526b154cc58fb937c4be68a2bc1",
+    "files": [
+      "tests/test_toml_document.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_toml_document.py"
+  },
+  "language": "python",
+  "validated": false
+}

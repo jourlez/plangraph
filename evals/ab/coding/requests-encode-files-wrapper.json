@@ -1,0 +1,15 @@
+{
+  "id": "requests-encode-files-wrapper",
+  "repo": "https://github.com/psf/requests",
+  "commit": "661970d171d9c3e12e4c789c4768db647d8c4da0",
+  "task": "Uploading a file wrapper object that forwards attribute access through __getattr__ breaks requests when building a multipart body: the wrapper is not recognised as a file-like object. Fix the detection used when encoding files so such wrappers work.",
+  "hiddenTests": {
+    "fromCommit": "6f205ff422bccd5e4c4fc0b64c5f3e7df5181db6",
+    "files": [
+      "tests/test_requests.py"
+    ],
+    "command": "python -m pytest -x -q tests/test_requests.py"
+  },
+  "language": "python",
+  "validated": false
+}
