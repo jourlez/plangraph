@@ -2,13 +2,17 @@
 // with its relation path (breadth first, shortest path, `current` schedule version only). KEY is a raw id or a `pg:<type>/<id>` URI. Ids are
 // untrusted text: a ticket key prints through oneLine, every other id inside a fence (an xref under its system's name). The answer stays
 // under about 250 tokens by default; what is left out is counted on a last line, `-v` lifts the cap.
+// plangraph graph materialize: appends the people, sprints and epics that the v1 files name (schedule owners and sprints, ticket epics) and that
+// have no row in people.jsonl, sprints.jsonl or epics.jsonl, one bare row each (decision D23: no format bump, no v1 file written, idempotent).
+import path from 'node:path';
 import { oneLine } from '../../lib/sanitize.ts';
-import { CORE_NODE_TYPES, DERIVED_RELATIONS, EXT_REL_RE, RELATIONS, isNodeType } from '../../lib/graph/files.ts';
+import { canonFile, readRecords, SCHEMAS } from '../../lib/store.ts';
+import { CORE_NODE_TYPES, DERIVED_RELATIONS, EXT_REL_RE, RELATIONS, idProblem, isNodeType } from '../../lib/graph/files.ts';
 import type { NodeType } from '../../lib/graph/files.ts';
 import { GRAPH_MAX_DEPTH, graphReader } from '../../lib/graph/views.ts';
 import type { NodeRef, Rel } from '../../lib/graph/views.ts';
 import { nodeUri, parseNodeUri } from '../../lib/graph/uri.ts';
-import { fenceBlock, nextCommand, nextList, readItems, usage, verbose } from './shared.ts';
+import { fenceBlock, needBrain, nextCommand, nextList, precheckTargets, readItems, usage, verbose, writeState } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 
@@ -20,7 +24,49 @@ const uriOf = (type: string, id: string): string | null => { try { return nodeUr
 
 type Values = { rel?: string; depth?: number; reverse?: boolean; type?: string };
 
+type Row = Record<string, unknown>;
+const MATERIALIZE: ReadonlyArray<{ file: string; key: 'id' | 'n'; label: string }> = [{ file: 'people.jsonl', key: 'id', label: 'people' }, { file: 'sprints.jsonl', key: 'n', label: 'sprints' }, { file: 'epics.jsonl', key: 'id', label: 'epics' }];
+
+/** The nodes the v1 files name, per node file: the schedule's owners (all versions) and sprints, the tickets' epics. Sorted, each once. */
+function namedNodes(ctx: Ctx): Record<string, Array<string | number>> {
+  const sched = readRecords(ctx.dir, 'schedule.jsonl', { defaults: false }), tickets = readRecords(ctx.dir, 'tickets.jsonl', { defaults: false });
+  const text = (v: unknown): string[] => (typeof v === 'string' && v ? [v] : []);
+  const strs = (xs: string[]) => [...new Set(xs)].sort();
+  return {
+    'people.jsonl': strs(sched.flatMap((r) => text(r.owner))),
+    'sprints.jsonl': [...new Set(sched.flatMap((r) => (Number.isSafeInteger(r.sprint) ? [r.sprint as number] : [])))].sort((a, b) => a - b),
+    'epics.jsonl': strs(tickets.flatMap((r) => text(r.epic))),
+  };
+}
+
+function materialize(ctx: Ctx): number {
+  needBrain(ctx);
+  const named = namedNodes(ctx), writes: Array<{ file: string; rows: Row[] }> = [], counts: Record<string, number> = {};
+  let skipped = 0;
+  for (const m of MATERIALIZE) {
+    const file = path.join(ctx.dir, m.file), rows: Row[] = readRecords(ctx.dir, m.file, { defaults: false });
+    const have = new Set(rows.map((r) => String(r[m.key]))), add: Row[] = [];
+    for (const v of named[m.file] as Array<string | number>) {
+      if (have.has(String(v))) continue;
+      if (typeof v === 'string' && idProblem(v)) { skipped++; continue; } // the id rule applies to a new row
+      add.push({ [m.key]: v });
+    }
+    counts[m.label] = add.length;
+    if (add.length) writes.push({ file, rows: [...rows, ...add] });
+  }
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (skipped) ctx.io.err(`warning: ${skipped} name${skipped === 1 ? '' : 's'} outside the id rule left out`);
+  if (writes.length) {
+    precheckTargets(ctx, writes.map((w) => w.file));
+    for (const w of writes) writeState(ctx, w.file, canonFile(w.rows, SCHEMAS[path.basename(w.file)]));
+  }
+  ctx.io.data?.({ added: total, ...counts, skipped }, { next: nextList(total ? ['plangraph build'] : []) });
+  ctx.io.out(total ? `materialized ${total} node row${total === 1 ? '' : 's'} (${MATERIALIZE.map((m) => `${m.label} ${counts[m.label]}`).join(', ')})` : 'nothing to materialize');
+  return 0;
+}
+
 async function graph(ctx: Ctx, args: Args<Values>): Promise<number> {
+  if (args.positionals[0] === 'materialize') return materialize(ctx); // a ticket with that exact key is asked as pg:ticket/materialize
   const raw = args.positionals[0] as string, v = args.values, out = ctx.io.out;
   const depth = v.depth ?? 1;
   if (!Number.isInteger(depth) || depth < 1 || depth > GRAPH_MAX_DEPTH) throw usage(`--depth must be a whole number from 1 to ${GRAPH_MAX_DEPTH}`);
@@ -68,7 +114,7 @@ async function graph(ctx: Ctx, args: Args<Values>): Promise<number> {
 const B = { type: 'boolean' };
 export const commands: CommandMap = {
   graph: {
-    run: graph as never, positionals: [1, 1], options: { rel: { type: 'string' }, depth: { type: 'integer' }, reverse: B, type: { type: 'string' } },
-    summary: 'KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only',
+    run: graph as never, positionals: [1, 1], writes: 'text', guard: 'strict', options: { rel: { type: 'string' }, depth: { type: 'integer' }, reverse: B, type: { type: 'string' } },
+    summary: 'KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only; `graph materialize` appends the people, sprints and epics the v1 files name to their node files (idempotent)',
   },
 };

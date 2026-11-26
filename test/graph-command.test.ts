@@ -1,6 +1,6 @@
 // `plangraph graph KEY`: nodes reachable from a key with their relation path, end to end through bin/plangraph on a built plan. Covers
 // the relation, type and depth options, pg: URIs, the --json shape, fencing of untrusted ids and xrefs, the output cap and the STALE refusal.
-// Not covered: the answer-format ruling (evals/graph-format) and graph materialize (0.5.0).
+// Also covers graph materialize (decision D23). Not covered: the answer-format ruling (evals/graph-format).
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -135,4 +135,46 @@ test('a stale index warns once, as every query does', () => {
   fs.appendFileSync(path.join(p, '.plangraph/findings.jsonl'), JSON.stringify({ key: 'T-1', kind: 'note', text: 'later' }) + '\n');
   const r = run(p, ['graph', 'T-1']);
   assert.match(r.stderr, /^STALE: /); assert.equal(r.status, 0);
+});
+
+const read = (d: string, f: string) => { try { return fs.readFileSync(path.join(d, '.plangraph', f), 'utf8'); } catch { return ''; } };
+const col = (d: string, f: string, k: string) => read(d, f).split('\n').filter(Boolean).map((l) => JSON.parse(l)[k]);
+const V1 = ['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl', 'refs.jsonl', 'open-items.jsonl', 'format.json'];
+
+test('materialize: appends the people, sprints and epics the v1 files name, writes no v1 file and keeps the format', () => {
+  const p = plan({ 'people.jsonl': [{ id: 'Ana', name: 'Ana B' }] }, false);
+  const before = Object.fromEntries(V1.map((f) => [f, read(p, f)]));
+  const r = run(p, ['graph', 'materialize']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'materialized 5 node rows (people 1, sprints 2, epics 2)');
+  assert.deepEqual(col(p, 'people.jsonl', 'id'), ['Ana', 'Ben']);
+  assert.ok(read(p, 'people.jsonl').includes('"name":"Ana B"'), 'an existing row is kept as written');
+  assert.deepEqual(col(p, 'sprints.jsonl', 'n'), [2, 3]);
+  assert.deepEqual(col(p, 'epics.jsonl', 'id'), ['E1', 'sp:p']);
+  for (const f of V1) assert.equal(read(p, f), before[f], `${f} untouched`);
+});
+
+test('materialize is idempotent: the second run writes nothing and the files stay byte-identical', () => {
+  const p = plan({}, false);
+  assert.equal(run(p, ['graph', 'materialize']).status, 0);
+  const files = ['people.jsonl', 'sprints.jsonl', 'epics.jsonl'], once = files.map((f) => read(p, f));
+  const r = run(p, ['graph', 'materialize']);
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.trim(), 'nothing to materialize');
+  assert.deepEqual(files.map((f) => read(p, f)), once);
+});
+
+test('materialize leaves out a name outside the id rule (a warning, no row) and the plan builds afterwards', () => {
+  const p = plan({}, false);
+  const r = run(p, ['graph', 'materialize']);
+  assert.match(r.stderr, /warning: 1 name outside the id rule left out/);
+  assert.ok(!read(p, 'people.jsonl').includes('INJECTED'), 'the hostile owner never reaches a node row');
+  assert.equal(run(p, ['build']).status, 0);
+});
+
+test('materialize --json: counts and a build hint; no plan directory exits 2', () => {
+  const p = plan({}, false);
+  const e = JSON.parse(run(p, ['graph', 'materialize', '--json']).stdout);
+  assert.equal(e.cmd, 'graph'); assert.equal(e.data.sprints, 2); assert.equal(e.data.added, 6);
+  const empty = path.join(BASE, `e-${n++}`); fs.mkdirSync(empty); execFileSync('git', ['init', '-q'], { cwd: empty, env: env() });
+  assert.equal(run(empty, ['graph', 'materialize']).status, 2);
 });
