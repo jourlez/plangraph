@@ -210,9 +210,11 @@ async function check(ctx: Ctx): Promise<number> {
   // Tickets with no schedule row are invisible to the schedule-based counts above: verify (and the card) report them as UNPLACED, so
   // the count comes from verify's own predicate (an sp: task is exempt there), never a second copy of the rule.
   const unplaced = (await import('../../lib/verify.ts')).verifyPlan(model).filter((x) => x.code === 'UNPLACED').length;
-  const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree ? 1 : 0;
+  const { integrityOf, renderViolation } = await import('../../lib/graph/integrity.ts'), gv = integrityOf(ctx.dir, cfg, (await readItems(ctx)).items).violations;
+  for (const x of gv) ctx.io.out(renderViolation(x));
+  const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree || gv.some((x) => !x.warning) ? 1 : 0;
   ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (plangraph verify lists them)` : ''}`);
-  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced }, { next: unplaced ? ['plangraph verify'] : [] });
+  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced, ...(gv.length ? { integrity: gv.map(renderViolation) } : {}) }, { next: unplaced ? ['plangraph verify'] : [] });
   return code; // CI fails on any violation, and on any unplaced ticket (verify exits 1 on UNPLACED too)
 }
 

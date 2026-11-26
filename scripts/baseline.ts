@@ -269,6 +269,16 @@ const history = (done: number[]) => done.map((d, i) => ({ sprint: i + 1, planned
 export const PROBES: Probe[] = [
   { id: 'verify', run: async () => { const { verifyPlan, summarize } = await lib('lib/verify.ts'); const { model } = await genModel(); return { verify: verifyPlan(model), summary: summarize(model) }; } },
   { id: 'verify-overloaded', run: async () => { const { verifyPlan } = await lib('lib/verify.ts'); const { model } = await genModel({ cap: 2 }); return verifyPlan(model); } },
+  { id: 'integrity-missing-node', run: async () => {
+    const { integrity, renderViolation } = await lib('lib/graph/integrity.ts');
+    const files = { people: [], sprints: [], epics: [], repos: [], capacity: [], links: [{ from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'Zed', to_type: 'person' }], xrefs: [], ext: 0, warnings: [] };
+    return integrity(files, { tickets: [{ key: 'T-1' }] }, []).map(renderViolation);
+  } },
+  { id: 'integrity-undated-sprint', run: async () => {
+    const { integrity, renderViolation } = await lib('lib/graph/integrity.ts');
+    const files = { people: [], sprints: [{ n: 1, start: '2026-01-05', end: '2026-01-16' }, { n: 2 }], epics: [], repos: [], capacity: [], links: [], xrefs: [], ext: 0, warnings: [] };
+    return integrity(files, {}, []).map(renderViolation);
+  } },
   { id: 'whatif', run: async () => {
     const { whatif, findSlots, relieve } = await lib('lib/whatif.ts'); const { model } = await genModel();
     return { later: whatif(model, { key: 'T-3', sprint: 4 }), earlier: whatif(model, { key: 'T-9', sprint: 1 }), owner: whatif(model, { key: 'T-3', to: 'Ben' }), find: findSlots(model, 'T-5'), relieve: relieve(model, { person: 'Ana', sprint: 1 }) };

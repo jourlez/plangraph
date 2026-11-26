@@ -13,7 +13,7 @@ import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
 import { resolveTenant, loadRegistry, repoKey, approveAlias, isAliasName } from '../jira-tenant.ts';
 import { siteTag } from '../../lib/tracker.ts';
-import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
+import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, readItems, capOf, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { TableSpec } from '../db.ts';
@@ -191,10 +191,12 @@ async function exportText(ctx: Ctx): Promise<number> {
   return 0;
 }
 
-function build(ctx: Ctx): number {
+async function build(ctx: Ctx): Promise<number> {
   ctx.config(); // config.json is not an index source, but a bad one is refused here exactly as by every reader (exit 2)
   const r = buildIndex(ctx);
   ctx.io.out(`built ${rel(ctx, r.file)}: ${r.counts.ticket} tickets, ${r.counts.edge} links, ${r.counts.evidence} evidence rows, ${r.counts.finding} findings, ${r.counts.learning} learnings`);
+  const { integrityOf, renderViolation } = await import('../../lib/graph/integrity.ts'); // the build above already refused a bad graph file (exit 2); a violation here is reported, never fatal
+  for (const v of integrityOf(ctx.dir, ctx.config(), (await readItems(ctx)).items).violations) ctx.io.err(renderViolation(v));
   return 0;
 }
 
@@ -302,8 +304,25 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean; alias?: string }>): 
   const uv = spawnSync('uv', ['--version'], { encoding: 'utf8', timeout: 10000 });
   out(`solver runtime: ${uv.status === 0 ? 'uv found (plangraph-solve-run will use it)' : 'uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)'}`);
   doctorJira(ctx);
+  await doctorGraph(ctx);
   await doctorWarnings(ctx);
   return bad ? 1 : 0;
+}
+// Graph files, info only (never changes the exit code): a duplicate id left by a merge is explained instead of refused; violations are counted and
+// listed by `plangraph check`; nothing is printed for a directory without graph files.
+async function doctorGraph(ctx: Ctx): Promise<void> {
+  const out = ctx.io.out, { integrityOf } = await import('../../lib/graph/integrity.ts');
+  let r: ReturnType<typeof integrityOf>;
+  try { r = integrityOf(ctx.dir, ctx.config(), (await readItems(ctx)).items); } catch (e) {
+    const dup = e instanceof Error && e.name === 'IngestError' ? String(e.message).split('\n').filter((l) => l.startsWith('DUPLICATE_NODE ')) : [];
+    if (!dup.length) throw e;
+    for (const l of dup) out(oneLine(l.slice('DUPLICATE_NODE '.length), 300));
+    return;
+  }
+  if (r.violations.length) out(`graph integrity: ${r.violations.length} violation${r.violations.length === 1 ? '' : 's'}; run \`plangraph check\` to list them`);
+  if (r.files.ext) out(`ext ignored ${r.files.ext}`);
+  const cfg = ctx.config();
+  listMore(out, r.files.capacity.filter((c) => c.sp !== capOf(cfg, c.person)).map((c) => `warning: capacity.jsonl: ${oneLine(c.person, 60)} sprint ${c.sprint} has ${c.sp} sp but config.json caps say ${capOf(cfg, c.person)}`), 5, (l) => l);
 }
 // Jira status line, info only (never changes the exit code, no network, no process, no secret read or printed): says whether `plangraph jira-pull`
 // is set up, so nobody has to guess. The Atlassian connector (MCP) is separate: `plangraph` never uses it, `plangraph integrations` cannot see it.
