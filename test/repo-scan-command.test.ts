@@ -116,3 +116,12 @@ test('usage errors: no subcommand, not a repository', () => {
   assert.equal(run(p, ['repo']).status, 2);
   assert.equal(run(p, ['repo', 'scan', path.join(BASE, 'home')]).status, 2);
 });
+
+test('usage errors: --all with an unreadable path or no repository; a bare scan uses the plan root; two repos with one id', () => {
+  const p = plan();
+  assert.equal(run(p, ['repo', 'scan', path.join(BASE, 'missing'), '--all']).status, 2);
+  assert.equal(run(p, ['repo', 'scan', path.join(BASE, 'home'), '--all']).status, 2);
+  assert.equal(run(p, ['repo', 'scan', '--check']).status, 1);
+  const parent = path.join(BASE, `p-${n++}`); repo('web-', { 'go.mod': 'module x\n' }, parent); repo('web_', { 'go.mod': 'module x\n' }, parent);
+  assert.equal(run(p, ['repo', 'scan', parent, '--all']).status, 2);
+});
