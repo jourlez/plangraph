@@ -40,6 +40,7 @@ function mergeScenario(repo: string) {
 }
 const WANT = S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31'), tk('T-32')], T);
 const NUDGE = 'plangraph: plan data found in .plangraph but no index: run plangraph build\n'; // the first-use line: plan data, no index yet
+const HEAL_NUDGE = 'plangraph: merge driver not set up in this clone; merges of .plangraph/*.jsonl conflict until you run plangraph doctor --fix\n'; // no heal consent (D3)
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\nstdout ${r.stdout}\nstderr ${r.stderr}`); return r; };
 // bin/plangraph keeps its private compile cache in the data dir (bin/plangraph): an optimization, not a command's write, so left out
 const noCache = (names: string[]) => names.filter((f) => f !== 'compile-cache' && !f.startsWith('compile-cache' + path.sep));
@@ -51,6 +52,7 @@ test('(a) init points git config at the stable shim under the data dir, never a 
   assert.ok(w.cfg().startsWith(w.dataDir) && !w.cfg().includes('/plugins/cache/'));
   assert.match(fs.readFileSync(path.join(w.repo, '.gitattributes'), 'utf8'), /^\.plangraph\/\*\.jsonl merge=plangraph-jsonl$/m);
   assert.equal(fs.readFileSync(path.join(w.dataDir, 'driver.target'), 'utf8'), path.join(PLUGIN, 'bin/plangraph-merge') + '\n');
+  assert.match(git(w.repo, 'config', '--local', '--get', 'plangraph.heal'), /^\d+\.\d+\.\d+/); // init records the heal consent (D3)
 });
 test('(a2) init run from a copy installed under a plugins/cache path still installs the driver', () => {
   const w = world(), cache = tmp('dw-cache-'), plug = path.join(cache, 'plugins', 'cache', 'x', 'plangraph', '1.0.0');
@@ -131,6 +133,8 @@ test('(h) a group- or world-writable CLAUDE_PLUGIN_DATA: init prints one line an
   assert.equal(fs.statSync(w.dataDir).mode & 0o777, 0o777); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
   assert.match(ok(w.plangraph(PLUGIN, ['doctor', '--fix'])).stdout, /^merge driver: ok$/m);
   const h = ok(w.plangraph(PLUGIN, ['card', '--if-present', '--heal'])); assert.equal(h.stdout, NUDGE); assert.equal(h.stderr, ''); assert.deepEqual(fs.readdirSync(w.dataDir), bytes);
+  // init wired the shim under the fallback directory, so consent was recorded (D3) and heal has nothing to nudge about
+  assert.match(git(w.repo, 'config', '--local', '--list'), /plangraph\.heal=/);
 });
 test('(h2) a symlinked data dir is refused the same way', () => {
   const w = world(), real = tmp('dw-real-'), link = path.join(tmp('dw-link-'), 'data'); fs.symlinkSync(real, link);

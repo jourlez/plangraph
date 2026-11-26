@@ -8,7 +8,7 @@ import { oneLine, fenceInline } from '../../lib/sanitize.ts';
 import { makeGit } from '../../lib/gitsafe.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
-import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
+import { BIN, CUR, SRC_FILES, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { IndexHandle } from '../db.ts';
@@ -315,15 +315,28 @@ async function ready(ctx: Ctx, args: Args<ReadyValues>): Promise<number> {
 }
 
 // ---- session card ----
-// Session-hook repair (`card --heal`): silent, never throws, never prompts. Only when the plan dir exists inside a git work tree,
-// and only when doctor sees a problem (including a driver.target left at an older plugin install), so a healthy setup is not rewritten.
-async function healMergeDriver(ctx: Ctx): Promise<void> {
+// Session-hook repair (`card --heal`): never throws, never prompts. Only when the plan dir exists inside a git work tree, and only when
+// doctor sees a problem (including a driver.target left at an older plugin install), so a healthy setup is not rewritten. It repairs only
+// with the user's consent, plangraph.heal in the clone's own git config (lib/driver.ts, decision D3), recorded by init and doctor --fix.
+// A clone whose local config already holds the driver (wired before 0.3.0) is grandfathered when plangraph.heal is unset: consent is
+// recorded and the repair runs. Any other value disables that: `never` is silent, the rest get the nudge, and the value is left unchanged.
+// Without consent nothing is written and the returned line (printed after the card) tells the user the one command that opts in.
+async function healMergeDriver(ctx: Ctx): Promise<string | null> {
   try {
-    if (!fs.existsSync(ctx.dir)) return;
-    if (makeGit(ctx.dir)('rev-parse', '--is-inside-work-tree').trim() !== 'true') return;
-    const S = await import('../../lib/store.ts');
-    if (S.doctorMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), target: path.join(BIN, 'plangraph-merge') }).problems.length) await wireMergeDriver(ctx);
-  } catch { /* the hook must never fail or print */ }
+    if (!fs.existsSync(ctx.dir)) return null;
+    if (makeGit(ctx.dir)('rev-parse', '--is-inside-work-tree').trim() !== 'true') return null;
+    const [S, D] = await Promise.all([import('../../lib/store.ts'), import('../../lib/driver.ts')]);
+    const common = D.gitCommonDir(ctx.root);
+    if (!common) return null;
+    const value = D.localConfigValue(common, D.CONSENT_KEY);
+    if (value === 'never') return null;
+    let consent = D.hasConsent(common);
+    if (!consent && value === null && D.localConfigValue(common, 'merge.plangraph-jsonl.driver')) { D.recordConsent(common, pluginVersion()); consent = true; }
+    const dir = rel(ctx, ctx.dir);
+    if (!S.doctorMergeDriver(ctx.root, { dir, target: path.join(BIN, 'plangraph-merge') }).problems.length) return null;
+    if (consent) { await wireMergeDriver(ctx); return null; }
+    return `plangraph: merge driver not set up in this clone; merges of ${oneLine(dir, 80)}/*.jsonl conflict until you run plangraph doctor --fix`;
+  } catch { return null; /* the hook must never fail */ }
 }
 
 // One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Plan data only.
@@ -370,10 +383,15 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
 }
 
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
-  if (args.values.heal) await healMergeDriver(ctx);
-  // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card.
-  // Healing above still ran; a manual `plangraph card` is never affected.
+  const nudge = args.values.heal ? await healMergeDriver(ctx) : null;
+  // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card
+  // and the heal nudge. Healing above still ran; a manual `plangraph card` is never affected.
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
+  const code = await cardBody(ctx, args);
+  if (nudge) ctx.io.out(nudge); // last stdout line, after the card
+  return code;
+}
+async function cardBody(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values.line) return cardLine(ctx);
   const file = dbFile(ctx);
   if (args.values['if-present'] && !fs.existsSync(file)) { const l = await firstUseLine(ctx); if (l) ctx.io.out(l); return 0; }

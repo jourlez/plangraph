@@ -13,7 +13,7 @@ import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
 import { resolveTenant } from '../jira-tenant.ts';
 import { siteTag } from '../../lib/jira.ts';
-import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
+import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { TableSpec } from '../db.ts';
@@ -234,7 +234,7 @@ async function init(ctx: Ctx): Promise<number> {
   }
   for (const [t] of EXPORT) { const f = path.join(dir, (TABLES.get(t) as TableSpec).file); if (missing(f)) { writeState(ctx, f, ''); changes.push(`created ${(TABLES.get(t) as TableSpec).file}`); } } // EXPORT names TABLES' own tables
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
-  try { await wireMergeDriver(ctx); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`plangraph doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
+  try { await wireMergeDriver(ctx, { consent: true }); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`plangraph doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
   if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);
   else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`plangraph build\``);
   // Print-only: plangraph never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
@@ -256,13 +256,17 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean }>): Promise<number> 
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
   out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `plangraph migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
   const target = path.join(BIN, 'plangraph-merge'); // the running plugin's driver: a shim left at another install is a problem
-  let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '';
+  let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '', consentErr = '';
   if (dm.problems.length && args.values.fix) {
-    try { await wireMergeDriver(ctx); } catch (e) { wireErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
+    try { await wireMergeDriver(ctx, { consent: true }); } catch (e) { wireErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
     dm = S.doctorMergeDriver(ctx.root, { dir, target });
+  } else if (args.values.fix) {
+    // Already wired (by hand, or before 0.3.0): `doctor --fix` run by the user is the consent the session hook needs to keep it healed.
+    try { await recordHealConsent(ctx); } catch (e) { consentErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
   }
   out(dm.problems.length ? `merge driver: ${dm.problems.join('; ')}` : 'merge driver: ok'); bad += dm.problems.length;
   if (wireErr) { out(`merge driver not installed: ${wireErr}`); if (!dm.problems.length) bad++; }
+  if (consentErr) { out(`merge driver: consent to heal not recorded: ${consentErr}`); bad++; }
   const idx = trackedIndex(ctx);
   if (idx) { out(`tracked index: ${idx} is committed; untrack it with \`git rm --cached ${idx}\``); bad++; }
   doctorSidecars(ctx);
