@@ -111,13 +111,25 @@ const runTests = (cwd: string, files: string[]) => new Promise<number | null>((r
   c.on('close', (code) => resolve(code));
 });
 
+/** The same run as runTests for the unmutated baseline, keeping the last 40 output lines so a red baseline says which test failed.
+ * @param {string} cwd @param {string[]} files @returns {Promise<{ code: number | null, tail: string }>} */
+const runBaseline = (cwd: string, files: string[]) => new Promise<{ code: number | null, tail: string }>((resolve) => {
+  const c = spawn(process.execPath, ['--test', ...files], { cwd, stdio: ['ignore', 'pipe', 'pipe'], timeout: 180000 });
+  let out = '';
+  c.stdout.on('data', (d: Buffer) => { out = (out + d.toString()).slice(-60000); });
+  c.stderr.on('data', (d: Buffer) => { out = (out + d.toString()).slice(-60000); });
+  const tail = () => out.split('\n').slice(-40).join('\n');
+  c.on('error', () => resolve({ code: null, tail: tail() }));
+  c.on('close', (code) => resolve({ code, tail: tail() }));
+});
+
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mutate-'));
 const copies = Array.from({ length: Math.min(jobs, MUTATIONS.length) }, (_, k) => path.join(tmp, `repo-${k}`));
 try {
   for (const work of copies) fs.cpSync(ROOT, work, { recursive: true, filter: (s) => !/(^|\/)(\.git|node_modules)(\/|$)/.test(path.relative(ROOT, s)) });
   const stale = MUTATIONS.find(([file, from]) => fs.readFileSync(path.join(copies[0], file), 'utf8').split(from).length !== 2);
   if (stale) { console.error(`stale mutation (not exactly one match): ${stale[0]}: ${stale[1]}`); process.exitCode = 2; }
-  else if (await runTests(copies[0], [...new Set(MUTATIONS.flatMap((m) => m[3]))]) !== 0) { console.error('baseline is red: refusing to mutate'); process.exitCode = 2; }
+  else if (await (async () => { const b = await runBaseline(copies[0], [...new Set(MUTATIONS.flatMap((m) => m[3]))]); if (b.code !== 0) console.error(`baseline is red: refusing to mutate (exit ${b.code}); last output lines:\n${b.tail}`); return b.code; })() !== 0) process.exitCode = 2;
   else {
     // worker w owns copies[w]: it applies one mutant, runs that mutant's tests and restores the file before taking the next mutant
     const killedBy = await pool(MUTATIONS, copies.length, async ([file, from, to, tests], _k, w) => {
