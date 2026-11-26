@@ -161,6 +161,21 @@ Performance (measure with hyperfine on `--version`, one query and `card`, cold a
 Answer shape: concise default and detailed opt-in, filter before return, short meaningful ids, byte-stable tool text and output prefix so prompt caching hits, and no reliance on tool-result clearing (clearing a little each step breaks the cache); answers stay valid if cleared.
 
 
+### 3.15 Token strategy rulings (survey of 2026-11-25; official Claude Code documentation plus two independent studies; vendor claims not relied on)
+
+Facts that bind the design: the prompt cache matches an exact prefix, so byte-stable output and an unchanged tool list matter more than raw size; plugin skills, hooks and commands never invalidate the cache and MCP tools are deferred by default; SessionStart hooks run again on `compact` and `resume`; hook and MCP output is capped (10,000 characters for hook context, 25,000 tokens for MCP output by default, larger results are spilled to a file); skill listings cut `description` plus `when_to_use` at 1,536 characters and re-attach each invoked skill after compaction up to 5,000 tokens, keeping the start of the file; the docs themselves say CLI tools beat MCP because they add no per-tool listing. Two independent paired studies found that a shell-output proxy that shrinks tool output by 60 to 90 percent did not lower session cost (median cost +2.4 to +7.6 percent at low effort, no change at high effort): smaller output is not cheaper if it changes the agent's next steps.
+
+Rulings:
+1. Keep CLI first, a skill that teaches it, one small deferred MCP. Never change the MCP tool list or definitions mid-session; keep every answer byte-stable (sorted keys, no timestamps, no random ids).
+2. The SessionStart hook keeps matching `startup|resume|clear|compact|fork`, injects a fixed-size current line well under the cap, and states facts, not commands (a framing as system commands can trigger injection defenses).
+3. Skill descriptions put the trigger first; the key instructions sit at the top of each skill body (compaction keeps only the first 5,000 tokens).
+4. Companion detection (0.5.0): the hook checks the filesystem, settings and PATH for superpowers, openwolf and optional helpers (Context7 or Ref for library docs, an LSP or code-intelligence plugin or Serena for symbol lookup, `ccusage` for observability) and prints one line per companion that is present, nothing when absent; plangraph recommends them and never installs or bundles them. `dependencies` in `plugin.json` is never used for soft integration (it forces enablement).
+5. No bundled output proxy and no claim of savings from output compression; no `terse` output style (independent tests show 12 to 23 percent of output tokens at best, and output is a small share of spend).
+6. Measurement is cost per successful task with cache reads counted (paired A/B), not bytes saved: Task 7B's benchmark adds this metric next to answer correctness and tokens per answer.
+7. A plugin cannot reliably ship session-wide permission allow rules: `docs/TEAM.md` and the README give the user the exact rules to add to their own settings (a Bash rule for `plangraph *` and the plugin-qualified MCP tool names `mcp__plugin_plangraph_<server>__<tool>`), and skills keep `allowed-tools` for the per-turn grant.
+8. Optional later: a PostToolUse trim of plangraph's own oversized output and a PreToolUse cap on plangraph CLI calls, only if a measured case shows a gain.
+
+
 ## 4. Rulings on defects found in the graph plan
 
 1. Rename: every `brain` command, `.brain`, `brain.sqlite`, `bin/brain-solve` and `brain-jsonl` in the graph plan reads as its plangraph name from the rename map of `2026-11-25-plangraph-0.3.0-revised.md` section 3. `.baseline/pre-040` is captured on the renamed 0.3.0 tree.
