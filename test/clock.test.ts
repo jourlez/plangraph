@@ -8,6 +8,9 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { sourceNow, isoDay } from '../lib/clock.ts';
 
+// a nested `node --test` must not inherit the parent run's context, or Node warns that run() is called recursively
+const { NODE_TEST_CONTEXT: _ctx, ...CLEAN_ENV } = process.env;
+
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const D1 = 1795305600; // 2026-11-22T00:00:00Z
 const D2 = D1 + 86400;
@@ -46,7 +49,7 @@ test('close and card --line: the date follows SOURCE_DATE_EPOCH', () => {
 test('the golden harness forces its own epoch over the parent environment', () => {
   const src = fs.readFileSync(path.join(import.meta.dirname, 'golden.test.ts'), 'utf8');
   assert.match(src, /SOURCE_DATE_EPOCH: '1795305600'/);
-  const run = (parent: Record<string, string>) => spawnSync(process.execPath, ['--test', '--test-name-pattern=golden: (open-items-findings|card-line)', path.join(import.meta.dirname, 'golden.test.ts')], { env: { ...process.env, ...parent }, encoding: 'utf8' });
+  const run = (parent: Record<string, string>) => spawnSync(process.execPath, ['--test', '--test-name-pattern=golden: (open-items-findings|card-line)', path.join(import.meta.dirname, 'golden.test.ts')], { env: { ...CLEAN_ENV, ...parent }, encoding: 'utf8' });
   const r = run({ SOURCE_DATE_EPOCH: String(D2) });
   assert.equal(r.status, 0, r.stdout.slice(-1500));
 });
