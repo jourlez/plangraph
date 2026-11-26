@@ -44,38 +44,38 @@ Tokenizer: est tok is an estimate, ceil(chars/4) x calibration factor 1 (test/to
 
 | # | question | cli bytes | cli est tok | grep bytes | grep est tok | file bytes | file est tok | reduction vs grep | vs files | correct |
 |--:|---|--:|--:|--:|--:|--:|--:|--:|--:|:-:|
-| 1 | Who owns T-700 and in which sprint? | 324 | 81 | 81 | 21 | 87372 | 21843 | 0.3x | 270x | yes |
-| 2 | What does T-700 directly need? | 333 | 84 | 773 | 194 | 694414 | 173604 | 2.3x | 2085x | yes |
-| 3 | What directly depends on T-20? | 545 | 137 | 2371 | 593 | 694414 | 173604 | 4.4x | 1274x | yes |
-| 4 | Is T-700 ready to start? | 508 | 127 | 3260 | 815 | 1037902 | 259476 | 6.4x | 2043x | yes |
-| 5 | What is in sprint 26 (load per person)? | 207 | 52 | 6895 | 1724 | 408670 | 102168 | 33x | 1974x | yes |
-| 6 | How many person-sprints are over capacity? | 196 | 49 | 461226 | 115307 | 408826 | 102207 | 2353x | 2086x | yes |
-| 7 | How many points in total is Ana planned? | 691 | 173 | 121378 | 30345 | 408670 | 102168 | 176x | 591x | yes |
-| 8 | Critical chain behind T-1200: how many hops? | 311 | 78 | 347 | 87 | 694414 | 173604 | 1.1x | 2233x | yes |
-| 9 | Everything T-1200 needs within 3 levels (how many)? | 588 | 147 | 347 | 87 | 694414 | 173604 | 0.6x | 1181x | yes |
-| 10 | What kinds of findings are open (counts)? | 158 | 40 | 24608 | 6152 | 22189 | 5548 | 156x | 140x | yes |
-| 11 | Which tickets have a 'missing_ac' finding? | 2834 | 698 | 4042 | 1011 | 22189 | 5548 | 1.4x | 7.8x | yes |
-| 12 | Which tickets are not READY? | 1472 | 368 | 53814 | 13454 | 321297 | 80325 | 37x | 218x | yes |
-| 13 | Is the plan valid (counts, violations)? | 196 | 49 | 1325651 | 331413 | 1103241 | 275811 | 6764x | 5629x | yes |
-| 14 | Session start: what is the plan (size, last sprint)? | 553 | 139 | 1325481 | 331371 | 1103085 | 275772 | 2397x | 1995x | yes |
-| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 318 | 79 | 1663 | 416 | 2001657 | 500415 | 5.2x | 6295x | yes |
-| 16 | How many tickets does T-20 unblock within 2 levels? | 577 | 145 | 2371 | 593 | 694414 | 173604 | 4.1x | 1203x | yes |
-| 17 | Which is the last planned sprint? | 196 | 49 | 114265 | 28567 | 87372 | 21843 | 583x | 446x | yes |
-| 18 | Load per person in the last sprint (53)? | 110 | 28 | 320 | 80 | 408670 | 102168 | 2.9x | 3715x | yes |
-| 19 | Who owns each producer of T-1200, and when? | 214 | 54 | 675 | 169 | 781787 | 195447 | 3.2x | 3653x | yes |
-| 20 | Critical chain behind T-700: how many hops? | 308 | 77 | 773 | 194 | 694414 | 173604 | 2.5x | 2255x | yes |
-| 21 | How many tickets need T-20 (direct)? | 296 | 74 | 2689 | 673 | 1103085 | 275772 | 9.1x | 3727x | yes |
-| 22 | Is T-99999 in the plan? | 95 | 24 | 0 | 0 | 321297 | 80325 | 0.0x | 3382x | yes |
-| 23 | How many points in total is Ben planned? | 695 | 174 | 115888 | 28972 | 408670 | 102168 | 167x | 588x | yes |
-| 24 | Load per person in sprint 42? | 211 | 53 | 24083 | 6021 | 408670 | 102168 | 114x | 1937x | yes |
-| | **total (24 questions)** | **11936** | **2979** | **3593001** | **898259** | **14611133** | **3652796** | **301x** | **1224x** | **24/24** |
+| 1 | Who owns T-700 and in which sprint? | 244 | 61 | 81 | 21 | 87372 | 21843 | 0.3x | 358x | yes |
+| 2 | What does T-700 directly need? | 253 | 64 | 773 | 194 | 694414 | 173604 | 3.1x | 2745x | yes |
+| 3 | What directly depends on T-20? | 465 | 117 | 2371 | 593 | 694414 | 173604 | 5.1x | 1493x | yes |
+| 4 | Is T-700 ready to start? | 428 | 107 | 3260 | 815 | 1037902 | 259476 | 7.6x | 2425x | yes |
+| 5 | What is in sprint 26 (load per person)? | 127 | 32 | 6895 | 1724 | 408670 | 102168 | 54x | 3218x | yes |
+| 6 | How many person-sprints are over capacity? | 116 | 29 | 461226 | 115307 | 408826 | 102207 | 3976x | 3524x | yes |
+| 7 | How many points in total is Ana planned? | 611 | 153 | 121378 | 30345 | 408670 | 102168 | 199x | 669x | yes |
+| 8 | Critical chain behind T-1200: how many hops? | 231 | 58 | 347 | 87 | 694414 | 173604 | 1.5x | 3006x | yes |
+| 9 | Everything T-1200 needs within 3 levels (how many)? | 508 | 127 | 347 | 87 | 694414 | 173604 | 0.7x | 1367x | yes |
+| 10 | What kinds of findings are open (counts)? | 78 | 20 | 24608 | 6152 | 22189 | 5548 | 315x | 284x | yes |
+| 11 | Which tickets have a 'missing_ac' finding? | 2754 | 678 | 4042 | 1011 | 22189 | 5548 | 1.5x | 8.1x | yes |
+| 12 | Which tickets are not READY? | 1392 | 348 | 53814 | 13454 | 321297 | 80325 | 39x | 231x | yes |
+| 13 | Is the plan valid (counts, violations)? | 116 | 29 | 1325651 | 331413 | 1103241 | 275811 | 11428x | 9511x | yes |
+| 14 | Session start: what is the plan (size, last sprint)? | 473 | 119 | 1325481 | 331371 | 1103085 | 275772 | 2802x | 2332x | yes |
+| 15 | Full picture of T-1200 (status, size, needs, evidence)? | 238 | 59 | 1663 | 416 | 2001657 | 500415 | 7.0x | 8410x | yes |
+| 16 | How many tickets does T-20 unblock within 2 levels? | 497 | 125 | 2371 | 593 | 694414 | 173604 | 4.8x | 1397x | yes |
+| 17 | Which is the last planned sprint? | 116 | 29 | 114265 | 28567 | 87372 | 21843 | 985x | 753x | yes |
+| 18 | Load per person in the last sprint (53)? | 30 | 8 | 320 | 80 | 408670 | 102168 | 11x | 13622x | yes |
+| 19 | Who owns each producer of T-1200, and when? | 134 | 34 | 675 | 169 | 781787 | 195447 | 5.0x | 5834x | yes |
+| 20 | Critical chain behind T-700: how many hops? | 228 | 57 | 773 | 194 | 694414 | 173604 | 3.4x | 3046x | yes |
+| 21 | How many tickets need T-20 (direct)? | 216 | 54 | 2689 | 673 | 1103085 | 275772 | 12x | 5107x | yes |
+| 22 | Is T-99999 in the plan? | 15 | 4 | 0 | 0 | 321297 | 80325 | 0.0x | 21420x | yes |
+| 23 | How many points in total is Ben planned? | 615 | 154 | 115888 | 28972 | 408670 | 102168 | 188x | 665x | yes |
+| 24 | Load per person in sprint 42? | 131 | 33 | 24083 | 6021 | 408670 | 102168 | 184x | 3120x | yes |
+| | **total (24 questions)** | **10016** | **2499** | **3593001** | **898259** | **14611133** | **3652796** | **359x** | **1459x** | **24/24** |
 
 | output (no ground-truth check) | bytes | est tok |
 |---|--:|--:|
-| card (session start, printed once per session) | 553 | 139 |
-| explain | 826 | 207 |
+| card (session start, printed once per session) | 473 | 119 |
+| explain | 801 | 201 |
 | explain whatif | 517 | 130 |
-| ticket T-1200 -v | 1118 | 280 |
+| ticket T-1200 -v | 1038 | 260 |
 
 Plan shape: plan: 1400 tickets, 10062 links, 2253 evidence rows, 133 findings, last sprint 53, 4 people; raw files: tickets.jsonl 321297 bytes ~80325 est tok, edges.jsonl 694414 bytes ~173604 est tok, schedule.jsonl 87372 bytes ~21843 est tok, evidence.jsonl 876381 bytes ~219096 est tok, findings.jsonl 22189 bytes ~5548 est tok, config.json 155 bytes ~39 est tok; plan text 4181129 bytes (not used by any question: no CLI command answers from it).
 <!-- BENCH:END -->

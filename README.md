@@ -374,6 +374,9 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
 | `plangraph graph-materialize` | append the people, sprints and epics the v1 files name to `people.jsonl`, `sprints.jsonl` and `epics.jsonl`, one bare row each; idempotent, writes no v1 file | none | text |
 | `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic\|github`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |
+| `plangraph fmt` | rewrite every non-canonical entity file to its canonical form | | files |
+| `plangraph resolve` | repair merge-conflict markers in entity files when every conflicting hunk is a collection line (union and sort); scalar conflicts are left for a person | | files |
+| `plangraph compact` | merge sealed months of event and run files into one content-hashed file per month and kind; refuses outside CI (`CI=true` or `--ci`) | `--ci` | files |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the merge driver | | text, git config |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
