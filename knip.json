@@ -19,6 +19,8 @@
   ],
   "ignoreBinaries": [
     // optional runtime for the Python solver: `plangraph doctor` probes for it and plangraph-solve-run falls back to a venv without it
-    "uv"
+    "uv",
+    // system tool for npm run lint:sh (installed from its release tarball in CI, the developer's own locally); the lint script and its test skip with a notice without it
+    "shellcheck"
   ]
 }
