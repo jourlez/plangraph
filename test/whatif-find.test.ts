@@ -14,6 +14,7 @@ import { findSlots, renderFind, whatif, applyMoves } from '../lib/whatif.ts';
 import type { FindResult, Slot } from '../lib/whatif.ts';
 import { verifyPlan } from '../lib/verify.ts';
 import { genPlan, rng } from './fixtures/gen.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const T = (key: string, sp: number, o = {}) => ({ key, sp, jira_status: 'To Do', verdict: 'READY', ...o });
 // A-1 (2 SP) Ana S2; its consumer C-1 sits in Ben S5; Ana S3 is full (B-1 3/3), Ben S3 has 1/3; P-1 (Done) in Ana S1 feeds A-1.
@@ -96,6 +97,7 @@ before(() => {
   const B = path.join(REPO, '.plangraph'), jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES)); fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));
+  adoptPlanDir(B);
   assert.equal(run('build').status, 0);
 });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });

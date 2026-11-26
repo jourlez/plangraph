@@ -25,6 +25,7 @@ import { buildModel } from '../lib/model.ts';
 import type { Edge, ScheduleRow, Ticket } from '../lib/model.ts';
 import type { Slot } from '../lib/whatif.ts';
 import { verifyPlan } from '../lib/verify.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
@@ -60,6 +61,7 @@ function writePlan(plan: Plan) {
   const dir = path.join(tmpRoot, `p${counter++}`); fs.mkdirSync(dir, { recursive: true });
   wjl(path.join(dir, 'tickets.jsonl'), plan.tickets); wjl(path.join(dir, 'edges.jsonl'), plan.edges); wjl(path.join(dir, 'schedule.jsonl'), plan.schedule);
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(plan.config));
+  adoptPlanDir(dir);
   return dir;
 }
 /** schedule and meta are unchecked JSON: null when the solver wrote no file (a test that reads one then fails on the null, as before). */

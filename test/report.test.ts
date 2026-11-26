@@ -14,6 +14,7 @@ import { parseItems } from '../lib/openitems.ts';
 import { genPlan } from './fixtures/gen.ts';
 import type { Edge, PlanConfig, ScheduleRow, Ticket } from '../lib/model.ts';
 import type { OpenItem } from '../lib/openitems.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 /** The raw records the oracle reads (JSON lines written by these tests). */
 type RawPlan = { tickets: Ticket[]; edges: Edge[]; findings: Array<{ key: string; kind: string }>; config: PlanConfig };
@@ -130,6 +131,7 @@ before(() => {
   put(ROOT, '.plangraph/config.json', JSON.stringify({ ...p.config, ignore_link_kinds: ['soft'], caps: { default: 10, Ben: 6 }, closed_statuses: ['Done'] }, null, 2) + '\n');
   put(ROOT, '.plangraph/findings.jsonl', jl([{ key: 'T-4', kind: 'external', text: 'x' }, { key: 'T-6', kind: 'plan_text', text: 'y' }, { key: 'T-8', kind: 'note', text: 'z' }, { key: 'T-11', kind: 'note', text: 'w' }, { key: 'V-2', kind: 'note', text: 'closed later' }, { key: 'V-3', kind: 'note', text: 'stays open' }]));
   put(ROOT, 'snap.json', JSON.stringify(Object.fromEntries(p.tickets.map((t, i) => [t.key, { status: i % 3 === 0 ? 'Done' : 'To Do' }]))));
+  adoptPlanDir(path.join(ROOT, '.plangraph'));
   let r = plangraph(ROOT, 'build'); assert.equal(r.status, 0, r.stderr);
   for (const a of [['--register', 'T-13', 'decision', '--owner', 'Ana', '--due', '3', '--text', 'pick'], ['--register', 'T-15', 'followup', '--owner', 'Ben', '--due', '4', '--text', 'ask']]) { r = plangraph(ROOT, 'open-items', ...a, '--write'); assert.equal(r.status, 0, r.stderr); }
   r = plangraph(ROOT, 'open-items', '--close', 'T-8', 'note', '--note', 'ok', '--write'); assert.equal(r.status, 0, r.stderr);

@@ -12,6 +12,7 @@ import { buildModel } from '../lib/model.ts';
 import type { Ticket } from '../lib/model.ts';
 import { readiness, readySet, closedStatuses } from '../lib/ready.ts';
 import { buildReport } from '../lib/report.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE: string, REPO: string;
@@ -37,6 +38,7 @@ before(() => {
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(TICKETS.map((t, i) => ({ key: t.key, owner: 'Ana', sprint: 1 + (i % 3) }))));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));
+  adoptPlanDir(B);
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
 });
 after(() => { fs.rmSync(BASE, { recursive: true, force: true }); });

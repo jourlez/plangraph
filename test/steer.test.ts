@@ -11,6 +11,7 @@ import { genPlan } from './fixtures/gen.ts';
 import { steerLine, claudeSnippet, hasSteer, STEER_COMMANDS } from '../lib/steer.ts';
 import { renderCard, estTokens } from '../lib/render.ts';
 import { buildModel } from '../lib/model.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -35,6 +36,7 @@ function repo({ build = true } = {}) {
   if (build) {
     const p = genPlan({ n: 6, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
     fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+    adoptPlanDir(b);
     assert.equal(run(d, ['build']).status, 0);
   }
   return d;
@@ -65,6 +67,7 @@ test('card: the last line is the steer, naming the configured plan dir; the toke
   assert.equal(run(d, ['init']).status, 0);
   const p = genPlan({ n: 4, people: 1, seed: 1 }), b = path.join(d, 'ops/plan');
   fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   assert.equal(run(d, ['card']).stdout.trimEnd().split('\n').at(-1), STEER.replace('.plangraph/', 'ops/plan/'));
 });

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -19,6 +20,7 @@ function repo() {
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   fs.writeFileSync(path.join(d, '.plangraph/tickets.jsonl'), jl([{ key: 'sp:a/1', title: 'one', points: 1 }, { key: 'J-1', title: 'jira one', points: 1 }]));
+  adoptPlanDir(path.join(d, '.plangraph'));
   return d;
 }
 const xrefs = (d: string) => { try { return fs.readFileSync(path.join(d, '.plangraph/xrefs.jsonl'), 'utf8'); } catch { return ''; } };
@@ -55,6 +57,7 @@ test('--track refuses a second Jira key for one ticket and a second ticket for o
   let r = run(d, ['sp-link', 'sp:a/1', '--track', 'J-2']);
   assert.equal(r.status, 2); assert.match(r.stderr, /already tracks J-1/);
   fs.appendFileSync(path.join(d, '.plangraph/tickets.jsonl'), jl([{ key: 'sp:a/2', title: 'two', points: 1 }]));
+  adoptPlanDir(path.join(d, '.plangraph'));
   r = run(d, ['sp-link', 'sp:a/2', '--track', 'J-1']);
   assert.equal(r.status, 2); assert.match(r.stderr, /J-1 is already tracked by sp:a\/1/);
   assert.equal(xrefs(d), before);
@@ -63,6 +66,7 @@ test('--track refuses a second Jira key for one ticket and a second ticket for o
 test('the DOUBLE_PLACED_WORK hint names sp-link --track', () => {
   const d = repo();
   fs.writeFileSync(path.join(d, '.plangraph/schedule.jsonl'), jl([{ key: 'sp:a/1', owner: 'Ana', sprint: 1 }, { key: 'J-1', owner: 'Ana', sprint: 1 }]));
+  adoptPlanDir(path.join(d, '.plangraph'));
   assert.equal(run(d, ['sp-link', 'sp:a/1', '--track', 'J-1']).status, 0);
   const r = run(d, ['build']);
   assert.match(r.stdout + r.stderr, /DOUBLE_PLACED_WORK.*`sp-link --track`/);
