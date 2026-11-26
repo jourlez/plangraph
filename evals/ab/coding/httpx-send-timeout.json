@@ -2,7 +2,7 @@
   "id": "httpx-send-timeout",
   "repo": "https://github.com/encode/httpx",
   "commit": "df5345140e09ac6c2de0d9589bcd6f3e31c6aa3f",
-  "task": "When Client.send() is given a request, the timeout that applies is taken from the wrong place and a new Request instance created later loses the per-request timeout. Fix timeout handling so a timeout set on the request is honoured when sending.",
+  "task": "With AsyncClient(timeout=httpx.Timeout(1e-6)), sending a freshly built httpx.Request through client.send() ignores the client timeout and the slow request completes instead of raising httpx.TimeoutException. Expected: the client timeout applies to requests passed to send().",
   "hiddenTests": {
     "fromCommit": "6d852d319acd5d97caf14037dff15ede04b37542",
     "files": [
@@ -11,5 +11,10 @@
     "command": "python -m pytest -x -q tests/test_timeouts.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12",
+    "uv pip install -e . pytest==8.0.0 trio==0.24.0 trustme==1.1.0 uvicorn==0.27.0.post1 cryptography chardet==5.2.0 anyio"
+  ],
+  "timeoutSec": 180
 }

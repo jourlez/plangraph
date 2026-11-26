@@ -2,7 +2,7 @@
   "id": "cachetools-timed-deepcopy",
   "repo": "https://github.com/tkem/cachetools",
   "commit": "498bd83c1938d9dd5d9aaf4dab3043fb15fb1e42",
-  "task": "Deep-copying a timed cache (TTL or TLRU) fails when its timer object defines a custom __deepcopy__. Fix the copy logic so the timer copy is used correctly.",
+  "task": "copy.deepcopy of a TTLCache or TLRUCache fails with TypeError (\"object does not support the context manager protocol\") when the timer object passed in defines its own __deepcopy__. Expected: the deep copy succeeds and the copy gets its own, independent timer.",
   "hiddenTests": {
     "fromCommit": "5af4208d6c182176b7d620ec04632664ec6e30a2",
     "files": [
@@ -12,5 +12,10 @@
     "command": "python -m pytest -x -q tests/test_tlru.py tests/test_ttl.py"
   },
   "language": "python",
-  "validated": false
+  "validated": true,
+  "setup": [
+    "uv venv --python 3.12",
+    "uv pip install -e . pytest"
+  ],
+  "timeoutSec": 120
 }
