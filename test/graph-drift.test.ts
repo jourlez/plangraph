@@ -8,6 +8,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { drift } from '../lib/graph/drift.ts';
 import type { DriftInput } from '../lib/graph/drift.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ob = (xid: string, fields: object, links: object[] = [], seen = '2026-11-22', sys = 'jira:acme') => ({ sys, xid, type: 'ticket', fields: JSON.stringify(fields), links: JSON.stringify(links), seen });
 const base = (): DriftInput => ({
@@ -80,6 +81,7 @@ test('sync --plan end to end: report, fenced tracker text, push list, JSON, no w
   fs.mkdirSync(path.join(b, 'cache'));
   const row = (xid: string, fields: object) => ({ sys: 'jira:acme', xid, type: 'ticket', fields, links: [], fp: '0123456789abcdef', seen: '2026-11-01' });
   fs.writeFileSync(path.join(b, 'cache/jira.jsonl'), jl([row('T-1', { assignee: HOSTILE, status: 'To Do' })]));
+  adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   const before = fs.readdirSync(b).sort().map((f) => `${f}${fs.statSync(path.join(b, f)).isFile() ? fs.readFileSync(path.join(b, f), 'utf8').length : ''}`).join('|');
   const r = run(d, ['sync', '--plan']);

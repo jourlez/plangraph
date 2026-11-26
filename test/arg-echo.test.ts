@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { oneLine, guardOutput } from '../lib/sanitize.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE: string, REPO: string;
@@ -28,6 +29,7 @@ before(() => {
   const B = path.join(REPO, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([{ key: 'T-1', sp: 3, verdict: 'READY', summary: 's' }]));
   fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl([{ key: 'T-1', owner: 'Ana', sprint: 1 }]));
+  adoptPlanDir(B);
   fs.writeFileSync(path.join(REPO, 'issue.json'), JSON.stringify({ 'T-1': { fields: { summary: 'x', description: 'y' } } }));
   assert.equal(run('build').status, 0);
 });

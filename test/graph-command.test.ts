@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
@@ -30,6 +31,7 @@ function plan(extra: Record<string, readonly object[]> = {}, build = true): stri
   const d = path.join(BASE, `p-${n++}`); fs.mkdirSync(d); execFileSync('git', ['init', '-q'], { cwd: d, env: env() });
   assert.equal(run(d, ['init']).status, 0);
   for (const [f, rows] of Object.entries({ ...FILES, ...extra })) fs.writeFileSync(path.join(d, '.plangraph', f), jl(rows));
+  adoptPlanDir(path.join(d, '.plangraph'));
   if (build) assert.equal(run(d, ['build']).status, 0);
   return d;
 }

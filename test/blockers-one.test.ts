@@ -14,6 +14,7 @@ import { blockersOf, modelSource } from '../lib/graph/blockers.ts';
 import { graphReader } from '../lib/graph/views.ts';
 import { REL_SEMANTICS, RELATIONS, DERIVED_RELATIONS } from '../lib/graph/files.ts';
 import type { OpenItem } from '../lib/openitems.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
@@ -31,6 +32,7 @@ function fixture(extra: Record<string, readonly object[]> = {}) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'blockers-one-'))); tmps.push(dir);
   const files: Record<string, readonly object[]> = { 'tickets.jsonl': TICKETS, 'edges.jsonl': EDGES, 'schedule.jsonl': SCHED, 'findings.jsonl': FINDINGS, ...extra };
   for (const [f, rows] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), jl(rows));
+  adoptPlanDir(dir);
   buildIndex({ dir });
   const h = openIndex(path.join(dir, INDEX_FILE), { dir });
   const model = buildModel({ tickets: TICKETS as Ticket[], edges: EDGES as Edge[], schedule: SCHED as ScheduleRow[], config: CONFIG, findings: FINDINGS as PlanRecord[], evidence: [], learnings: [] });

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph'), made: string[] = [];
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
@@ -23,6 +24,7 @@ function plan(tickets: object[], schedule: object[]) {
   assert.equal(run('init').status, 0);
   const B = path.join(repo, '.plangraph');
   fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(tickets)); fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(schedule));
+  adoptPlanDir(B);
   const b = run('build'); assert.equal(b.status, 0, b.stderr);
   return run;
 }
