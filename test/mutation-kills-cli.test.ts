@@ -47,7 +47,7 @@ test('usage errors for every command: unknown option, missing and extra position
 });
 
 const WRITES = ([
-  ['card', '--write'], ['card', '--heal'], ['export'], ['build'], ['migrate'], ['migrate', '--write'], ['doctor', '--fix'], ['refs-update'], ['refs-update', '--full'],
+  ['card', '--write'], ['card', '--heal'], ['export'], ['build'], ['doctor', '--fix'], ['refs-update'], ['refs-update', '--full'],
   ['units', '--keys', 'T-1,T-2', '--out', 'units'], ['units', '--stale', '--out', 'units2'], ['units', '--keys', 'T-1', '--size', '1', '--out', 'u3', '--tokens-per-unit', '100'],
   ['open-items', '--write'], ['open-items', '--register', 'T-1', 'manual', '--text', 'call them', '--owner', 'Ana', '--due', '3'], ['open-items', '--close', 'T-2', 'risk', '--by', 'Ana', '--note', 'decided'],
   ['open-items', '--reopen', 'T-2', 'risk'], ['whatif', 'T-3', '--sprint', '4', '--write'], ['whatif', 'T-3', '--sprint', '4', '--apply-plan', '--write'], ['schedule-load', 'sched.json', 'v3'], ['schedule-load', 'bad-sched.json', 'v3'], ['schedule-load', 'frozen-sched.json', 'v4'],

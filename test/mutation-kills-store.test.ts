@@ -21,12 +21,15 @@ const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir
 const put = (d: string, f: string, t: string) => { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), t); };
 const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 
+// The nine files of format 1 (the schemas that predate the graph files).
+const V1_FILES = ['edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'meta.jsonl', 'open-items.jsonl', 'refs.jsonl', 'schedule.jsonl', 'tickets.jsonl'];
+
 test('canonical values, lines and files for every schema', () => {
   G('keys', () => [S.keyStr(['a', null, 3, undefined]), S.showKey('a\u0000b\u0000'), S.schemaFor('x/tickets.jsonl').file, S.schemaFor('other.jsonl').file]);
   G('canon-value', () => [S.canonValue({ b: [3, 1, { z: undefined, y: null }], a: 'x' }), S.canonValue(['b', 'a', 'b'], true), S.canonValue(undefined), S.canonValue(null), S.canonValue([]), S.canonValue(1.0), S.canonValue({ __proto__: { x: 1 }, own: 1 })]);
   G('canon-line', () => [S.canonLine({ z: 1, key: 'A', sp: 2, summary: 's', extra: undefined }, S.SCHEMAS['tickets.jsonl']), S.canonLine({ key: 'K', plans: ['b', 'a', 'a'], files: { y: 1, x: 2 } }, S.SCHEMAS['refs.jsonl']), outcome(() => S.canonLine(([1] as unknown as S.Rec), {})), outcome(() => S.canonLine((null as unknown as S.Rec), {}))]); // deliberate misuse
   const recs = [{ key: 'B', sp: 1 }, { key: 'A', sp: 2 }, { key: 'A', sp: 2 }, { key: 'A', sp: 1 }];
-  for (const name of S.V1_FILES) G(`canon-file-${name}`, () => S.canonFile(recs.map((r, i) => ({ ...r, consumer: `C${i % 2}`, producer: 'P', id: `L${i % 3}`, k: `k${i}`, kind: 'x', text: 't', version: i % 2 ? 'old' : 'current', source: 's', verdict: 'v' })), S.SCHEMAS[name]));
+  for (const name of V1_FILES) G(`canon-file-${name}`, () => S.canonFile(recs.map((r, i) => ({ ...r, consumer: `C${i % 2}`, producer: 'P', id: `L${i % 3}`, k: `k${i}`, kind: 'x', text: 't', version: i % 2 ? 'old' : 'current', source: 's', verdict: 'v' })), S.SCHEMAS[name]));
   G('canon-file-fallback', () => [S.canonFile([{ b: 1 }, { a: 1 }, { b: 1 }], null), S.canonFile([], null), S.canonFile([{ k: 2 }, { k: 1 }], (r: S.Rec) => String(r.k))]);
   G('canon-text', () => [S.canonText('{"key":"B"}\n\n{"key":"A","sp":1}\r\n', S.SCHEMAS['tickets.jsonl'], 't.jsonl'), outcome(() => S.canonText('{bad', {} as unknown as S.Schema, 'x.jsonl')), S.parseJsonlText('{"a":1}')]); // deliberate misuse: parsing fails before the spec is read
   G('defaults', () => [S.withDefaults(S.SCHEMAS['refs.jsonl'], { key: 'K', plans: undefined }), S.withDefaults(S.SCHEMAS['edges.jsonl'], { consumer: 'A', producer: 'B', kind: 'x' }), S.withDefaults({}, { a: 1 })]);
@@ -92,22 +95,6 @@ test('format.json: reads, every refusal, the read and write gates, writes that k
   G('format-write', () => [fs.readFileSync(path.join(w, 'format.json'), 'utf8'), fs.readFileSync(path.join(bad, 'format.json'), 'utf8')]);
 });
 
-test('migrations: plan, dry run, write, re-run, refusals, a custom chain', () => {
-  const d = tmp();
-  put(d, 'tickets.jsonl', '{"sp":1,"key":"B"}\n{"key":"A"}\n'); put(d, 'edges.jsonl', '{"consumer":"A","producer":"B","kind":"plan_need","note":""}\n'); put(d, 'other.jsonl', 'x\n');
-  G('migrate-plan', () => S.planMigration(d));
-  G('migrate-dry', () => S.runMigration(d));
-  const writes: string[] = [];
-  G('migrate-write', () => S.runMigration(d, { write: true, onWrite: (f) => writes.push(f) }));
-  G('migrate-after', () => [writes, fs.readFileSync(path.join(d, 'tickets.jsonl'), 'utf8'), fs.readFileSync(path.join(d, 'format.json'), 'utf8'), S.planMigration(d), S.runMigration(d, { write: true })]);
-  const n = tmp(); put(n, 'format.json', '{"format_version":9}');
-  const s = tmp(); fs.symlinkSync(path.join(s, 'x'), path.join(s, 'tickets.jsonl'));
-  const dd = tmp(); fs.mkdirSync(path.join(dd, 'tickets.jsonl'));
-  const ms = [{ from: 0, to: 1, plan: () => [{ file: 'b.jsonl', text: 'b' }, { file: 'a.jsonl', text: 'a' }] }, { from: 1, to: 3, min_reader: 2, describe: 'jump', plan: (_d: string, read: (n: string) => string | null) => [{ file: 'c.jsonl', text: String(read('a.jsonl')) + String(read('zz.jsonl')) }] }];
-  const c = tmp();
-  G('migrate-refusals', () => [JSON.stringify(outcome(() => S.planMigration(n))).replaceAll(n, '<dir>'), outcome(() => S.planMigration(s)), outcome(() => S.planMigration(dd)), outcome(() => S.planMigration(c, { migrations: [{ from: 1, to: 2, plan: () => [] }] })), S.planMigration(c, { migrations: ms }), S.runMigration(c, { write: true, migrations: ms }), fs.readFileSync(path.join(c, 'c.jsonl'), 'utf8'), fs.readFileSync(path.join(c, 'format.json'), 'utf8')]);
-});
-
 test('merge driver: .gitattributes and git config in a temp repository, doctor findings', () => {
   const r = tmp();
   execFileSync('git', ['init', '-q', r], { env: GIT_ENV });
@@ -158,7 +145,7 @@ test('schemas: identity fields drive the three-way merge, field order and defaul
   const full = { impl_status: 'done', first_verdict: 'READY', verdict_source: 'audit', verdict: 'READY', v2_sprint: 2, v2_owner: 'Ana', jira_status: 'Done', sp: 3, epic: 'E', summary: 's', key: 'A', zz: 1, aa: 2 };
   G('order-tickets', () => S.canonLine(full, S.SCHEMAS['tickets.jsonl']));
   G('order-open-items', () => S.canonLine({ text: 't', status: 'open', due_sprint: 1, kind: 'k', key: 'A', owner: 'x' }, S.SCHEMAS['open-items.jsonl']));
-  G('order-all', () => Object.entries(S.SCHEMAS).filter(([f]) => S.V1_FILES.includes(f)).map(([f, s]) => [f, s.file, s.order, s.sets, s.defaults])); // the nine format-1 files; the graph files are pinned in test/graph-files.test.ts
+  G('order-all', () => Object.entries(S.SCHEMAS).filter(([f]) => V1_FILES.includes(f)).map(([f, s]) => [f, s.file, s.order, s.sets, s.defaults])); // the nine format-1 files; the graph files are pinned in test/graph-files.test.ts
   const d = tmp();
   for (const f of ['edges.jsonl', 'evidence.jsonl', 'learnings.jsonl', 'schedule.jsonl', 'tickets.jsonl']) put(d, f, `${JSON.stringify({ key: 'A', consumer: 'A', producer: 'B', id: 'L', source: 's' })}\n`);
   G('read-defaults', () => ['edges.jsonl', 'evidence.jsonl', 'learnings.jsonl', 'schedule.jsonl', 'tickets.jsonl'].map((f) => S.readRecords(d, f)));
@@ -258,25 +245,18 @@ test('lock files that cannot be read or created', { skip: process.platform === '
   try { G('guard-cannot-create', () => { try { S.acquireLock(rlock, { staleMs: 1000, retries: 1, waitMs: 1 }); return 'acquired'; } catch (e) { return (e as Error & { code?: string }).code; } }); } finally { fs.chmodSync(ro, 0o700); } // whatever acquireLock throws is read for its code
 });
 
-test('store edges: permission errors pass through, null format, field order on write, migration caps and races, default driver path', { skip: process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0) }, (t) => {
+test('store edges: permission errors pass through, null format, field order on write, default driver path', { skip: process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0) }, (t) => {
   const code = (fn: () => unknown) => { try { fn(); return 'ok'; } catch (e) { return `${(e as Error).constructor.name} ${(e as Error & { code?: string }).code ?? ''} ${(e as Error).message.replace(/\/[^ ]*storek-[^ ]*/g, '<path>')}`; } }; // the store throws Errors
   const d = tmp();
   put(d, 'tickets.jsonl', '{"key":"A"}\n'); fs.chmodSync(path.join(d, 'tickets.jsonl'), 0o000);
   put(d, 'format.json', '{"format_version":1}'); fs.chmodSync(path.join(d, 'format.json'), 0o000);
   G('perm-records-format-migrate', () => [code(() => S.readRecords(d, 'tickets.jsonl')), code(() => S.readFormat(d))]);
   fs.chmodSync(path.join(d, 'format.json'), 0o600); fs.rmSync(path.join(d, 'format.json'));
-  G('perm-migrate', () => code(() => S.planMigration(d)));
   fs.chmodSync(path.join(d, 'tickets.jsonl'), 0o600);
   const n = tmp(); put(n, 'format.json', 'null');
   G('format-null', () => code(() => S.readFormat(n)));
   const w = tmp(); put(w, 'format.json', '{"format_version":0,"a":1,"zz":2}'); S.writeFormat(w, { format_version: 1, min_reader: 1 });
   G('format-write-order', () => fs.readFileSync(path.join(w, 'format.json'), 'utf8'));
-  const big = tmp(); const fd = fs.openSync(path.join(big, 'tickets.jsonl'), 'w'); fs.ftruncateSync(fd, 64 * 1024 * 1024 + 1); fs.closeSync(fd);
-  G('migrate-cap', () => code(() => S.planMigration(big)));
-  G('migrate-none', () => [S.planMigration(tmp(), { migrations: [] })]);
-  let calls = 0;
-  const once = [{ from: 0, to: 1, plan: () => (++calls === 1 ? [{ file: 'x.jsonl', text: 'x' }] : []) }];
-  G('migrate-raced', () => S.runMigration(tmp(), { write: true, migrations: once }));
   const r = tmp(); execFileSync('git', ['init', '-q', r], { env: GIT_ENV });
   G('driver-default', () => [S.installMergeDriver(r), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8')]);
   S.installMergeDriver(r, { driverPath: 'git' });

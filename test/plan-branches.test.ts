@@ -162,18 +162,17 @@ test('doctor lists at most five conflict markers and stray files, and says how m
   assert.match(t, new RegExp(`  \\.\\.\\. and ${total - 20} more \\.jsonl files not scanned \\(the scan reads at most 20\\)`));
 });
 
-test('doctor --fix wires a missing merge driver and doctor flags a legacy data format', async () => {
+test('doctor --fix wires a missing merge driver', async () => {
   const d = copy();
-  fs.rmSync(path.join(plan(d), 'format.json'));
   git(d, 'config', '--unset-all', 'merge.plangraph-jsonl.driver');
   const r = await run(d, ['doctor']);
   assert.equal(r.code, 1);
-  assert.match(L(r)[0] as string, /^data format v0 \(legacy: run `plangraph migrate --write`\); tool supports v1$/);
+  assert.match(L(r)[0] as string, /^data format v1; tool supports v1$/);
   assert.match(L(r)[1] as string, /^merge driver: /);
   assert.doesNotMatch(L(r)[1] as string, /ok$/);
   const fix = await run(d, ['doctor', '--fix']);
   assert.match(fix.out.join('\n'), /merge driver: ok/);
-  assert.equal(fix.code, 1, 'the legacy format still counts');
+  assert.equal(fix.code, 0);
 });
 
 test('doctor says when the merge driver cannot be installed outside a git repository', async () => {

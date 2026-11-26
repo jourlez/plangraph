@@ -1,4 +1,4 @@
-// Plan mutation and safety: whatif schedule-load export build init migrate doctor.
+// Plan mutation and safety: whatif schedule-load export build init doctor.
 // Index writes open their own writable handle (src/db.ts openIndex, readOnly false); text writes are atomic and confined to the repo.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -248,13 +248,6 @@ async function init(ctx: Ctx): Promise<number> {
   return 0;
 }
 
-async function migrate(ctx: Ctx, args: Args<{ write?: boolean }>): Promise<number> {
-  const S = await import('../../lib/store.ts'); let r: ReturnType<typeof S.runMigration>;
-  try { r = S.runMigration(ctx.dir, { write: Boolean(args.values.write) }); } catch (e) { refuseWrite(e); } // a symlinked target or lock: exit 4
-  ctx.io.out(r.pending ? `${r.from}->${r.to}: ${r.steps.flatMap((x) => x.files).join(' ')} ${r.written ? '(applied)' : '(dry run, use --write)'}` : 'up to date');
-  return 0;
-}
-
 // ---- doctor: data format, merge driver, node, solver runtime; warnings never change the exit code ----
 // `doctor --fix --alias NAME`: the user approves the alias for THIS repository. It needs a terminal on stdin (an agent that follows a printed hint
 // has none) and a typed host, and writes nothing before the confirmation. Returns false when the user did not confirm.
@@ -287,7 +280,7 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean; alias?: string }>): 
   }
   const f = S.readFormat(ctx.dir);
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
-  out(`data format v${f.format_version}${f.legacy ? ' (legacy: run `plangraph migrate --write`)' : ''}; tool supports v${S.FORMAT_VERSION}`); if (f.legacy) bad++;
+  out(`data format v${f.format_version}; tool supports v${S.FORMAT_VERSION}`);
   const target = path.join(BIN, 'plangraph-merge'); // the running plugin's driver: a shim left at another install is a problem
   let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '', consentErr = '';
   if (dm.problems.length && args.values.fix) {
@@ -427,6 +420,5 @@ export const commands: CommandMap = {
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },
   init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the plan directory, config, generic learnings and the merge driver' },
-  migrate: { run: migrate, positionals: [0, 0], writes: 'text', guard: 'none', options: { write: B }, summary: 'upgrade the data format (dry run unless --write)' },
   doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING }, alias: { type: 'string' } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
 };

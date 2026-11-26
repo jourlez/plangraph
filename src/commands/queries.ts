@@ -386,11 +386,11 @@ export async function cardLineText(ctx: Ctx): Promise<string> {
 async function cardLine(ctx: Ctx): Promise<number> { ctx.io.out(await cardLineText(ctx)); return 0; }
 
 // First-use nudge (hook only, no index): plan data is there but the card cannot be built, so ONE fixed line says what to run. Pure
-// lstat/size checks (nothing is opened or read except format.json through readFormat's capped reader), no git, no write, no build, no
+// lstat/size checks (nothing is opened or read except format.json through the capped reader of checkFormat), no git, no write, no build, no
 // text from the data files (only the plan dir, which resolveBrainDir already confined and which is one sanitized line). Anything
 // unsafe or odd (symlink, FIFO, directory, huge or unreadable file, bad or newer format.json, anything at the index path) returns null.
 async function firstUseLine(ctx: Ctx): Promise<string | null> {
-  const { FormatError, FORMAT_FILE, checkFormat, readFormat } = await import('../../lib/store.ts'), { CONFIG_MAX } = await import('../../lib/model.ts');
+  const { FORMAT_FILE, checkFormat } = await import('../../lib/store.ts'), { CONFIG_MAX } = await import('../../lib/model.ts');
   const lst = (f: string) => { try { return fs.lstatSync(f); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw e; } }; // fs errno errors
   const dir = lst(ctx.dir);
   if (!dir || !dir.isDirectory()) return null;
@@ -405,10 +405,7 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
   }
   if (!data) return null;
   const relDir = rel(ctx, ctx.dir), where = SAFE_ATTR_DIR.test(relDir) && relDir.length <= 40 ? relDir : 'the plan directory', head = `plangraph: plan data found in ${where} but no index: run`;
-  try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch (e) {
-    if (!(e instanceof FormatError) || e.code !== 'NEEDS_MIGRATION') return null;
-    return `${head} plangraph migrate --write (format v${readFormat(ctx.dir).format_version}) then plangraph build`;
-  }
+  try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch { return null; }
 }
 
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {

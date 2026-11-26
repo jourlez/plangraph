@@ -90,7 +90,6 @@ rm -f big.jsonl
 node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync(".plangraph/config.json","utf8"));c.checks=[{name:"x",command:"touch SHOULD_NOT_EXIST"}];fs.writeFileSync(".plangraph/config.json",JSON.stringify(c))'
 "$BRAIN" open-items >/dev/null 2>&1 || true
 [ ! -e SHOULD_NOT_EXIST ] || fail "config.checks was executed"
-"$BRAIN" migrate | grep -q "up to date" || fail migrate-up-to-date
 "$BRAIN" doctor | grep -q "merge driver: ok" || fail doctor
 "$BRAIN" forecast | grep -q "REFUSED" || fail forecast-refuses-without-history
 "$BRAIN" sprint 2 --json | grep -q '"v":2' || fail json-envelope

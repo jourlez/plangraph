@@ -55,7 +55,7 @@ const SHAPES = {
   ticket: [['T-1'], ['T-404']], neighbors: [['T-2']], chain: [['T-2']], sprint: [['1'], ['99']], person: [['Ana']], blockers: [[]],
   findings: [[], ['gap']], rules: [[], ['--repo']], check: [[]], verify: [[], ['sched.json']], ready: [['T-2'], ['T-404']],
   card: [[], ['--line'], ['--if-present'], ['@empty', '--if-present']], whatif: [['T-2', '--sprint', '2']], 'schedule-load': [['sched.json', 'old']],
-  export: [[]], build: [[]], init: [[]], migrate: [[]], doctor: [[]], stale: [[]], 'refs-update': [[]], units: [['--keys', 'T-1', '--out', 'u']],
+  export: [[]], build: [[]], init: [[]], doctor: [[]], stale: [[]], 'refs-update': [[]], units: [['--keys', 'T-1', '--out', 'u']],
   bundle: [['T-1']], 'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['T-1', '--out', 'jt', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],
   'open-items': [[], ['--findings', 'f.jsonl']], forecast: [[]], simulate: [['--runs', '20']], integrations: [[]],
   'sp-ingest': [['docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none']], 'sp-link': [['T-1', 'docs/plan.md']],

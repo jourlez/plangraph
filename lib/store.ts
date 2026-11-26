@@ -1,4 +1,4 @@
-// Canonical serialization, format versioning + migrations, locks, merge-driver install/doctor. See docs/FORMAT.md.
+// Canonical serialization, format versioning, locks, merge-driver install/doctor. See docs/FORMAT.md.
 // Node built-ins only. Uses fs/child_process (store layer); no console output, no process.exit.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,8 +8,7 @@ import { writeAtomicSafe } from './fsafe.ts';
 import { parseJsonl, readDataCapped, presentDataFile, IngestError, DATA_REFUSALS } from './jsonl.ts';
 
 export const FORMAT_VERSION = 1; // what this tool writes
-export const MIN_FORMAT = 1; // oldest directory this tool reads without migrating
-export type FormatErrorCode = 'BAD_FORMAT' | 'TOO_NEW' | 'NEEDS_MIGRATION' | 'NO_PATH';
+export type FormatErrorCode = 'BAD_FORMAT' | 'TOO_NEW';
 export class FormatError extends Error { declare code: FormatErrorCode; constructor(code: FormatErrorCode, msg: string) { super(msg); this.code = code; } }
 
 const sha = (s: string, n = 32): string => crypto.createHash('sha256').update(s).digest('hex').slice(0, n);
@@ -40,8 +39,6 @@ const evHash = (r: Rec): string => sha(canonValue([r.key ?? null, r.source ?? nu
 const mk = (file: string, key: string[], order: string[], extra: Partial<Schema> = {}): Schema => ({ file, order, sets: [], defaults: {}, id: byFields(key), sort: byFields(key), ...extra });
 // A file with no natural key is a set: the whole canonical record is its identity (also FALLBACK, and links.jsonl).
 const wholeRecord: KeyFn = (r) => sha(canonLine(r, { order: [], sets: [] }));
-/** The nine files of format 1. The 0-to-1 migration iterates this frozen list, so a schema added later never changes a shipped migration. */
-export const V1_FILES: readonly string[] = Object.freeze(['edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'meta.jsonl', 'open-items.jsonl', 'refs.jsonl', 'schedule.jsonl', 'tickets.jsonl']);
 export const SCHEMAS: Record<string, Schema> = {
   'tickets.jsonl': mk('tickets.jsonl', ['key'], ['key', 'summary', 'epic', 'sp', 'jira_status', 'v2_owner', 'v2_sprint', 'verdict', 'verdict_source', 'first_verdict', 'impl_status'], { defaults: { summary: '', epic: '', jira_status: '', verdict: '', verdict_source: '', first_verdict: '' } }),
   'edges.jsonl': mk('edges.jsonl', ['consumer', 'producer'], ['consumer', 'producer', 'kind', 'note'], { defaults: { kind: 'plan_need', note: '' } }),
@@ -198,18 +195,17 @@ export function withLock<T>(lockPath: string, fn: () => T, opts?: LockOptions): 
   return fn();
 }
 
-// ---------- format version + migrations ----------
+// ---------- format version ----------
 export const FORMAT_FILE = 'format.json';
-// format.json is small and repo-controlled: read through readCapped (one fd, regular files only, 64 KiB cap), a symlink refused (a dangling
-// one is not "legacy"). Messages name the file only, never its path or content (a JSON engine message embeds a snippet of the text).
+// format.json is small and repo-controlled: read through readCapped (one fd, regular files only, 64 KiB cap), a symlink refused. Messages name the file only, never its path or content (a JSON engine message embeds a snippet of the text).
 const FORMAT_MAX = 64 * 1024;
 /** format.json as JSON.parse returns it: unchecked until readFormat tests both version fields. */
 interface RawFormat { format_version?: unknown; min_reader?: unknown; [k: string]: unknown }
-/** format.json after readFormat: both integers tested (min_reader defaulted), unknown fields kept; legacy when the file is missing. */
-export interface FormatInfo { format_version: number; min_reader: number; legacy: boolean; [k: string]: unknown }
+/** format.json after readFormat: both integers tested (min_reader defaulted), unknown fields kept; a missing file reads as format 0. */
+export interface FormatInfo { format_version: number; min_reader: number; [k: string]: unknown }
 export function readFormat(dir: string): FormatInfo {
   const f = path.join(dir, FORMAT_FILE), bad = (m: string) => new FormatError('BAD_FORMAT', `${FORMAT_FILE}: ${m}`);
-  let st: fs.Stats; try { st = fs.lstatSync(f); } catch (e) { if ((e as Coded).code === 'ENOENT') return { format_version: 0, min_reader: 0, legacy: true }; throw e; } // whatever was thrown: its fields are read as before
+  let st: fs.Stats; try { st = fs.lstatSync(f); } catch (e) { if ((e as Coded).code === 'ENOENT') return { format_version: 0, min_reader: 0 }; throw e; } // whatever was thrown: its fields are read as before
   if (st.isSymbolicLink()) throw bad('is a symlink');
   let text: string;
   try { text = readDataCapped(f, FORMAT_MAX); } catch (e) {
@@ -223,89 +219,20 @@ export function readFormat(dir: string): FormatInfo {
   if (!j || typeof j !== 'object' || Array.isArray(j) || !Number.isInteger(j.format_version) || (j.format_version as number) < 0) throw bad('format_version must be a non-negative integer'); // Number.isInteger is the check
   const min = j.min_reader === undefined ? j.format_version : j.min_reader; // missing optional field: default
   if (!Number.isInteger(min) || (min as number) < 0 || (min as number) > (j.format_version as number)) throw bad('min_reader must be an integer <= format_version'); // Number.isInteger is the check (both)
-  return { ...j, min_reader: min, legacy: false } as FormatInfo; // format_version and min_reader were both tested as integers above
+  return { ...j, min_reader: min } as FormatInfo; // format_version and min_reader were both tested as integers above
 }
 export function writeFormat(dir: string, { format_version, min_reader }: { format_version: number; min_reader: number }): void {
-  const { legacy, ...old } = ((): Partial<FormatInfo> => { try { return readFormat(dir); } catch { return {}; } })(); // keep unknown fields
+  const old = ((): Partial<FormatInfo> => { try { return readFormat(dir); } catch { return {}; } })(); // keep unknown fields
   writeAtomic(path.join(dir, FORMAT_FILE), canonLine({ ...old, format_version, min_reader }, { order: ['format_version', 'min_reader'] }) + '\n');
 }
 // supported = {version, min}. mode 'write' (default): any newer directory is a hard error. mode 'read': a newer directory is readable
 // when its min_reader <= our version (additive changes only; unknown fields are ignored).
-export interface FormatCheck { version: number; min_reader: number; legacy: boolean; status: 'newer-readable' | 'ok' }
-export function checkFormat(dir: string, supported: { version: number; min: number } = { version: FORMAT_VERSION, min: MIN_FORMAT }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {
+export interface FormatCheck { version: number; min_reader: number; status: 'newer-readable' | 'ok' }
+export function checkFormat(dir: string, supported: { version: number } = { version: FORMAT_VERSION }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {
   const f = readFormat(dir);
   const tooNew = mode === 'read' ? f.min_reader > supported.version : f.format_version > supported.version;
   if (tooNew) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} (needs reader >= ${f.min_reader}) is newer than this tool supports (${supported.version}): upgrade the plangraph tool`);
-  if (f.format_version < supported.min) throw new FormatError('NEEDS_MIGRATION', `${dir}: data format ${f.format_version} is older than ${supported.min}: run \`plangraph migrate --write\``);
-  return { version: f.format_version, min_reader: f.min_reader, legacy: f.legacy, status: f.format_version > supported.version ? 'newer-readable' : 'ok' };
-}
-
-// A migration: {from, to, min_reader?, plan(dir, read) -> [{file, text}]}. plan is pure: read(name) returns the file text as it will be
-// after earlier steps (or null). It lists only files whose text changes, so a re-run after a crash plans only what is left.
-/** One file a migration step rewrites, with its new text. */
-export interface MigrationOp { file: string; text: string }
-/** read(name): the file text as earlier steps left it, or null when missing. */
-export interface Migration { from: number; to: number; min_reader?: number; describe?: string; plan(dir: string, read: (name: string) => string | null): MigrationOp[] }
-export const migrations: Migration[] = [{
-  from: 0, to: 1, min_reader: 1, describe: 'add format.json, canonicalize every known jsonl file',
-  plan(dir, read) {
-    const ops: MigrationOp[] = [];
-    for (const name of [...V1_FILES].sort()) {
-      const cur = read(name); if (cur === null) continue;
-      const next = canonText(cur, SCHEMAS[name], name); // errors name the file only, never its absolute path
-      if (next !== cur) ops.push({ file: name, text: next });
-    }
-    return ops;
-  },
-}];
-const chain = (from: number, target: number, ms: readonly Migration[]): Migration[] => {
-  const steps: Migration[] = []; let v = from;
-  while (v < target) { const m = ms.find((x) => x.from === v); if (!m) throw new FormatError('NO_PATH', `no migration from format ${v}`); steps.push(m); v = m.to; }
-  return steps;
-};
-// A data file read for a migration: lstat first (a symlink is refused, never followed), then one capped read of a regular file (a FIFO
-// or device is refused without blocking). Missing -> null. Refusals are IngestError (exit 2) naming the base file only, as in build.
-const MIGRATE_MAX = 64 * 1024 * 1024;
-function readDataFile(dir: string, name: string): string | null {
-  const f = path.join(dir, name), base = path.basename(name); let st: fs.Stats;
-  try { st = fs.lstatSync(f); } catch (e) { if ((e as Coded).code === 'ENOENT') return null; throw e; } // whatever was thrown: its fields are read as before
-  if (st.isSymbolicLink()) throw new IngestError(`${base}: is a symlink, not a regular file`);
-  try { return readDataCapped(f, MIGRATE_MAX); } catch (e) {
-    if (DATA_REFUSALS.has((e as Coded).code as string)) throw new IngestError(`${base}: ${(e as Coded).message}`); // whatever was thrown: its fields are read as before
-    throw e;
-  }
-}
-function planSteps(dir: string, { migrations: ms = migrations }: { migrations?: readonly Migration[] } = {}) {
-  const f = readFormat(dir), top = Math.max(...ms.map((m) => m.to), 0);
-  if (f.format_version > top) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} is newer than this tool supports (${top}): upgrade the plangraph tool`);
-  const overlay = new Map<string, string>();
-  const read = (name: string): string | null => (overlay.has(name) ? overlay.get(name) as string : readDataFile(dir, name)); // has() was just tested
-  const steps = chain(f.format_version, top, ms).map((m) => {
-    const ops = m.plan(dir, read).sort((a, b) => (a.file < b.file ? -1 : 1));
-    for (const o of ops) overlay.set(o.file, o.text);
-    return { from: m.from, to: m.to, min_reader: m.min_reader ?? m.to, describe: m.describe || '', ops };
-  });
-  return { from: f.format_version, to: top, steps };
-}
-// Dry-run summary (no texts).
-export interface MigrationPlan { from: number; to: number; pending: boolean; steps: Array<{ from: number; to: number; describe: string; files: string[] }> }
-export function planMigration(dir: string, o?: { migrations?: readonly Migration[] }): MigrationPlan {
-  const p = planSteps(dir, o);
-  return { from: p.from, to: p.to, pending: p.steps.length > 0, steps: p.steps.map((s) => ({ from: s.from, to: s.to, describe: s.describe, files: s.ops.map((x) => x.file) })) };
-}
-// Dry-run unless write. Per step: write each changed file atomically (temp + rename), then bump format.json LAST. A crash leaves a
-// directory that is still a valid old-format one; re-running recomputes the remaining work and converges. onWrite(file) is a test hook.
-export function runMigration(dir: string, { write = false, onWrite, ...o }: { write?: boolean; onWrite?: (file: string) => void; migrations?: readonly Migration[] } = {}): MigrationPlan & { written: boolean } {
-  const summary = planMigration(dir, o);
-  if (!write || !summary.pending) return { ...summary, written: false };
-  return withLock(path.join(dir, '.migrate.lock'), () => {
-    const fresh = planSteps(dir, o); // re-plan under the lock: another process may have finished already
-    for (const s of fresh.steps) {
-      for (const op of s.ops) { onWrite?.(op.file); writeAtomic(path.join(dir, op.file), op.text); }
-      onWrite?.(FORMAT_FILE); writeFormat(dir, { format_version: s.to, min_reader: s.min_reader });
-    }
-    return { ...summary, written: fresh.steps.length > 0 };
-  });
+  return { version: f.format_version, min_reader: f.min_reader, status: f.format_version > supported.version ? 'newer-readable' : 'ok' };
 }
 
 // ---------- git merge driver install / doctor ----------

@@ -279,15 +279,10 @@ test('(a) format.json symlinked, a directory, too large or invalid: exit 2 with 
 });
 
 // ---------- (c) format notes and errors name the plan dir relative to the repository ----------
-test('(c) the data-format note and the too-new error show the plan dir relative to the repo root', () => {
+test('(c) the too-new error shows the plan dir relative to the repo root', () => {
   const d = repo(), fmt = path.join(d, '.plangraph/format.json');
-  fs.rmSync(fmt);
-  const r = run(d, ['ticket', 'T-1']);
-  ok(r, 'ticket');
-  assert.match(r.stderr, /^note: \.plangraph: data format 0 is older than 1: run `plangraph migrate --write`$/m);
-  assert.ok(!r.stderr.includes(d));
   fs.writeFileSync(fmt, '{"format_version":99,"min_reader":99}\n');
-  for (const args of [['ticket', 'T-1'], ['migrate']]) {
+  for (const args of [['ticket', 'T-1'], ['export']]) {
     const e = run(d, args);
     assert.equal(e.status, 2, args[0]);
     assert.match(e.stderr, /^error: \.plangraph: data format 99 /, args[0]);

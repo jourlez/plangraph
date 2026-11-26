@@ -15,9 +15,9 @@ before(async () => { state.FIX = await fixture(); });
 test('format gate, missing index and freshness: legacy data, an empty repository, open items newer than the index', async () => {
   const res: Record<string, unknown> = {};
   const legacy = copy(); fs.rmSync(path.join(legacy, '.plangraph', 'format.json'));
-  for (const argv of [['export'], ['ticket', 'T-1'], ['migrate'], ['doctor'], ['card']]) res[`legacy ${argv.join(' ')}`] = await run(legacy, argv);
+  for (const argv of [['export'], ['ticket', 'T-1'], ['doctor'], ['card']]) res[`legacy ${argv.join(' ')}`] = await run(legacy, argv);
   const newer = copy(); fs.writeFileSync(path.join(newer, '.plangraph', 'format.json'), '{"format_version":9,"min_reader":9}\n');
-  for (const argv of [['export'], ['ticket', 'T-1'], ['migrate', '--write']]) res[`newer ${argv.join(' ')}`] = await run(newer, argv);
+  for (const argv of [['export'], ['ticket', 'T-1']]) res[`newer ${argv.join(' ')}`] = await run(newer, argv);
   const empty = tmp(); git(empty, 'init', '-q');
   for (const argv of [['card'], ['card', '--if-present'], ['ticket', 'T-1'], ['forecast']]) res[`empty ${argv.join(' ')}`] = await run(empty, argv);
   const fresh = copy(); const later = new Date(Date.now() + 60000);

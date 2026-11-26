@@ -6,7 +6,7 @@ exit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 r
 writes none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify
 writes files: card jira-import jira-pull jira-text units
 writes index: build schedule-load whatif
-writes text: export graph-materialize import init learn migrate open-items refs-update repo report sp-ingest sp-link
+writes text: export graph-materialize import init learn open-items refs-update repo report sp-ingest sp-link
 also writes: card --heal, doctor --fix, init: git config, .gitattributes, merge shim
 global: --json -v --dir DIR --if-present
 more: plangraph explain COMMAND | plangraph explain --json

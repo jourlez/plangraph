@@ -30,7 +30,7 @@ const sideWrites = (where: string, list: unknown): readonly string[] => {
   return Object.freeze([...list]);
 };
 // Data-format guard (lib/store.ts checkFormat) run by src/cli.ts before the command when the plan dir exists:
-// 'none' skips it; 'soft' prints a NEEDS_MIGRATION note and runs; 'strict' (commands that write text) refuses on any format problem.
+// 'none' skips it; 'soft' runs after the check; 'strict' (commands that write text) refuses on any format problem.
 // A TOO_NEW directory is refused by 'soft' and 'strict' alike. A function gets the parsed option values and returns one of the three.
 const GUARDS = new Set<unknown>(['none', 'soft', 'strict']);
 export const OPTION_TYPES = new Set<unknown>(['string', 'boolean', 'integer', 'number']);

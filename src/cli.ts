@@ -72,7 +72,7 @@ export function render(col: ReturnType<typeof makeCollector>, { name, code, json
 }
 
 const processIo = (): IO => ({ out: (s) => process.stdout.write(`${s}\n`), err: (s) => process.stderr.write(`${s}\n`) });
-const FORMAT_HINTS = new Map([['TOO_NEW', 'upgrade the plangraph plugin, then retry'], ['NEEDS_MIGRATION', 'run `plangraph migrate --write`']]);
+const FORMAT_HINTS = new Map([['TOO_NEW', 'upgrade the plangraph plugin, then retry']]);
 
 /** A format message names the plan dir by its absolute path (lib/store.ts); printed, it names it relative to the repository root. */
 export const relDir = (ctx: { dir?: string; root?: string } | null | undefined, msg: unknown): string => (ctx?.dir && ctx?.root ? String(msg).split(ctx.dir).join(path.relative(ctx.root, ctx.dir) || '.') : String(msg));
@@ -83,7 +83,6 @@ export function formatGuard(ctx: Ctx, cmd: Pick<Command, 'guard'>, values: Recor
   if (mode === 'none' || !fs.existsSync(ctx.dir)) return;
   try { checkFormat(ctx.dir); } catch (e) {
     if (!(e instanceof FormatError)) throw e;
-    if (e.code === 'NEEDS_MIGRATION' && mode === 'soft') { ctx.io.err(`note: ${oneLine(relDir(ctx, e.message), 300)}`); return; }
     throw new PlangraphError('DATA', relDir(ctx, e.message), { hint: FORMAT_HINTS.get(e.code), cause: e });
   }
 }
@@ -128,7 +127,7 @@ export async function main(argv: string[], { registry = defaultRegistry, makeCon
   } catch (e) {
     if (hook) return EXIT.OK;
     code = exitCodeOf(e);
-    if (e instanceof FormatError) e.message = relDir(shown, e.message); // migrate, doctor: lib format errors thrown by the command itself
+    if (e instanceof FormatError) e.message = relDir(shown, e.message); // doctor: lib format errors thrown by the command itself
     const out = render(col, { name: cmdName, code, json: jsonAsked(), verbose: values.verbose, fresh: freshOf(shown) });
     if (out) io.out(out);
     for (const l of errorLines(e, { command, root: shown?.root })) io.err(l);

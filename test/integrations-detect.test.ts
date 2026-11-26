@@ -363,10 +363,9 @@ test('plangraph integrations -v adds evidence, connector hints and labelled budg
   assert.ok(env.data.lines.some((l: string) => l.startsWith('caveman: enabled abc')));
 });
 
-// A plan dir already migrated to format v1 with the merge driver installed: the baseline `plangraph doctor` exit code is 0.
+// A plan dir with the merge driver installed: the baseline `plangraph doctor` exit code is 0.
 function cleanRepo() {
   const { root, home } = repo();
-  assert.equal(run(root, home, 'migrate', '--write').status, 0);
   assert.equal(run(root, home, 'doctor', '--fix').status, 0);
   assert.equal(run(root, home, 'doctor').status, 0);
   return { root, home };

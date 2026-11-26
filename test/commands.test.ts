@@ -346,13 +346,12 @@ test('refused write targets exit 4 with nothing written: card --write, sp-link, 
 
 test('open-items is strict on the data format whenever it writes (--write, --close, --reopen, --register)', () => {
   const d = repo(), b = path.join(d, '.plangraph');
-  fs.rmSync(path.join(b, 'format.json')); // legacy directory: needs migration
+  fs.writeFileSync(path.join(b, 'format.json'), '{"format_version":99,"min_reader":99}\n'); // a newer directory: refused
   for (const args of [['open-items', '--write'], ['open-items', '--register', 'T-1', 'x', '--owner', 'A', '--due', '2', '--text', 't'], ['open-items', '--close', 'T-1', 'x'], ['open-items', '--reopen', 'T-1', 'x']]) {
     const r = run(d, args);
-    assert.equal(r.status, 2, args.join(' ')); assert.match(r.stderr, /^error: .*data format 0 is older than 1.*\ntry: plangraph migrate --write\n$/, args.join(' '));
+    assert.equal(r.status, 2, args.join(' ')); assert.match(r.stderr, /^error: .*data format 99 .*newer.*\nhint: upgrade the plangraph plugin, then retry\n/, args.join(' '));
     assert.equal(fs.existsSync(path.join(b, 'open-items.jsonl')), false, args.join(' '));
   }
-  const r = run(d, ['open-items']); assert.equal(r.status, 0); assert.match(r.stderr, /^note: /, 'a read-only view stays soft');
 });
 
 test('neighbors depth is a whole number from 0 to 50; schedule-load refuses "current", long names and a bad row shape', () => {

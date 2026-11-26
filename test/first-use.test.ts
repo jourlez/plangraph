@@ -24,7 +24,6 @@ function repo() {
 }
 const HOOK = ['card', '--if-present'], HEAL = ['card', '--if-present', '--heal'];
 const NO_INDEX = 'plangraph: plan data found in .plangraph but no index: run plangraph build\n';
-const LEGACY = (v: number) => `plangraph: plan data found in .plangraph but no index: run plangraph migrate --write (format v${v}) then plangraph build\n`;
 const silent = (r: SpawnSyncReturns<string>, why: string) => assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], why);
 const snapshot = (d: string) => { const o: Record<string, string> = {}; const walk = (p: string): void => { for (const e of fs.readdirSync(p, { withFileTypes: true })) { const f = path.join(p, e.name); if (e.name === '.git') continue; if (e.isDirectory()) walk(f); else if (e.isFile()) o[path.relative(d, f)] = fs.readFileSync(f, 'utf8'); else o[path.relative(d, f)] = 'special'; } }; walk(d); return o; };
 
@@ -38,10 +37,10 @@ test('data in the current format and no index: one fixed line, exit 0, nothing w
   for (const k of Object.keys(before)) if (k.startsWith('.plangraph/')) assert.equal(after_[k], before[k], k);
 });
 
-test('legacy format v0 (no format.json) and no index: the migrate line, naming the format number', () => {
+test('no format.json and no index: the same build line, and the hook writes no format.json', () => {
   const d = repo(); fs.rmSync(path.join(d, '.plangraph', 'format.json'));
-  const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, LEGACY(0), '']);
-  assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'format.json')), 'the hook never migrates');
+  const r = run(d, HOOK); assert.deepEqual([r.status, r.stdout, r.stderr], [0, NO_INDEX, '']);
+  assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'format.json')), 'the hook never writes the stamp');
 });
 
 test('no plangraph at all, or a plan dir with no data files: silent', () => {

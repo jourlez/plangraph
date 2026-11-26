@@ -9,7 +9,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
 import * as S from '../lib/store.ts';
 import { mergeJsonl } from '../lib/merge.ts';
 import { rng, genPlan } from './fixtures/gen.ts';
@@ -272,8 +271,6 @@ test('the schemas: keys, field order, sets and no defaults, exactly as documente
   assert.equal((S.SCHEMAS['links.jsonl'] as S.Schema).sort(l), (S.SCHEMAS['links.jsonl'] as S.Schema).id(l));
   // a set field of a repo is written sorted and deduped; the paths objects too
   assert.equal(S.canonLine({ id: 'r', owners: ['b', 'a', 'b'], paths: [{ sub: 'z', glob: 'z/**' }, { glob: 'a/**', sub: 'a' }] }, S.SCHEMAS['repos.jsonl']), '{"id":"r","owners":["a","b"],"paths":[{"glob":"a/**","sub":"a"},{"glob":"z/**","sub":"z"}]}');
-  assert.deepEqual([...S.V1_FILES], ['edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'meta.jsonl', 'open-items.jsonl', 'refs.jsonl', 'schedule.jsonl', 'tickets.jsonl']);
-  assert.ok(Object.isFrozen(S.V1_FILES));
   assert.equal(S.canonFile([ROW['links.jsonl'] as S.Rec, ROW['links.jsonl'] as S.Rec], S.SCHEMAS['links.jsonl']), '{"from":"T-1","from_type":"ticket","rel":"relates_to","to":"T-2","to_type":"ticket"}\n', 'two equal lines collapse');
   assert.equal(S.canonFile([{ n: 10 }, { n: 9 }, { n: -1 }], S.SCHEMAS['sprints.jsonl']), '{"n":-1}\n{"n":10}\n{"n":9}\n', 'sorted as text, like every key');
 });
@@ -482,23 +479,6 @@ test('card line of a v1-only directory equals the frozen 0.3.0 card line; a pres
   const sym = runIn(ROOT, d, ['card', '--line']);
   assert.notEqual(sym.status, 0, 'a symlinked graph file is refused, as a symlinked data file is');
   assert.match(sym.stderr, /people\.jsonl: is a symlink/);
-});
-
-test('the 0-to-1 migration plans the same files as the frozen 0.3.0 for a legacy directory that also holds graph files', async () => {
-  const d = tmp('graphmig-');
-  const t = [{ sp: 2, key: 'T-2', summary: 'b' }, { key: 'T-1', sp: 1, summary: 'a' }], sc = [{ sprint: 1, key: 'T-1', owner: 'Ana' }];
-  fs.writeFileSync(path.join(d, 'tickets.jsonl'), jl(t)); fs.writeFileSync(path.join(d, 'schedule.jsonl'), jl(sc));
-  fs.writeFileSync(path.join(d, 'people.jsonl'), '{"name":"Ana Silva","id":"Ana"}\n{"id":"Ben"}\n'); // not canonical: must stay untouched
-  fs.writeFileSync(path.join(d, 'links.jsonl'), '{"to":"b","from":"a","rel":"relates_to","from_type":"ticket","to_type":"ticket"}\n');
-  const F = await import(pathToFileURL(path.join(FROZEN, 'lib/store.ts')).href) as typeof S;
-  const want = JSON.parse(JSON.stringify(F.planMigration(d))), got = JSON.parse(JSON.stringify(S.planMigration(d)));
-  assert.deepEqual(got, want);
-  assert.deepEqual(got.steps[0].files, ['schedule.jsonl', 'tickets.jsonl'], 'only the v1 files; a graph file is never rewritten by the migration');
-  const before = Object.fromEntries(['people.jsonl', 'links.jsonl'].map((f) => [f, fs.readFileSync(path.join(d, f), 'utf8')]));
-  S.runMigration(d, { write: true });
-  for (const f of Object.keys(before)) assert.equal(fs.readFileSync(path.join(d, f), 'utf8'), before[f], `${f} untouched`);
-  assert.equal(S.readFormat(d).format_version, 1);
-  assert.equal(fs.readFileSync(path.join(d, 'tickets.jsonl'), 'utf8'), S.canonFile(t, S.SCHEMAS['tickets.jsonl']));
 });
 
 test('REL_SEMANTICS is exactly the frozen table; every known sys is a known sys; keys never run together; lines are counted after a BOM', () => {

@@ -94,22 +94,13 @@ test('defaults fill missing optional fields on read only', () => {
   assert.deepEqual(S.readRecords(d, 'nope.jsonl'), []);
 });
 
-// ---- format + migration ----
-const legacyDir = () => {
-  const d = tmp('legacy-'), p = genPlan({ n: 12, seed: 5 });
-  const messy = (recs: readonly S.Rec[]) => recs.slice().reverse().map((r) => JSON.stringify(Object.fromEntries(Object.entries(r).reverse()))).join('\n') + '\n\n';
-  fs.writeFileSync(path.join(d, 'tickets.jsonl'), messy(p.tickets));
-  fs.writeFileSync(path.join(d, 'edges.jsonl'), messy(p.edges));
-  fs.writeFileSync(path.join(d, 'schedule.jsonl'), messy(p.schedule));
-  fs.writeFileSync(path.join(d, 'config.json'), '{"caps":{"default":9}}\n');
-  return d;
-};
-const snapshot = (d: string) => Object.fromEntries(fs.readdirSync(d).sort().map((f) => [f, fs.readFileSync(path.join(d, f), 'utf8')]));
+// ---- format ----
+const legacyDir = () => tmp('legacy-'); // a directory with no format.json
 
-test('format: legacy dir is v0; checkFormat asks to migrate; too-new is a hard error; read mode honours min_reader', () => {
+test('format: a dir without format.json reads as v0 and passes checkFormat; too-new is a hard error; read mode honours min_reader', () => {
   const d = legacyDir();
   assert.equal(S.readFormat(d).format_version, 0);
-  assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'NEEDS_MIGRATION' && /plangraph migrate/.test(e.message));
+  assert.equal(S.checkFormat(d).version, 0); // until the entity layout is stamped, no stamp is not refused
   fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":3,"min_reader":3}\n');
   assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'TOO_NEW' && /upgrade/.test(e.message));
   assert.throws(() => S.checkFormat(d, undefined, { mode: 'read' }), (e: Error & { code?: string }) => e.code === 'TOO_NEW');
@@ -121,47 +112,6 @@ test('format: legacy dir is v0; checkFormat asks to migrate; too-new is a hard e
   fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":1}\n'); // missing min_reader defaults
   assert.equal(S.readFormat(d).min_reader, 1);
   assert.equal(S.checkFormat(d).status, 'ok');
-});
-test('migration 0->1: dry run writes nothing, --write canonicalizes + adds format.json LAST, re-run is a no-op, unknown fields kept', () => {
-  const d = legacyDir(); fs.appendFileSync(path.join(d, 'tickets.jsonl'), '{"key":"T-99","future_field":{"b":1,"a":2}}\n');
-  const before = snapshot(d);
-  const plan = S.planMigration(d);
-  assert.equal(plan.pending, true); assert.deepEqual(plan.steps[0].files, ['edges.jsonl', 'schedule.jsonl', 'tickets.jsonl']);
-  assert.equal(S.runMigration(d).written, false); assert.deepEqual(snapshot(d), before);
-  const order: string[] = []; const r = S.runMigration(d, { write: true, onWrite: (f) => order.push(f) });
-  assert.equal(r.written, true); assert.equal(order.at(-1), 'format.json');
-  assert.deepEqual(S.readFormat(d).format_version, 1); S.checkFormat(d);
-  const after = snapshot(d);
-  assert.equal(after['config.json'], before['config.json']); // non-jsonl untouched
-  assert.match(after['tickets.jsonl'], /"key":"T-99","future_field":\{"a":2,"b":1\}\}\n$/);
-  for (const f of ['tickets', 'edges', 'schedule']) assert.equal(S.canonText(after[f + '.jsonl'], S.schemaFor(f + '.jsonl')), after[f + '.jsonl']);
-  assert.equal(S.planMigration(d).pending, false);
-  assert.equal(S.runMigration(d, { write: true }).written, false); assert.deepEqual(snapshot(d), after);
-  assert.equal(fs.readdirSync(d).filter((f) => f.includes('.tmp-') || f.endsWith('.lock')).length, 0);
-});
-test('migration: crash injected before every possible write, re-run converges to the same bytes as an uninterrupted run', () => {
-  const ref = legacyDir(); S.runMigration(ref, { write: true }); const want = snapshot(ref);
-  for (const crashAt of [0, 1, 2, 3]) {
-    const d = legacyDir(); let n = 0;
-    assert.throws(() => S.runMigration(d, { write: true, onWrite: () => { if (n++ === crashAt) throw new Error('boom'); } }), /boom/);
-    assert.equal(S.readFormat(d).format_version, 0, 'format.json is bumped last: still legacy after a crash');
-    assert.equal(fs.existsSync(path.join(d, '.migrate.lock')), false);
-    S.runMigration(d, { write: true });
-    assert.deepEqual(snapshot(d), want, `crash at write ${crashAt}`);
-  }
-});
-test('migration: aborts before writing anything when a file does not parse; chained 1->2 plan (dry run) sees step-1 output', () => {
-  const d = legacyDir(); fs.appendFileSync(path.join(d, 'edges.jsonl'), 'garbage\n');
-  const before = snapshot(d);
-  assert.throws(() => S.runMigration(d, { write: true }), /edges\.jsonl:\d+/); assert.deepEqual(snapshot(d), before);
-  const d2 = legacyDir();
-  const ms: S.Migration[] = [...S.migrations, { from: 1, to: 2, min_reader: 1, plan: (dir, read) => [{ file: 'meta.jsonl', text: S.canonFile([{ k: 'steps', v: String((read('tickets.jsonl') as string).split('\n')[0].length > 0) }], S.schemaFor('meta.jsonl')) }] }]; // the directory has tickets.jsonl
-  const p = S.planMigration(d2, { migrations: ms });
-  assert.deepEqual(p.steps.map((s) => [s.from, s.to]), [[0, 1], [1, 2]]);
-  S.runMigration(d2, { write: true, migrations: ms });
-  assert.equal(S.readFormat(d2).format_version, 2); assert.equal(S.readFormat(d2).min_reader, 1);
-  assert.equal(fs.readFileSync(path.join(d2, 'meta.jsonl'), 'utf8'), '{"k":"steps","v":"true"}\n');
-  assert.throws(() => S.planMigration(d2, { migrations: S.migrations }), (e: Error & { code?: string }) => e.code === 'TOO_NEW');
 });
 test('format.json write keeps unknown fields', () => {
   const d = tmp(); fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":1,"min_reader":1,"note":"x"}\n');

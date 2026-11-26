@@ -6,7 +6,7 @@
 //   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `plangraph card --if-present`
 //                                                                on the plan fixture (one untimed warm-up run first; N defaults to 30)
 // Observations: (a) a CLI matrix built from `plangraph explain --json` (each command plain, -v, --json, with a bad flag, with a bad argument,
-// and on an empty and a legacy repository), (b) the SessionStart hook, the merge driver and a scripted MCP stdio session, (c) library
+// and on an empty repository and one whose plan directory has no format.json), (b) the SessionStart hook, the merge driver and a scripted MCP stdio session, (c) library
 // probes with canned inputs. Every child runs with a fixed HOME, TZ=UTC and LC_ALL=C. Output is normalized (see normalizeOutput) so that
 // the planned file-extension rename (.mjs to .ts) is the only accepted difference.
 // NOT covered: the Python solver (own tests), live network calls (Jira is only probed over a stub fetch), the real clock.
@@ -24,7 +24,7 @@ const MERGE = path.join(PLUGIN, 'bin/plangraph-merge');
 const MCP = path.join(PLUGIN, 'mcp/plangraph-mcp.ts');
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
 
-interface MatrixEntry { id: string; args: string[]; fixture: 'plan' | 'empty' | 'legacy' }
+interface MatrixEntry { id: string; args: string[]; fixture: 'plan' | 'empty' | 'unstamped' }
 interface Probe { id: string; run: () => unknown | Promise<unknown> }
 
 /** The environment of every child: fixed HOME, TZ and locale, no plangraph-specific variables from the caller.
@@ -83,7 +83,7 @@ const EXTRA = Object.freeze([
   ['stale', '--list'], ['stale', '--full'], ['verify', '--enforce-min'], ['forecast', '--seed', '3'], ['simulate', '--runs', '50', '--seed', '2'],
   ['whatif', '@KEY@', '--sprint', '2'], ['whatif', '@KEY@', '--to', '@PERSON@'], ['whatif', '@KEY@', '--find'], ['whatif', '--relieve', '@PERSON@', '--sprint', '@SPRINT@'], ['whatif', '@KEY@', '--slip'],
   ['neighbors', '@KEY@', '2'], ['bundle', '@KEY@', '--ref', 'HEAD'], ['units', '--keys', '@KEY@'], ['units', '--stale'], ['card', '--line'], ['card', '--write'], ['card', '--heal'], ['doctor', '--fix'],
-  ['open-items', '--mine'], ['open-items', '--suggest-from-status'], ['migrate', '--write'], ['report', '--as-of', '2026-01-01'], ['export'], ['sp-ingest'], ['sp-link', '@KEY@'], ['refs-update', '--full'],
+  ['open-items', '--mine'], ['open-items', '--suggest-from-status'], ['report', '--as-of', '2026-01-01'], ['export'], ['sp-ingest'], ['sp-link', '@KEY@'], ['refs-update', '--full'],
 ].map((a) => Object.freeze([...a])));
 
 const slug = (a: readonly string[]) => a.join('.').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
@@ -98,8 +98,8 @@ function buildMatrix() {
     for (const [tag, rest] of [['plain', []], ['v', ['-v']], ['json', ['--json']], ['badflag', ['--no-such-flag']]]) add('plan', `${c.name}.${tag}`, [c.name, ...good, ...rest]);
     add('plan', `${c.name}.badarg`, [c.name, ...tooMany]);
     if (min > 0) add('plan', `${c.name}.missing`, [c.name]);
-    // a missing index, and a data format from before format.json, with the same valid arguments
-    for (const fx of ((['empty', 'legacy']) as const)) { add(fx, `${c.name}.plain`, [c.name, ...good]); add(fx, `${c.name}.json`, [c.name, ...good, '--json']); }
+    // a missing index, and a plan directory with no format.json (task 10 turns this into the unsupported pre-1.0 refusal), with the same valid arguments
+    for (const fx of ((['empty', 'unstamped']) as const)) { add(fx, `${c.name}.plain`, [c.name, ...good]); add(fx, `${c.name}.json`, [c.name, ...good, '--json']); }
   }
   for (const a of EXTRA) add('plan', slug(a), [...a]);
   // global flags without a command, and an unknown command
@@ -129,12 +129,12 @@ const clone = (from: string, to: string) => fs.cpSync(from, to, { recursive: tru
 
 /**
  * @param {string} work @param {string} planSrc @param {string | undefined} dataDir
- * @returns {{ plan: string, empty: string, legacy: string, vars: Record<string, string>, brainDir: string }} template roots (each holds `repo/`); vars are the placeholder values
+ * @returns {{ plan: string, empty: string, unstamped: string, vars: Record<string, string>, brainDir: string }} template roots (each holds `repo/`); vars are the placeholder values
  */
-function buildTemplates(work: string, planSrc: string, dataDir: string | undefined): { plan: string; empty: string; legacy: string; vars: Record<string, string>; brainDir: string } {
-  const plan = path.join(work, 'tpl-plan'), empty = path.join(work, 'tpl-empty'), legacy = path.join(work, 'tpl-legacy');
+function buildTemplates(work: string, planSrc: string, dataDir: string | undefined): { plan: string; empty: string; unstamped: string; vars: Record<string, string>; brainDir: string } {
+  const plan = path.join(work, 'tpl-plan'), empty = path.join(work, 'tpl-empty'), unstamped = path.join(work, 'tpl-unstamped');
   fs.mkdirSync(path.join(empty, 'repo'), { recursive: true }); gitInit(path.join(empty, 'repo'));
-  clone(planSrc, path.join(legacy, 'repo')); fs.rmSync(path.join(legacy, 'repo/.plangraph/format.json'), { force: true });
+  clone(planSrc, path.join(unstamped, 'repo')); fs.rmSync(path.join(unstamped, 'repo/.plangraph/format.json'), { force: true });
   let vars = { KEY: 'T-3', PERSON: 'Ana', SPRINT: '1' }, brainDir = '.plangraph';
   if (dataDir) {
     // the owner's directory is copied first and never touched again; commands run against the copy
@@ -146,7 +146,7 @@ function buildTemplates(work: string, planSrc: string, dataDir: string | undefin
       vars = { KEY: String(t.key ?? 'T-1'), PERSON: String(t.v2_owner || 'Ana'), SPRINT: String(t.v2_sprint || 1) };
     } catch { /* keep the synthetic defaults */ }
   } else clone(planSrc, path.join(plan, 'repo'));
-  return { plan, empty, legacy, vars, brainDir };
+  return { plan, empty, unstamped, vars, brainDir };
 }
 
 // ---------------------------------------------------------------------------------------------------------------- hook, merge driver, MCP

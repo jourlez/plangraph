@@ -84,7 +84,7 @@ test('PlangraphError maps every documented code to its exit code; unknown codes 
   assert.equal(e.cause, cause); assert.equal(e.hint, 'h'); assert.equal(e.name, 'PlangraphError'); assert.ok(e instanceof Error);
   assert.equal(exitCodeOf(e), 2);
   assert.equal(exitCodeOf(new IngestError('tickets.jsonl:1: invalid JSON')), 2);
-  assert.equal(exitCodeOf(new S.FormatError('NEEDS_MIGRATION', 'x')), 2);
+  assert.equal(exitCodeOf(new S.FormatError('BAD_FORMAT', 'x')), 2);
   assert.equal(exitCodeOf(new Error('boom')), 5);
   assert.equal(exitCodeOf('a string'), 5);
 });

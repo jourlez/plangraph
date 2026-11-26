@@ -118,7 +118,7 @@ const SHAPES = {
   ready: [['H-2'], ['H-3'], [KEY], ['H-2', '--jira', 'snap.json'], [OWNER], ['--person', OWNER], ['--person', OWNER, '--sprint', '2'], ['--sprint', '2'], ['--person', 'Ana', '--sprint', '3', '--jira', 'snap.json'], ['--person', M('nobody'), '--sprint', '2']], card: [[], ['--line'], ['--write'], ['--if-present']],
   whatif: [['H-2', '--sprint', '1'], ['H-1', '--to', 'Ana', '--sprint', '3'], ['H-2', '--to', OWNER], ['H-2', '--sprint', '4', '--apply-plan'], ['H-1', '--sprint', '2', '--slip', '--apply-plan', '--write'], [KEY, '--sprint', '5'],
     ['--relieve', OWNER, '--sprint', '2', '--owner-change'], ['--relieve', OWNER, '--sprint', '1'], ['--relieve', OWNER, '--sprint', '1', '--owner-change', '--earlier'], ['--relieve', 'Ana', '--sprint', '2'], ['--relieve', M('nobody'), '--sprint', '1']],
-  'schedule-load': [['sched.json', ARCHIVE]], export: [[]], build: [[]], init: [[]], migrate: [[]], doctor: [[]],
+  'schedule-load': [['sched.json', ARCHIVE]], export: [[]], build: [[]], init: [[]], doctor: [[]],
   stale: [[], [SAFE_REFS], [SAFE_REFS, '--list', '--full'], [SAFE_REFS, '--jira', 'snap.json']], 'refs-update': [[], [SAFE_REFS], [SAFE_REFS, 'H-1']],
   units: [['--keys', 'H-1,H-2,H-3', '--out', 'u', '--text', 'jt'], [SAFE_REFS, '--stale', '--full', '--out', 'u2']], bundle: [['H-1', 'H-2', '--text', 'jt'], ['H-3']],
   'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['H-1', '--out', 'jtout', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],

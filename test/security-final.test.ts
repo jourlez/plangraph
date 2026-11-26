@@ -331,43 +331,6 @@ test('I8: parseFindings keeps at most 10 error messages and stops scanning at 10
   assert.equal(many.errors.length, 11); assert.equal(many.total, 1000); assert.equal(many.findings.length, 0, 'scan stopped');
 });
 
-// ---------- I9: migrate reads data files bounded, refuses symlinks and FIFOs, names files by base name, maps refused writes to exit 4 ----------
-/** A legacy (format 0) plan dir, so `migrate` has work to do. */
-function legacyRepo() { const d = repo({ build: false }); fs.rmSync(path.join(d, '.plangraph/format.json')); return d; }
-test('I9: migrate refuses a symlinked or FIFO data file (exit 2, base name only) and never follows it', () => {
-  const d = legacyRepo(), t = path.join(d, '.plangraph/tickets.jsonl'), outside = put(tmp(), 'victim.jsonl', '{"key":"Z-1" ,"summary":"x"}\n');
-  fs.rmSync(t); fs.symlinkSync(outside, t);
-  for (const args of [['migrate'], ['migrate', '--write']]) {
-    const r = run(d, args, {}, { timeout: 15000 });
-    assert.equal(r.status, 2, `${args.join(' ')}: ${r.signal} ${r.stderr}`);
-    assert.match(r.stderr, /^error: tickets\.jsonl: is a symlink, not a regular file$/m);
-  }
-  assert.equal(fs.readFileSync(outside, 'utf8'), '{"key":"Z-1" ,"summary":"x"}\n', 'the symlink target is untouched');
-  fs.rmSync(t); execFileSync('mkfifo', [t]);
-  const f = run(d, ['migrate'], {}, { timeout: 15000 });
-  assert.equal(f.status, 2, `fifo: ${f.signal} ${f.stderr}`);
-  assert.match(f.stderr, /^error: tickets\.jsonl: not a regular file$/m);
-});
-test('I9: a migrate parse error names the file by base name, never the absolute path', () => {
-  const d = legacyRepo();
-  put(d, '.plangraph/tickets.jsonl', '{"key":"A-1"}\n{broken\n');
-  const r = run(d, ['migrate']);
-  assert.equal(r.status, 2, r.stderr);
-  assert.match(r.stderr, /^error: tickets\.jsonl:2: invalid JSON/m);
-  assert.ok(!r.stderr.includes(d), r.stderr);
-});
-test('I9: a refused migrate write (symlinked lock path) exits 4 and writes nothing', () => {
-  const d = legacyRepo(), b = path.join(d, '.plangraph');
-  put(d, '.plangraph/tickets.jsonl', '{"summary":"s","key":"A-1"}\n');
-  fs.symlinkSync(path.join(tmp(), 'lock-target'), path.join(b, '.migrate.lock'));
-  const before = fs.readFileSync(path.join(b, 'tickets.jsonl'), 'utf8');
-  const r = run(d, ['migrate', '--write']);
-  assert.equal(r.status, 4, r.stderr);
-  assert.match(r.stderr, /^error: refusing to write: lock path is a symlink: \.migrate\.lock \(nothing was written\)$/m);
-  assert.equal(fs.readFileSync(path.join(b, 'tickets.jsonl'), 'utf8'), before);
-  assert.equal(fs.existsSync(path.join(b, 'format.json')), false);
-});
-
 // ---------- M1: neutralizing fence tags is linear in the input ----------
 test('M1: fence() and errText neutralize fence tags (fence() linearity: test/security-final-timing.test.ts)', async () => {
   const { fence } = await import('../lib/sanitize.ts'), { errText } = await import('../src/errors.ts');
@@ -376,7 +339,7 @@ test('M1: fence() and errText neutralize fence tags (fence() linearity: test/sec
 });
 
 // ---------- M2: an internal error never prints the absolute repository path ----------
-test('M2: internal errors name paths relative to the repository root; the lock message names the lock file only', { skip: process.getuid?.() === 0 ? 'root ignores file modes' : false }, () => {
+test('M2: internal errors name paths relative to the repository root', { skip: process.getuid?.() === 0 ? 'root ignores file modes' : false }, () => {
   const d = repo(), b = path.join(d, '.plangraph');
   fs.chmodSync(path.join(b, 'edges.jsonl'), 0o000);
   try {
@@ -385,12 +348,6 @@ test('M2: internal errors name paths relative to the repository root; the lock m
     assert.ok(!r.stderr.includes(d), r.stderr);
     assert.match(r.stderr, /^error: internal error: EACCES: permission denied, open '\.\/\.plangraph\/edges\.jsonl'$/m);
   } finally { fs.chmodSync(path.join(b, 'edges.jsonl'), 0o644); }
-  fs.rmSync(path.join(b, 'format.json'));
-  fs.writeFileSync(path.join(b, '.migrate.lock'), JSON.stringify({ pid: process.pid, token: 'held' }));
-  const m = run(d, ['migrate', '--write'], {}, { timeout: 30000 });
-  assert.equal(m.status, 5, m.stderr);
-  assert.ok(!m.stderr.includes(d), m.stderr);
-  assert.match(m.stderr, /^error: internal error: could not take lock \.migrate\.lock: locked by pid \d+$/m);
 });
 
 // ---------- M3: build then export reproduces canonical text byte for byte; a value a column cannot hold is a data error ----------
