@@ -1,0 +1,6 @@
+$ plangraph import
+exit: 2
+--- stdout
+--- stderr
+error: usage: plangraph import --sys jira|sp|generic FILE... [--tenant ALIAS] [--ledger FILE]
+try: plangraph explain import

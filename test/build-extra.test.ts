@@ -144,8 +144,9 @@ test('(f) source scan: the INSERT column lists come from constants, never from r
 
 test('(f) runtime: every table spec lists its schema columns plus extra, in order, with one placeholder per column', async () => {
   const { TABLES } = await import('../src/db.ts');
-  assert.equal(TABLES.size, 15); // the eight tables of format 1 and the seven of the graph files
+  assert.equal(TABLES.size, 16); // the eight tables of format 1, the seven of the graph files and `obs` (the observation cache)
   for (const t of TABLES.values()) {
+    if (t.name === 'obs') { assert.deepEqual([...t.columns], ['sys', 'xid', 'type', 'fields', 'links', 'fp', 'seen']); assert.equal(t.placeholders, '?,?,?,?,?,?,?,?'); continue; } // no schema file: the cache rows have their own checker (lib/graph/obs.ts)
     const schema = S.SCHEMAS[t.file] as { order: readonly string[] }; // every table file is a SCHEMAS key (db.ts reads the same map)
     assert.deepEqual([...t.columns], [...schema.order], t.name);
     const all = [...schema.order, 'extra'];

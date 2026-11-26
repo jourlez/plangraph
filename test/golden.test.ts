@@ -95,6 +95,7 @@ const CASES: Case[] = [
   { name: 'chain', args: ['chain', 'T-30'] }, { name: 'chain-json', args: J('chain', 'T-30') },
   { name: 'graph', args: ['graph', 'T-12', '--depth', '2'] }, { name: 'graph-json', args: J('graph', 'T-12', '--depth', '2') }, { name: 'graph-uri-bad', args: ['graph', 'pg:ticket/%2e%2e'] },
   { name: 'repo', args: ['repo'] }, { name: 'repo-badpath', args: ['repo', 'scan', 'nope'] },
+  { name: 'import-noarg', args: ['import'] }, { name: 'import-unknown-sys', args: ['import', '--sys', 'nope', 'x.json'] },
   { name: 'sprint', args: ['sprint', '3'] }, { name: 'sprint-json', args: ['sprint', '3', '--json'] }, { name: 'sprint-verbose', args: ['sprint', '3', '-v'] },
   { name: 'person', args: ['person', 'Ana'] }, { name: 'person-json', args: J('person', 'Ana') },
   { name: 'blockers', args: ['blockers'] }, { name: 'blockers-json', args: J('blockers') },
