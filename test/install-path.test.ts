@@ -62,7 +62,7 @@ test('plangraph card --if-present runs from the copy: exit 0, empty stderr', () 
   assert.equal(r.stderr, '');
 });
 
-test('too-old Node via an --import stub: exit 3 with the floor message; exit 0 and silent with --if-present', () => {
+test('too-old Node via an --import stub: exit 3 with the floor message; exit 0 and nothing on stderr with --if-present (card prints the one floor line)', () => {
   const stub = path.join(base, 'old node.mjs');
   fs.writeFileSync(stub, 'Object.defineProperty(process.versions, "node", { value: "22.0.0" });\nObject.defineProperty(process, "version", { value: "v22.0.0" });\n');
   const pre = ['--import', pathToFileURL(stub).href];
@@ -72,6 +72,6 @@ test('too-old Node via an --import stub: exit 3 with the floor message; exit 0 a
   assert.equal(r.stderr, `${floorMessage('v22.0.0')}\n${floorTry}\n`);
   r = run(['card', '--if-present'], pre);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout, '');
+  assert.equal(r.stdout, 'plangraph: needs Node >= 24.15, found v22.0.0; install Node 24\n');
   assert.equal(r.stderr, '');
 });

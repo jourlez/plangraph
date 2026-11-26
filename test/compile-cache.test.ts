@@ -1,4 +1,4 @@
-// bin/plangraph turns on Node's module compile cache after the floor check and before it loads src/cli.ts, in a PRIVATE per-user directory:
+// bin/plangraph is a launcher; src/entry.js turns on Node's module compile cache after the floor check and before it loads src/cli.ts, in a PRIVATE per-user directory:
 // <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA when absolute, else ~/.cache/plangraph (the rule of lib/driver.ts
 // defaultDataDir). It is used only when it is a real directory (not a symlink) owned by the current user with no group or world bits:
 // Node accepts a cache directory of any owner and mode and checks entries by CRC32 only, so a shared or foreign directory would let
@@ -53,7 +53,7 @@ test('an unwritable NODE_COMPILE_CACHE directory: exit 0, empty stderr and ident
   assert.deepEqual(fs.readdirSync(cache), [], 'nothing was written into the read-only directory');
 });
 
-/** The same command with Node preload arguments (an --import module that runs before bin/plangraph). */
+/** The same command with Node preload arguments (an --import module that runs before the launcher). */
 const cardWith = (nodeArgs: string[], cwd: string, extra: Record<string, string>) => spawnSync(process.execPath, [...nodeArgs, BRAIN, 'card', '--if-present'], { cwd, env: { ...BASE_ENV, ...extra }, encoding: 'utf8' });
 const entries = (dir: string) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 /** A preload that makes process.getuid report `delta` added to the real uid (0: the real one, a control run). */

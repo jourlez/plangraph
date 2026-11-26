@@ -36,7 +36,7 @@ Pick one. The server finds the repository from its working directory, the way `p
    ```
 
 Use the path of a checkout of this repository, or of the installed plugin copy (`claude plugin details plangraph` shows its
-source). The installed copy's path contains the version, so it changes on update; a checkout does not. Node 24.2 or newer is needed.
+source). The installed copy's path contains the version, so it changes on update; a checkout does not. Node 24.15 or newer is needed.
 
 Turning it off: `claude mcp remove plangraph`, or delete the entry. Do not add the snippet to the plugin's own root: Claude Code would then
 start it for every user of the plugin.

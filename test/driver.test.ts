@@ -152,7 +152,7 @@ function scenario(shim: string, tag: string) {
 test('real git merge via the shim keeps working after the target moves (same git config)', () => {
   const root = tmp(), dataDir = path.join(root, 'data dir'); fs.mkdirSync(dataDir);
   const v1 = path.join(root, 'v1'), v2 = path.join(root, 'v2');
-  for (const v of [v1, v2]) { fs.mkdirSync(path.join(v, 'bin'), { recursive: true }); fs.symlinkSync(path.resolve(REAL, '..', '..', 'lib'), path.join(v, 'lib')); }
+  for (const v of [v1, v2]) { fs.mkdirSync(path.join(v, 'bin'), { recursive: true }); fs.symlinkSync(path.resolve(REAL, '..', '..', 'lib'), path.join(v, 'lib')); fs.symlinkSync(path.resolve(REAL, '..', '..', 'src'), path.join(v, 'src')); }
   fs.copyFileSync(REAL, path.join(v1, 'bin/plangraph-merge')); fs.copyFileSync(REAL, path.join(v2, 'bin/plangraph-merge'));
   const shim = ensureStableDriver({ dataDir, target: path.join(v1, 'bin/plangraph-merge') });
   const want = (tag: string) => S.canonFile([tk('T-1', { sp: 8, summary: 'renamed' }), tk('T-2'), tk('T-3'), tk('T-31' + tag), tk('T-32' + tag)], T);

@@ -229,13 +229,13 @@
   ]
  ],
  "floor": [
-  "24.2",
-  "try: install Node 24.2 or newer",
-  "plangraph needs Node >= 24.2 (found v1.2.3v1.2.3v1.2.3v1); it uses node:sqlite and current ES features",
+  "24.15",
+  "try: install Node 24.15 or newer",
+  "plangraph needs Node >= 24.15 (found v1.2.3v1.2.3v1.2.3v1); it uses node:sqlite and current ES features",
   [
    true,
    false,
-   true,
+   false,
    true,
    false,
    true,

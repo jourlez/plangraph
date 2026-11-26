@@ -7,7 +7,9 @@
     "lib/**/*.ts",
     "src/**/*.ts",
     "mcp/**/*.ts",
-    "src/floor.js"
+    "src/floor.js",
+    "src/entry.js",
+    "src/merge-entry.js"
   ],
   "exclude": [
     "node_modules"
