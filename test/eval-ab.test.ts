@@ -322,7 +322,7 @@ test('arm definitions: every arm gets the Skill tool; plugin arms differ by hook
   } finally { fs.rmSync(copy, { recursive: true, force: true }); }
   assert.ok(mcpConfigFor(PLUGIN_DIR).includes('plangraph'));
   const flags = Object.fromEntries(ARMS.map((a) => [a.name, [a.plugin, a.hooks, a.mcp]]));
-  assert.deepEqual(flags, { baseline: [false, false, false], graph: [true, true, false], 'plugin-off': [false, false, false], 'plugin-default': [true, true, true], 'plugin-pull-only': [true, false, false] });
+  assert.deepEqual(flags, { baseline: [false, false, false], graph: [true, true, false], 'graph-pull-only': [true, false, false], 'plugin-off': [false, false, false], 'plugin-default': [true, true, true], 'plugin-pull-only': [true, false, false] });
   assert.ok(cells('coding').every((c) => c.arm !== 'plugin-pull-only'));
   assert.ok(cells('coding', ['plugin-pull-only']).some((c) => c.arm === 'plugin-pull-only'));
 });
