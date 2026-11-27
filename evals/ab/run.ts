@@ -1,5 +1,5 @@
 // A/B runner. Offline helpers (task loading, run matrix, argv, grading) are pure; every function that spends money or touches the network
-// (`runClaude`, `runCell`, `prepareWorkspace`, `runHiddenTests`, `countTokens`) calls requireLive() first and refuses without EVAL_LIVE=1.
+// (`runClaude`, `prepareWorkspace`, `runHiddenTests`, `countTokens`) calls requireLive() first and refuses without EVAL_LIVE=1.
 // The model arms run the Claude Code native binary in headless print mode with the user's existing login; no API key is needed (ANTHROPIC_API_KEY is only for countTokens and is never logged or written).
 // Cloned code (setup, hidden tests) runs in a stripped environment: `env -i` with PATH and a temporary HOME, nothing else.
 import crypto from 'node:crypto';
@@ -14,7 +14,7 @@ import type { GraphQuestion } from './questions.ts';
 const here = import.meta.dirname;
 export const PLUGIN_DIR = path.resolve(here, '..', '..');
 export const MODELS = [{ name: 'sonnet', id: 'claude-sonnet-5-5' }, { name: 'haiku', id: 'claude-haiku-5-5' }, { name: 'opus', id: 'claude-opus-5-5' }];
-export const REPEATS = 3;
+const REPEATS = 3;
 
 export type CodingTask = {
   id: string; repo: string; commit: string; task: string; language: string; validated: boolean;
@@ -176,15 +176,8 @@ export function rowOf(cell: Cell, id: string, d: Detail, correct: boolean): Row 
   return { arm: cell.arm, model: cell.model, id, correct, firstIn: d.firstIn, tokensIn: d.tokensIn, tokensOut: d.tokensOut, tokens: d.tokens, calls: d.calls, cost: d.cost, ms: d.ms };
 }
 
-/** LIVE. One graph question in one cell, run in `cwd` (a workspace from buildBaselineProject or buildGraphProject). */
-export function runCell(cell: Cell, q: GraphQuestion, cwd: string, pluginDir?: string): Row {
-  const d = runClaude(cell, `${q.text} Answer with the value only, lists comma separated.`, cwd, 900, '', pluginDir);
-  if (d.error) throw new Error(d.error);
-  return rowOf(cell, q.id, d, grade(q, d.reply));
-}
-
 /** The reason a task is not run (`validated: false`), or null when it runs. */
-export function skipReason(t: CodingTask): string | null {
+function skipReason(t: CodingTask): string | null {
   return t.validated ? null : (t.reason ?? 'not validated');
 }
 /** The tasks that run, and the skipped ones with their reason. */

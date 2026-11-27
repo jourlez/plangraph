@@ -3,10 +3,11 @@
   "entry": [
     "bin/plangraph",
     "src/cli.ts",
-    "src/entry.js",
     "mcp/plangraph-mcp.ts",
     "scripts/*.ts",
     "evals/*.ts",
+    // the live pilot driver, run by hand as documented in docs/BENCHMARK.md
+    "evals/ab/pilot.ts",
     "test/**/*.test.{mjs,ts}",
     "test/types-fixtures/*-bad.ts",
     "test/**/*.assure.ts"

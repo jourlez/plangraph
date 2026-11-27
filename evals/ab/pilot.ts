@@ -2,6 +2,7 @@
 //   EVAL_LIVE=1 node evals/ab/pilot.ts select                  print the selected questions
 //   EVAL_LIVE=1 node evals/ab/pilot.ts probe OUT ID...         clone and set up each coding task once and print the setup seconds
 //   EVAL_LIVE=1 node evals/ab/pilot.ts graph OUT [MODEL]       24 runs; appends one JSON line per run to OUT/graph.jsonl (reply scrubbed to a hash-free 80 characters)
+//   EVAL_LIVE=1 ANTHROPIC_API_KEY=... node evals/ab/pilot.ts tokens FILE...   measured characters per token of the files (countTokens)
 //   EVAL_LIVE=1 node evals/ab/pilot.ts coding OUT ID ID        2 tasks x 2 arms; appends to OUT/coding.jsonl
 import fs from 'node:fs';
 import os from 'node:os';
@@ -9,7 +10,7 @@ import path from 'node:path';
 import { graphQuestions } from './questions.ts';
 import type { GraphQuestion, Kind, Topic } from './questions.ts';
 import { buildBaselineProject, buildGraphProject } from './graph.ts';
-import { loadCodingTasks, prepareWorkspace, runClaude, runCodingCell, requireLive, grade } from './run.ts';
+import { loadCodingTasks, prepareWorkspace, runClaude, runCodingCell, countTokens, requireLive, grade } from './run.ts';
 
 const TOPICS: Topic[] = ['owner', 'blocker', 'stack', 'requirement', 'history'];
 /** Two questions per topic (different kinds, the one at position 5 of each kind), plus two multi-hop or list questions: 12. */
@@ -23,6 +24,7 @@ const scrub = (s: string): string => s.replaceAll(os.homedir(), '~').replace(/\s
 const [cmd, out, ...rest] = process.argv.slice(2);
 if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === 'select') for (const q of pilotQuestions()) console.log(q.topic, q.kind, q.id, '|', q.text, '|', q.answer);
+  else if (cmd === 'tokens') console.log(await countTokens([out, ...rest].map((f) => fs.readFileSync(f as string, 'utf8'))));
   else {
     requireLive();
     const o = out as string;

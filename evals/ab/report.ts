@@ -59,7 +59,7 @@ export function summarize(rows: Row[]): Summary[] {
   return [...new Set(rows.map((r) => r.arm))].sort().map((arm) => summarizeGroup(arm, undefined, rows.filter((x) => x.arm === arm)));
 }
 /** One summary per (arm, model). */
-export function summarizeByModel(rows: Row[]): Summary[] {
+function summarizeByModel(rows: Row[]): Summary[] {
   const sep = '\u0000', keys = [...new Set(rows.map((r) => `${r.arm}${sep}${r.model}`))].sort();
   return keys.map((k) => { const [arm, model] = k.split(sep) as [string, string]; return summarizeGroup(arm, model, rows.filter((x) => x.arm === arm && x.model === model)); });
 }
