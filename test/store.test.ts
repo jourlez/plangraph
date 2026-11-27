@@ -31,6 +31,9 @@ function randRec(r: Rng, name: string, i: number): S.Rec {
     'repos.jsonl': { role: 'lib', id: `repo:r${i}`, owners: [w(), 'b', w()], langs: ['ts', 'py'], paths: [{ sub: w(), glob: 'a/**' }, { glob: 'b/**', sub: 'b' }], cmds: { test: 'test', build: 'build' }, ...extra },
     'capacity.jsonl': { sp: Math.floor(r() * 30), sprint: i % 5, person: `P-${i % 3}`, review_h: 2, ...extra },
     'links.jsonl': { to_type: 'repo', to: `repo:r${i % 4}`, rel: 'touches', from: `T-${i}`, from_type: 'ticket', attrs: { why: w(), conf: 'high' }, ...extra },
+    'requirements.jsonl': { text: w(), id: `R-${i}`, kind: 'ears', status: 'accepted', source: 'docs/a.md', acceptance: [w(), 'b', w()], ...extra },
+    'decisions.jsonl': { title: w(), id: `D-${i}`, status: 'proposed', date: '2026-01-05', affects: [w(), 'b', w()], ...extra },
+    'teams.jsonl': { name: w(), id: `TEAM-${i}`, members: [w(), 'b', w()], owns: [w(), 'a'], ...extra },
     'xrefs.jsonl': { xid: `ABC-${i}`, sys: 'jira:acme', id: `T-${i % 6}`, type: 'ticket', seen: '2026-01-05', ...extra },
   } as Record<string, S.Rec>)[name]; // the file names above are the keys
   return R;

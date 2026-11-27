@@ -519,6 +519,6 @@ test('src/db.ts builds SQL only from constants: every interpolation is a table n
   const code = fs.readFileSync(path.join(SRC, 'db.ts'), 'utf8');
   const sql = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE|PRAGMA)\b[^`]*)`/g)];
   assert.ok(sql.length >= 3);
-  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL)$/, 'interpolation: ' + i[1]);
+  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL|ADVISORY_DDL)$/, 'interpolation: ' + i[1]);
   assert.ok(!/Object\.keys\(r(ec)?\)\s*\.(map|join)/.test(code), 'no per-record column list');
 });

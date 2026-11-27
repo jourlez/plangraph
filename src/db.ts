@@ -114,9 +114,8 @@ export interface TableSpec { name: string; file: string; columns: readonly strin
   columnList: string; placeholders: string; ddl: string; prep: Prep; order: string }
 // Columns whose record values are converted by PREP before the insert (refs.plans is an array, refs.files an object): not scalar-checked.
 const PREPPED = new Map([['ref', new Set(['plans', 'files'])], ['person', new Set(['active'])], ['link', new Set(['attrs'])], ['repo', new Set(['langs', 'frameworks', 'cmds', 'entry', 'owners', 'paths'])], ['obs', new Set(['fields', 'links'])]]);
-/** The spec of one table: its columns, the DDL and the canonical digest order. `file` is a SCHEMAS key (a plan kind's file), OBS_FILE, or null with explicit `cols` (an advisory table). */
-function makeSpec(name: string, file: string, cols: readonly string[], pk: readonly string[], ints: readonly string[], upsert: boolean, prep: Prep | undefined): Readonly<TableSpec> {
-  const columns = Object.freeze([...cols]);
+/** The spec of one table: its columns, the DDL and the canonical digest order. `file` is a SCHEMAS key (a plan kind's file), OBS_FILE, or the advisory table name with an explicit column list. */
+function makeSpec(name: string, file: string, columns: readonly string[], pk: readonly string[], ints: readonly string[], upsert: boolean, prep: Prep | undefined): Readonly<TableSpec> {
   for (const c of [name, ...columns]) if (!IDENT.test(c) || c === 'extra') throw new Error(`bad identifier in schema: ${c}`);
   const all = [...columns, 'extra'];
   const types = columns.map((c: string) => `${q(c)} ${ints.includes(c) ? 'INTEGER' : 'TEXT'}`);
@@ -135,7 +134,8 @@ function makeSpec(name: string, file: string, cols: readonly string[], pk: reado
 }
 export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, ints, upsert]) => {
   const file = name === 'obs' ? OBS_FILE : kindFile(name); // a plan table is named by its kind
-  return [name, makeSpec(name, file, file === OBS_FILE ? OBS_COLUMNS : (SCHEMAS[file] as Schema).order, pk, ints, upsert, PREP.get(name))]; // file is one of DEFS' own schema keys
+  const columns = Object.freeze(file === OBS_FILE ? [...OBS_COLUMNS] : [...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
+  return [name, makeSpec(name, file, columns, pk, ints, upsert, PREP.get(name))];
 }));
 Object.freeze(TABLES);
 // ---------- the advisory tables (docs/FORMAT.md section 7): plain tables the solver never reads, always rebuilt from their sources ----------
@@ -150,7 +150,7 @@ const ADV_DEFS: ReadonlyArray<readonly [string, readonly string[], readonly stri
   ['module', ['repo', 'path', 'commits', 'churn', 'authors', 'last', 'coupled', 'hotspot', 'bus1', 'window', 'min_cochange', 'hot_percentile'], ['repo', 'path'], ['commits', 'churn', 'hotspot', 'bus1', 'window', 'min_cochange', 'hot_percentile'], [keep, bool01]],
   ['identity', ['ref', 'person'], ['ref'], [], [keep, canonConv]],
 ];
-const ADVISORY_SPECS: ReadonlyMap<string, Readonly<TableSpec>> = new Map(ADV_DEFS.map(([name, cols, pk, ints, prep]) => [name, makeSpec(name, name, cols, pk, ints, false, prep)]));
+const ADVISORY_SPECS: ReadonlyMap<string, Readonly<TableSpec>> = new Map(ADV_DEFS.map(([name, names, pk, ints, prep]) => [name, makeSpec(name, name, Object.freeze([...names]), pk, ints, false, prep)]));
 if (ADVISORY_SPECS.size !== ADVISORY_TABLES.size - 1 || [...ADVISORY_SPECS.keys()].some((n) => !ADVISORY_TABLES.has(n))) throw new Error('the advisory table specs and ADVISORY_TABLES differ');
 const ADVISORY_DDL = [...ADVISORY_SPECS.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n');
 const GRAPH_SET: ReadonlySet<string> = new Set([...GRAPH_FILES, ...CACHE_FILES]); // files that add bytes to the fingerprint only when present
