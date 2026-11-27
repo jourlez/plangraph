@@ -21,7 +21,7 @@ plangraph schedule-load schedule.json <archive-name>
 `plangraph schedule-load` refuses (exit 4, nothing written) a schedule that moves or drops a frozen ticket of the current plan (docs/CONTRACT.md,
 Frozen history); `plangraph verify schedule.json` names each one as `FROZEN_MOVED`.
 
-`--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl config.json` directly (no SQLite). Without it the solver reads
+`--jsonl-dir DIR` reads `tickets.jsonl edges.jsonl schedule.jsonl sprints.jsonl config.json` directly (no SQLite). `plangraph build` (and `export`) writes exactly such a directory, derived and git-ignored, to `<plan dir>/cache/solver-input/` (v1-shaped canonical files, the schedule of the current version, `open-items.jsonl`, and a copy of `config.json`); `--jsonl-dir <plan dir>` uses it when the directory holds no `tickets.jsonl` of its own. Without it the solver reads
 `plangraph.sqlite` and `config.json` from the plan dir (as before). `--end 0` and `--time 0` are real values.
 
 ## Status (never inflated)
@@ -264,12 +264,11 @@ To use a package mirror on every path, set `UV_INDEX_URL` or `UV_DEFAULT_INDEX` 
 the working directory, and a command-line `--config-file` wins over `UV_CONFIG_FILE`. `--no-config` does not stop uv from taking the interpreter of a
 committed `.venv` (every version) or `.python-version` (0.4.30), which is why the fallback also passes an absolute `--python` (above).
 
-The venv base (no uv) is `$CLAUDE_PLUGIN_DATA` when it is an absolute path, else `~/.cache/plangraph` (the rule of `lib/driver.ts`
-`defaultDataDir`; a relative value is never used, so `rm -rf` never reaches your directory). Whoever can write the base can plant `venv/bin/python`,
+The venv base (no uv) is `$CLAUDE_PLUGIN_DATA` when it is an absolute path, else `~/.cache/plangraph` (the data directory rule of `src/entry.js`; a relative value is never used, so `rm -rf` never reaches your directory). Whoever can write the base can plant `venv/bin/python`,
 which the launcher would run, so before the venv is first used the base must be a real directory (not a symlink) owned by you without group or
 world write; a missing base is created `0700` (`umask 077`). A group- or world-writable `$CLAUDE_PLUGIN_DATA` (Claude Code creates it with the
 default mode, so `775` under umask `002`) is not an error: the launcher prints one stderr line and uses `~/.cache/plangraph` instead, and never
-changes the other directory (the merge shim of `lib/driver.ts` does the same, decision D19). Any other untrusted base (a symlink, not a
+changes the other directory (the Node compile cache does the same, decision D19). Any other untrusted base (a symlink, not a
 directory, owned by another user, or `~/.cache/plangraph` itself writable by others) exits 3 with one line naming the reason; only the writable
 case names the fix, `chmod go-w <dir>`. The check uses `find` and `id`; when either is missing it fails closed. An existing `<base>/venv` and its
 `bin` directory must pass the same check before the venv is first used; one that fails (writable by others, a symlink, not a directory) is

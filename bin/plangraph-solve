@@ -287,6 +287,8 @@ def load_raw(a):
     """-> (tickets: list of dict, edges: list of (consumer, producer, kind), sched: {version: {key: (owner, sprint)}}, cfg)"""
     if a.jsonl_dir:
         d = confine(a.jsonl_dir)
+        si = os.path.join(d, 'cache', 'solver-input')   # a plan directory (entity layout): its derived, git-ignored v1-shaped input (lib/solver-input.ts)
+        if not os.path.lexists(os.path.join(d, 'tickets.jsonl')) and os.path.isdir(si): d = confine(si)
         cfgp = a.config or os.path.join(d, 'config.json')
         tickets = read_jsonl(os.path.join(d, 'tickets.jsonl'))
         edges = [(e['consumer'], e['producer'], e.get('kind', '')) for e in read_jsonl(os.path.join(d, 'edges.jsonl'))]
