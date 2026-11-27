@@ -5,6 +5,7 @@ Contribute through issues and pull requests on the project's GitHub repository (
 ## Setup
 - Node 24.15 or newer (see the README for nvm and fnm). There are no runtime dependencies and nothing to install to run the tests.
 - Dev-only tooling (never needed at run time, never shipped: `node_modules/` is git-ignored): `npm ci` installs the exact-pinned `typescript`, `@types/node`, `@biomejs/biome`, `knip` and `lefthook` from `package-lock.json`. `.ts` files run directly on Node 24 (type stripping, no build step).
+- The plan is stored as entity files (`docs/FORMAT.md`). There is no merge driver and no `.gitattributes` entry; do not add one. Test fixtures write a plan through `test/helpers/plan-dir.ts`.
 - Native ES modules only (`import`, `import.meta.dirname`); no `require`.
 
 ## Before you send a change
@@ -12,6 +13,7 @@ Contribute through issues and pull requests on the project's GitHub repository (
 2. Start with a failing test. Every behavior change begins with a test that fails for the right reason; every security fix is proven by reverting the fix and watching the test fail.
 3. Run these checks and make sure they pass:
    - `node --test $(ls test/*.test.ts | grep -v solver)` (the solver suite is slow and run separately)
+   - `node --test test/docs-examples.test.ts test/readme.test.ts` after any change to a command's output or to the README or `docs/GETTING-STARTED.md`: every command marked `# runs` in those two documents is executed and its output compared with the block that follows (update the block, never the test)
    - `bash test/smoke.sh`
    - `npm run validate:plugin` (`node test/validate-plugin.ts`)
    - after `npm ci`, the development scripts:
@@ -26,7 +28,7 @@ Contribute through issues and pull requests on the project's GitHub repository (
 4. Keep `version` only in `plugin.json` and `package.json` (they must match). Add a line to `CHANGELOG.md` for user-visible changes.
 
 ## Rules the code follows
-- No network or model calls outside `lib/jira.ts`; never write, log or accept a credential.
+- No network or model calls outside the read-only Jira client (`lib/jira/`) and the GET-only `gh` runner (`src/fetch-runners.ts`); no telemetry, ever; never write, log or accept a credential.
 - Library modules do no I/O beyond what they are handed and never print or exit.
 - State files are written atomically and refuse symlink targets.
 - Text from tickets, Jira, plans or people is untrusted: sanitize it and fence it before it reaches output.

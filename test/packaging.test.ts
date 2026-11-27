@@ -106,10 +106,15 @@ test('README says Node 24, never the old floor', () => {
 test('every plangraph command in the README quickstart is a registered command', async () => {
   const { registry } = await import('../src/registry.ts');
   const readme = read('README.md');
-  const i = readme.indexOf('## Quickstart');
-  assert.ok(i >= 0);
-  const next = readme.indexOf('\n## ', i + 5);
-  const section = readme.slice(i, next < 0 ? undefined : next);
+  // the section ends at the next level-2 heading OUTSIDE a fenced block (the output of `plangraph init` holds a `## Plan questions` line)
+  const lines = readme.split('\n'), start = lines.indexOf('## Quickstart');
+  assert.ok(start >= 0);
+  let fenced = false, end = lines.length;
+  for (let k = start + 1; k < lines.length; k++) {
+    if (/^\s*```/.test(lines[k] as string)) fenced = !fenced;
+    else if (!fenced && /^## /.test(lines[k] as string)) { end = k; break; }
+  }
+  const section = lines.slice(start, end).join('\n');
   const cmds = [...section.matchAll(/`plangraph ([a-z][a-z-]*)/g)].map((m) => m[1]);
   assert.ok(cmds.length >= 3, `quickstart names ${cmds.length} plangraph commands`);
   for (const c of cmds) assert.ok(registry.has(c), `plangraph ${c} is not a registered command`);

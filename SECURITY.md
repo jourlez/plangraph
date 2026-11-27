@@ -4,6 +4,12 @@
 
 Use GitHub private vulnerability reporting: open the repository's Security tab, choose Report a vulnerability, and describe the issue there. It is private to the maintainer until an advisory is published. This channel must be enabled in the repository settings (Settings, Code security, Private vulnerability reporting); if the button is missing, it is not enabled yet. Please do not put exploit details in a public issue.
 
+## Platforms, telemetry and your data
+
+- Supported platforms: macOS and Linux. Windows is not supported and nothing was run there. The Claude Code hooks of the plugin run `node` directly; the optional git hook scripts are POSIX `sh` wrappers.
+- Telemetry: none. A search of the code for network access finds one HTTP client (`lib/jira/client.ts`, read-only Atlassian requests for a target you named and trusted) and your own `gh` for GitHub reads; see `docs/audit/1.0-audit.md`. This is a source search, not a network capture.
+- Your plan data is plain text in your repository. `plangraph uninstall` removes what plangraph added there and never your plan; removing a person's data from the plan and from git history is `docs/ERASURE.md`.
+
 ## Response
 
 Best effort, single maintainer, no response-time promise: report privately through GitHub private vulnerability reporting (above), not in a public issue.
@@ -38,6 +44,9 @@ Only the latest release receives fixes. The package is distributed through git (
 - The solver's Python fallback (no uv) runs every Python call in isolated mode (`python -I`), so a repository's `ortools.py`, `venv/` or `pip.py` in the working directory is never imported.
 
 ## Limits you should know
+
+- 1.0 was verified by tests and documented examples on synthetic projects. The new hooks, skills and MCP tools were not run in a live Claude Code session, no third party has reviewed the code, and the known gaps are listed in `docs/audit/1.0-audit.md`.
+- `plangraph takeover` reads documents, commit messages and tracker text from the repository and from trackers you trust. All of it is untrusted: it is capped and fenced before it is printed, and nothing in it is executed. A fence bypass would be a vulnerability: report it.
 
 - Hooks and the commands in `bin/` run as you, unsandboxed, with your permissions. The session hook runs `bin/plangraph card --if-present` at session start. Read the code before you install it.
 - Accepted limit (owner, 0.3.0): when `PLANGRAPH_SOLVE_SCRIPT` overrides the solver script and the uv preparation fails, `bin/plangraph-solve-run` installs OR-Tools with `uv run --with ortools==<exact version>` instead of from the hashed lock. The override is a developer and test variable that only the user sets, the version is pinned exactly, and the normal path always installs from `bin/plangraph-solve.lock` with hashes.

@@ -1,5 +1,7 @@
 # Open items register
 
+> Layout note (1.0): open items are nodes under `nodes/openitem/` (id `<key>|<kind>`, closing edits `status`). `open-items.jsonl` below names the kind's canonical text, which `OpenItem` readers and the solver input still use, not a file on disk ([FORMAT.md](FORMAT.md)).
+
 Decisions and fixes owed by a named person before a ticket may start. Module: `lib/openitems.ts`. Tests: `test/openitems.test.ts`.
 
 ## Data

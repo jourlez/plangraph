@@ -3,7 +3,9 @@
 `mcp/plangraph-mcp.ts` is a small MCP server (stdio) with seven read-only tools: `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`,
 `context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `.mcp.json` and starts it with the plugin.
 Whether it should be on by default depends on the benchmark ruling (task 32): until that ruling the option below is the switch, and
-the default value in `plugin.json` is a placeholder for that decision.
+the default value in `plugin.json` is a placeholder for that decision (today `on`, results pending).
+
+Known gaps for 1.0: the server implements the legacy `initialize` flow and not `server/discover` (section Protocol); the seven-tool version was exercised by its test suite and a test client, not in a live Claude Code session (the three-tool version of 0.5.0 was).
 
 It duplicates part of the CLI. `plangraph ready KEY`, `plangraph whatif KEY ...`, `plangraph ticket KEY` and `plangraph graph KEY` answer
 through Bash with the same bytes. Keep it on only if your own evals show the MCP condition is no worse than the CLI (success within noise,

@@ -1,0 +1,9 @@
+$ plangraph uninstall --yes
+exit: 0
+--- stdout
+removed .plangraph/cache, .plangraph/plangraph.sqlite, .plangraph/.txn
+removed cache/, plangraph.sqlite*, .txn/ from .plangraph/.gitignore
+removed /docs/plangraph/ from .gitignore
+kept nodes/ events/ runs/ schedules/ config.json format.json in .plangraph: your plan data, never deleted here
+to finish: claude plugin uninstall plangraph@plangraph-marketplace
+--- stderr

@@ -49,6 +49,8 @@ The prefix bisect (next section) found three flaws in the pilot; all are fixed i
 
 Pending the early pass. The controller records here which default injections stay on.
 
+Status when the 1.0 documentation was written: still pending. `results pending` is what the README says; it claims no token or accuracy benefit, and the pilot below measured equal accuracy and a higher token and cost use for the plugin arm. The live pass (`EVAL_LIVE=1`) and the coding-task validation have not been run.
+
 ## Pilot
 
 Model `sonnet` (claude-sonnet-5-5), one run per cell, `EVAL_LIVE=1`, native binary 2.1.332, default config of the owner's login, sequential. Questions (`pilotQuestions`): two per topic (owner, blocker, stack, requirement, history) of different kinds, plus two more multi-hop or list questions: 12 questions, each in both arms. Coding tasks: the two with the fastest setup of four probed (`loguru-size-exponent` 14 s, `click-sentinel-copy` 15 s; `more-itertools-chunked-even-size` 17 s, `cachetools-cached-qualname` 23 s), each in both arms. Tokens in include cache reads and cache creation; cost is the `total_cost_usd` the binary reports.

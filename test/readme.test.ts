@@ -38,7 +38,18 @@ export function brainCommands(text: string): string[] {
   return out;
 }
 
-const headings = () => [...readme.matchAll(/^(#{2,4}) (.+)$/gm)].map((m) => ({ level: m[1].length, text: m[2] }));
+/** The headings of the README: lines inside a fenced block (such as the `## Plan questions` line `plangraph init` prints) are output, not headings. */
+export function headingsOf(text: string): { level: number; text: string }[] {
+  const out: { level: number; text: string }[] = [];
+  let inBlock = false;
+  for (const line of text.split('\n')) {
+    if (/^\s*```/.test(line)) { inBlock = !inBlock; continue; }
+    const m = !inBlock ? /^(#{2,4}) (.+)$/.exec(line) : null;
+    if (m) out.push({ level: m[1].length, text: m[2] });
+  }
+  return out;
+}
+const headings = () => headingsOf(readme);
 
 test('every plangraph command the README names is a registered command, and the scan is not vacuous', () => {
   const cmds = brainCommands(readme);
@@ -46,6 +57,10 @@ test('every plangraph command the README names is a registered command, and the 
   for (const c of cmds) assert.ok(registry.has(c), `README names plangraph ${c}, which is not a registered command`);
   // the scanner itself: a planted unknown command in a block and inline is found
   assert.deepEqual(brainCommands('`plangraph nope x`\n```console\n$ plangraph zap\nplangraph zip --y\n```\nplangraph outside'), ['nope', 'zap', 'zip']);
+});
+
+test('a heading-shaped line inside a fenced block is output, not a heading', () => {
+  assert.deepEqual(headingsOf('## A\n```text\n## B\n```\n### C\n'), [{ level: 2, text: 'A' }, { level: 3, text: 'C' }]);
 });
 
 test('every relative link target exists', () => {
