@@ -25,13 +25,14 @@ Rules: never write to Jira, never write or print a credential, never edit anothe
 3. Use the `plangraph:onboard` skill to bring that data in:
    - superpowers plans: `plangraph sp-ingest <plan.md>` for each plan;
    - Jira: prefer the Atlassian connector for single tickets; for a bulk import tell me what `docs/JIRA.md` in the plugin says to set up (a scoped read-only token in MY shell, never in a file) [ASK]; then `plangraph jira-import`;
+   - an existing project with history, documents and maybe a tracker: use the `plangraph:takeover` skill, which runs `plangraph takeover --no-fetch` first and reports every gap [ASK before it fetches from a tracker];
    - nothing yet: run `plangraph init`, and show me the layout in `docs/FORMAT.md` so we can fill it.
 4. Build and check: run `plangraph build`, `plangraph check`, `plangraph verify`, `plangraph blockers`, `plangraph card`. Explain any violation or unplaced ticket in plain words, with the exact `plangraph` command that shows it.
 5. Suggest, do not write: `plangraph init` prints a three-line snippet for this project's CLAUDE.md that steers Claude to use `plangraph` for plan questions. Show it to me and ask whether to add it [ASK].
 6. Commit plan: tell me which files to commit (the text files in the plan dir) and which not (plangraph.sqlite and its journal files are ignored). Do not commit for me.
 7. Finish with a 6-line summary: what is installed, where the data lives, current health (tickets, violations, unplaced, blocked), what I should do next, and the three commands I will use most (`plangraph blockers`, `plangraph ready --person NAME --sprint N`, `plangraph whatif KEY --find`).
 
-Then wait. From now on, for plan questions use `plangraph` commands, never read the .jsonl files directly.
+Then wait. From now on, for plan questions use `plangraph` commands, never read the plan files directly.
 ````
 
 ## After setup
