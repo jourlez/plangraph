@@ -44,6 +44,7 @@ Content: line 1 is `id <json string>`; then one line per field, `<name> <json va
 | edge (`edges`) | `links` lines with `rel` `needs` on the consumer ticket: `links {"rel":"needs","to":"<producer>","attrs":{"kind":"...","note":"..."}}` |
 | ref (`refs`) | fields `plans`, `files`, `fp_files`, `jira_updated`, `audited_at` (and any other column) on the ticket; a ref keyed `sp:<slug>` (a plan epic) lives on `nodes/epic/` |
 | person, sprint, epic, repo | `nodes/person/`, `nodes/sprint/`, `nodes/epic/`, `nodes/repo/` |
+| requirement, decision, team | `nodes/requirement/`, `nodes/decision/`, `nodes/team/` (canonical text names `requirements`, `decisions`, `teams`) |
 | capacity | repeated `capacity {"sprint":3,"sp":5,"review_h":2}` lines on the person |
 | link, xref | `links` and `xrefs` lines of the source node; a source type with no node directory (plantask, plan, doc, openitem, `x-*`) lives in `nodes/ext/` keyed by its `pg:` URI |
 | open item (`open-items`) | `nodes/openitem/`, id `<key>|<kind>`; closing is an edit of the `status` field |
@@ -67,7 +68,8 @@ Defaults for missing optional fields are applied on read, never written. A numer
 - Finding kinds: free words; the ingest uses `sp_constraint`, `sp_review_focus`, `sp_ruling`, `sp_parked`, `sp_deferred`.
 - people: `id`, `name`, `active`. sprints: `n` (a whole number, 0 and negatives allowed), `name`, `start`, `end` (`YYYY-MM-DD`, `start <= end`), `state`. epics: `id`, `name`. repos: `id`, `name`, `role` (`service lib app infra docs monorepo`), `langs`, `pm`, `runtime`, `frameworks`, `cmds` (`{build,test,lint}`: script names, never bodies), `entry`, `deploy`, `owners`, `paths` (`[{glob, sub}]`), `src` (`scan manual catalog`), `fp`, `scanned_at`, `scanner`.
 - capacity: `sprint`, `sp` (non-negative) required; `review_h` (non-negative, carried and never read).
-- Open grammars: node types are `ticket person sprint epic plantask openitem plan doc repo` plus `x-<sys>.<kind>`; hand-authored relations are `relates_to`, `depends_on`, `touches`, plus `x-<sys>/<rel>`; derived relations (`needs assigned_to scheduled_in belongs_to implements held_by part_of specified_by tracked_by owned_by`) come from the plan and are refused as hand-authored links (`LINK_DERIVED_REL`). A sprint is written `S<n>`, an open item `<key>|<kind>`, a plan task `<plan>#<task>`. Ids are at most 200 characters with no control, bidirectional or line-break character.
+- requirement: `text`, `kind` (`ears gherkin free`), `status` (`proposed accepted dropped`), `source` (a repo-relative path with an optional `#anchor`, or an external reference `<sys>:<xid>` such as `confluence:12345`; never a URL, `..` or an absolute path: `BAD_SCHEMA`), repeated `acceptance` lines, `priority`. decision: `title`, `status` (`proposed accepted deprecated superseded rejected`), `date` (`YYYY-MM-DD`), repeated `affects` lines (repo paths or globs), `source`, `derivation`. team: `name`, repeated `members` and `owns` lines. Ids are local (`R-<hex>`, `D-<hex>`, `TEAM-<hex>`).
+- Open grammars: node types are `ticket person sprint epic plantask openitem plan doc repo requirement decision team` plus `x-<sys>.<kind>`; hand-authored relations are `relates_to`, `depends_on`, `touches`, `satisfies` (ticket to requirement; trace), `affects`, `supersedes`, `member_of`, `alias_of` (information only), plus `x-<sys>/<rel>`; none of the new relations is read by a blocker, capacity, solver or verify rule, so an existing plan gives the same verdicts; derived relations (`needs assigned_to scheduled_in belongs_to implements held_by part_of specified_by tracked_by owned_by`) come from the plan and are refused as hand-authored links (`LINK_DERIVED_REL`). A sprint is written `S<n>`, an open item `<key>|<kind>`, a plan task `<plan>#<task>`. Ids are at most 200 characters with no control, bidirectional or line-break character.
 - xrefs: `sys` is `<name>`, `<name>:<alias>` or `<name>:<owner>/<repo>`; `xid` is `[A-Za-z0-9._:/#@ -]{1,200}` with no `..`, no URL and nothing shaped like an email address. No URL, host, account id or email is committed.
 
 ## 3. Batch files
@@ -97,6 +99,17 @@ Defaults for missing optional fields are applied on read, never written. A numer
 | `OVERSIZE` | a node file over 256 KiB |
 | `MISSING_CURRENT` | `schedules/CURRENT` absent or naming a version that does not exist |
 
+Backstage names are a mapping for catalog import and export, not extra relations:
+
+| plangraph relation | Backstage relation |
+|---|---|
+| `member_of` | `memberOf` |
+| `part_of` | `partOf` |
+| `owned_by` | `ownedBy` |
+| `depends_on` | `dependsOn` |
+
+A `satisfies` link to a requirement that does not exist is `DANGLING_LINK` (node check) and `LINK_MISSING_NODE` (graph check).
+
 Graph rules checked on the plan (`LINK_MISSING_NODE`, `UNDATED_SPRINT`, `XREF_BAD_ID`, ...) are printed by `check` and `build` as before.
 
 ## 5. Cache and index (derived, git-ignored)
@@ -104,6 +117,7 @@ Graph rules checked on the plan (`LINK_MISSING_NODE`, `UNDATED_SPRINT`, `XREF_BA
 - `cache/<sys>.jsonl`: observations from `plangraph import` (generic, jira, sp, github), mode 0600. Row: `sys`, `xid`, `type`, `fields` (at most 40 scalars), `links` (extension relations only), `fp`, `seen`. Advisory: never read as plan data. `plangraph sync --plan` joins observations to the plan and prints drift (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) with a tracker push list.
 - `cache/solver-input/`: v1-shaped canonical JSONL (`tickets`, `edges`, `schedule` of the current version, `open-items`, `sprints`) and a copy of `config.json`, written by `plangraph build` and `export`, mode 0600. `bin/plangraph-solve --jsonl-dir <plan dir>` reads it (docs/SOLVER.md). The bytes depend only on the plan's rows, so the same logical plan gives the same solver input digest.
 - `plangraph.sqlite` and its `-journal`, `-wal`, `-shm` files: the index. Built incrementally: per source file `(size, mtime)` is compared with the `source_file` table, only files that differ are re-hashed and re-read, deleted files are seen from the directory walk, and it works in and out of git. Open items are read from the store, not the index, and are not in the source fingerprint.
+- Advisory index tables, never read by the solver and not in its content digest (listed in `ADVISORY_TABLES` in `src/db.ts` and `bin/plangraph-solve`, kept equal by `test/solver-contract.test.ts`): `source_file`; `requirement`, `decision`, `team` (the node kinds); `event` (from `events/`); `module` (from `cache/git.jsonl`, rows of `ingest git`, checked by its own validator; the file is not an observation cache); `identity` (from `cache/identities.json`). They are rebuilt on every build that changes any source. The index file is mode 0600 because it embeds identity refs.
 - `.txn/`: the staging area of a multi-file write. An interrupted write rolls forward or back on the next call to any command.
 
 ## 6. `format.json`

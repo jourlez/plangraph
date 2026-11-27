@@ -137,7 +137,7 @@ test('(f) source scan: the INSERT column lists come from constants, never from r
   const sqlTemplates = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE)\b[^`]*)`/g)];
   assert.ok(sqlTemplates.length >= 2);
   for (const m of sqlTemplates) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) {
-    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL)$/, 'interpolation: ' + i[1]);
+    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL|ADVISORY_DDL)$/, 'interpolation: ' + i[1]);
   }
   // insertSql takes only a table spec and a verb: no record parameter
   assert.match(code, /const insertSql = \(t(?:: [^,]+)?, verb(?:: string)? = 'INSERT'\)(?:: string)? =>/);

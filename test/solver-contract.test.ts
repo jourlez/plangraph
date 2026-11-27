@@ -79,7 +79,7 @@ const load = (r: { db: string; cfg: string }): { ok: boolean; msg?: string } => 
 test('the solver accepts an index with advisory tables, whatever their shape, and still refuses an unknown table', { skip: SKIP }, () => {
   const r = index();
   assert.equal(load(r).ok, true, 'source_file is there already');
-  { const db = new DatabaseSync(r.db); db.exec('CREATE TABLE identity(a, b, c); CREATE TABLE module(x PRIMARY KEY); INSERT INTO identity VALUES(1, 2, 3)'); db.close(); }
+  { const db = new DatabaseSync(r.db); db.exec(['identity', 'module', 'requirement', 'decision', 'team', 'event'].map((t) => `DROP TABLE ${t}`).join(';')); db.exec('CREATE TABLE identity(a, b, c); CREATE TABLE module(x PRIMARY KEY); CREATE TABLE requirement(q); CREATE TABLE decision(d); CREATE TABLE team(z, z2); CREATE TABLE event(e); INSERT INTO identity VALUES(1, 2, 3)'); db.close(); }
   assert.equal(load(r).ok, true, 'advisory rows are not in the digest');
   { const db = new DatabaseSync(r.db); db.exec("UPDATE source_file SET hash = 'changed'"); db.close(); }
   assert.equal(load(r).ok, true, 'a change inside an advisory table is not a digest mismatch');
@@ -87,6 +87,14 @@ test('the solver accepts an index with advisory tables, whatever their shape, an
   const bad = load(r);
   assert.equal(bad.ok, false);
   assert.match(bad.msg as string, /unexpected schema/);
+});
+
+test('an index built here carries every advisory table, and the solver reads it', { skip: SKIP }, () => {
+  const r = index(), db = new DatabaseSync(r.db), have = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((x) => x.name);
+  db.close();
+  for (const t of ADVISORY_TABLES) assert.ok(have.includes(t), `${t} is built`);
+  assert.equal(load(r).ok, true);
+  assert.equal(fs.statSync(r.db).mode & 0o777, 0o600, 'the index file is 0600 (it embeds identity refs)');
 });
 
 test('an index without source_file (an earlier build) is still a current one, and a planted trigger is still refused', { skip: SKIP }, () => {

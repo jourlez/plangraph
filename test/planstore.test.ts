@@ -32,13 +32,16 @@ const ROWS: Record<P.Kind, P.Row[]> = {
   capacity: [{ person: 'Ben', sprint: 1, sp: 8 }, { person: 'Ana', sprint: 1, sp: 5, review_h: 2 }],
   link: [{ from: 'T-1', from_type: 'ticket', rel: 'related', to: 'T-2', to_type: 'ticket' }],
   xref: [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'ABC-1' }],
+  requirement: [{ id: 'R-b', text: 'later', status: 'accepted' }, { id: 'R-a', text: 'first', kind: 'ears', source: 'docs/spec.md#a', acceptance: ['b', 'a'], priority: 'high' }],
+  decision: [{ id: 'D-1', title: 'use x', status: 'proposed', date: '2026-01-02', affects: ['src/**', 'api'] }],
+  team: [{ id: 'TEAM-1', name: 'core', members: ['Ben', 'Ana'], owns: ['api'] }],
 };
 
 test('every kind has a file name and a schema, and the list is closed', () => {
   assert.deepEqual(Object.keys(ROWS).sort(), [...P.KINDS].sort());
   for (const k of P.KINDS) { const f = P.kindFile(k); assert.ok(S.SCHEMAS[f], `${k}: no schema for ${f}`); assert.equal(P.kindOfFile(f), k); }
   assert.equal(P.kindOfFile('config.json'), undefined);
-  assert.equal(P.SRC_KINDS.length + P.GRAPH_KINDS.length, P.KINDS.length);
+  assert.equal(P.SRC_KINDS.length + P.GRAPH_KINDS.length + P.NODE_KINDS.length, P.KINDS.length);
 });
 
 test('writeKind then readKind round-trips every kind in canonical order, and readText is the canonical text of the kind', () => {

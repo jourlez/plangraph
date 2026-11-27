@@ -24,6 +24,9 @@ function nodeSet(files: GraphFiles, v1: ModelRecords, items: readonly OpenItem[]
   for (const p of files.people) add('person', p.id);
   for (const sp of files.sprints) add('sprint', `S${sp.n}`);
   for (const e of files.epics) add('epic', e.id);
+  for (const r of files.requirements ?? []) add('requirement', r.id);
+  for (const d of files.decisions ?? []) add('decision', d.id);
+  for (const t of files.teams ?? []) add('team', t.id);
   for (const r of files.repos) {
     add('repo', r.id);
     for (const p of Array.isArray(r.paths) ? r.paths : []) if (isObj(p) && text(p.sub)) add('repo', `${r.id}#${p.sub}`);

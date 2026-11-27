@@ -41,11 +41,15 @@ import type { Schema } from '../lib/store.ts';
 import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.ts';
 import { validators } from '../lib/schema.ts';
 import { openStore, kindFile, kindOfFile } from '../lib/planstore.ts';
+import type { PlanStore } from '../lib/planstore.ts';
 import { writeSolverInput, writeSolverConfig, SOLVER_INPUT_DIR } from '../lib/solver-input.ts';
 import type { Kind } from '../lib/planstore.ts';
 import { GRAPH_FILES, parseGraphFile } from '../lib/graph/files.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
 import { CACHE_FILES, OBS_COLUMNS, obsProblem } from '../lib/graph/obs.ts';
+import { readEvents } from '../lib/store2/batches.ts';
+import { parseModuleFacts, MODULE_FILE } from '../lib/history/module-facts.ts';
+import { readIdentityMap, IDENTITY_FILE } from '../lib/identity.ts';
 import { PlangraphError } from './errors.ts';
 import { nodeSupported, floorMessage } from './floor.js';
 import type { DatabaseSync, StatementSync, SQLInputValue } from 'node:sqlite';
@@ -110,13 +114,12 @@ export interface TableSpec { name: string; file: string; columns: readonly strin
   columnList: string; placeholders: string; ddl: string; prep: Prep; order: string }
 // Columns whose record values are converted by PREP before the insert (refs.plans is an array, refs.files an object): not scalar-checked.
 const PREPPED = new Map([['ref', new Set(['plans', 'files'])], ['person', new Set(['active'])], ['link', new Set(['attrs'])], ['repo', new Set(['langs', 'frameworks', 'cmds', 'entry', 'owners', 'paths'])], ['obs', new Set(['fields', 'links'])]]);
-export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, ints, upsert]) => {
-  const file = name === 'obs' ? OBS_FILE : kindFile(name); // a plan table is named by its kind
-  const columns = Object.freeze(file === OBS_FILE ? [...OBS_COLUMNS] : [...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
+/** The spec of one table: its columns, the DDL and the canonical digest order. `file` is a SCHEMAS key (a plan kind's file), OBS_FILE, or the advisory table name with an explicit column list. */
+function makeSpec(name: string, file: string, columns: readonly string[], pk: readonly string[], ints: readonly string[], upsert: boolean, prep: Prep | undefined): Readonly<TableSpec> {
   for (const c of [name, ...columns]) if (!IDENT.test(c) || c === 'extra') throw new Error(`bad identifier in schema: ${c}`);
   const all = [...columns, 'extra'];
   const types = columns.map((c: string) => `${q(c)} ${ints.includes(c) ? 'INTEGER' : 'TEXT'}`);
-  return [name, Object.freeze({
+  return Object.freeze({
     name, file, columns, upsert,
     known: new Set<string>(columns),
     text: new Set<string>(columns.filter((c: string) => !ints.includes(c))),
@@ -124,18 +127,38 @@ export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, 
     columnList: all.map(q).join(','),
     placeholders: all.map(() => '?').join(','),
     ddl: [...types, '"extra" TEXT', ...(pk.length ? [`PRIMARY KEY(${pk.map(q).join(',')})`] : [])].join(', '),
-    prep: PREP.get(name) ?? ([same, toObj] as Prep), // the default preparation pair
+    prep: prep ?? ([same, toObj] as Prep), // the default preparation pair
     // canonical digest order: the primary key, then every other column (rows that tie on all of them are identical, so order is total)
     order: [...pk, ...all.filter((c) => !pk.includes(c))].map(q).join(','),
-  })];
+  });
+}
+export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, ints, upsert]) => {
+  const file = name === 'obs' ? OBS_FILE : kindFile(name); // a plan table is named by its kind
+  const columns = Object.freeze(file === OBS_FILE ? [...OBS_COLUMNS] : [...(SCHEMAS[file] as Schema).order]); // file is one of DEFS' own schema keys
+  return [name, makeSpec(name, file, columns, pk, ints, upsert, PREP.get(name))];
 }));
 Object.freeze(TABLES);
+// ---------- the advisory tables (docs/FORMAT.md section 7): plain tables the solver never reads, always rebuilt from their sources ----------
+// requirement, decision and team come from the node kinds (the store, unvalidated: `check` reports a bad row), event from events/ (readEvents), module from
+// cache/git.jsonl (its own loader and validator; the file is not in CACHE_FILES, so no `obs` row and no obsProblem), identity from cache/identities.json.
+const bool01 = (v: unknown): unknown => (typeof v === 'boolean' ? (v ? 1 : 0) : canonConv(v));
+const ADV_DEFS: ReadonlyArray<readonly [string, readonly string[], readonly string[], readonly string[], Prep]> = [
+  ['requirement', (SCHEMAS[kindFile('requirement')] as Schema).order, ['id'], [], [keep, canonConv]],
+  ['decision', (SCHEMAS[kindFile('decision')] as Schema).order, ['id'], [], [keep, canonConv]],
+  ['team', (SCHEMAS[kindFile('team')] as Schema).order, ['id'], [], [keep, canonConv]],
+  ['event', ['at', 'seq', 'actor', 'bh8', 'task', 'to', 'by', 'evidence', 'note'], [], ['seq'], [keep, canonConv]],
+  ['module', ['repo', 'path', 'commits', 'churn', 'authors', 'last', 'coupled', 'hotspot', 'bus1', 'window', 'min_cochange', 'hot_percentile'], ['repo', 'path'], ['commits', 'churn', 'hotspot', 'bus1', 'window', 'min_cochange', 'hot_percentile'], [keep, bool01]],
+  ['identity', ['ref', 'person'], ['ref'], [], [keep, canonConv]],
+];
+const ADVISORY_SPECS: ReadonlyMap<string, Readonly<TableSpec>> = new Map(ADV_DEFS.map(([name, names, pk, ints, prep]) => [name, makeSpec(name, name, Object.freeze([...names]), pk, ints, false, prep)]));
+if (ADVISORY_SPECS.size !== ADVISORY_TABLES.size - 1 || [...ADVISORY_SPECS.keys()].some((n) => !ADVISORY_TABLES.has(n))) throw new Error('the advisory table specs and ADVISORY_TABLES differ');
+const ADVISORY_DDL = [...ADVISORY_SPECS.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n');
 const GRAPH_SET: ReadonlySet<string> = new Set([...GRAPH_FILES, ...CACHE_FILES]); // files that add bytes to the fingerprint only when present
 const V1_TABLES = Object.freeze([...TABLES.values()].slice(0, V1_TABLE_COUNT));
 const PREV_TABLES = Object.freeze([...TABLES.values()].filter((t) => t.name !== 'obs')); // the table list of 0.4.0
 const GRAPH_TABLE_NAMES = Object.freeze([...TABLES.values()].slice(V1_TABLE_COUNT).map((t) => t.name));
 const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`).join('\n')
-  + `\nCREATE INDEX edge_p ON edge(producer); CREATE INDEX ev_k ON evidence(key);\nCREATE TABLE index_meta(k TEXT PRIMARY KEY, v TEXT);\n${SOURCE_FILE_DDL}\n`
+  + `\nCREATE INDEX edge_p ON edge(producer); CREATE INDEX ev_k ON evidence(key);\nCREATE TABLE index_meta(k TEXT PRIMARY KEY, v TEXT);\n${SOURCE_FILE_DDL}\n${ADVISORY_DDL}\n`
   + GRAPH_VIEWS.map(([, sql]) => `${sql};`).join('\n');
 
 // ---------- node:sqlite, lazily ----------
@@ -230,12 +253,15 @@ type SrcMap = Map<string, SrcRow>;
 /** What the last build recorded: the rows of source_file and the index file's own modification time (the racy-entry bound). */
 interface Prior { rows: SrcMap; indexMtime: number }
 // the node directories that are index sources (open items are read from the store directly and are not in the fingerprint, as open-items.jsonl never was)
-const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'ext'];
+const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'requirement', 'decision', 'team', 'ext'];
+/** Source files that feed only advisory tables (cache/git.jsonl is not in CACHE_FILES, so it never makes an `obs` row). */
+const ADVISORY_FILES = [MODULE_FILE, IDENTITY_FILE];
+const isAdvisorySource = (rel: string): boolean => rel.startsWith('events/') || rel.startsWith('nodes/requirement/') || rel.startsWith('nodes/decision/') || rel.startsWith('nodes/team/') || ADVISORY_FILES.includes(rel);
 const RUN_DIRS: Readonly<Record<string, string>> = { evidence: 'evidence', findings: 'finding', learnings: 'learning' };
 // the tables built from each node directory (a link or xref table reads every directory that can hold a source node)
 const NODE_TABLES: Readonly<Record<string, readonly string[]>> = {
   ticket: ['ticket', 'edge', 'ref', 'link', 'xref'], person: ['person', 'capacity', 'link', 'xref'], sprint: ['sprint', 'link', 'xref'], epic: ['epic', 'ref', 'link', 'xref'],
-  repo: ['repo', 'link', 'xref'], ext: ['link', 'xref'],
+  repo: ['repo', 'link', 'xref'], ext: ['link', 'xref'], requirement: ['link', 'xref'], decision: ['link', 'xref'], team: ['link', 'xref'],
 };
 /** The tables built from a source file of either layout (an old-layout file name, an entity path, a cache file). */
 function tablesOf(rel: string): readonly string[] {
@@ -260,7 +286,8 @@ function entityFiles(dir: string): string[] {
   for (const k of NODE_DIRS) walk(`nodes/${k}`, (n) => n.endsWith('.pg'));
   walk('schedules', (n) => n.endsWith('.jsonl') || n === 'CURRENT');
   for (const k of Object.keys(RUN_DIRS)) walk(`runs/${k}`, (n) => n.endsWith('.jsonl'));
-  for (const f of ['meta.jsonl', ...CACHE_FILES]) { try { fs.lstatSync(path.join(dir, f)); out.push(f); } catch { /* absent */ } }
+  walk('events', (n) => n.endsWith('.jsonl'));
+  for (const f of ['meta.jsonl', ...CACHE_FILES, ...ADVISORY_FILES]) { try { fs.lstatSync(path.join(dir, f)); out.push(f); } catch { /* absent */ } }
   return out.sort();
 }
 /** (size, mtime, hash) of every source file of an entity directory. A file whose (size, mtime) equal the prior row's, and whose mtime is older than racyBefore, keeps
@@ -394,6 +421,18 @@ function obsRows(textOf: (file: string) => string | null): readonly Record<strin
   return CACHE_FILES.flatMap((f) => parseJsonl(textOf(f) ?? '', f, { validate: obsProblem }));
 }
 
+/** The rows of every advisory table, from their sources, sorted for a stable build. A requirement, decision or team row is taken as stored (`plangraph check` reports a bad one). */
+function advisoryRows(dir: string, store: PlanStore, textOf: (file: string) => string | null): Map<string, readonly Record<string, unknown>[]> {
+  const out = new Map<string, readonly Record<string, unknown>[]>();
+  for (const k of ['requirement', 'decision', 'team'] as const) out.set(k, store.readKind(k, { defaults: false }));
+  out.set('event', readEvents(dir) as unknown as Record<string, unknown>[]);
+  out.set('module', parseModuleFacts(textOf(MODULE_FILE) ?? '') as unknown as Record<string, unknown>[]);
+  let byRef: Record<string, string>;
+  try { byRef = readIdentityMap(dir).byRef; } catch (e) { throw new IngestError(`${IDENTITY_FILE}: ${(e as Error).message}`); } // a malformed map is a data error naming the file
+  out.set('identity', Object.keys(byRef).sort().map((ref) => ({ ref, person: byRef[ref] })));
+  return out;
+}
+
 /** What an index holds, read back for a build that had nothing to do. */
 function summaryOf(h: IndexHandle): { counts: Record<string, number>; fingerprint: string; digest: string } {
   const counts: Record<string, number> = {};
@@ -418,11 +457,13 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   const textOf = (f: string): string | null => { if (!read.has(f)) { const kind = kindOfFile(f); read.set(f, kind ? store.readSource(kind, MAX_SOURCE_BYTES) : readPlain(ctx.dir, f)); } return read.get(f) ?? null; };
   // which tables are built from text: all, or those of a file that is new, gone or whose hash differs from the recorded one
   const dirty = new Set<string>();
+  let advChanged = !prior; // a source of an advisory table that is new, gone or different; an index of an earlier build with no such table is rebuilt too
+  if (prior) { try { using h = openIndex(file); advChanged = [...ADVISORY_SPECS.keys()].some((n) => !h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name=?", n)); } catch { advChanged = true; } }
   if (!prior) for (const n of TABLES.keys()) dirty.add(n);
   else {
-    for (const [rel, r] of scan) if (prior.rows.get(rel)?.hash !== r.hash) for (const n of tablesOf(rel)) dirty.add(n);
-    for (const rel of prior.rows.keys()) if (!scan.has(rel)) for (const n of tablesOf(rel)) dirty.add(n);
-    const unchanged = !dirty.size && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime);
+    for (const [rel, r] of scan) if (prior.rows.get(rel)?.hash !== r.hash) { for (const n of tablesOf(rel)) dirty.add(n); if (isAdvisorySource(rel)) advChanged = true; }
+    for (const rel of prior.rows.keys()) if (!scan.has(rel)) { for (const n of tablesOf(rel)) dirty.add(n); if (isAdvisorySource(rel)) advChanged = true; }
+    const unchanged = !dirty.size && !advChanged && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime);
     if (unchanged) { // nothing to do: the index stays as it is (leftovers at this build's own temp name are still cleared, or refused if a symlink)
       const own = `${file}.tmp-${process.pid}`;
       try { fs.lstatSync(own); throw new PlangraphError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); } // removeStaleTemps took a leftover regular file: what is still here is a symlink or a late file
@@ -435,6 +476,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   }
   // parse everything before touching the database
   const rows = [...TABLES.values()].filter((t) => dirty.has(t.name)).map((t) => ([t, builders.rows(t, textOf)] as const));
+  const advisory = advisoryRows(ctx.dir, store, textOf); // the advisory tables are small and always rebuilt, so they are parsed before the database is touched too
   const tmp = `${file}.tmp-${process.pid}`;
   // The temp path is created HERE, exclusively and without following a symlink, before SQLite opens it. removeStaleTemps above already
   // unlinked a REGULAR file at this name (our own pid: a leftover of a crashed build); a symlink or other non-file there, or any file that
@@ -443,7 +485,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   // ext4 reuses a freed inode number at once) can have its number, and the dev/ino check is a guarantee. It is closed only after SQLite closed
   // its own (closing any descriptor of a file drops the process's POSIX locks on it, which SQLite holds while it is open).
   let mine: fs.Stats, tfd: number;
-  try { tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o644); mine = fs.fstatSync(tfd); }
+  try { tfd = fs.openSync(tmp, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o600); mine = fs.fstatSync(tfd); }
   catch (e) { // fs throws errno errors
     if ((e as NodeJS.ErrnoException).code === 'EEXIST' || (e as NodeJS.ErrnoException).code === 'ELOOP') throw new PlangraphError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); // fs and the readers throw errno-style errors with a code
     throw e;
@@ -464,6 +506,13 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
         recs.forEach((r, i) => {
           try { ins.run(...(rowOf(t, r) as SQLInputValue[])); } // node:sqlite refuses an unsupported value: reported below
           catch (e) { throw new IngestError(`${t.file}: record ${i + 1}: ${(String((e as Error).message).split('\n')[0] as string).slice(0, 200)}`); } // node:sqlite throws an Error; split always returns at least one item
+        });
+      }
+      for (const [name, recs] of advisory) {
+        const t = ADVISORY_SPECS.get(name) as Readonly<TableSpec>, ins = h.cached(`adv:${name}`, insertSql(t)); // the specs and the rows are keyed by the same names
+        recs.forEach((r, i) => {
+          try { ins.run(...(rowOf(t, r) as SQLInputValue[])); }
+          catch (e) { throw new IngestError(`${name}: record ${i + 1}: ${(String((e as Error).message).split('\n')[0] as string).slice(0, 200)}`); } // node:sqlite throws an Error; split always returns at least one item
         });
       }
       h.prepare('INSERT INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
