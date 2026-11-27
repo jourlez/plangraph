@@ -1,6 +1,6 @@
 // lib/ingest/write.ts: the one door through which `ingest docs` and `ingest requirements` store and read decision and requirement nodes.
 // The PlanStore has no such kinds until task 12, so they go straight to the entity files (nodes/<kind>/<h2>/<slug>~<h12>.pg) of lib/store2;
-// when the store learns the kinds, only these two functions change.
+// when the store learns the kinds, only this file changes.
 import { readNodes, withNodes } from '../store2/nodes.ts';
 import type { NodeTx } from '../store2/nodes.ts';
 import { refuseWrite } from '../planstore.ts';
