@@ -32,3 +32,11 @@ Thumbs.db
 *.local
 dist/
 *.tgz
+
+# secrets and key material: never committed
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12

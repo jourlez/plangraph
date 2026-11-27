@@ -1,0 +1,44 @@
+# gitleaks configuration: the default ruleset plus a narrow allowlist.
+# Every entry names one test file and the declared line shape of one fake value, and needs both to match (condition = "AND").
+# There is no blanket test/ exclusion: a real secret added to any other test line, or any other file, is still reported.
+# `.superpowers/` is untracked local scratch (agent review diffs that quote the same fakes); it is gitignored and never part of the repository.
+
+title = "plangraph gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "test/doctor-jira.test.ts: fake Jira token literals (a short word-and-number string, not a credential) fed to the doctor checks"
+condition = "AND"
+paths = ['''^test/doctor-jira\.test\.ts$''']
+regexTarget = "line"
+regexes = ['''(secret|JIRA_API_TOKEN)\W+['"]tok-[A-Za-z]+-\d+['"]''']
+
+[[allowlists]]
+description = "test/fetch-cursor.test.ts: fake API token, a sequential alphabet string, set on process.env for the cursor test"
+condition = "AND"
+paths = ['''^test/fetch-cursor\.test\.ts$''']
+regexTarget = "line"
+regexes = ['''process\.env\.SOME_API_TOKEN = ''']
+
+[[allowlists]]
+description = "test/mutation-kills-jira-edges.test.ts: fake Jira token, 'tok-' word-and-number placeholder"
+condition = "AND"
+paths = ['''^test/mutation-kills-jira-edges\.test\.ts$''']
+regexTarget = "line"
+regexes = ['''TOKEN = 'tok-[A-Za-z]+-\d+';''']
+
+[[allowlists]]
+description = "test/mutation-kills-jira.test.ts: fake Jira token, 'tok-' word-and-number placeholder"
+condition = "AND"
+paths = ['''^test/mutation-kills-jira\.test\.ts$''']
+regexTarget = "line"
+regexes = ['''TOKEN = 'tok-[A-Za-z]+-\d+';''']
+
+[[allowlists]]
+description = "test/redact-forms.test.ts: two synthetic tokens (TOKEN and CLIENT_TOKEN), marked synthetic in the line comment, used as redaction inputs"
+condition = "AND"
+paths = ['''^test/redact-forms\.test\.ts$''']
+regexTarget = "line"
+regexes = ['''(CLIENT_)?TOKEN = '[A-Za-z0-9]+'; // synthetic''']
