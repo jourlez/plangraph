@@ -19,56 +19,56 @@
     "=============== TICKET T-2 | 4 SP | plan S1 Ana | earlier verdict READY",
     "Needs (producer, plan position, kind): none",
     "Summary: ticket 2",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 0",
     "Finding [kxx1]: finding 1",
-    "Finding [kxx2]: finding 2",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 3",
-    "Finding [kxx4]: finding 4",
-    "Finding [kxx5]: finding 5",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 6",
-    "Finding [kxx7]: finding 7",
-    "Finding [kxx8]: finding 8",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 9",
     "Finding [kxx10]: finding 10",
     "Finding [kxx11]: finding 11",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 12",
     "Finding [kxx13]: finding 13",
     "Finding [kxx14]: finding 14",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 15",
     "Finding [kxx16]: finding 16",
     "Finding [kxx17]: finding 17",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 18",
     "Finding [kxx19]: finding 19",
+    "Finding [kxx2]: finding 2",
     "Finding [kxx20]: finding 20",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 21",
     "Finding [kxx22]: finding 22",
     "Finding [kxx23]: finding 23",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 24",
     "Finding [kxx25]: finding 25",
     "Finding [kxx26]: finding 26",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 27",
     "Finding [kxx28]: finding 28",
     "Finding [kxx29]: finding 29",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 30",
     "Finding [kxx31]: finding 31",
     "Finding [kxx32]: finding 32",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 33",
     "Finding [kxx34]: finding 34",
     "Finding [kxx35]: finding 35",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 36",
     "Finding [kxx37]: finding 37",
     "Finding [kxx38]: finding 38",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 39",
+    "Finding [kxx4]: finding 4",
     "Finding [kxx40]: finding 40",
     "Finding [kxx41]: finding 41",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 42",
     "Finding [kxx43]: finding 43",
     "Finding [kxx44]: finding 44",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 45",
     "Finding [kxx46]: finding 46",
     "Finding [kxx47]: finding 47",
-    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 48",
     "Finding [kxx49]: finding 49",
+    "Finding [kxx5]: finding 5",
+    "Finding [kxx50]: finding 50",
+    "Finding [kxx52]: finding 52",
+    "Finding [kxx53]: finding 53",
+    "Finding [kxx7]: finding 7",
+    "Finding [kxx8]: finding 8",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 0",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 12",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 15",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 18",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 21",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 24",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 27",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+7 chars]]: finding 3",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 30",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 33",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 36",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 39",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 42",
+    "Finding [kxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…[+8 chars]]: finding 45",
     "... 5 more findings (plangraph findings KIND)",
     "--- JIRA TEXT T-2: not readable (not a regular file, or over 1 MiB) ---"
    ],
@@ -288,38 +288,41 @@
  },
  "gates": {
   "legacy export": {
-   "code": 0,
-   "out": [
-    "exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)"
-   ],
-   "err": []
+   "code": 2,
+   "out": [],
+   "err": [
+    "error: unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "try: plangraph explain export"
+   ]
   },
   "legacy ticket T-1": {
-   "code": 0,
-   "out": [
-    "T-1 | 5 SP | <untrusted n=\"e3d2f717\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\"77e0e4b7\">ticket 1</untrusted>"
-   ],
-   "err": []
+   "code": 2,
+   "out": [],
+   "err": [
+    "error: unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "try: plangraph explain ticket"
+   ]
   },
   "legacy doctor": {
-   "code": 0,
+   "code": 1,
    "out": [
-    "data format v0; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
+    "data format v0; tool supports v2\nunsupported pre-1.0 directory: recreate it with plangraph takeover\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": []
   },
   "legacy card": {
-   "code": 0,
-   "out": [
-    "plangraph 2bbd3ff6 | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
-   ],
-   "err": []
+   "code": 2,
+   "out": [],
+   "err": [
+    "error: unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "try: plangraph explain card"
+   ]
   },
   "newer export": {
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the plangraph tool",
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (2): upgrade the plangraph tool",
     "hint: upgrade the plangraph plugin, then retry",
     "try: plangraph explain export"
    ]
@@ -328,7 +331,7 @@
    "code": 2,
    "out": [],
    "err": [
-    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (1): upgrade the plangraph tool",
+    "error: .plangraph: data format 9 (needs reader >= 9) is newer than this tool supports (2): upgrade the plangraph tool",
     "hint: upgrade the plangraph plugin, then retry",
     "try: plangraph explain ticket"
    ]

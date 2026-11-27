@@ -10,21 +10,15 @@ import { spawn } from 'node:child_process';
 import { pool, parseJobs } from './mutate-pool.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const M = 'test/merge.test.ts', MR = 'test/merge-reference.test.ts', ST = 'test/stale.test.ts', OI = 'test/openitems.test.ts';
+const ST = 'test/stale.test.ts', OI = 'test/openitems.test.ts';
 const SAN = ['test/sanitize.test.ts', 'test/security.test.ts', 'test/security-final.test.ts'];
 const DB = ['test/build-extra.test.ts', 'test/cli-core.test.ts', 'test/security-final.test.ts'];
 // [file, exact text (must occur exactly once), replacement, test files]
 /** @type {Array<[string, string, string, string[]]>} */
 const MUTATIONS: Array<[string, string, string, string[]]> = [
-  ['lib/merge.ts', 'return { v: o === undefined ? t : o };', 'return { v: o };', [MR]],
-  ['lib/merge.ts', 'if (so === sb) return { v: t };', 'if (so === sb) return { v: o };', [M, MR]],
-  ['lib/merge.ts', 'if (st === sb) return { v: o };', 'if (st === sb) return { v: t };', [M, MR]],
-  ['lib/merge.ts', '(!O.has(k) || !T.has(k))', '(!O.has(k) && !T.has(k))', [M, MR]],
-  ['lib/merge.ts', 'else if (!o.lines.length) clash(', 'else if (o.lines.length) clash(', [M, MR]],
-  ['lib/merge.ts', 'lines.length > 1 && !same(lines, b.lines)', 'lines.length > 9 && !same(lines, b.lines)', [M, MR]],
-  ['lib/store.ts', 'if (isSet) items = [...new Set(items)].sort();', 'if (isSet) items = [...new Set(items)];', ['test/store.test.ts', M, MR]],
+  ['lib/store.ts', 'if (isSet) items = [...new Set(items)].sort();', 'if (isSet) items = [...new Set(items)];', ['test/store.test.ts']],
   ['lib/store.ts', 'if (out[out.length - 1] !== line)', 'if (out[out.length - 1] === line)', ['test/store.test.ts']],
-  ['lib/store.ts', ".join('\\x00');\nexport const showKey", ".join('|');\nexport const showKey", ['test/store.test.ts', M]],
+  ['lib/store.ts', ".join('\\x00');\nexport const showKey", ".join('|');\nexport const showKey", ['test/store.test.ts']],
   ['lib/store.ts', 'const keys = Object.keys(obj).filter((k) => obj[k] !== undefined);', 'const keys = Object.keys(obj);', ['test/store.test.ts']],
   ['lib/whatif.ts', '!Number.isInteger(sprint) || sprint < first ||', '!Number.isInteger(sprint) || sprint <= first ||', ['test/whatif.test.ts']],
   ['lib/whatif.ts', '    if (sprint < need) reasons.push', '    if (sprint <= need) reasons.push', ['test/whatif.test.ts']],
@@ -49,7 +43,8 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ['lib/openitems.ts', "(o.status === 'done' && !pruneClosed)", "(o.status === 'done')", [OI]],
   ['lib/sanitize.ts', ".replace(/[<>]/g, '?')", ".replace(/[<]/g, '?')", SAN],
   ['lib/sanitize.ts', '.slice(0, 8) !== m[1]) continue;', '.slice(0, 8) !== m[1] && false) continue;', SAN],
-  ['src/db.ts', '\\0-\\0`); continue; }', '\\0\\x30\\0\\0`); continue; }', DB], // a missing source file hashes like an empty one
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the text of the source line that is mutated
+  ['src/db.ts', 'h.update(`${rel}\\0${(files.get(rel) as SrcRow).hash}\\0`);', 'h.update(`${rel}\\0`);', [...DB, 'test/index-incremental.test.ts']], // the fingerprint covers the content hash of every source file
   ['src/db.ts', "if (h.stale) h.exec('PRAGMA query_only = ON');", 'if (h.stale) { /* query_only left off */ }', DB],
   ['src/db.ts', 'info.some((c) => c.hidden !== 0) || ', '', DB],
   ['src/db.ts', 'if (old || dead) fs.rmSync', 'if (old && dead) fs.rmSync', DB],
@@ -58,20 +53,18 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   // n vs 4n, no clock), so the kill does not depend on the machine; the wall-clock timing checks in the same files time the whole path too
   ['lib/gitsafe.ts', 'nextIndex: (/** @type {string} */ text) => text.search(prefix),', "nextIndex: (/** @type {string} */ text) => { let k = 0; for (let i = 0; i < text.length; i++) k += text.indexOf('\\0', i) >>> 31; return k >= 0 ? text.search(prefix) : -1; },", ['test/gitsafe.test.ts']],
   ['lib/render.ts', 'vc.set(v, (vc.get(v) || 0) + 1); }', "vc.set(v, [...model.tickets.values()].filter((u) => String(u.verdict || 'unrated').slice(0, 20) === String(t.verdict || 'unrated').slice(0, 20)).length); }", ['test/hook.test.ts']],
-  ['lib/store.ts', "text.split('\\n').some((l) => l.trim() ===", "text.split('\\n').some((l, i, a) => a.slice(0, i).join('\\n').length >= 0 && l.trim() ===", ['test/driver-wiring.test.ts']],
   // endless lock loops (the counter, the retry guard, the steal result, a held guard): killed by an attempt count, not by this runner's timeout
   ['lib/store.ts', '/* gone */ }\n    return false;', '/* gone */ }\n    return true;', ['test/lock-bound.test.ts']],
   ['lib/store.ts', 'for (let i = 0; ; i++) {', 'for (let i = 0; ; i--) {', ['test/lock-bound.test.ts']],
   ['lib/store.ts', 'if (stealStale(lockPath, staleMs, onStealDecision)) continue;', 'if (!stealStale(lockPath, staleMs, onStealDecision)) continue;', ['test/lock-bound.test.ts']],
   ['lib/store.ts', '      if (i >= retries) throw locked();\n      sleepMs(waitMs);', '      sleepMs(waitMs);', ['test/lock-bound.test.ts']],
-  // limitations wave: index content digest, swap races, 0-SP capacity, stale driver target
+  // limitations wave: index content digest, swap races, 0-SP capacity
   ['src/db.ts', 'if (got !== want) throw new PlangraphError', 'if (got !== want && false) throw new PlangraphError', ['test/index-integrity.test.ts']],
   ['lib/jsonl.ts', 'if (pre && (st.dev !== pre.dev || st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'if (false) throw', ['test/toctou-race.test.ts']],
   ['lib/jsonl.ts', 'st.ino !== pre.ino || st.ctimeMs !== pre.ctimeMs)) throw', 'st.ino !== pre.ino)) throw', ['test/toctou-race.test.ts']],
   ['src/db.ts', 'mine = fs.fstatSync(tfd); }', 'mine = fs.fstatSync(tfd); fs.closeSync(tfd); }', ['test/toctou-race.test.ts']],
   ['lib/fsafe.ts', "    if (!same(f.lstatSync(tmp), mine)) throw swapped('the temp file');", '', ['test/toctou-race.test.ts']],
   ['lib/whatif.ts', 'if (na > cap && na > nb) {', 'if (na > cap) {', ['test/whatif-zero-sp.test.ts']],
-  ['lib/store.ts', 'else if (expected && !sameFile(t, expected))', 'else if (false && expected && !sameFile(t, expected))', ['test/driver-stale.test.ts']],
   // fix wave B: each one killed by the test that came with its fix
   ['src/cli.ts', '.slice(0, MAX_NEXT) }; }', '.slice(0, 9) }; }', ['test/cli-core.test.ts']],
   ['src/cli.ts', "  const all = text ? text.split('\\n') : [];", "  if (!text) return ''; const all = text.split('\\n');", ['test/json-envelope.test.ts']],

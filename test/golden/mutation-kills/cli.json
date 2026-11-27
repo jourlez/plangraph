@@ -17,7 +17,7 @@
   "ticket T-1 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"ticket\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-1 | 5 SP | <untrusted n=\\\"e3d2f717\\\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\\\"77e0e4b7\\\">ticket 1</untrusted>\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"ticket\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-1 | 5 SP | <untrusted n=\\\"e3d2f717\\\">Jira To Do | verdict BLOCKED (audit) | plan S1 Ana</untrusted> | needs 0 | needed by 1 | <untrusted n=\\\"77e0e4b7\\\">ticket 1</untrusted>\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -38,7 +38,7 @@
   "ticket T-99 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"ticket\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"not in the plan\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"ticket\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"not in the plan\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -59,7 +59,7 @@
   "neighbors T-5 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-5 needs (0):\",\"T-5 is needed by (2): T-12 S2/Ben, T-13 S2/Cleo\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-5 needs (0):\",\"T-5 is needed by (2): T-12 S2/Ben, T-13 S2/Cleo\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -80,7 +80,7 @@
   "neighbors T-5 2 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-5 needs (0):\",\"T-5 is needed by (2): T-12 S2/Ben, T-13 S2/Cleo\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"T-5 needs (0):\",\"T-5 is needed by (2): T-12 S2/Ben, T-13 S2/Cleo\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -103,7 +103,7 @@
   "neighbors T-5 x --json": {
    "code": 2,
    "out": [
-    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"neighbors\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": [
     "error: depth must be a whole number from 0 to 50",
@@ -127,7 +127,7 @@
   "chain T-9 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"chain\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"longest chain behind T-9: 0 hops, 0 handoffs, 1 critical path\",\"  T-9 S1 Ben\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"chain\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"longest chain behind T-9: 0 hops, 0 handoffs, 1 critical path\",\"  T-9 S1 Ben\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -148,7 +148,7 @@
   "sprint 1 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"sprint\",\"ok\":true,\"exit\":0,\"data\":{\"sprint\":1,\"rows\":[{\"owner\":\"Ana\",\"sp\":15,\"cap\":8,\"tickets\":4},{\"owner\":\"Ben\",\"sp\":10,\"cap\":8,\"tickets\":3},{\"owner\":\"Cleo\",\"sp\":2,\"cap\":8,\"tickets\":2}],\"over\":[\"Ana\",\"Ben\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph person Ana\",\"plangraph person Ben\"]}"
+    "{\"v\":2,\"cmd\":\"sprint\",\"ok\":true,\"exit\":0,\"data\":{\"sprint\":1,\"rows\":[{\"owner\":\"Ana\",\"sp\":15,\"cap\":8,\"tickets\":4},{\"owner\":\"Ben\",\"sp\":10,\"cap\":8,\"tickets\":3},{\"owner\":\"Cleo\",\"sp\":2,\"cap\":8,\"tickets\":2}],\"over\":[\"Ana\",\"Ben\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph person Ana\",\"plangraph person Ben\"]}"
    ],
    "err": []
   },
@@ -195,7 +195,7 @@
   "person Ana --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"person\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"total 15 SP in 1 sprints\",\"S1: 15 SP (4)\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"person\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"total 15 SP in 1 sprints\",\"S1: 15 SP (4)\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -216,7 +216,7 @@
   "person Nobody --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"person\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"total 0 SP in 0 sprints\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"person\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"total 0 SP in 0 sprints\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -237,7 +237,7 @@
   "blockers --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"blockers\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"1 tickets not READY\",\"BLOCKED (1): T-1\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"blockers\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"1 tickets not READY\",\"BLOCKED (1): T-1\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -258,7 +258,7 @@
   "findings --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"findings\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"question: 1\",\"risk: 1\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"findings\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"question: 1\",\"risk: 1\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -275,7 +275,7 @@
   "findings T-2 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"findings\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"findings\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -296,7 +296,7 @@
   "rules --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"db: 1\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"db: 1\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -317,7 +317,7 @@
   "rules db --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"<untrusted src=\\\"rules:db\\\" n=\\\"016930dc\\\" len=\\\"40\\\">\",\"L1 [rule] use migrations\",\"   why: history\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"<untrusted src=\\\"rules:db\\\" n=\\\"016930dc\\\" len=\\\"40\\\">\",\"L1 [rule] use migrations\",\"   why: history\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -359,7 +359,7 @@
   "rules --max 1 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"db: 1\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"rules\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"db: 1\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -380,7 +380,7 @@
   "check --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"check\",\"ok\":false,\"exit\":1,\"data\":{\"tickets\":14,\"links\":6,\"violations\":0,\"overCap\":2,\"loopFree\":true,\"lastSprint\":2,\"unplaced\":0},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"check\",\"ok\":false,\"exit\":1,\"data\":{\"tickets\":14,\"links\":6,\"violations\":0,\"overCap\":2,\"loopFree\":true,\"lastSprint\":2,\"unplaced\":0},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -401,7 +401,7 @@
   "verify --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"verify\",\"ok\":false,\"exit\":1,\"data\":{\"ok\":false,\"warnings\":2,\"tickets\":14,\"violations\":[{\"code\":\"BLOCKED\",\"key\":\"T-1\",\"detail\":\"verdict BLOCKED\"},{\"code\":\"BLOCKED\",\"key\":\"T-2\",\"detail\":\"open risk\"},{\"code\":\"CAPACITY\",\"key\":\"Ana S1\",\"detail\":\"15/8\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"10/8\"}],\"total\":4},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-1 -v\",\"plangraph check\"]}"
+    "{\"v\":2,\"cmd\":\"verify\",\"ok\":false,\"exit\":1,\"data\":{\"ok\":false,\"warnings\":2,\"tickets\":14,\"violations\":[{\"code\":\"BLOCKED\",\"key\":\"T-1\",\"detail\":\"verdict BLOCKED\"},{\"code\":\"BLOCKED\",\"key\":\"T-2\",\"detail\":\"open risk\"},{\"code\":\"CAPACITY\",\"key\":\"Ana S1\",\"detail\":\"15/8\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"10/8\"}],\"total\":4},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-1 -v\",\"plangraph check\"]}"
    ],
    "err": []
   },
@@ -422,7 +422,7 @@
   "verify --enforce-min --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"verify\",\"ok\":false,\"exit\":1,\"data\":{\"ok\":false,\"warnings\":2,\"tickets\":14,\"violations\":[{\"code\":\"BLOCKED\",\"key\":\"T-1\",\"detail\":\"verdict BLOCKED\"},{\"code\":\"BLOCKED\",\"key\":\"T-2\",\"detail\":\"open risk\"},{\"code\":\"CAPACITY\",\"key\":\"Ana S1\",\"detail\":\"15/8\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"10/8\"}],\"total\":4},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-1 -v\",\"plangraph check\"]}"
+    "{\"v\":2,\"cmd\":\"verify\",\"ok\":false,\"exit\":1,\"data\":{\"ok\":false,\"warnings\":2,\"tickets\":14,\"violations\":[{\"code\":\"BLOCKED\",\"key\":\"T-1\",\"detail\":\"verdict BLOCKED\"},{\"code\":\"BLOCKED\",\"key\":\"T-2\",\"detail\":\"open risk\"},{\"code\":\"CAPACITY\",\"key\":\"Ana S1\",\"detail\":\"15/8\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"10/8\"}],\"total\":4},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-1 -v\",\"plangraph check\"]}"
    ],
    "err": []
   },
@@ -443,7 +443,7 @@
   "ready T-1 --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-1\",\"found\":true,\"ready\":false,\"reasons\":[{\"code\":\"VERDICT\",\"detail\":\"BLOCKED\"}],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-1\",\"found\":true,\"ready\":false,\"reasons\":[{\"code\":\"VERDICT\",\"detail\":\"BLOCKED\"}],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -464,7 +464,7 @@
   "ready T-4 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"ready\",\"ok\":true,\"exit\":0,\"data\":{\"key\":\"T-4\",\"found\":true,\"ready\":true,\"reasons\":[],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-4\"]}"
+    "{\"v\":2,\"cmd\":\"ready\",\"ok\":true,\"exit\":0,\"data\":{\"key\":\"T-4\",\"found\":true,\"ready\":true,\"reasons\":[],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-4\"]}"
    ],
    "err": []
   },
@@ -485,70 +485,70 @@
   "ready T-2 --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-2\",\"found\":true,\"ready\":false,\"reasons\":[{\"code\":\"OPEN_ITEM\",\"kind\":\"risk\"}],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph findings risk\"]}"
+    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-2\",\"found\":true,\"ready\":false,\"reasons\":[{\"code\":\"OPEN_ITEM\",\"kind\":\"risk\"}],\"more\":0,\"statuses\":\"last build\"},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph findings risk\"]}"
    ],
    "err": []
   },
   "card": {
    "code": 0,
    "out": [
-    "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
+    "plangraph 4b92f2fb | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
    "err": []
   },
   "card -v": {
    "code": 0,
    "out": [
-    "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
+    "plangraph 4b92f2fb | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
    "err": []
   },
   "card --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"card\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\",\"verdicts: <untrusted n=\\\"8232fb9d\\\">13 READY, 1 BLOCKED</untrusted>\",\"over cap: <untrusted n=\\\"0f5ab7cf\\\">Ana S1 +7, Ben S1 +2</untrusted>\",\"findings: <untrusted n=\\\"9ff6a48a\\\">question 1, risk 1</untrusted>\",\"plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"card\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"plangraph 4b92f2fb | 14 tickets, 6 links, S1-S2, 3 people\",\"verdicts: <untrusted n=\\\"8232fb9d\\\">13 READY, 1 BLOCKED</untrusted>\",\"over cap: <untrusted n=\\\"0f5ab7cf\\\">Ana S1 +7, Ben S1 +2</untrusted>\",\"findings: <untrusted n=\\\"9ff6a48a\\\">question 1, risk 1</untrusted>\",\"plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
   "card --line": {
    "code": 0,
    "out": [
-    "plangraph: 14 tickets, last sprint 2, 2 violations @1209969b"
+    "plangraph: 14 tickets, last sprint 2, 2 violations @635204a6"
    ],
    "err": []
   },
   "card --line -v": {
    "code": 0,
    "out": [
-    "plangraph: 14 tickets, last sprint 2, 2 violations @1209969b"
+    "plangraph: 14 tickets, last sprint 2, 2 violations @635204a6"
    ],
    "err": []
   },
   "card --line --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"card\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"plangraph: 14 tickets, last sprint 2, 2 violations @1209969b\"]},\"fresh\":null,\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"card\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"plangraph: 14 tickets, last sprint 2, 2 violations @635204a6\"]},\"fresh\":null,\"next\":[]}"
    ],
    "err": []
   },
   "doctor": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
+    "data format v2; tool supports v2\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": []
   },
   "doctor -v": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
+    "data format v2; tool supports v2\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": []
   },
   "doctor --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"doctor\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"data format v1; tool supports v1\",\"merge driver: ok\",\"node vX: ok\",\"solver runtime: X"
+    "{\"v\":2,\"cmd\":\"doctor\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"data format v2; tool supports v2\",\"node vX: ok\",\"solver runtime: X"
    ],
    "err": []
   },
@@ -641,7 +641,7 @@
   "bundle T-1 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"bundle\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"\",\"\",\"=============== TICKET T-1 | 5 SP | plan S1 Ana | earlier verdict BLOCKED\",\"Needs (producer, plan position, kind): none\",\"<untrusted src=\\\"ticket:T-1\\\" n=\\\"838b78ce\\\" len=\\\"17\\\">\",\"Summary: ticket 1\",\"</untrusted>\",\"\",\"--- PLAN docs/plan.md task 1 ---\",\"<untrusted src=\\\"plan:docs/plan.md\\\" n=\\\"\\\" len=\\\"27\\\">\",\"### Task 1: first\",\"build a\",\"\",\"\",\"</untrusted>\",\"\",\"Files it modifies: src.js\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"bundle\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"\",\"\",\"=============== TICKET T-1 | 5 SP | plan S1 Ana | earlier verdict BLOCKED\",\"Needs (producer, plan position, kind): none\",\"<untrusted src=\\\"ticket:T-1\\\" n=\\\"838b78ce\\\" len=\\\"17\\\">\",\"Summary: ticket 1\",\"</untrusted>\",\"\",\"--- PLAN docs/plan.md task 1 ---\",\"<untrusted src=\\\"plan:docs/plan.md\\\" n=\\\"\\\" len=\\\"27\\\">\",\"### Task 1: first\",\"build a\",\"\",\"\",\"</untrusted>\",\"\",\"Files it modifies: src.js\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -658,7 +658,7 @@
   "bundle --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"bundle\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"bundle\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -679,7 +679,7 @@
   "forecast --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"forecast\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"FORECAST [REFUSED n=0] plan 36 pts: no probability: insufficient history\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"forecast\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"FORECAST [REFUSED n=0] plan 36 pts: no probability: insufficient history\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -700,7 +700,7 @@
   "simulate --runs 200 --seed 2 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"200 runs, lognormal noise sigma 0.35 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 3 | P80 4 | P90 4 | P95 4 | worst 5\",\"probability of finishing by sprint 2: 1% | by 3: 56% | by the limit 6: 100%\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"200 runs, lognormal noise sigma 0.35 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 3 | P80 4 | P90 4 | P95 4 | worst 5\",\"probability of finishing by sprint 2: 1% | by 3: 56% | by the limit 6: 100%\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -721,7 +721,7 @@
   "simulate --sigma 0.3 --limit 3 --runs 200 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"200 runs, lognormal noise sigma 0.3 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 3 | P80 4 | P90 4 | P95 4 | worst 4\",\"probability of finishing by sprint 2: 1% | by 3: 55% | by the limit 3: 55%\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"200 runs, lognormal noise sigma 0.3 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 3 | P80 4 | P90 4 | P95 4 | worst 4\",\"probability of finishing by sprint 2: 1% | by 3: 55% | by the limit 3: 55%\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -749,21 +749,21 @@
   "explain": {
    "code": 0,
    "out": [
-    "plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}\nexit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error\nwrites none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify\nwrites files: card jira-import jira-pull jira-text units\nwrites index: build schedule-load whatif\nwrites text: compact export fmt graph-materialize import init learn open-items refs-update repo report resolve sp-ingest sp-link\nalso writes: card --heal, doctor --fix, init: git config, .gitattributes, merge shim\nglobal: --json -v --dir DIR --if-present\nmore: plangraph explain COMMAND | plangraph explain --json"
+    "plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}\nexit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error\nwrites none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify\nwrites files: card jira-import jira-pull jira-text units\nwrites index: build schedule-load whatif\nwrites text: compact export fmt graph-materialize import init learn open-items refs-update repo report resolve sp-ingest sp-link\nglobal: --json -v --dir DIR --if-present\nmore: plangraph explain COMMAND | plangraph explain --json"
    ],
    "err": []
   },
   "explain -v": {
    "code": 0,
    "out": [
-    "plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}\nexit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error\nwrites none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify\nwrites files: card jira-import jira-pull jira-text units\nwrites index: build schedule-load whatif\nwrites text: compact export fmt graph-materialize import init learn open-items refs-update repo report resolve sp-ingest sp-link\nalso writes: card --heal, doctor --fix, init: git config, .gitattributes, merge shim\nglobal: --json -v --dir DIR --if-present\nmore: plangraph explain COMMAND | plangraph explain --json"
+    "plangraph: one plan question per command. terse by default; -v detail; --json envelope v2 {v,cmd,ok,exit,data,fresh,next}\nexit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 refused, 5 internal error\nwrites none: blockers bundle chain check doctor explain findings forecast graph integrations neighbors person ready rules simulate sprint stale sync ticket verify\nwrites files: card jira-import jira-pull jira-text units\nwrites index: build schedule-load whatif\nwrites text: compact export fmt graph-materialize import init learn open-items refs-update repo report resolve sp-ingest sp-link\nglobal: --json -v --dir DIR --if-present\nmore: plangraph explain COMMAND | plangraph explain --json"
    ],
    "err": []
   },
   "explain --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"explain\",\"ok\":true,\"exit\":0,\"data\":{\"commands\":[{\"name\":\"blockers\",\"summary\":\"tickets whose verdict is not READY\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"build\",\"summary\":\"text -> index (atomic; stores the source fingerprint)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"index\"},{\"name\":\"bundle\",\"summary\":\"one ticket per section: row, plan task text, needs with positions, findings, Jira text\",\"positionals\":[0,null],\"options\":[{\"name\":\"ref\",\"type\":\"string\"},{\"name\":\"text\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"card\",\"summary\":\"short plan summary for a session start\",\"positionals\":[0,0],\"options\":[{\"name\":\"heal\",\"type\":\"boolean\",\"writes\":[\"git-config\",\"gitattributes\",\"merge-shim\"]},{\"name\":\"line\",\"type\":\"boolean\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"file\"},{\"name\":\"chain\",\"summary\":\"longest dependency chain behind a ticket\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"check\",\"summary\":\"strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"compact\",\"summary\":\"compact [--ci]: merge sealed months of events and runs into one file per month and kind (CI on the default branch only)\",\"positionals\":[0,0],\"options\":[{\"name\":\"ci\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"doctor\",\"summary\":\"data format, merge driver, node and solver runtime checks (exit 1 on a problem)\",\"positionals\":[0,0],\"options\":[{\"name\":\"alias\",\"type\":\"string\"},{\"name\":\"fix\",\"type\":\"boolean\",\"writes\":[\"git-config\",\"gitattributes\",\"merge-shim\"]}],\"writes\":\"none\"},{\"name\":\"explain\",\"summary\":\"what each command does: options, arguments, what it writes, exit codes (from the registry)\",\"positionals\":[0,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"export\",\"summary\":\"index -> canonical text (stable order, diffable)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"findings\",\"summary\":\"finding counts by kind, or the findings of one kind\",\"positionals\":[0,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"fmt\",\"summary\":\"rewrite every non-canonical entity file (nodes/**/*.pg) into canonical form; a damaged file is left alone\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"forecast\",\"summary\":\"honest delivery forecast from history.jsonl (and actuals.jsonl); refuses on thin history\",\"positionals\":[0,0],\"options\":[{\"name\":\"seed\",\"type\":\"integer\"}],\"writes\":\"none\"},{\"name\":\"graph\",\"summary\":\"KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only\",\"positionals\":[1,1],\"options\":[{\"name\":\"depth\",\"type\":\"integer\"},{\"name\":\"rel\",\"type\":\"string\"},{\"name\":\"reverse\",\"type\":\"boolean\"},{\"name\":\"type\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"graph-materialize\",\"summary\":\"append the people, sprints and epics the v1 files name to their node files, one bare row each (idempotent; decision D23)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"import\",\"summary\":\"--sys jira|sp|generic|github FILE... [--tenant ALIAS] [--ledger FILE]: saved tool output to observations in the git-ignored cache (advisory; never writes plan files)\",\"positionals\":[0,null],\"options\":[{\"name\":\"ledger\",\"type\":\"string\"},{\"name\":\"sys\",\"type\":\"string\"},{\"name\":\"tenant\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"init\",\"summary\":\"create the plan directory, config, generic learnings and the merge driver\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\",\"also\":[\"git-config\",\"gitattributes\",\"merge-shim\"]},{\"name\":\"integrations\",\"summary\":\"which companion tools are installed or active (files only)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"jira-import\",\"summary\":\"merge issue JSON fetched elsewhere into a snapshot (no credentials, no network)\",\"positionals\":[0,null],\"options\":[{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"jira-pull\",\"summary\":\"read-only Jira snapshot (delta by default; credentials from env, 1Password or keychain)\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"jira-text\",\"summary\":\"full description and comments of tickets as text files (read-only)\",\"positionals\":[0,null],\"options\":[{\"name\":\"from-json\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"learn\",\"summary\":\"copy ONE repo rule from .wolf/cerebrum.md into learnings.jsonl\",\"positionals\":[0,0],\"options\":[{\"name\":\"from-wolf\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"neighbors\",\"summary\":\"what a ticket needs and what needs it, to a depth (default 1)\",\"positionals\":[1,2],\"options\":[],\"writes\":\"none\"},{\"name\":\"open-items\",\"summary\":\"open items from findings: compact view, --close/--reopen/--register KEY KIND, --findings FILE|-, --suggest-from-status\",\"positionals\":[0,2],\"options\":[{\"name\":\"at\",\"type\":\"string\"},{\"name\":\"by\",\"type\":\"string\"},{\"name\":\"close\",\"type\":\"boolean\"},{\"name\":\"due\",\"type\":\"integer\"},{\"name\":\"findings\",\"type\":\"string\"},{\"name\":\"me\",\"type\":\"string\"},{\"name\":\"mine\",\"type\":\"boolean\"},{\"name\":\"note\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"string\"},{\"name\":\"register\",\"type\":\"boolean\"},{\"name\":\"reopen\",\"type\":\"boolean\"},{\"name\":\"sprint\",\"type\":\"integer\"},{\"name\":\"suggest-from-status\",\"type\":\"boolean\"},{\"name\":\"text\",\"type\":\"string\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"person\",\"summary\":\"one person's load per sprint\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"ready\",\"summary\":\"may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start\",\"positionals\":[0,1],\"options\":[{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"person\",\"type\":\"string\"},{\"name\":\"sprint\",\"type\":\"integer\"}],\"writes\":\"none\"},{\"name\":\"refs-update\",\"summary\":\"record fresh input fingerprints in refs.jsonl (all tickets, or the keys given)\",\"positionals\":[0,null],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"ref\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"repo\",\"summary\":\"scan [PATH] [--all] [--check]: derive repos.jsonl rows from manifests, CODEOWNERS and tool versions (git only, no scripts run); --check exits 1 on drift\",\"positionals\":[0,2],\"options\":[{\"name\":\"all\",\"type\":\"boolean\"},{\"name\":\"check\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"report\",\"summary\":\"write report.md and report.html (deterministic; sprint load, can-start, blockers, chain); publishing is separate\",\"positionals\":[0,0],\"options\":[{\"name\":\"as-of\",\"type\":\"string\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"resolve\",\"summary\":\"union-resolve merge conflicts in entity files when every hunk holds only collection-field lines (links, xrefs, ...); a scalar conflict is reported, exit 1\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"rules\",\"summary\":\"learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)\",\"positionals\":[0,1],\"options\":[{\"name\":\"all\",\"type\":\"boolean\"},{\"name\":\"max\",\"type\":\"string\"},{\"name\":\"repo\",\"type\":\"boolean\"},{\"name\":\"topic\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"schedule-load\",\"summary\":\"keep the current plan under an archive name and load a new schedule into the index\",\"positionals\":[2,2],\"options\":[],\"writes\":\"index\"},{\"name\":\"simulate\",\"summary\":\"risk: Monte Carlo of the plan with noisy ticket sizes\",\"positionals\":[0,0],\"options\":[{\"name\":\"limit\",\"type\":\"integer\"},{\"name\":\"runs\",\"type\":\"integer\"},{\"name\":\"seed\",\"type\":\"integer\"},{\"name\":\"sigma\",\"type\":\"number\"}],\"writes\":\"none\"},{\"name\":\"sp-ingest\",\"summary\":\"superpowers plan + ledger -> tickets, edges, findings, refs (read-only on superpowers files)\",\"positionals\":[0,1],\"options\":[{\"name\":\"ledger\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"string\"},{\"name\":\"sprint\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"sp-link\",\"summary\":\"point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`); --track JIRA_KEY records the Jira ticket an sp: ticket tracks (an xref)\",\"positionals\":[0,2],\"options\":[{\"name\":\"tasks\",\"type\":\"string\"},{\"name\":\"track\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"sprint\",\"summary\":\"load per person in one sprint\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"stale\",\"summary\":\"which verdicts no longer match their inputs (plan text, files, Jira, links, rules)\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"list\",\"type\":\"boolean\"},{\"name\":\"ref\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"sync\",\"summary\":\"--plan: read-only drift report between the plan files and the observation cache (DRIFT_ASSIGNEE, DRIFT_SPRINT, DRIFT_DONE, DRIFT_LINK, XREF_STALE, XREF_ORPHAN) with a tracker push list; config.graph.stale_days (default 14)\",\"positionals\":[0,0],\"options\":[{\"name\":\"plan\",\"type\":\"boolean\"}],\"writes\":\"none\"},{\"name\":\"ticket\",\"summary\":\"one ticket: size, status, verdict, placement, needs, findings, evidence\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"units\",\"summary\":\"audit units (bundles plus input lists) for agents\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"keys\",\"type\":\"string\"},{\"name\":\"keys-file\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"},{\"name\":\"ref\",\"type\":\"string\"},{\"name\":\"size\",\"type\":\"integer\"},{\"name\":\"stale\",\"type\":\"boolean\"},{\"name\":\"text\",\"type\":\"string\"},{\"name\":\"tokens-per-unit\",\"type\":\"integer\"}],\"writes\":\"file\"},{\"name\":\"verify\",\"summary\":\"independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless --strict)\",\"positionals\":[0,1],\"options\":[{\"name\":\"enforce-min\",\"type\":\"boolean\"},{\"name\":\"strict\",\"type\":\"boolean\"}],\"writes\":\"none\"},{\"name\":\"whatif\",\"summary\":\"dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap; KEY --find: every valid slot, ranked (both read-only)\",\"positionals\":[0,1],\"options\":[{\"name\":\"apply-plan\",\"type\":\"boolean\"},{\"name\":\"earlier\",\"type\":\"boolean\"},{\"name\":\"find\",\"type\":\"boolean\"},{\"name\":\"owner-change\",\"type\":\"boolean\"},{\"name\":\"relieve\",\"type\":\"string\"},{\"name\":\"slip\",\"type\":\"boolean\"},{\"name\":\"sprint\",\"type\":\"integer\"},{\"name\":\"strict\",\"type\":\"boolean\"},{\"name\":\"to\",\"type\":\"string\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"index\"}],\"exit\":{\"0\":\"ok\",\"1\":\"negative answer\",\"2\":\"usage or data error\",\"3\":\"environment missing\",\"4\":\"refused\",\"5\":\"internal error\"}},\"fresh\":null,\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"explain\",\"ok\":true,\"exit\":0,\"data\":{\"commands\":[{\"name\":\"blockers\",\"summary\":\"tickets whose verdict is not READY\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"build\",\"summary\":\"text -> index (atomic; stores the source fingerprint)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"index\"},{\"name\":\"bundle\",\"summary\":\"one ticket per section: row, plan task text, needs with positions, findings, Jira text\",\"positionals\":[0,null],\"options\":[{\"name\":\"ref\",\"type\":\"string\"},{\"name\":\"text\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"card\",\"summary\":\"short plan summary for a session start\",\"positionals\":[0,0],\"options\":[{\"name\":\"line\",\"type\":\"boolean\"},{\"name\":\"refresh\",\"type\":\"boolean\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"file\"},{\"name\":\"chain\",\"summary\":\"longest dependency chain behind a ticket\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"check\",\"summary\":\"strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"compact\",\"summary\":\"compact [--ci]: merge sealed months of events and runs into one file per month and kind (CI on the default branch only)\",\"positionals\":[0,0],\"options\":[{\"name\":\"ci\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"doctor\",\"summary\":\"data format, node and solver runtime checks (exit 1 on a problem)\",\"positionals\":[0,0],\"options\":[{\"name\":\"alias\",\"type\":\"string\"},{\"name\":\"fix\",\"type\":\"boolean\"}],\"writes\":\"none\"},{\"name\":\"explain\",\"summary\":\"what each command does: options, arguments, what it writes, exit codes (from the registry)\",\"positionals\":[0,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"export\",\"summary\":\"index -> canonical text (stable order, diffable)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"findings\",\"summary\":\"finding counts by kind, or the findings of one kind\",\"positionals\":[0,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"fmt\",\"summary\":\"rewrite every non-canonical entity file (nodes/**/*.pg) into canonical form; a damaged file is left alone\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"forecast\",\"summary\":\"honest delivery forecast from history.jsonl (and actuals.jsonl); refuses on thin history\",\"positionals\":[0,0],\"options\":[{\"name\":\"seed\",\"type\":\"integer\"}],\"writes\":\"none\"},{\"name\":\"graph\",\"summary\":\"KEY [--rel R,..] [--depth N] [--reverse] [--type T]: nodes reachable from a key (id or pg: URI) with their relation path; current schedule version only\",\"positionals\":[1,1],\"options\":[{\"name\":\"depth\",\"type\":\"integer\"},{\"name\":\"rel\",\"type\":\"string\"},{\"name\":\"reverse\",\"type\":\"boolean\"},{\"name\":\"type\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"graph-materialize\",\"summary\":\"append the people, sprints and epics the v1 files name to their node files, one bare row each (idempotent; decision D23)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"import\",\"summary\":\"--sys jira|sp|generic|github FILE... [--tenant ALIAS] [--ledger FILE]: saved tool output to observations in the git-ignored cache (advisory; never writes plan files)\",\"positionals\":[0,null],\"options\":[{\"name\":\"ledger\",\"type\":\"string\"},{\"name\":\"sys\",\"type\":\"string\"},{\"name\":\"tenant\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"init\",\"summary\":\"create the plan directory, config, generic learnings and the entity-layout stamp\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"integrations\",\"summary\":\"which companion tools are installed or active (files only)\",\"positionals\":[0,0],\"options\":[],\"writes\":\"none\"},{\"name\":\"jira-import\",\"summary\":\"merge issue JSON fetched elsewhere into a snapshot (no credentials, no network)\",\"positionals\":[0,null],\"options\":[{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"jira-pull\",\"summary\":\"read-only Jira snapshot (delta by default; credentials from env, 1Password or keychain)\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"jira-text\",\"summary\":\"full description and comments of tickets as text files (read-only)\",\"positionals\":[0,null],\"options\":[{\"name\":\"from-json\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"file\"},{\"name\":\"learn\",\"summary\":\"copy ONE repo rule from .wolf/cerebrum.md into learnings.jsonl\",\"positionals\":[0,0],\"options\":[{\"name\":\"from-wolf\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"neighbors\",\"summary\":\"what a ticket needs and what needs it, to a depth (default 1)\",\"positionals\":[1,2],\"options\":[],\"writes\":\"none\"},{\"name\":\"open-items\",\"summary\":\"open items from findings: compact view, --close/--reopen/--register KEY KIND, --findings FILE|-, --suggest-from-status\",\"positionals\":[0,2],\"options\":[{\"name\":\"at\",\"type\":\"string\"},{\"name\":\"by\",\"type\":\"string\"},{\"name\":\"close\",\"type\":\"boolean\"},{\"name\":\"due\",\"type\":\"integer\"},{\"name\":\"findings\",\"type\":\"string\"},{\"name\":\"me\",\"type\":\"string\"},{\"name\":\"mine\",\"type\":\"boolean\"},{\"name\":\"note\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"string\"},{\"name\":\"register\",\"type\":\"boolean\"},{\"name\":\"reopen\",\"type\":\"boolean\"},{\"name\":\"sprint\",\"type\":\"integer\"},{\"name\":\"suggest-from-status\",\"type\":\"boolean\"},{\"name\":\"text\",\"type\":\"string\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"person\",\"summary\":\"one person's load per sprint\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"ready\",\"summary\":\"may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start\",\"positionals\":[0,1],\"options\":[{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"person\",\"type\":\"string\"},{\"name\":\"sprint\",\"type\":\"integer\"}],\"writes\":\"none\"},{\"name\":\"refs-update\",\"summary\":\"record fresh input fingerprints in refs.jsonl (all tickets, or the keys given)\",\"positionals\":[0,null],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"ref\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"repo\",\"summary\":\"scan [PATH] [--all] [--check]: derive repos.jsonl rows from manifests, CODEOWNERS and tool versions (git only, no scripts run); --check exits 1 on drift\",\"positionals\":[0,2],\"options\":[{\"name\":\"all\",\"type\":\"boolean\"},{\"name\":\"check\",\"type\":\"boolean\"}],\"writes\":\"text\"},{\"name\":\"report\",\"summary\":\"write report.md and report.html (deterministic; sprint load, can-start, blockers, chain); publishing is separate\",\"positionals\":[0,0],\"options\":[{\"name\":\"as-of\",\"type\":\"string\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"resolve\",\"summary\":\"union-resolve merge conflicts in entity files when every hunk holds only collection-field lines (links, xrefs, ...); a scalar conflict is reported, exit 1\",\"positionals\":[0,0],\"options\":[],\"writes\":\"text\"},{\"name\":\"rules\",\"summary\":\"learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)\",\"positionals\":[0,1],\"options\":[{\"name\":\"all\",\"type\":\"boolean\"},{\"name\":\"max\",\"type\":\"string\"},{\"name\":\"repo\",\"type\":\"boolean\"},{\"name\":\"topic\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"schedule-load\",\"summary\":\"keep the current plan under an archive name and load a new schedule into the index\",\"positionals\":[2,2],\"options\":[],\"writes\":\"index\"},{\"name\":\"simulate\",\"summary\":\"risk: Monte Carlo of the plan with noisy ticket sizes\",\"positionals\":[0,0],\"options\":[{\"name\":\"limit\",\"type\":\"integer\"},{\"name\":\"runs\",\"type\":\"integer\"},{\"name\":\"seed\",\"type\":\"integer\"},{\"name\":\"sigma\",\"type\":\"number\"}],\"writes\":\"none\"},{\"name\":\"sp-ingest\",\"summary\":\"superpowers plan + ledger -> tickets, edges, findings, refs (read-only on superpowers files)\",\"positionals\":[0,1],\"options\":[{\"name\":\"ledger\",\"type\":\"string\"},{\"name\":\"owner\",\"type\":\"string\"},{\"name\":\"sprint\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"sp-link\",\"summary\":\"point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`); --track JIRA_KEY records the Jira ticket an sp: ticket tracks (an xref)\",\"positionals\":[0,2],\"options\":[{\"name\":\"tasks\",\"type\":\"string\"},{\"name\":\"track\",\"type\":\"string\"}],\"writes\":\"text\"},{\"name\":\"sprint\",\"summary\":\"load per person in one sprint\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"stale\",\"summary\":\"which verdicts no longer match their inputs (plan text, files, Jira, links, rules)\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"list\",\"type\":\"boolean\"},{\"name\":\"ref\",\"type\":\"string\"}],\"writes\":\"none\"},{\"name\":\"sync\",\"summary\":\"--plan: read-only drift report between the plan files and the observation cache (DRIFT_ASSIGNEE, DRIFT_SPRINT, DRIFT_DONE, DRIFT_LINK, XREF_STALE, XREF_ORPHAN) with a tracker push list; config.graph.stale_days (default 14)\",\"positionals\":[0,0],\"options\":[{\"name\":\"plan\",\"type\":\"boolean\"}],\"writes\":\"none\"},{\"name\":\"ticket\",\"summary\":\"one ticket: size, status, verdict, placement, needs, findings, evidence\",\"positionals\":[1,1],\"options\":[],\"writes\":\"none\"},{\"name\":\"units\",\"summary\":\"audit units (bundles plus input lists) for agents\",\"positionals\":[0,0],\"options\":[{\"name\":\"full\",\"type\":\"boolean\"},{\"name\":\"jira\",\"type\":\"string\"},{\"name\":\"keys\",\"type\":\"string\"},{\"name\":\"keys-file\",\"type\":\"string\"},{\"name\":\"out\",\"type\":\"string\"},{\"name\":\"ref\",\"type\":\"string\"},{\"name\":\"size\",\"type\":\"integer\"},{\"name\":\"stale\",\"type\":\"boolean\"},{\"name\":\"text\",\"type\":\"string\"},{\"name\":\"tokens-per-unit\",\"type\":\"integer\"}],\"writes\":\"file\"},{\"name\":\"verify\",\"summary\":\"independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless --strict)\",\"positionals\":[0,1],\"options\":[{\"name\":\"enforce-min\",\"type\":\"boolean\"},{\"name\":\"strict\",\"type\":\"boolean\"}],\"writes\":\"none\"},{\"name\":\"whatif\",\"summary\":\"dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap; KEY --find: every valid slot, ranked (both read-only)\",\"positionals\":[0,1],\"options\":[{\"name\":\"apply-plan\",\"type\":\"boolean\"},{\"name\":\"earlier\",\"type\":\"boolean\"},{\"name\":\"find\",\"type\":\"boolean\"},{\"name\":\"owner-change\",\"type\":\"boolean\"},{\"name\":\"relieve\",\"type\":\"string\"},{\"name\":\"slip\",\"type\":\"boolean\"},{\"name\":\"sprint\",\"type\":\"integer\"},{\"name\":\"strict\",\"type\":\"boolean\"},{\"name\":\"to\",\"type\":\"string\"},{\"name\":\"write\",\"type\":\"boolean\"}],\"writes\":\"index\"}],\"exit\":{\"0\":\"ok\",\"1\":\"negative answer\",\"2\":\"usage or data error\",\"3\":\"environment missing\",\"4\":\"refused\",\"5\":\"internal error\"}},\"fresh\":null,\"next\":[]}"
    ],
    "err": []
   },
@@ -813,7 +813,7 @@
   "whatif T-3 --sprint 4 --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":{\"owner\":\"Cleo\",\"sprint\":4},\"reasons\":[{\"code\":\"STARTED\",\"key\":\"T-3\",\"detail\":\"status Done\",\"fix\":\"reopen first or leave it\"}],\"more\":0,\"ripple\":1,\"suggestion\":null},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
+    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":{\"owner\":\"Cleo\",\"sprint\":4},\"reasons\":[{\"code\":\"STARTED\",\"key\":\"T-3\",\"detail\":\"status Done\",\"fix\":\"reopen first or leave it\"}],\"more\":0,\"ripple\":1,\"suggestion\":null},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
    ],
    "err": []
   },
@@ -834,7 +834,7 @@
   "whatif T-3 --to Ben --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":{\"owner\":\"Ben\",\"sprint\":1},\"reasons\":[{\"code\":\"STARTED\",\"key\":\"T-3\",\"detail\":\"status Done\",\"fix\":\"reopen first or leave it\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"11/8\",\"fix\":\"Ben has room in S2\"}],\"more\":0,\"ripple\":1,\"suggestion\":null},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
+    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":{\"owner\":\"Ben\",\"sprint\":1},\"reasons\":[{\"code\":\"STARTED\",\"key\":\"T-3\",\"detail\":\"status Done\",\"fix\":\"reopen first or leave it\"},{\"code\":\"CAPACITY\",\"key\":\"Ben S1\",\"detail\":\"11/8\",\"fix\":\"Ben has room in S2\"}],\"more\":0,\"ripple\":1,\"suggestion\":null},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
    ],
    "err": []
   },
@@ -855,7 +855,7 @@
   "whatif T-3 --sprint 1 --earlier --owner-change --slip --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":null,\"reasons\":[{\"code\":\"SAME_SLOT\",\"key\":\"T-3\",\"detail\":\"already Cleo S1\",\"fix\":\"nothing to do\"}],\"more\":0,\"ripple\":0,\"suggestion\":null},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
+    "{\"v\":2,\"cmd\":\"whatif\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-3\",\"ok\":false,\"to\":null,\"reasons\":[{\"code\":\"SAME_SLOT\",\"key\":\"T-3\",\"detail\":\"already Cleo S1\",\"fix\":\"nothing to do\"}],\"more\":0,\"ripple\":0,\"suggestion\":null},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[\"plangraph ticket T-3 -v\"]}"
    ],
    "err": []
   },
@@ -902,7 +902,7 @@
   "open-items --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 2 (due S1: 2)\",\"<untrusted src=\\\"open-items\\\" n=\\\"9d3cf589\\\" len=\\\"72\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"- T-3 question S1 Cleo: who owns it?\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 2 (due S1: 2)\",\"<untrusted src=\\\"open-items\\\" n=\\\"9d3cf589\\\" len=\\\"72\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"- T-3 question S1 Cleo: who owns it?\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -923,7 +923,7 @@
   "open-items --mine --me Ana --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 1 (1 yours, due S1: 1)\",\"<untrusted src=\\\"open-items\\\" n=\\\"eff65458\\\" len=\\\"35\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 1 (1 yours, due S1: 1)\",\"<untrusted src=\\\"open-items\\\" n=\\\"eff65458\\\" len=\\\"35\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -944,7 +944,7 @@
   "open-items --sprint 2 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 2 (due S2: 2)\",\"<untrusted src=\\\"open-items\\\" n=\\\"9d3cf589\\\" len=\\\"72\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"- T-3 question S1 Cleo: who owns it?\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"open items: 2 (due S2: 2)\",\"<untrusted src=\\\"open-items\\\" n=\\\"9d3cf589\\\" len=\\\"72\\\">\",\"- T-2 risk S1 Ana: needs a decision\",\"- T-3 question S1 Cleo: who owns it?\",\"</untrusted>\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -988,7 +988,7 @@
   "open-items --findings missing.jsonl --json": {
    "code": 2,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": [
     "error: cannot read missing.jsonl",
@@ -1014,7 +1014,7 @@
   "open-items --findings docs --json": {
    "code": 2,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": [
     "error: findings path is not a regular file",
@@ -1040,7 +1040,7 @@
   "open-items --findings big.jsonl --json": {
    "code": 2,
    "out": [
-    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"open-items\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": [
     "error: findings file too large (limit 8 MiB)",
@@ -1064,7 +1064,7 @@
   "ready T-1 --jira snap.jsonl --json": {
    "code": 1,
    "out": [
-    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-1\",\"found\":true,\"ready\":false,\"done\":true,\"reasons\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":1,\"data\":{\"key\":\"T-1\",\"found\":true,\"ready\":false,\"done\":true,\"reasons\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -1137,7 +1137,7 @@
   "simulate --sigma 5 --runs 100 --json": {
    "code": 0,
    "out": [
-    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"100 runs, lognormal noise sigma 5 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 2 | P80 2 | P90 2 | P95 2 | worst 3\",\"probability of finishing by sprint 2: 96% | by 3: 100% | by the limit 6: 100%\"]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"simulate\",\"ok\":true,\"exit\":0,\"data\":{\"lines\":[\"baseline with exact sizes: ends sprint 4 (planned 2) [WARNING: baseline later than the plan; the model is stricter than the plan]\",\"100 runs, lognormal noise sigma 5 on ticket size (an assumption, not a measurement; mean-preserving):\",\"end sprint P50 2 | P80 2 | P90 2 | P95 2 | worst 3\",\"probability of finishing by sprint 2: 96% | by 3: 100% | by the limit 6: 100%\"]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": []
   },
@@ -1240,7 +1240,7 @@
   "ready T-2 --jira none.jsonl --json": {
    "code": 2,
    "out": [
-    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"6842b8ab\",\"built\":\"6842b8ab\"},\"next\":[]}"
+    "{\"v\":2,\"cmd\":\"ready\",\"ok\":false,\"exit\":2,\"data\":{\"lines\":[]},\"fresh\":{\"fp\":\"4b92f2fb\",\"built\":\"4b92f2fb\"},\"next\":[]}"
    ],
    "err": [
     "error: cannot read the Jira snapshot none.jsonl",
@@ -2117,14 +2117,14 @@
    ],
    "err": [],
    "changed": {
-    ".plangraph/CARD.md": "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl\n"
+    ".plangraph/CARD.md": "plangraph 4b92f2fb | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl\n"
    },
    "removed": []
   },
-  "card --heal": {
+  "card --refresh": {
    "code": 0,
    "out": [
-    "plangraph 6842b8ab | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
+    "plangraph 4b92f2fb | 14 tickets, 6 links, S1-S2, 3 people\nverdicts: <untrusted n=\"8232fb9d\">13 READY, 1 BLOCKED</untrusted>\nover cap: <untrusted n=\"0f5ab7cf\">Ana S1 +7, Ben S1 +2</untrusted>\nfindings: <untrusted n=\"9ff6a48a\">question 1, risk 1</untrusted>\nplan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl"
    ],
    "err": [],
    "changed": {},
@@ -2136,11 +2136,7 @@
     "exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)"
    ],
    "err": [],
-   "changed": {
-    ".plangraph/edges.jsonl": "{\"consumer\":\"T-10\",\"producer\":\"T-7\",\"kind\":\"plan_need\",\"note\":\"\"}\n{\"consumer\":\"T-10\",\"producer\":\"T-9\",\"kind\":\"plan_need\",\"note\":\"\"}\n{\"consumer\":\"T-12\",\"producer\":\"T-5\",\"kind\":\"plan_need\",\"note\":\"\"}\n{\"consumer\":\"T-13\",\"producer\":\"T-5\",\"kind\":\"plan_need\",\"note\":\"\"}\n{\"consumer\":\"T-14\",\"producer\":\"T-1\",\"kind\":\"plan_need\",\"note\":\"\"}\n{\"consumer\":\"T-7\",\"producer\":\"T-4\",\"kind\":\"plan_need\",\"note\":\"\"}\n",
-    ".plangraph/schedule.jsonl": "{\"version\":\"current\",\"key\":\"T-1\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-10\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-11\",\"owner\":\"Ben\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-12\",\"owner\":\"Ben\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-13\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-14\",\"owner\":\"Ben\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-2\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-3\",\"owner\":\"Cleo\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-4\",\"owner\":\"Ben\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-5\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-6\",\"owner\":\"Cleo\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-7\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-8\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-9\",\"owner\":\"Ben\",\"sprint\":1}\n",
-    ".plangraph/tickets.jsonl": "{\"key\":\"T-1\",\"summary\":\"ticket 1\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"BLOCKED\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-10\",\"summary\":\"ticket 10\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-11\",\"summary\":\"ticket 11\",\"epic\":\"E2\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-12\",\"summary\":\"ticket 12\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-13\",\"summary\":\"ticket 13\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-14\",\"summary\":\"ticket 14\",\"epic\":\"E1\",\"sp\":3,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-2\",\"summary\":\"ticket 2\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-3\",\"summary\":\"ticket 3\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"Done\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-4\",\"summary\":\"ticket 4\",\"epic\":\"E3\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-5\",\"summary\":\"ticket 5\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-6\",\"summary\":\"ticket 6\",\"epic\":\"E1\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-7\",\"summary\":\"ticket 7\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-8\",\"summary\":\"ticket 8\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-9\",\"summary\":\"ticket 9\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n"
-   },
+   "changed": {},
    "removed": []
   },
   "build": {
@@ -2155,7 +2151,7 @@
   "doctor --fix": {
    "code": 0,
    "out": [
-    "data format v1; tool supports v1\nmerge driver: ok\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
+    "data format v2; tool supports v2\nnode vX: ok\nsolver runtime: X\njira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it"
    ],
    "err": [],
    "changed": {},
@@ -2218,7 +2214,7 @@
    "err": [],
    "changed": {
     ".plangraph/OPEN-ITEMS.md": "# Open items\n\nGenerated by `plangraph open-items --write` (do not edit). 2 open, 0 closed.\n\n## Ana (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | T-2 | risk | needs a decision |\n\n## Cleo (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | T-3 | question | who owns it? |\n",
-    ".plangraph/open-items.jsonl": "{\"key\":\"T-2\",\"kind\":\"risk\",\"owner\":\"Ana\",\"due_sprint\":1,\"status\":\"open\",\"text\":\"needs a decision\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"owner\":\"Cleo\",\"due_sprint\":1,\"status\":\"open\",\"text\":\"who owns it?\"}\n"
+    ".plangraph/open-items.jsonl": "{\"key\":\"T-2\",\"kind\":\"risk\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"Ana\",\"text\":\"needs a decision\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"Cleo\",\"text\":\"who owns it?\"}\n"
    },
    "removed": []
   },
@@ -2230,7 +2226,7 @@
    "err": [],
    "changed": {
     ".plangraph/OPEN-ITEMS.md": "# Open items\n\nGenerated by `plangraph open-items --write` (do not edit). 3 open, 0 closed.\n\n## Ana (2 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | T-2 | risk | needs a decision |\n| S3 | T-1 | manual | call them |\n\n## Cleo (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | T-3 | question | who owns it? |\n",
-    ".plangraph/open-items.jsonl": "{\"key\":\"T-1\",\"kind\":\"manual\",\"owner\":\"Ana\",\"due_sprint\":3,\"status\":\"open\",\"text\":\"call them\",\"source\":\"manual\"}\n{\"key\":\"T-2\",\"kind\":\"risk\",\"owner\":\"Ana\",\"due_sprint\":1,\"status\":\"open\",\"text\":\"needs a decision\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"owner\":\"Cleo\",\"due_sprint\":1,\"status\":\"open\",\"text\":\"who owns it?\"}\n"
+    ".plangraph/open-items.jsonl": "{\"key\":\"T-1\",\"kind\":\"manual\",\"status\":\"open\",\"due_sprint\":3,\"owner\":\"Ana\",\"source\":\"manual\",\"text\":\"call them\"}\n{\"key\":\"T-2\",\"kind\":\"risk\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"Ana\",\"text\":\"needs a decision\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"Cleo\",\"text\":\"who owns it?\"}\n"
    },
    "removed": []
   },
@@ -2242,7 +2238,7 @@
    "err": [],
    "changed": {
     ".plangraph/OPEN-ITEMS.md": "# Open items\n\nGenerated by `plangraph open-items --write` (do not edit). 1 open, 1 closed.\n\n## Cleo (1 open)\n| Due | Key | Kind | Text |\n|---|---|---|---|\n| S1 | T-3 | question | who owns it? |\n\n## Closed (1)\n| Key | Kind | Owner | Closed | By | Note |\n|---|---|---|---|---|---|\n| T-2 | risk | Ana | 2026-11-22 | Ana | decided |\n",
-    ".plangraph/open-items.jsonl": "{\"key\":\"T-2\",\"kind\":\"risk\",\"owner\":\"Ana\",\"due_sprint\":1,\"status\":\"done\",\"text\":\"needs a decision\",\"closed_at\":\"2026-11-22\",\"closed_by\":\"Ana\",\"close_note\":\"decided\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"owner\":\"Cleo\",\"due_sprint\":1,\"status\":\"open\",\"text\":\"who owns it?\"}\n"
+    ".plangraph/open-items.jsonl": "{\"key\":\"T-2\",\"kind\":\"risk\",\"status\":\"done\",\"close_note\":\"decided\",\"closed_at\":\"2026-11-22\",\"closed_by\":\"Ana\",\"due_sprint\":1,\"owner\":\"Ana\",\"text\":\"needs a decision\"}\n{\"key\":\"T-3\",\"kind\":\"question\",\"status\":\"open\",\"due_sprint\":1,\"owner\":\"Cleo\",\"text\":\"who owns it?\"}\n"
    },
    "removed": []
   },
@@ -2341,8 +2337,8 @@
    ],
    "err": [],
    "changed": {
-    ".plangraph/refs.jsonl": "{\"key\":\"T-1\",\"plans\":[{\"plan\":\"docs/plan.md\",\"task\":\"1\"}],\"files\":{\"src.js\":1},\"fp_files\":\"\",\"jira_updated\":\"\",\"audited_at\":\"\"}\n{\"key\":\"sp:2026-01-01-widget\",\"plans\":[],\"files\":{}}\n{\"key\":\"sp:2026-01-01-widget/1\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"1\"}],\"files\":{\"src/a.js\":\"\"}}\n{\"key\":\"sp:2026-01-01-widget/2\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"2\"}],\"files\":{}}\n",
-    ".plangraph/tickets.jsonl": "{\"key\":\"T-1\",\"summary\":\"ticket 1\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"BLOCKED\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-10\",\"summary\":\"ticket 10\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-11\",\"summary\":\"ticket 11\",\"epic\":\"E2\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-12\",\"summary\":\"ticket 12\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-13\",\"summary\":\"ticket 13\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-14\",\"summary\":\"ticket 14\",\"epic\":\"E1\",\"sp\":3,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-2\",\"summary\":\"ticket 2\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-3\",\"summary\":\"ticket 3\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"Done\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-4\",\"summary\":\"ticket 4\",\"epic\":\"E3\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-5\",\"summary\":\"ticket 5\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-6\",\"summary\":\"ticket 6\",\"epic\":\"E1\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-7\",\"summary\":\"ticket 7\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-8\",\"summary\":\"ticket 8\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-9\",\"summary\":\"ticket 9\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":0,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/1\",\"summary\":\"Base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/2\",\"summary\":\"Use base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n"
+    ".plangraph/tickets.jsonl": "{\"key\":\"T-1\",\"summary\":\"ticket 1\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"BLOCKED\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-10\",\"summary\":\"ticket 10\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-11\",\"summary\":\"ticket 11\",\"epic\":\"E2\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-12\",\"summary\":\"ticket 12\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-13\",\"summary\":\"ticket 13\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-14\",\"summary\":\"ticket 14\",\"epic\":\"E1\",\"sp\":3,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-2\",\"summary\":\"ticket 2\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-3\",\"summary\":\"ticket 3\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"Done\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-4\",\"summary\":\"ticket 4\",\"epic\":\"E3\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-5\",\"summary\":\"ticket 5\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-6\",\"summary\":\"ticket 6\",\"epic\":\"E1\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-7\",\"summary\":\"ticket 7\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-8\",\"summary\":\"ticket 8\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-9\",\"summary\":\"ticket 9\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":0,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/1\",\"summary\":\"Base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/2\",\"summary\":\"Use base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n",
+    ".plangraph/refs.jsonl": "{\"key\":\"T-1\",\"plans\":[{\"plan\":\"docs/plan.md\",\"task\":\"1\"}],\"files\":{\"src.js\":1},\"fp_files\":\"\",\"jira_updated\":\"\",\"audited_at\":\"\"}\n{\"key\":\"sp:2026-01-01-widget\",\"plans\":[],\"files\":{}}\n{\"key\":\"sp:2026-01-01-widget/1\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"1\"}],\"files\":{\"src/a.js\":\"\"}}\n{\"key\":\"sp:2026-01-01-widget/2\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"2\"}],\"files\":{}}\n"
    },
    "removed": []
   },
@@ -2353,9 +2349,9 @@
    ],
    "err": [],
    "changed": {
-    ".plangraph/refs.jsonl": "{\"key\":\"T-1\",\"plans\":[{\"plan\":\"docs/plan.md\",\"task\":\"1\"}],\"files\":{\"src.js\":1},\"fp_files\":\"\",\"jira_updated\":\"\",\"audited_at\":\"\"}\n{\"key\":\"sp:2026-01-01-widget\",\"plans\":[],\"files\":{}}\n{\"key\":\"sp:2026-01-01-widget/1\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"1\"}],\"files\":{\"src/a.js\":\"\"}}\n{\"key\":\"sp:2026-01-01-widget/2\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"2\"}],\"files\":{}}\n",
+    ".plangraph/tickets.jsonl": "{\"key\":\"T-1\",\"summary\":\"ticket 1\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"BLOCKED\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-10\",\"summary\":\"ticket 10\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-11\",\"summary\":\"ticket 11\",\"epic\":\"E2\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-12\",\"summary\":\"ticket 12\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-13\",\"summary\":\"ticket 13\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-14\",\"summary\":\"ticket 14\",\"epic\":\"E1\",\"sp\":3,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-2\",\"summary\":\"ticket 2\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-3\",\"summary\":\"ticket 3\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"Done\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-4\",\"summary\":\"ticket 4\",\"epic\":\"E3\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-5\",\"summary\":\"ticket 5\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-6\",\"summary\":\"ticket 6\",\"epic\":\"E1\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-7\",\"summary\":\"ticket 7\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-8\",\"summary\":\"ticket 8\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-9\",\"summary\":\"ticket 9\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":0,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/1\",\"summary\":\"Base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/2\",\"summary\":\"Use base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n",
     ".plangraph/schedule.jsonl": "{\"version\":\"current\",\"key\":\"T-1\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-10\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-11\",\"owner\":\"Ben\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-12\",\"owner\":\"Ben\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-13\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-14\",\"owner\":\"Ben\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-2\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-3\",\"owner\":\"Cleo\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-4\",\"owner\":\"Ben\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-5\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-6\",\"owner\":\"Cleo\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-7\",\"owner\":\"Cleo\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"T-8\",\"owner\":\"Ana\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"T-9\",\"owner\":\"Ben\",\"sprint\":1}\n{\"version\":\"current\",\"key\":\"sp:2026-01-01-widget/1\",\"owner\":\"Ana\",\"sprint\":2}\n{\"version\":\"current\",\"key\":\"sp:2026-01-01-widget/2\",\"owner\":\"Ana\",\"sprint\":2}\n",
-    ".plangraph/tickets.jsonl": "{\"key\":\"T-1\",\"summary\":\"ticket 1\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"BLOCKED\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-10\",\"summary\":\"ticket 10\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-11\",\"summary\":\"ticket 11\",\"epic\":\"E2\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-12\",\"summary\":\"ticket 12\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-13\",\"summary\":\"ticket 13\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-14\",\"summary\":\"ticket 14\",\"epic\":\"E1\",\"sp\":3,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-2\",\"summary\":\"ticket 2\",\"epic\":\"E1\",\"sp\":4,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-3\",\"summary\":\"ticket 3\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"Done\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-4\",\"summary\":\"ticket 4\",\"epic\":\"E3\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-5\",\"summary\":\"ticket 5\",\"epic\":\"E0\",\"sp\":5,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-6\",\"summary\":\"ticket 6\",\"epic\":\"E1\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-7\",\"summary\":\"ticket 7\",\"epic\":\"E2\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Cleo\",\"v2_sprint\":2,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-8\",\"summary\":\"ticket 8\",\"epic\":\"E3\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ana\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"T-9\",\"summary\":\"ticket 9\",\"epic\":\"E0\",\"sp\":1,\"jira_status\":\"To Do\",\"v2_owner\":\"Ben\",\"v2_sprint\":1,\"verdict\":\"READY\",\"verdict_source\":\"audit\",\"first_verdict\":\"READY\"}\n{\"key\":\"sp:2026-01-01-widget\",\"summary\":\"Widget Plan\",\"epic\":\"\",\"sp\":0,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/1\",\"summary\":\"Base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n{\"key\":\"sp:2026-01-01-widget/2\",\"summary\":\"Use base\",\"epic\":\"sp:2026-01-01-widget\",\"sp\":null,\"jira_status\":\"\",\"verdict\":\"\",\"verdict_source\":\"sp-ingest\"}\n"
+    ".plangraph/refs.jsonl": "{\"key\":\"T-1\",\"plans\":[{\"plan\":\"docs/plan.md\",\"task\":\"1\"}],\"files\":{\"src.js\":1},\"fp_files\":\"\",\"jira_updated\":\"\",\"audited_at\":\"\"}\n{\"key\":\"sp:2026-01-01-widget\",\"plans\":[],\"files\":{}}\n{\"key\":\"sp:2026-01-01-widget/1\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"1\"}],\"files\":{\"src/a.js\":\"\"}}\n{\"key\":\"sp:2026-01-01-widget/2\",\"plans\":[{\"plan\":\"docs/superpowers/plans/2026-01-01-widget.md\",\"task\":\"2\"}],\"files\":{}}\n"
    },
    "removed": []
   },

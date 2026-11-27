@@ -1,53 +1,5 @@
 [
  {
-  "file": "lib/driver.ts",
-  "line": "const tmp = `${file}.x-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;",
-  "mutated": "const tmp = `${file}.x-${process.pid}-${crypto.randomBytes(5).toString('hex')}`;",
-  "why": "the temp-name suffix length is unobservable: any random suffix gives a unique sibling name"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "try { st = fs.lstatSync(dir); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return false; throw e; } // whatever was thrown: read its code",
-  "mutated": "try { st = fs.lstatSync(dir); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return true; throw e; } // whatever was thrown: read its code",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "try { st = fs.lstatSync(dir); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return false; throw e; } // whatever was thrown: read its code",
-  "mutated": "try { st = fs.lstatSync(dir); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null; throw e; } // whatever was thrown: read its code",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "if (process.platform === 'win32') return true;",
-  "mutated": "if (process.platform === 'win32') return false;",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws); the early return itself is kept"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "if (process.platform === 'win32') return true;",
-  "mutated": "if (process.platform === 'win32') return null;",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws); the early return itself is kept"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "return true;",
-  "mutated": "return false;",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "return true;",
-  "mutated": "return null;",
-  "why": "checkPrivateDir return value is never read (ensureStableDriver calls it only for its throws)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "const abs = (v: unknown): v is string => typeof v === 'string' && v !== '' && path.isAbsolute(v);",
-  "mutated": "const abs = (v: unknown): v is string => typeof v === 'string' && v !== 'mutant' && path.isAbsolute(v);",
-  "why": "the empty string is never an absolute path, so the !== check is redundant with path.isAbsolute for any string"
- },
- {
   "file": "lib/fsafe.ts",
   "line": "const tmp = `${file}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;",
   "mutated": "const tmp = `${file}.tmp-${process.pid}-${crypto.randomBytes(5).toString('hex')}`;",
@@ -94,30 +46,6 @@
   "line": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError('ref_heading: template does not compile to a valid pattern'); }",
   "mutated": "try { prefix = new RegExp(`${anchored}${head}`, 'm'); new RegExp(`${anchored}${head}x${tail}`, 'm'); } catch { throw new TypeError(''); }",
   "why": "unreachable catch: the template grammar admits only literals and bounded # runs, which always compile"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "const cv = (v: unknown, isSet: boolean): string => (!isSet && v === undefined ? '\\u0000absent' : canonValue(v, isSet));",
-  "mutated": "const cv = (v: unknown, isSet: boolean): string => (!isSet && v === undefined ? '' : canonValue(v, isSet));",
-  "why": "canonValue never returns the empty string (it is JSON text), so an empty absent-marker is as distinct as the NUL marker"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: true });",
-  "mutated": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: false, configurable: true });",
-  "why": "the merged record is only read by canonLine inside mergeJsonl and never reassigned or redefined, so writable/configurable are unobservable"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: true });",
-  "mutated": "if (r.conflict) bad.push(f); else if (r.v !== undefined) Object.defineProperty(out, f, { value: r.v, enumerable: true, writable: true, configurable: false });",
-  "why": "the merged record is only read by canonLine inside mergeJsonl and never reassigned or redefined, so writable/configurable are unobservable"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "else if (!o.lines.length) clash(b.lines.length ? 'deleted in ours, edited in theirs' : 'conflict');",
-  "mutated": "else if (!o.lines.length) clash(b.lines.length ? 'deleted in ours, edited in theirs' : '');",
-  "why": "unreachable label: with ours and base both empty the earlier same(o.lines, b.lines) branch already took theirs"
  },
  {
   "file": "lib/jsonl.ts",
@@ -184,30 +112,6 @@
   "line": "try { fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0) | (follow ? 0 : NOFOLLOW)); }",
   "mutated": "try { fd = fsImpl.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 1) | (follow ? 0 : NOFOLLOW)); }",
   "why": "O_NONBLOCK is defined on every supported platform, so the || fallback is never used"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
-  "mutated": "conflicts.sort((a, c) => (a.key <= c.key ? -1 : a.key > c.key ? 1 : 0));",
-  "why": "conflict keys are one per id (showKey of distinct ids only collide if a key field itself contains ' | '), so the tie branch is not taken"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
-  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key >= c.key ? 1 : 0));",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
-  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 0 : 0));",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 0));",
-  "mutated": "conflicts.sort((a, c) => (a.key < c.key ? -1 : a.key > c.key ? 1 : 1));",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
  },
  {
   "file": "lib/render.ts",
@@ -828,24 +732,6 @@
   "why": "the group names are created in due order from the already sorted open list, so this sort only confirms an order it never changes (V8 insertion keeps it for these results)"
  },
  {
-  "file": "lib/merge.ts",
-  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? '') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 1)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 0 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? '') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 1)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? '') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 1)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? '') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 0)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "why": "V8 Array.prototype.sort only branches on comparator(a, b) < 0, so changing the result for a > b between 1 and 0 (or for a tie from 0 to 1) cannot change the order"
- },
- {
-  "file": "lib/merge.ts",
-  "line": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? '') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 1)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "mutated": "rows.sort((a, c) => (a.sort < c.sort ? -1 : a.sort > c.sort ? 1 : (a.lines[0] ?? (a.conflict as { ours: string[] }).ours[0] ?? 'mutant') < (c.lines[0] ?? (c.conflict as { ours: string[] }).ours[0] ?? '') ? -1 : 1)); // sort ties need two ids with one sort key: the built-in specs sort by id (unchecked, pre-existing)",
-  "why": "every record line starts with {, which sorts after the letter m, so comparing an empty-ours block as mutant instead of empty gives the same answers"
- },
- {
   "file": "lib/render.ts",
   "line": "over.sort((a, b) => b.x - a.x || (a.o < b.o ? -1 : a.o > b.o ? 1 : a.sprint - b.sprint));",
   "mutated": "over.sort((a, b) => b.x - a.x || (a.o < b.o ? -1 : a.o > b.o ? 0 : a.sprint - b.sprint));",
@@ -1266,84 +1152,6 @@
   "why": "checkFormat only tests mode === read; any other value, empty included, is the write mode"
  },
  {
-  "file": "lib/store.ts",
-  "line": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "mutated": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "mutated": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', '', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "mutated": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', ''], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "mutated": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '', GIT_EDITOR: 'true' } });",
-  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });",
-  "mutated": "const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: '' } });",
-  "why": "these git calls are non-interactive config writes and reads with captured output: the prompt and editor variables and the stdio slots tested here change nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "const tryGit = (cwd: string, args: string[]): { ok: true; out: string; err?: never } | { ok: false; err: string; out?: never } => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String((e as Coded & { stderr?: unknown }).stderr || (e as Coded).message) }; } }; // whatever was thrown: its fields are read as before",
-  "mutated": "const tryGit = (cwd: string, args: string[]): { ok: true; out: string; err?: never } | { ok: false; err: string; out?: never } => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String((e as Coded & { stderr?: unknown }).stderr && (e as Coded).message) }; } }; // whatever was thrown: its fields are read as before",
-  "why": "the err field of a failed tryGit is never read (only ok and out are)"
- },
- {
-  "file": "lib/store.ts",
-  "line": "if (!st.isFile()) throw refused('not a regular file');",
-  "mutated": "if (false) throw refused('not a regular file');",
-  "why": "a directory or FIFO is also refused by readCapped as NOT_A_FILE with the same message, so this early refusal changes nothing"
- },
- {
-  "file": "lib/store.ts",
-  "line": "if ((e as Coded).code === 'NOT_A_FILE') throw refused('not a regular file'); // whatever was thrown: its fields are read as before",
-  "mutated": "if (false) throw refused('not a regular file'); // whatever was thrown: its fields are read as before",
-  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
- },
- {
-  "file": "lib/store.ts",
-  "line": "if ((e as Coded).code === 'NOT_A_FILE') throw refused('not a regular file'); // whatever was thrown: its fields are read as before",
-  "mutated": "if ((e as Coded).code === '') throw refused('not a regular file'); // whatever was thrown: its fields are read as before",
-  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
- },
- {
-  "file": "lib/store.ts",
-  "line": "if ((e as Coded).code === 'NOT_A_FILE') throw refused('not a regular file'); // whatever was thrown: its fields are read as before",
-  "mutated": "if ((e as Coded).code === 'NOT_A_FILE') throw refused(''); // whatever was thrown: its fields are read as before",
-  "why": "NOT_A_FILE after a successful lstat isFile is only possible in a race, so this branch is not reachable on purpose"
- },
- {
-  "file": "lib/store.ts",
-  "line": "try { fd = fs.openSync(f, fs.constants.O_RDONLY | (nofollow ? fs.constants.O_NOFOLLOW || 0 : 0)); const buf = Buffer.alloc(4096); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
-  "mutated": "try { fd = fs.openSync(f, fs.constants.O_RDONLY | (nofollow ? fs.constants.O_NOFOLLOW || 0 : 0)); const buf = Buffer.alloc(4097); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }",
-  "why": "the buffer is one byte larger than the 4096 bytes read into it, which never shows"
- },
- {
-  "file": "lib/store.ts",
-  "line": "let text = '', refusedWhy = '';",
-  "mutated": "let text = 'mutant', refusedWhy = '';",
-  "why": "the initial text is only read when the attributes file was refused, and then no line can match the driver line either way"
- },
- {
-  "file": "lib/store.ts",
-  "line": "executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || '').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));",
-  "mutated": "executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || 'mutant').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));",
-  "why": "PATH is always set where the tool runs, so the fallback is never used"
- },
- {
   "file": "lib/whatif.ts",
   "line": "const t = model.tickets.get(k); if (!t) continue;",
   "mutated": "const t = model.tickets.get(k); if (false) continue;",
@@ -1756,30 +1564,6 @@
   "line": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 0;",
   "mutated": "const NOFOLLOW = fs.constants.O_NOFOLLOW || 1;",
   "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "if (process.platform === 'win32') return false;",
-  "mutated": "if (process.platform === '') return false;",
-  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "if (process.platform === 'win32') return false;",
-  "mutated": "if (process.platform === 'win32') return true;",
-  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "if (process.platform === 'win32') return false;",
-  "mutated": "if (process.platform === 'win32') return null;",
-  "why": "a win32-only fallback (O_NOFOLLOW exists on every CI platform), so no test on them can see the mutant (the whole win32 branch of othersCanWrite)"
- },
- {
-  "file": "lib/driver.ts",
-  "line": "export const hasConsent = (commonDir: string): boolean => CONSENT_VALUE.test(localConfigValue(commonDir, CONSENT_KEY) ?? '');",
-  "mutated": "export const hasConsent = (commonDir: string): boolean => CONSENT_VALUE.test(localConfigValue(commonDir, CONSENT_KEY) ?? 'mutant');",
-  "why": "'mutant' fails the version pattern exactly as '' does"
  },
  {
   "file": "src/jira-tenant.ts",
