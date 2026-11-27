@@ -376,6 +376,16 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph trust` | allow `sync-fetch` to read one target with your own credentials, recorded in the git-ignored cache | `SYS:TARGET` | files |
 | `plangraph identity` | `propose` suggests which plan person each observed tracker assignee is (prints only); `list` shows the local identity map | `propose\|list`, `--sys S` | none |
 | `plangraph identity-map` | map one tracker ref to a plan person in the git-ignored identity map; the person must exist | `REF PERSON` | text |
+| `plangraph flow` | task flow, read-only: `next` (ready tasks), `brief KEY` (one task), `status` (requirement traceability), `actions` (tracker actions to take) | `next\|brief\|status\|actions`, `--for PERSON`, `--limit N`, `--req ID` | none |
+| `plangraph flow-claim` | append a `claimed` event for a task; exit 2 when another actor holds it or the task is unknown | `KEY`, `--by WHO` | text |
+| `plangraph flow-progress` | append one state event for a task; an illegal transition or an unknown task exits 2 | `KEY`, `--to STATE`, `--evidence K:V`, `--note T`, `--by WHO` | text |
+| `plangraph flow-done` | finish a task; evidence is required (exit 2 without) | `KEY`, `--evidence K:V`, `--note T`, `--by WHO` | text |
+| `plangraph flow-link` | record the tracker ticket made for a plan task as one xref (idempotent) | `TASK SYS XID` | text |
+| `plangraph map` | what an agent cannot find in the repository (owners, requirements, decisions, epics, hotspots), at most 500 estimated tokens | `--repo ID`, `-v` | none |
+| `plangraph context` | the digest for one task (owner, blockers, repos, requirements, decisions), at most 400 estimated tokens; no `KEY` uses the branch name | `[KEY]`, `--branch`, `-v` | none |
+| `plangraph refresh` | rebuild a stale index, fetch trusted targets (not with `--fast`) and refresh the git-ignored live documents; silent, never fails with `--quiet` | `--fast`, `--budget SECONDS`, `--quiet` | files |
+| `plangraph hook-prompt` | the UserPromptSubmit hook: reads the hook JSON on stdin and prints owner and blockers of a ticket named in the prompt, once per session, at most 200 tokens | | files |
+| `plangraph githooks-install` | write the post-commit, post-merge, post-checkout and post-rewrite scripts into `.githooks/` and print how to enable them; never changes git config | `--dry-run`, `--pre-commit` | files |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the entity-layout stamp | | text |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
