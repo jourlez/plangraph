@@ -14,6 +14,7 @@ const RULES: Record<'cloud' | 'datacenter', Array<[string, RegExp]>> = {
     ['GET', /^\/rest\/api\/3\/myself$/], ['POST', /^\/rest\/api\/3\/search\/jql$/], ['POST', /^\/rest\/api\/3\/search\/approximate-count$/],
     ['GET', new RegExp(`^/rest/api/3/issue/${K}$`)], ['GET', new RegExp(`^/rest/api/3/issue/${K}/changelog$`)],
     ['GET', /^\/rest\/agile\/1\.0\/board$/], ['GET', /^\/rest\/agile\/1\.0\/board\/\d+\/sprint$/], ['GET', /^\/rest\/agile\/1\.0\/sprint\/\d+\/issue$/],
+    ['GET', /^\/wiki\/api\/v2\/spaces\/\d{1,20}\/pages$/], // Confluence Cloud v2: the pages of one space (sync-fetch)
   ],
   datacenter: [
     ['GET', /^\/rest\/api\/2\/myself$/], ['POST', /^\/rest\/api\/2\/search$/], ['GET', new RegExp(`^/rest/api/2/issue/${K}$`)],
@@ -63,7 +64,8 @@ export function makeClient({ baseConfig = {}, creds, fetchImpl, sleep, now, rand
     if (typeof path !== 'string' || !/^\/[A-Za-z0-9/._-]*$/.test(path) || !RULES[family].some(([m, re]) => m === method && re.test(path)))
       throw new JiraError('read_only', `blocked: ${method} ${safe} is not on the read-only allowlist`);
     const qs = query ? '?' + new URLSearchParams(query).toString() : '';
-    const target = `${base.origin}${base.basePath}${prefix}${path}${qs}`;
+    const pre = path.startsWith('/wiki/') && mode === AUTH_MODES.SCOPED ? `/ex/confluence/${baseConfig.cloudId}` : prefix; // the scoped gateway has one prefix per product
+    const target = `${base.origin}${base.basePath}${pre}${path}${qs}`;
     for (let attempt = 0; ; attempt++) {
       let res: Response;
       try {
