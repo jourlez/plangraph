@@ -210,3 +210,35 @@ test('M2: renameNode checks the target under the lock, in one transaction', asyn
   assert.equal(ids.length, 2, 'the loser is still there under its own id');
   assert.ok(ids.includes('D-9'));
 });
+
+// ---------- m2: a duplicate per-element key is a scalar conflict ----------
+import { resolveConflicts } from '../lib/store2/resolve.ts';
+const hunk = (ours: string, theirs: string): string => `<<<<<<< ours\n${ours}\n=======\n${theirs}\n>>>>>>> theirs\n`;
+for (const [name, field, id, ours, theirs] of [
+  ['capacity', 'capacity', 'Ana', 'capacity {"sp":5,"sprint":3}', 'capacity {"sp":8,"sprint":3}'],
+  ['links', 'links', 'T-1', 'links {"attrs":{"conf":1},"rel":"touches","to":"repo:a"}', 'links {"attrs":{"conf":2},"rel":"touches","to":"repo:a"}'],
+  ['xrefs', 'xrefs', 'T-1', 'xrefs {"sys":"jira","xid":"A-1","note":"x"}', 'xrefs {"sys":"jira","xid":"A-1","note":"y"}'],
+] as const) {
+  test(`m2: two ${name} elements with one key are left as a conflict, not unioned`, () => {
+    const dir = entityDir(), kind = name === 'capacity' ? 'person' : 'ticket', f = nodePath(dir, kind, id), text = `id "${id}"\n${hunk(ours, theirs)}`;
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, text);
+    const r = resolveConflicts(dir);
+    assert.deepEqual(r.resolved, []);
+    assert.equal(r.left.length, 1);
+    assert.equal(r.left[0]?.field, field);
+    assert.equal(fs.readFileSync(f, 'utf8'), text, 'the file is untouched');
+  });
+}
+
+test('m2: different keys are still unioned, and the write goes through withTxn (it finishes an interrupted transaction first)', () => {
+  const dir = entityDir(), f = nodePath(dir, 'person', 'Ana');
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, `id "Ana"\n${hunk('capacity {"sp":5,"sprint":3}', 'capacity {"sp":8,"sprint":4}')}`);
+  plant(dir, 'pending', { id: 'pending', ops: [{ op: 'write', path: 'marker.txt', stage: 'f0' }] }, 'f0');
+  const r = resolveConflicts(dir);
+  assert.equal(r.resolved.length, 1);
+  assert.equal(fs.readFileSync(path.join(dir, 'marker.txt'), 'utf8'), 'staged\n', 'the store lock and recovery ran before the write');
+  assert.match(fs.readFileSync(f, 'utf8'), /capacity \{"sp":5,"sprint":3\}\ncapacity \{"sp":8,"sprint":4\}\n/);
+  assert.deepEqual(fs.readdirSync(path.join(dir, '.txn')).filter((n) => n !== 'lock'), []);
+});
