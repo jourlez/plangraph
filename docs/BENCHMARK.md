@@ -47,9 +47,52 @@ The prefix bisect (next section) found three flaws in the pilot; all are fixed i
 
 ## Ruling
 
-Pending the early pass. The controller records here which default injections stay on.
+Final live pass, native binary 2.1.332, owner's login, `--parallel` 4 to 6, one repeat per cell (the controller trimmed the matrix to control cost). Wilson 95 percent intervals. Medians over cells; cost is the binary's list-price `total_cost_usd`.
 
-Status when the 1.0 documentation was written: still pending. `results pending` is what the README says; it claims no token or accuracy benefit, and the pilot below measured equal accuracy and a higher token and cost use for the plugin arm. The live pass (`EVAL_LIVE=1`) and the coding-task validation have not been run.
+What ran (cells with a clean result, repeat 0):
+- Graph questions: 213 questions x arms {baseline, graph (hooks on, MCP off, as in the pilot), graph-pull-only} x {sonnet, haiku} = 1,278 cells, plus opus on a 40-question stratified subset (every 5th or 6th question, `--tasks`; 38 per arm completed in the ids list, 114 cells). Not 3 repeats.
+- Coding: the 30 validated descriptors x {plugin-off, plugin-default, plugin-pull-only} x sonnet, one repeat = 90 cells. Haiku was dropped for coding. The 129 earlier coding rows for the 24 Python tasks are discarded (harness bug, below); the earlier second repeats of some JavaScript tasks are not in the table.
+- Total about $46 of list-price spend (smoke tests and the discarded Python cells included), about 2 hours of wall time.
+
+Graph questions (213 per arm and model; opus 38)
+
+| arm | model | accuracy | first-call input | total input | calls | cost | time |
+|---|---|---|---|---|---|---|---|
+| baseline | sonnet | 1.00 (0.98-1.00) | 10,339 | 21,798 | 2 | $0.0295 | 4.5 s |
+| graph | sonnet | 0.88 (0.83-0.92) | 11,490 | 23,195 | 2 | $0.0296 | 5.3 s |
+| graph-pull-only | sonnet | 0.99 (0.97-1.00) | 11,270 | 41,190 | 3 | $0.0449 | 6.0 s |
+| baseline | haiku | 0.99 (0.96-1.00) | 11,162 | 22,842 | 2 | $0.0017 | 4.0 s |
+| graph | haiku | 0.88 (0.83-0.92) | 12,313 | 25,015 | 2 | $0.0018 | 4.4 s |
+| graph-pull-only | haiku | 1.00 (0.98-1.00) | 12,093 | 44,234 | 3 | $0.0027 | 6.2 s |
+| baseline | opus | 1.00 (0.91-1.00) | 10,409 | 22,091 | 2 | $0.0585 | 5.3 s |
+| graph | opus | 1.00 (0.91-1.00) | 11,559 | 23,356 | 2 | $0.0598 | 5.9 s |
+| graph-pull-only | opus | 1.00 (0.91-1.00) | 11,340 | 41,485 | 3 | $0.0925 | 7.5 s |
+
+Coding (sonnet, 30 tasks per arm, one repeat)
+
+| arm | accuracy | first-call input | total input | calls | cost | time |
+|---|---|---|---|---|---|---|
+| plugin-off | 0.87, 26 of 30 (0.70-0.95) | 11,437 | 52,185 | 4 | $0.0421 | 20.6 s |
+| plugin-default | 0.83, 25 of 30 (0.66-0.93) | 12,451 | 58,060 | 4 | $0.0526 | 20.8 s |
+| plugin-pull-only | 0.83, 25 of 30 (0.66-0.93) | 12,264 | 55,768 | 4 | $0.0489 | 20.2 s |
+
+Rulings per default injection
+- UserPromptSubmit hook-prompt: DROP as a default (make opt-in). It is the only injection with a measurable effect and the effect is negative: the graph arm (card plus hook-prompt) scores 0.88 (0.83-0.92) against 0.99 to 1.00 for baseline and pull-only, for sonnet and haiku alike, with non-overlapping intervals. All 35 sonnet and 38 haiku errors are questions the hook answers from its own text: it names one blocker ("blocked by T-4") where a ticket has two, the model answers in one call from that text and the list is incomplete (deps 17 sonnet and 18 haiku wrong, downstream and implements the rest). Cost and time are equal to baseline (sonnet $0.0296 against $0.0295), so there is no saving either. Reopen only after the hook lists every blocker.
+- Bundled MCP server: make opt-in. It only runs in the coding arm plugin-default (the graph arm has MCP off). Accuracy 25 of 30 against 26 of 30 for plugin-off (intervals overlap fully), first-call input +1,014 tokens, total input +11 percent, cost +25 percent ($0.0526 against $0.0421), same time. No benefit measured, a small cost.
+- SessionStart card: make opt-in. It was not isolated in this pass (it is part of the graph and plugin-default arms; the bisect above puts it at about +60 to +120 tokens per call). plugin-pull-only, which has no card, is as accurate as baseline, and no arm shows the card helping.
+- AGENTS snippet: make opt-in. No arm of this pass contains it, so there are no numbers for it. Keeping it on by default is unsupported by data.
+- Skill list (the pull-only arm, the plugin's own descriptions): keep available. Accuracy equals baseline (graph questions 0.99 and 1.00, coding 25 of 30 against 26 of 30). It costs: first-call input +0.9 to +1.2k, and on graph questions the model uses the CLI through the skill, 3 calls against 2, total input +80 percent and sonnet cost +52 percent ($0.0449 against $0.0295). On this 30-ticket synthetic plan, which plan.md reads in one call, the baseline is cheaper.
+
+Plain statement of results
+- Token savings: NO. Every plugin arm used the same or more tokens and money than its plugin-off arm: first-call input +0.8k to +1.2k in every family and model, total tokens +7 to +80 percent, cost 0 to +52 percent. The data supports no claim of token or cost savings.
+- Accuracy: NO benefit. Coding differences (26, 25 and 25 of 30) are inside the intervals. Graph questions: baseline and pull-only are at ceiling (0.99 to 1.00), the default graph arm is worse. The data supports no claim of better accuracy. The README must make none and must not claim savings; it may state the measured overhead (about 1k tokens in the first call) and that results are small-sample.
+- The only supported claim is negative: the default hook-prompt lowered accuracy on multi-blocker questions in this synthetic project.
+
+Caveats
+- One repeat per cell; coding n=30 per arm gives intervals of about 25 points. Haiku coding was not run. Opus ran a subset (38 per arm). The matrix was trimmed from the planned three repeats and two coding repeats on the controller's order; sonnet and haiku graph results at one repeat already show identical ordering of arms.
+- The graph project is synthetic and has 30 tickets; a larger real plan may favour the plugin, and the multi-hop questions were not separated out. The graph arm never loaded the MCP server.
+- Coding: 4 of 30 tasks (packaging-defer-parse-messages, packaging-free-threaded-tags, pluggy-declined-entrypoint, pluggy-entrypoint-truthiness) fail in every arm, and rich-split-graphemes-loop passed only in plugin-off; the 4 are not investigated (possibly hard or a descriptor problem) and move all arms equally.
+- Harness bugs found and fixed in this pass: (1) a copy of the cached workspace rewrote `<cache>.bench` paths inside `.venv/pyvenv.cfg`, so uv-managed python could not start: every Python hidden test and every agent test run failed (first Python cells, discarded and rerun); (2) the graph grader scored the sprint label `S1` wrong for the answer `1` (the graph store holds sprint numbers); graph rows were regraded from the stored reply with the fixed grader; (3) a non-JSON stream line made a whole run a harness error ("no result (exit 0)", 17 percent of plugin coding cells on the first attempt; errored cells were rerun); (4) added `graph-pull-only`, `--repeats` and `--tasks` for graph.
 
 ## Pilot
 
