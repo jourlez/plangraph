@@ -315,7 +315,7 @@ test('arm definitions: every arm gets the Skill tool; plugin arms differ by hook
   try {
     preparePullOnlyPlugin(copy);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(copy, 'hooks', 'hooks.json'), 'utf8')), { hooks: {} });
-    assert.ok(!fs.existsSync(path.join(copy, '.mcp.json')) && fs.existsSync(path.join(copy, '.claude-plugin', 'plugin.json')) && fs.existsSync(path.join(copy, 'skills')));
+    assert.ok(!fs.existsSync(path.join(copy, 'mcp', 'servers.json')) && !('mcpServers' in JSON.parse(fs.readFileSync(path.join(copy, '.claude-plugin', 'plugin.json'), 'utf8'))) && fs.existsSync(path.join(copy, '.claude-plugin', 'plugin.json')) && fs.existsSync(path.join(copy, 'skills')));
     assert.ok(JSON.parse(fs.readFileSync(path.join(PLUGIN_DIR, 'hooks', 'hooks.json'), 'utf8')).hooks.SessionStart, 'the source plugin is untouched');
     const pull = argvFor({ arm: 'plugin-pull-only', model: 'sonnet', repeat: 0 }, 'p', { pluginDir: copy });
     assert.equal(pull[pull.indexOf('--plugin-dir') + 1], copy);

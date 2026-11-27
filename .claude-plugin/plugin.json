@@ -1,10 +1,11 @@
 {
   "name": "plangraph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A small knowledge graph for planning with Claude Code: tickets, dependency links, readiness verdicts with evidence fingerprints, schedules, and learnings. Text in git, a cheap query CLI, no model calls.",
   "author": { "name": "jourlez" },
   "keywords": ["planning", "jira", "knowledge-graph", "memory", "scheduling"],
   "license": "MIT",
+  "mcpServers": "./mcp/servers.json",
   "repository": "https://github.com/jourlez/plangraph",
   "homepage": "https://github.com/jourlez/plangraph",
   "icon": "./.claude-plugin/icon.png",

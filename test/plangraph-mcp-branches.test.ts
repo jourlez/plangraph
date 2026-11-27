@@ -31,7 +31,7 @@ test('below the Node floor it writes the floor message to stderr, serves nothing
 test('on a supported Node it answers initialize and tools/list on stdout and returns 0 when stdin ends', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mcp-br-'));
   try {
-    fs.mkdirSync(path.join(tmp, '.plangraph')); // with no plan directory the server answers one error and exits quietly (docs/MCP.md)
+    fs.mkdirSync(path.join(tmp, '.plangraph')); // with no plan directory the server connects with no tools (docs/MCP.md)
     const { h, out, err } = host({ cwd: tmp, env: { PLANGRAPH_MCP: 'on' } }, rpc([
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } } },
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },

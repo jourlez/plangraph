@@ -72,14 +72,14 @@ export function argvFor(cell: Cell, prompt: string, opts: { pluginDir?: string |
   return argv;
 }
 
-/** The plugin's own `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` resolved and the `mcp` option ON, as inline JSON for `--mcp-config`. */
+/** The plugin's own `mcp/servers.json` with `${CLAUDE_PLUGIN_ROOT}` resolved and the `mcp` option ON, as inline JSON for `--mcp-config`. */
 export function mcpConfigFor(pluginDir: string): string {
-  const raw = fs.readFileSync(path.join(pluginDir, '.mcp.json'), 'utf8').replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir).replaceAll('${user_config.mcp}', 'on');
+  const raw = fs.readFileSync(path.join(pluginDir, 'mcp', 'servers.json'), 'utf8').replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir).replaceAll('${user_config.mcp}', 'on');
   return JSON.stringify(JSON.parse(raw));
 }
 
 /**
- * Derive the plugin-pull-only plugin: a copy of the plugin directory in `dest` with `hooks/hooks.json` emptied and `.mcp.json` removed (the arm also runs with the
+ * Derive the plugin-pull-only plugin: a copy of the plugin directory in `dest` with `hooks/hooks.json` emptied and its MCP registration removed (`mcp/servers.json` and the `mcpServers` field of `plugin.json`; the arm also runs with the
  * MCP option off), so only the skill list and tool access remain. `node_modules` is linked, `.git` and the eval and test trees are not copied. Local only.
  */
 export function preparePullOnlyPlugin(dest: string, src = PLUGIN_DIR): string {
@@ -90,7 +90,11 @@ export function preparePullOnlyPlugin(dest: string, src = PLUGIN_DIR): string {
   }
   fs.mkdirSync(path.join(dest, 'hooks'), { recursive: true });
   fs.writeFileSync(path.join(dest, 'hooks', 'hooks.json'), '{"hooks":{}}\n');
-  fs.rmSync(path.join(dest, '.mcp.json'), { force: true });
+  fs.rmSync(path.join(dest, 'mcp', 'servers.json'), { force: true });
+  const manifest = path.join(dest, '.claude-plugin', 'plugin.json');
+  const m = JSON.parse(fs.readFileSync(manifest, 'utf8')) as Record<string, unknown>;
+  delete m.mcpServers;
+  fs.writeFileSync(manifest, `${JSON.stringify(m, null, 2)}\n`);
   return dest;
 }
 

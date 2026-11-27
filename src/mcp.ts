@@ -1,5 +1,5 @@
 // The read-only MCP adapter: seven tools (ready, whatif, ticket, graph, map, context, flow_next) and two resource templates (read only, decision D25) over the stdio transport, hand-written JSON-RPC 2.0, no SDK.
-// The plugin bundles it in .mcp.json (an entry that the userConfig option `mcp` switches on or off; the default is off, per the benchmark ruling).
+// The plugin bundles it in mcp/servers.json, declared in plugin.json (an entry that the userConfig option `mcp` switches on or off; the default is off, per the benchmark ruling).
 // ready, whatif, ticket and graph run the SAME command through src/cli.ts main() with a collecting io, so the text is byte for byte
 // what `plangraph ready|ticket|whatif|graph` prints (fences, sanitization, the 40-line bound, the STALE warning, error lines), stdout then stderr.
 // map, context and flow_next call the libraries (lib/digest.ts, lib/flow/*, lib/extras.ts) on the model read from the plan files; they never open a writer.
@@ -26,7 +26,7 @@ export interface RunIO { out(line: string): void; err(line: string): void }
 export type Runner = (argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>; cwd: string }) => Promise<number>;
 type Id = string | number;
 
-export const SERVER_VERSION = '1.0.0';
+export const SERVER_VERSION = '1.0.1';
 /** Newest first. A requested version in this list is echoed; any other gets the first (the spec: answer the latest one we support). */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];
@@ -215,11 +215,11 @@ const SILENT = Object.freeze({ out() { /* nothing printed */ }, err() { /* nothi
 const hostContext = ({ env, cwd }: Host) => makeContext({ cwd, env, stdin: NO_STDIN, io: SILENT });
 /** Why the server cannot serve (switched off by the plugin option, or no plan directory), or null. Fixed messages. */
 function unavailable(env: Record<string, string | undefined>, cwd: string): string | null {
-  // opt-in: the plugin option (passed by .mcp.json as PLANGRAPH_MCP_OPTION, or exported by Claude Code as CLAUDE_PLUGIN_OPTION_MCP) or a PLANGRAPH_MCP variable of the shell; only the value `on` switches it on
+  // opt-in: the plugin option (passed by mcp/servers.json as PLANGRAPH_MCP_OPTION, or exported by Claude Code as CLAUDE_PLUGIN_OPTION_MCP) or a PLANGRAPH_MCP variable of the shell; only the value `on` switches it on
   const on = [env.PLANGRAPH_MCP_OPTION, env.CLAUDE_PLUGIN_OPTION_MCP, env.PLANGRAPH_MCP].some((v) => String(v ?? '').trim().toLowerCase() === 'on');
-  if (!on) return 'plangraph MCP server is disabled (plugin option mcp is not on)';
+  if (!on) return 'plangraph MCP server is off: switch it on with the plugin option mcp';
   try { if (fs.statSync(hostContext({ env, cwd }).dir).isDirectory()) return null; } catch { /* missing or refused: the same answer */ }
-  return 'no plan directory: run `plangraph init`';
+  return 'plangraph MCP server has no plan directory: run `plangraph init`';
 }
 
 const FAILED = 'plangraph: could not read the plan; run `plangraph check`';
@@ -260,7 +260,7 @@ function nativeTool(name: string, a: NativeArgs, host: Host): { content: object[
 
 /** One server: protocol state plus the runner. handle(text) answers one message line (a reply object, or null for none). */
 export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: Record<string, string | undefined>; cwd?: string; run?: Runner } = {}) {
-  let initialized = false, done = false;
+  let initialized = false, off: string | null = null;
 
   async function callTool(id: Id, params: unknown) {
     if (!isObject(params) || typeof params.name !== 'string') return error(id, ERR.PARAMS, 'invalid params: name must be a string');
@@ -333,27 +333,32 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: 
         if (initialized) return error(id, ERR.INVALID, 'already initialized');
         const p = msg.params;
         if (!isObject(p) || typeof p.protocolVersion !== 'string') return error(id, ERR.PARAMS, 'invalid params: protocolVersion must be a string');
-        const refusal = unavailable(env, cwd);
-        if (refusal) { done = true; return error(id, ERR.INTERNAL, refusal); } // one clear error, then the server ends quietly
         initialized = true;
         const version = PROTOCOL_VERSIONS.includes(p.protocolVersion) ? p.protocolVersion : LATEST_PROTOCOL;
+        off = unavailable(env, cwd);
+        // switched off or no plan directory: the connection still succeeds (a failed handshake shows as a failed server in every session), with no tools and one fixed line
+        if (off) return result(id, { protocolVersion: version, capabilities: { tools: {} }, serverInfo: { name: 'plangraph', version: SERVER_VERSION }, instructions: off });
         return result(id, { protocolVersion: version, capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION }, instructions: INSTRUCTIONS });
       }
       case 'tools/list':
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
         if (isObject(msg.params) && msg.params.cursor !== undefined) return error(id, ERR.PARAMS, 'invalid params: unknown cursor');
-        return result(id, { tools: TOOLS });
+        return result(id, { tools: off ? [] : TOOLS });
       case 'tools/call':
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
+        if (off) return result(id, { content: [{ type: 'text', text: off }], isError: true });
         return callTool(id, msg.params);
       case 'resources/list':
+        if (off) return error(id, ERR.METHOD, 'method not found');
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
         return result(id, { resources: [] }); // bounded: nothing is enumerated
       case 'resources/templates/list':
+        if (off) return error(id, ERR.METHOD, 'method not found');
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
         if (isObject(msg.params) && msg.params.cursor !== undefined) return error(id, ERR.PARAMS, 'invalid params: unknown cursor');
         return result(id, { resourceTemplates: RESOURCE_TEMPLATES });
       case 'resources/read':
+        if (off) return error(id, ERR.METHOD, 'method not found');
         if (!initialized) return error(id, ERR.INVALID, 'server not initialized');
         return readResource(id, msg.params);
       default: return error(id, ERR.METHOD, 'method not found');
@@ -362,8 +367,6 @@ export function createServer({ env = {}, cwd = '.', run = defaultRun }: { env?: 
 
   const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
   return {
-    /** true once the server has refused to start (no plan directory, or switched off): serve() stops reading after that reply */
-    get done(): boolean { return done; },
     /** bytes: one message line, newline excluded */
     async handle(bytes: Uint8Array): Promise<object | null> {
       let msg: unknown;
@@ -401,7 +404,6 @@ export async function serve(input: AsyncIterable<Uint8Array | string>, write: (l
       if (skipping) { skipping = false; continue; }
       const msg = Buffer.concat(parts, size); parts = []; size = 0;
       await line(msg);
-      if (server.done) return;
     }
   }
   if (!skipping && size) await line(Buffer.concat(parts, size)); // a last line without a newline is still answered at end of input

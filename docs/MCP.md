@@ -1,7 +1,7 @@
 # Read-only MCP server
 
 `mcp/plangraph-mcp.ts` is a small MCP server (stdio) with seven read-only tools: `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`,
-`context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `.mcp.json`, and it is opt-in:
+`context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `mcp/servers.json` (declared in `plugin.json` as `mcpServers`; there is no `.mcp.json` at the repository root, which Claude Code would load as a broken project server), and it is opt-in:
 the plugin option `mcp` defaults to `off` (the benchmark ruling in docs/BENCHMARK.md: no benefit measured, +25 percent cost in the coding arm).
 Turn it on with `/plugin configure plangraph@plangraph-marketplace` (`mcp` = `on`).
 
@@ -14,11 +14,11 @@ shell, or a locked-down session where you would rather grant seven read-only too
 
 ## Turning it on or off, or on without the plugin
 
-- Plugin option `mcp` (`/plugin configure`, `on` or `off`, default `off`, in `plugin.json` `userConfig`): `.mcp.json` passes it to the server as
+- Plugin option `mcp` (`/plugin configure`, `on` or `off`, default `off`, in `plugin.json` `userConfig`): `mcp/servers.json` passes it to the server as
   `PLANGRAPH_MCP_OPTION=${user_config.mcp}` (`${user_config.KEY}` substitution in MCP `env` is documented at code.claude.com plugins-reference); it uses its own variable name so that a `PLANGRAPH_MCP=on` in your shell is not overridden.
-  With `off` the server answers `initialize` with one JSON-RPC error ("disabled"), writes nothing to stderr and exits 0. You can also toggle
+  With `off` the server still connects: `initialize` succeeds with `capabilities` `{ "tools": {} }` and a one-line `instructions` saying it is off, `tools/list` is empty, a `tools/call` gets one fixed error result, nothing goes to stderr and it exits 0 when stdin ends. You can also toggle
   the plugin's server off in `/mcp`.
-- No plan directory in the repository: the same one error ("no plan directory: run `plangraph init`") and a quiet exit 0, so a project
+- No plan directory in the repository: the same connected, empty server (its `instructions` say "no plan directory: run `plangraph init`"), so a project
   that does not use plangraph pays nothing and sees no noise.
 - Without the plugin, the server finds the repository from its working directory, the way `plangraph` does (the nearest `.git`, then
   `PLANGRAPH_DIR`, `.plangraphrc` or `.plangraph`):

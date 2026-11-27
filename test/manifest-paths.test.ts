@@ -1,4 +1,4 @@
-// Every path a shipped manifest names must exist on disk: the plugin manifest, the hooks manifest and the MCP entry (plus .mcp.json when present).
+// Every path a shipped manifest names must exist on disk: the plugin manifest, the hooks manifest and the MCP entry (plus mcp/servers.json).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -36,7 +36,7 @@ export function checkManifest(manifest: unknown, name: string, root: string = RO
 test('plugin manifest paths exist', () => assert.deepEqual(checkManifest(readJson('.claude-plugin/plugin.json'), 'plugin.json'), []));
 test('hooks manifest paths exist', () => assert.deepEqual(checkManifest(readJson('hooks/hooks.json'), 'hooks.json'), []));
 
-test('the MCP entry exists, the documented registration command names it, and .mcp.json paths exist when present', () => {
+test('the MCP entry exists, the documented registration command names it, and mcp/servers.json paths exist', () => {
   assert.ok(exists('mcp/plangraph-mcp.ts'));
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
   const documented = [...doc.matchAll(/\bclaude mcp add plangraph -- node [^\n]*/g)].map((m) => m[0]);
@@ -46,7 +46,7 @@ test('the MCP entry exists, the documented registration command names it, and .m
     assert.ok(m, `no mcp/ file in: ${line}`);
     assert.ok(exists(m[1]), `docs/MCP.md registers a missing file: ${m[1]}`);
   }
-  if (exists('.mcp.json')) assert.deepEqual(checkManifest(readJson('.mcp.json'), '.mcp.json'), []);
+  assert.deepEqual(checkManifest(readJson('mcp/servers.json'), 'mcp/servers.json'), []);
 });
 
 // each detection must fail on a mutated manifest (in-memory copies; the real manifests are never edited)

@@ -182,37 +182,43 @@ test('old-style initialize still works: versions echoed, tools and resources cap
   assert.equal(probe.msgs[0]?.error.code, -32601);
 });
 
-test('no plan directory: one clear JSON-RPC error on initialize, nothing on stderr, exit 0, nothing more served', async () => {
+test('no plan directory or switched off: initialize succeeds with no tools and one fixed line, tools/call is an error result, ping works, nothing on stderr, exit 0', async () => {
   const empty = path.join(BASE, 'empty'); fs.mkdirSync(empty); git(empty, 'init', '-q');
-  const r = await session([INIT(), req(1, 'tools/list'), req(2, 'ping')], { cwd: empty });
+  const call = req(3, 'tools/call', { name: 'ready', arguments: { key: 'IGNORED-1' } });
+  const r = await session([INIT(), req(1, 'tools/list'), req(2, 'ping'), call], { cwd: empty, extraEnv: { PLANGRAPH_MCP: 'on' } });
   assert.equal(r.code, 0); assert.equal(r.err, '');
-  assert.equal(r.msgs.length, 1);
-  assert.equal(r.msgs[0]?.id, 0);
-  assert.match(r.msgs[0]?.error.message ?? '', /no plan directory.*plangraph init/);
-  const off = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: 'off' } });
-  assert.equal(off.code, 0); assert.equal(off.err, ''); assert.equal(off.msgs.length, 1);
-  assert.match(off.msgs[0]?.error.message ?? '', /disabled/);
-  for (const v of ['', 'auto', 'true']) { // opt-in: unset, empty or anything but on is the same one error and a quiet exit 0
-    const r = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: v } });
-    assert.equal(r.code, 0); assert.equal(r.err, ''); assert.equal(r.msgs.length, 1); assert.match(r.msgs[0]?.error.message ?? '', /disabled/, JSON.stringify(v));
-  }
+  assert.equal(r.msgs.length, 4);
+  assert.deepEqual(byId(r.msgs, 0).result.capabilities, { tools: {} });
+  assert.match(byId(r.msgs, 0).result.instructions, /no plan directory.*plangraph init/);
+  assert.deepEqual(byId(r.msgs, 1).result.tools, []);
+  assert.deepEqual(byId(r.msgs, 2).result, {});
+  assert.equal(byId(r.msgs, 3).result.isError, true);
+  assert.match(byId(r.msgs, 3).result.content[0].text, /no plan directory.*plangraph init/);
+  assert.doesNotMatch(JSON.stringify(byId(r.msgs, 3)), /IGNORED/);
+  const offOk = (x: { code: number | null; err: string; msgs: Msg[] }, why: string) => {
+    assert.equal(x.code, 0, why); assert.equal(x.err, '', why); assert.equal(x.msgs.length, 2, why);
+    assert.equal(x.msgs[0]?.error, undefined, why); assert.match(String(x.msgs[0]?.result.instructions), /is off.*plugin option mcp/, why); assert.deepEqual(x.msgs[1]?.result.tools, [], why);
+  };
+  offOk(await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: 'off' } }), 'off');
+  for (const v of ['', 'auto', 'true']) offOk(await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: v } }), JSON.stringify(v)); // opt-in: unset, empty or anything but on is the same connected, empty server
   const unset = await new Promise<{ code: number | null; err: string; out: string }>((resolve) => { // the variable absent altogether
     const { PLANGRAPH_MCP: _drop, ...e } = env();
     const child = spawn(process.execPath, [ENTRY], { cwd: REPO, env: e, stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '', err = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { err += d; }); child.on('close', (code) => resolve({ code, err, out }));
     child.stdin.end(`${INIT()}\n${req(1, 'tools/list')}\n`);
   });
-  assert.deepEqual([unset.code, unset.err], [0, '']); assert.match(unset.out, /disabled/); assert.equal(unset.out.trim().split('\n').length, 1);
+  assert.deepEqual([unset.code, unset.err], [0, '']); assert.match(unset.out, /is off/); assert.equal(unset.out.trim().split('\n').length, 2);
   const on = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: 'on' } });
   assert.equal(byId(on.msgs, 1).result.tools.length, 7);
 });
 
-test('plugin bundling: .mcp.json starts the server with node, passes the mcp option, and plugin.json declares it as a userConfig option', () => {
-  const mcp = JSON.parse(fs.readFileSync(path.join(ROOT, '.mcp.json'), 'utf8'));
+test('plugin bundling: mcp/servers.json starts the server with node, passes the mcp option, and plugin.json declares it as a userConfig option', () => {
+  const mcp = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp/servers.json'), 'utf8'));
   const s = mcp.mcpServers.plangraph;
   assert.equal(s.command, 'node'); assert.deepEqual(s.args, ['${CLAUDE_PLUGIN_ROOT}/mcp/plangraph-mcp.ts']);
   assert.deepEqual(s.env, { PLANGRAPH_MCP_OPTION: '${user_config.mcp}' }, 'the option goes under its own name, so a PLANGRAPH_MCP variable of the shell is not overridden');
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
+  assert.equal(man.mcpServers, './mcp/servers.json'); assert.equal(fs.existsSync(path.join(ROOT, '.mcp.json')), false, 'a root .mcp.json would load as a broken project server');
   assert.deepEqual(man.userConfig.mcp.options, ['on', 'off']);
   assert.equal(man.userConfig.card.type, 'string'); // the existing option is untouched
   assert.equal(man.userConfig.mcp.default, 'off', 'the bundled server is opt-in (benchmark ruling)');

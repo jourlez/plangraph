@@ -4,6 +4,12 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-27
+
+### Fixed
+- The bundled MCP server is registered from `plugin.json` (`mcp/servers.json`) instead of a repository-root `.mcp.json`, so opening the plugin's repository in Claude Code no longer loads a broken project server.
+- A switched-off MCP server (plugin option `mcp` not `on`, or no plan directory) now connects with no tools instead of reporting a failed connection in every session.
+
 ## [1.0.0] - 2026-11-27
 
 First public release. Releases 0.1 to 0.5 were never published, and 1.0.0 does not read their directories: there is no migration. A directory written by an earlier version is refused with a one-line message; recreate it with `plangraph takeover`.

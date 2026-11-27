@@ -1,6 +1,6 @@
 {
   "name": "plangraph",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Planning memory for AI coding agents: a dependency graph in git text, safe reassignment, provable schedules, token-minimal answers.",
   "type": "module",
   "private": true,

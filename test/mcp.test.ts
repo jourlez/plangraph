@@ -275,8 +275,8 @@ test('parity: the tool text is byte for byte the CLI output (golden fixture), er
 test('parity holds on errors and the stale policy: no index -> the CLI error lines; stale index -> the same STALE warning', async () => {
   const empty = path.join(BASE, 'empty'); fs.mkdirSync(empty); git(empty, 'init', '-q');
   const r1 = await session(lines(INIT, call(1, 'ticket', { key: 'T-1' })), { cwd: empty });
-  assert.equal(r1.code, 0); assert.equal(r1.err, ''); // no plan directory: one JSON-RPC error on initialize, then the server ends quietly (test/mcp-tools.test.ts)
-  assert.equal(r1.msgs.length, 1); assert.match(r1.msgs[0].error.message, /no plan directory: run `plangraph init`/);
+  assert.equal(r1.code, 0); assert.equal(r1.err, ''); // no plan directory: initialize succeeds with no tools; a tool call gets the fixed error result (test/mcp-tools.test.ts)
+  assert.equal(r1.msgs.length, 2); assert.match(String(r1.msgs[0].result.instructions), /no plan directory: run `plangraph init`/); assert.equal(r1.msgs[1].result.isError, true); assert.match(String(r1.msgs[1].result.content[0].text), /no plan directory: run `plangraph init`/);
   const stale = path.join(BASE, 'stale'); fs.cpSync(REPO, stale, { recursive: true });
   fs.appendFileSync(path.join(stale, '.plangraph/findings.jsonl'), JSON.stringify({ key: 'T-7', kind: 'note', text: 'late' }) + '\n');
   adoptPlanDir(path.join(stale, '.plangraph'));
@@ -333,16 +333,16 @@ test('the tool text is bounded: oversized command output is cut with a marker', 
   assert.match(text, /\n\.\.\. output cut at 262144 bytes$/);
 });
 
-// ---------- packaging: bundled in .mcp.json, switched off by the plugin option ----------
-test('the plugin bundles the server in .mcp.json behind the mcp option; no inline mcpServers, entry not on PATH, doc says how to turn it off', () => {
+// ---------- packaging: bundled in mcp/servers.json, switched off by the plugin option ----------
+test('the plugin bundles the server in mcp/servers.json (declared in plugin.json) behind the mcp option; no root .mcp.json, entry not on PATH, doc says how to turn it off', () => {
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
-  assert.equal('mcpServers' in man, false);
-  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT, '.mcp.json'), 'utf8')).mcpServers), ['plangraph']);
+  assert.equal(man.mcpServers, './mcp/servers.json'); assert.equal(fs.existsSync(path.join(ROOT, '.mcp.json')), false);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp/servers.json'), 'utf8')).mcpServers), ['plangraph']);
   assert.equal(fs.readdirSync(path.join(ROOT, 'bin')).some((n) => /mcp/i.test(n)), false, 'the adapter must not be a bin/ command');
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'), /mcp/i);
   assert.ok(fs.statSync(ENTRY).isFile());
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
-  assert.match(doc, /\.mcp\.json/); assert.match(doc, /"mcpServers"/); assert.match(doc, /no worse than the CLI/i); assert.match(doc, /user_config\.mcp|option `mcp`/);
+  assert.match(doc, /mcp\/servers\.json/); assert.match(doc, /"mcpServers"/); assert.match(doc, /no worse than the CLI/i); assert.match(doc, /user_config\.mcp|option `mcp`/);
   assert.equal(SERVER_VERSION, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version);
 });
 
