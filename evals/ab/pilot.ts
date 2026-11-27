@@ -34,7 +34,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       buildBaselineProject(base); buildGraphProject(graph);
       for (const q of pilotQuestions()) for (const arm of ['baseline', 'graph']) {
         const d = runClaude({ arm, model, repeat: 0 }, `${q.text} Answer with the value only, lists comma separated.`, arm === 'baseline' ? base : graph);
-        log('graph.jsonl', { arm, model, id: q.id, topic: q.topic, correct: d.error === null && grade(q, d.reply), tokensIn: d.tokensIn, tokensOut: d.tokensOut, cost: d.cost, toolCalls: d.toolCalls, turns: d.calls, ms: d.ms, error: d.error, reply: scrub(d.reply), want: q.answer });
+        log('graph.jsonl', { arm, model, id: q.id, topic: q.topic, correct: d.error === null && grade(q, d.reply), firstIn: d.firstIn, tokensIn: d.tokensIn, tokensOut: d.tokensOut, cost: d.cost, toolCalls: d.toolCalls, turns: d.calls, ms: d.ms, error: d.error, reply: scrub(d.reply), want: q.answer });
       }
     } else if (cmd === 'probe') {
       for (const id of rest) { const t = loadCodingTasks().find((x) => x.id === id); if (!t) throw new Error(id); const dir = path.join(ws, id), t0 = Date.now(); try { prepareWorkspace(t, dir); console.log(id, 'setup s', ((Date.now() - t0) / 1000).toFixed(1)); } catch (e) { console.log(id, 'FAILED', scrub(String((e as Error).message))); } }
@@ -44,7 +44,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         const dir = path.join(ws, `${id}-${arm}`), t0 = Date.now();
         try { prepareWorkspace(t, dir); } catch (e) { log('coding.jsonl', { arm, id, error: `setup: ${scrub(String((e as Error).message))}` }); continue; }
         const setupMs = Date.now() - t0;
-        try { const d = runCodingCell({ arm, model: 'sonnet', repeat: 0 }, t, dir); log('coding.jsonl', { arm, model: 'sonnet', id, correct: d.correct, tokensIn: d.tokensIn, tokensOut: d.tokensOut, cost: d.cost, toolCalls: d.toolCalls, turns: d.calls, ms: d.ms, setupMs, error: d.error }); } catch (e) { log('coding.jsonl', { arm, id, error: scrub(String((e as Error).message)) }); }
+        try { const d = runCodingCell({ arm, model: 'sonnet', repeat: 0 }, t, dir); log('coding.jsonl', { arm, model: 'sonnet', id, correct: d.correct, firstIn: d.firstIn, tokensIn: d.tokensIn, tokensOut: d.tokensOut, cost: d.cost, toolCalls: d.toolCalls, turns: d.calls, ms: d.ms, setupMs, error: d.error }); } catch (e) { log('coding.jsonl', { arm, id, error: scrub(String((e as Error).message)) }); }
       }
     }
     if (process.env.PILOT_KEEP !== '1') fs.rmSync(ws, { recursive: true, force: true });
