@@ -17,7 +17,7 @@ import { buildMap, buildContext, render, MAP_BUDGET, CONTEXT_BUDGET } from '../l
 import { deriveAll } from '../lib/flow/state.ts';
 import { depsFromModel } from '../lib/flow/deps.ts';
 import { isClosed } from '../lib/frozen.ts';
-import { fenceInline } from '../lib/sanitize.ts';
+import { fenceInline, guardOutput, ident } from '../lib/sanitize.ts';
 import { DERIVED_RELATIONS, EXT_REL_RE, RELATIONS, idProblem, isNodeType } from '../lib/graph/files.ts';
 import { GRAPH_MAX_DEPTH } from '../lib/graph/views.ts';
 import { nodeUri, parseNodeUri } from '../lib/graph/uri.ts';
@@ -237,9 +237,10 @@ function nativeTool(name: string, a: NativeArgs, host: Host): { content: object[
       const ready = [...model.tickets.keys()].filter((k) => state.get(k)?.state === 'ready' && !isClosed(model, k))
         .sort((x, y) => Number(owner(y) === a.for) - Number(owner(x) === a.for) || (sprint(x) ?? Infinity) - (sprint(y) ?? Infinity) || cmp(x, y));
       const shown = ready.slice(0, a.limit);
-      const rows = shown.map((k) => ({ key: k, summary: fenceInline(model.tickets.get(k)?.summary ?? '', 60), owner: owner(k), sprint: sprint(k) }));
+      // key and owner come from plan files: the same ident() helper as the CLI (a short plain token stays, anything else is fenced)
+      const rows = shown.map((k) => ({ key: ident(k, 40), summary: fenceInline(model.tickets.get(k)?.summary ?? '', 60), owner: owner(k) === null ? null : ident(owner(k), 40), sprint: sprint(k) }));
       const lines = [`flow next: ${ready.length} ready${ready.length > shown.length ? `, showing ${shown.length}` : ''}`, ...rows.map((r) => `${r.key} ${r.summary} | ${r.owner ?? 'unowned'} | ${r.sprint === null ? 'unplaced' : 'S' + r.sprint}`)];
-      return { content: [{ type: 'text', text: lines.join('\n') }, ...nodeLinks(shown.map((k) => ({ id: `pg:ticket/${k}` })))], isError: false, structuredContent: { total: ready.length, ready: rows } };
+      return { content: [{ type: 'text', text: guardOutput(lines.join('\n')) }, ...nodeLinks(shown.map((k) => ({ id: `pg:ticket/${k}` })))], isError: false, structuredContent: { total: ready.length, ready: rows } };
     }
     const extras = loadExtras(ctx, { model });
     if (name === 'map') {
@@ -247,11 +248,11 @@ function nativeTool(name: string, a: NativeArgs, host: Host): { content: object[
       try { fp = ctx.db().fingerprint ?? undefined; } catch { /* no index: the map says unbuilt */ }
       const d = buildMap(model, { extras, fresh: fp ? { fp } : {}, verbose: detailed, maxTokens: detailed ? MAP_BUDGET * 3 : MAP_BUDGET });
       const r = render(d);
-      return { content: [{ type: 'text', text: r.text }], isError: false, structuredContent: { data: d.data, omitted: r.omitted } };
+      return { content: [{ type: 'text', text: guardOutput(r.text) }], isError: false, structuredContent: { data: d.data, omitted: r.omitted } };
     }
     const d = buildContext(model, a.key ?? null, { extras, verbose: detailed, maxTokens: detailed ? CONTEXT_BUDGET * 3 : CONTEXT_BUDGET });
     const r = render(d);
-    return { content: [{ type: 'text', text: r.text }, ...(a.key && model.tickets.has(a.key) ? nodeLinks([{ id: `pg:ticket/${a.key}` }]) : [])], isError: false, structuredContent: { data: d.data, omitted: r.omitted } };
+    return { content: [{ type: 'text', text: guardOutput(r.text) }, ...(a.key && model.tickets.has(a.key) ? nodeLinks([{ id: `pg:ticket/${a.key}` }]) : [])], isError: false, structuredContent: { data: d.data, omitted: r.omitted } };
   } catch { return fail(FAILED); } finally { try { ctx[Symbol.dispose]?.(); } catch { /* best effort */ } }
 }
 
