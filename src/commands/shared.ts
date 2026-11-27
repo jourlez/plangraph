@@ -17,6 +17,8 @@ import { parseSnapshotJsonl, toLegacyMap } from '../../lib/tracker.ts';
 import type { LegacyIssue } from '../../lib/tracker.ts';
 import type { CapacityRow, Sprint } from '../../lib/graph/files.ts';
 import type { OpenItem } from '../../lib/openitems.ts';
+import { readIdentityMap, IDENTITY_FILE } from '../../lib/identity.ts';
+import type { IdentityMap } from '../../lib/identity.ts';
 /** A Map that the code reads only with keys it holds (built from the same key list, or checked with has() first): get() is never undefined. */
 export type Dense<K, V> = Omit<Map<K, V>, 'get'> & { get(key: K): V };
 
@@ -138,3 +140,8 @@ export function jiraErrors(e: unknown): never {
 
 // ---------- confined state writes ----------
 export { refuseWrite, precheckTargets, writeState } from '../../lib/planstore.ts'; // the confined write helpers live with the PlanStore
+
+/** The local identity map; a malformed one is a data error (exit 2, one line naming the file) and never an internal error. */
+export function identityMapOf(ctx: Ctx): IdentityMap {
+  try { return readIdentityMap(ctx.dir); } catch (e) { if (e instanceof PlangraphError) throw e; throw new PlangraphError('DATA', `${IDENTITY_FILE}: ${oneLine((e as Error).message, 160)}`, { hint: 'fix or delete the file' }); }
+}

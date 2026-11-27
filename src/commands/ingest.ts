@@ -5,10 +5,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readCapped, parseJsonl } from '../../lib/jsonl.ts';
-import { readIdentityMap } from '../../lib/identity.ts';
 import { openStore } from '../../lib/planstore.ts';
 import { oneLine } from '../../lib/sanitize.ts';
-import { needBrain, usage } from './shared.ts';
+import { needBrain, usage, identityMapOf } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { Node } from '../../lib/store2/pg.ts';
@@ -26,7 +25,7 @@ async function git(ctx: Ctx, args: Args<Opts>): Promise<number> {
   if (repo !== undefined && !REPO_ID.test(repo)) throw usage('--repo: an id of letters, digits and . _ : - (at most 64)');
   needBrain(ctx);
   const { ingestGit } = await import('../../lib/history/git.ts'); // loaded on first use: the miner is not on the start-up path
-  const res = await ingestGit(ctx, { ...(repo !== undefined ? { repo } : {}), ...(since !== undefined ? { since } : {}), ...(full ? { full: true } : {}), identity: readIdentityMap(ctx.dir) });
+  const res = await ingestGit(ctx, { ...(repo !== undefined ? { repo } : {}), ...(since !== undefined ? { since } : {}), ...(full ? { full: true } : {}), identity: identityMapOf(ctx) });
   ctx.io.out(`ingested ${res.written} modules from ${res.commits} commits (${res.incremental ? 'incremental' : 'full'})`);
   return 0;
 }
