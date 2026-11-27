@@ -4,15 +4,15 @@ import { usage } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 
-function done(ctx: Ctx, args: Args<{ by?: string; evidence?: string[]; note?: string }>): number {
+function done(ctx: Ctx, args: Args<{ by?: string; evidence?: string[]; note?: string; force?: boolean }>): number {
   const evidence = evidenceOf(args.values.evidence);
   if (!evidence.length) throw usage('flow-done needs --evidence KIND:VALUE (for example pr:org/repo#12 or test:suite)');
-  return writeEvent(ctx, { key: args.positionals[0] as string, to: 'done', by: args.values.by, evidence, note: args.values.note });
+  return writeEvent(ctx, { key: args.positionals[0] as string, to: 'done', by: args.values.by, evidence, note: args.values.note, force: args.values.force });
 }
 export const commands: CommandMap = {
   'flow-done': {
     run: done as never, positionals: [1, 1], writes: 'text', guard: 'strict',
-    options: { by: { type: 'string' }, evidence: { type: 'string', multiple: true }, note: { type: 'string' } },
-    summary: 'KEY --evidence K:V ... [--note T] [--by WHO]: mark a task done; exit 2 without evidence',
+    options: { by: { type: 'string' }, evidence: { type: 'string', multiple: true }, note: { type: 'string' }, force: { type: 'boolean' } },
+    summary: 'KEY --evidence K:V ... [--note T] [--by WHO] [--force]: mark a task done; exit 2 without evidence or when another actor holds the task (unless --force)',
   },
 };

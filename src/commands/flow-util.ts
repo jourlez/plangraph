@@ -45,30 +45,31 @@ export function needTask(model: Model, key: string): void {
 }
 
 /** Throws exit 2 when the event would be an illegal transition or a double claim; returns the state before it. The probe sits where appendEvent would put the event (`now` is the clock it will use). */
-export function checkEvent(model: Model, extras: Extras, key: string, e: { to: string; by: string; evidence: string[] }, now: Date): string {
+export function checkEvent(model: Model, extras: Extras, key: string, e: { to: string; by: string; evidence: string[]; force?: boolean }, now: Date): string {
   const deps = depsFromModel(model);
   const before = deriveState(key, extras.events, deps).state;
   const pos = nextPosition(extras.events, now), where = `${pos.at}#${pos.seq}`;
-  const probe = { at: pos.at, seq: pos.seq, actor: 'zzz', task: key, to: e.to, by: e.by, evidence: e.evidence };
+  const probe = { at: pos.at, seq: pos.seq, actor: 'zzz', task: key, to: e.to, by: e.by, evidence: e.evidence, ...(e.force ? { force: true } : {}) };
   const mine = (f: FlowFinding): boolean => f.key === key && new RegExp(` at ${where}(?!\\d)`).test(f.detail); // `where` holds only digits and - : T Z #
   const bad = deriveState(key, [...extras.events, probe], deps).findings.find((f) => mine(f) && (f.code === 'BAD_TRANSITION' || f.code === 'DOUBLE_CLAIM'));
   if (bad) {
-    const detail = bad.code === 'DOUBLE_CLAIM' ? oneLine(bad.detail.replace(where, 'now'), 160) : `${before} -> ${oneLine(e.to, 20)} is not allowed`;
+    const held = /\(held by ([a-z0-9_-]{1,40});/.exec(bad.detail);
+    const detail = bad.code === 'DOUBLE_CLAIM' ? oneLine(bad.detail.replace(where, 'now'), 160) : `${before} -> ${oneLine(e.to, 20)} is not allowed${held ? ` (held by ${oneLine(held[1] as string, 40)}; pass --force to take it over)` : ''}`;
     throw new PlangraphError('DATA', `${bad.code} ${oneLine(key, 80)}: ${detail}`);
   }
   return before;
 }
 
-export function writeEvent(ctx: Ctx, args: { key: string; to: string; by: unknown; evidence?: string[]; note?: unknown }): number {
+export function writeEvent(ctx: Ctx, args: { key: string; to: string; by: unknown; evidence?: string[]; note?: unknown; force?: unknown }): number {
   const { model, extras } = loadFlow(ctx);
   needTask(model, args.key);
-  const actor = actorOf(ctx, args.by), evidence = args.evidence ?? [];
+  const actor = actorOf(ctx, args.by), evidence = args.evidence ?? [], force = args.force === true;
   const now = ctx.now();
-  let before = checkEvent(model, extras, args.key, { to: args.to, by: actor, evidence }, now);
+  let before = checkEvent(model, extras, args.key, { to: args.to, by: actor, evidence, force }, now);
   const note = typeof args.note === 'string' && args.note ? oneLine(args.note, 200) : undefined;
   // the same rule again under the store lock, over the events on disk at that moment: two agents claiming one task cannot both pass it
-  const guard = (seen: readonly { evidence?: unknown }[]): void => { before = checkEvent(model, { ...extras, events: seen.map((e) => ({ ...e, evidence: Array.isArray(e.evidence) ? e.evidence.map(String) : [] })) as Extras['events'] }, args.key, { to: args.to, by: actor, evidence }, now); };
-  appendEvent(ctx.dir, actor, { task: args.key, to: args.to, by: actor, ...(evidence.length ? { evidence } : {}), ...(note ? { note } : {}) }, { now, guard });
+  const guard = (seen: readonly { evidence?: unknown }[]): void => { before = checkEvent(model, { ...extras, events: seen.map((e) => ({ ...e, evidence: Array.isArray(e.evidence) ? e.evidence.map(String) : [] })) as Extras['events'] }, args.key, { to: args.to, by: actor, evidence, force }, now); };
+  appendEvent(ctx.dir, actor, { task: args.key, to: args.to, by: actor, ...(evidence.length ? { evidence } : {}), ...(note ? { note } : {}), ...(force ? { force: true } : {}) }, { now, guard });
   ctx.io.data?.({ task: args.key, from: before, to: args.to, by: actor }, { next: [] });
   ctx.io.out(`${oneLine(args.key, 80)} ${before} -> ${args.to} by ${actor}`);
   return 0;

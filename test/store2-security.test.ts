@@ -176,8 +176,14 @@ test('M2: addRows is idempotent and removeRows removes only the named rows', () 
   assert.equal(s.addRows('xref', [x]), 0, 'the same row again changes no file');
   assert.equal(s.removeRows('xref', [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-1' }]), 1);
   assert.deepEqual(s.readKind('xref', { defaults: false }).map((r) => r.xid), ['X-2']);
+  s.addRows('xref', [x]);
   assert.equal(s.removeRows('ticket', [{ key: 'T-2' }]), 1);
   assert.deepEqual(s.readKind('ticket', { defaults: false }).map((r) => r.key), ['T-1']);
+  const x2 = { type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-9' };
+  assert.equal(s.addRows('xref', [x2, { ...x, note: 'n' }]), 1);
+  assert.deepEqual(s.readKind('xref', { defaults: false }).map((r) => r.xid).sort(), ['X-1', 'X-2', 'X-9'].sort(), 'rows of one ticket are kept side by side; the same identity is replaced, not duplicated');
+  assert.equal(s.removeRows('xref', [x2]), 1);
+  assert.deepEqual(s.readKind('xref', { defaults: false }).map((r) => r.xid).sort(), ['X-1', 'X-2']);
   assert.throws(() => s.addRows('meta', [{ k: 'a', v: 'b' }]), TypeError);
 });
 
@@ -255,7 +261,7 @@ const NOW = new Date('2026-11-27T10:00:00Z');
 
 test('M1: a row with at "Z" is not an event, is reported by check, and later appends land in the month directory', () => {
   const root = tmp();
-  putEvents(root, 'events/2026-11/mallory.00000000.01.jsonl', [{ at: 'Z', by: 'x', seq: 0, task: 'T-1', to: 'done' }]);
+  putEvents(root, 'events/2026-11/mallory.00000000.01.jsonl', [{ at: 'Z', by: 'mallory', seq: 0, task: 'T-1', to: 'done' }]);
   const e = appendEvent(root, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
   assert.equal(e.at, '2026-11-27T10:00:00Z');
   assert.ok(fs.existsSync(path.join(root, 'events', '2026-11')) && fs.readdirSync(path.join(root, 'events', '2026-11')).some((n) => n.startsWith('alice.')));
@@ -268,26 +274,26 @@ test('M1: a row with at "Z" is not an event, is reported by check, and later app
 for (const at of ['2026-11-27', '2026-11-27T10:00:00.5Z', '2026-11-27T10:00:00+01:00', '2026-11-27 10:00:00Z', '20261127T100000Z', 'x'.repeat(30)]) {
   test(`M1: at ${JSON.stringify(at)} is not an event`, () => {
     const root = tmp();
-    putEvents(root, 'events/2026-11/m.00000000.01.jsonl', [{ at, by: 'x', seq: 0, task: 'T-1', to: 'done' }]);
+    putEvents(root, 'events/2026-11/m.00000000.01.jsonl', [{ at, by: 'm', seq: 0, task: 'T-1', to: 'done' }]);
     assert.deepEqual(readEvents(root), []);
   });
 }
 
 test('M1: a latest at more than 24 hours ahead of the wall clock is ignored; one inside the skew still wins', () => {
   const root = tmp();
-  putEvents(root, 'events/2099-01/m.00000000.01.jsonl', [{ at: '2099-01-01T00:00:00Z', by: 'x', seq: 0, task: 'T-1', to: 'claimed' }]);
+  putEvents(root, 'events/2099-01/m.00000000.01.jsonl', [{ at: '2099-01-01T00:00:00Z', by: 'm', seq: 0, task: 'T-1', to: 'claimed' }]);
   const e = appendEvent(root, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
   assert.equal(e.at, '2026-11-27T10:00:00Z', 'a laptop set to 2099 does not pin everyone to that month');
   assert.equal(e.seq, 0);
   const root2 = tmp();
-  putEvents(root2, 'events/2026-11/m.00000000.01.jsonl', [{ at: '2026-11-28T09:00:00Z', by: 'x', seq: 3, task: 'T-1', to: 'claimed' }]); // 23 hours ahead
+  putEvents(root2, 'events/2026-11/m.00000000.01.jsonl', [{ at: '2026-11-28T09:00:00Z', by: 'm', seq: 3, task: 'T-1', to: 'claimed' }]); // 23 hours ahead
   const e2 = appendEvent(root2, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
   assert.deepEqual([e2.at, e2.seq], ['2026-11-28T09:00:00Z', 4]);
 });
 
 test('M1: an actor or time that would build a path outside events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl is refused before anything is written', () => {
   const root = tmp();
-  assert.throws(() => appendEvent(root, 'alice', { task: 'T-1', to: 'claimed', by: 'a' }, { now: new Date('+010000-01-01T00:00:00Z'), branch: 'main' }), /BAD_PATH|path/);
+  assert.throws(() => appendEvent(root, 'alice', { task: 'T-1', to: 'claimed', by: 'alice' }, { now: new Date('+010000-01-01T00:00:00Z'), branch: 'main' }), /BAD_PATH|path/);
   assert.equal(fs.existsSync(path.join(root, 'events')), false);
 });
 
@@ -299,4 +305,10 @@ test('M1: the guard probes at the real append position, not at the end of time (
   const mine = readEvents(f.dir).filter((e) => e.by === 'ana');
   assert.equal(mine.length, 1);
   assert.match(mine[0]?.at as string, /^2026-11-26T/);
+});
+
+test('m5: appendEvent refuses an event whose by is not its actor (a reader would not count it)', () => {
+  const root = tmp();
+  assert.throws(() => appendEvent(root, 'alice', { task: 'T-1', to: 'claimed', by: 'bob' }, { now: NOW, branch: 'main' }), /own actor/);
+  assert.equal(fs.existsSync(path.join(root, 'events')), false);
 });

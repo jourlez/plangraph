@@ -60,6 +60,9 @@ function readRows(abs: string): { rows: { row: Row; line: number; raw: string }[
 export const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 export const validEvent = (r: Row): boolean => typeof r.at === 'string' && AT.test(r.at) && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
 
+/** A row that counts as an event of its file: well formed, and in a plain file (named for its actor) written by that actor. A compact file's rows carry their own actor. */
+export const eventOk = (f: BatchFile, r: Row): boolean => validEvent(r) && (f.kind !== 'plain' || r.by === f.actor);
+
 /** Every event batch file under events/, in name order. Symlinks and odd names are ignored here (check reports them). */
 export function eventFiles(root: string): BatchFile[] {
   const out: BatchFile[] = [];
@@ -80,7 +83,7 @@ const dedupeKey = (e: Event): string => canon([e.task, e.to, e.by, e.at, e.seq])
 function toEvents(fl: readonly BatchFile[]): Event[] {
   const all: Event[] = [];
   for (const f of fl) for (const { row } of f.rows) {
-    if (!validEvent(row)) continue;
+    if (!eventOk(f, row)) continue;
     const actor = f.kind === 'plain' ? f.actor : typeof row.actor === 'string' ? row.actor : '', bh8 = f.kind === 'plain' ? f.bh8 : typeof row.bh8 === 'string' ? row.bh8 : '';
     all.push({ ...row, actor, bh8 } as Event);
   }
@@ -115,6 +118,7 @@ export function nextPosition(seen: readonly { at: string; seq: number }[], now: 
 /** Append one event at nextPosition: an event written after reading another sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
 export function appendEvent(root: string, actor: string, e: EventInput, opts: { now?: Date; branch?: string; guard?: (seen: readonly Event[]) => void } = {}): Event {
   const bh8 = branchHash(root, opts.branch), name = actorName(actor);
+  if (e.by !== name) throw Object.assign(new Error('an event is written by its own actor: by must equal the actor'), { code: 'BAD_EVENT' }); // a reader would not count the row
   let result: Event | undefined;
   withTxn(root, (tx) => {
     const seen = readEvents(root);
@@ -214,7 +218,7 @@ export function compact(root: string, opts: { ci?: boolean; now?: Date } = {}): 
     for (const f of eventFiles(root)) { const m = f.rel.split('/')[1] as string; byMonth.set(m, [...(byMonth.get(m) ?? []), f]); }
     for (const [m, fl] of [...byMonth].sort()) {
       if (m >= current || (fl.length === 1 && (fl[0] as BatchFile).kind === 'compact')) continue;
-      if (fl.some((f) => f.bad.length || f.unreadable || f.rows.some((r) => !validEvent(r.row)))) { skipped.push(`events/${m}`); continue; }
+      if (fl.some((f) => f.bad.length || f.unreadable || f.rows.some((r) => !eventOk(f, r.row)))) { skipped.push(`events/${m}`); continue; }
       const evs = toEvents(fl).map((e) => ({ ...e }));
       const body = text(evs.map((e) => canon(e))), rel = `events/${m}/_compact.${sha8(body)}.jsonl`;
       for (const f of fl) if (f.rel !== rel) tx.remove(f.rel);

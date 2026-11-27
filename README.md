@@ -378,9 +378,9 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph identity` | `propose` suggests which plan person each observed tracker assignee is (prints only); `list` shows the local identity map | `propose\|list`, `--sys S` | none |
 | `plangraph identity-map` | map one tracker ref to a plan person in the git-ignored identity map; the person must exist | `REF PERSON` | text |
 | `plangraph flow` | task flow, read-only: `next` (ready tasks), `brief KEY` (one task), `status` (requirement traceability), `actions` (tracker actions to take) | `next\|brief\|status\|actions`, `--for PERSON`, `--limit N`, `--req ID` | none |
-| `plangraph flow-claim` | append a `claimed` event for a task; exit 2 when another actor holds it or the task is unknown | `KEY`, `--by WHO` | text |
-| `plangraph flow-progress` | append one state event for a task; an illegal transition or an unknown task exits 2 | `KEY`, `--to STATE`, `--evidence K:V`, `--note T`, `--by WHO` | text |
-| `plangraph flow-done` | finish a task; evidence is required (exit 2 without) | `KEY`, `--evidence K:V`, `--note T`, `--by WHO` | text |
+| `plangraph flow-claim` | append a `claimed` event for a task; exit 2 when another actor holds it (unless `--force`) or the task is unknown | `KEY`, `--by WHO`, `--force` | text |
+| `plangraph flow-progress` | append one state event for a task; an illegal transition, a task held by another actor (unless `--force`) or an unknown task exits 2 | `KEY`, `--to STATE`, `--evidence K:V`, `--note T`, `--by WHO`, `--force` | text |
+| `plangraph flow-done` | finish a task; evidence is required (exit 2 without); exit 2 when another actor holds the task (unless `--force`) | `KEY`, `--evidence K:V`, `--note T`, `--by WHO`, `--force` | text |
 | `plangraph flow-link` | record the tracker ticket made for a plan task as one xref (idempotent) | `TASK SYS XID` | text |
 | `plangraph map` | what an agent cannot find in the repository (owners, requirements, decisions, epics, hotspots), at most 500 estimated tokens | `--repo ID`, `-v` | none |
 | `plangraph context` | the digest for one task (owner, blockers, repos, requirements, decisions), at most 400 estimated tokens; no `KEY` uses the branch name | `[KEY]`, `--branch`, `-v` | none |
