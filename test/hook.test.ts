@@ -46,6 +46,22 @@ test('the declared hook is exec form node with the stable event, matcher and tim
   assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--refresh']);
 });
 
+test('hooks.json declares exactly SessionStart and UserPromptSubmit; UserPromptSubmit runs hook-prompt in exec form with timeout 5 and no matcher', () => {
+  const all = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks;
+  assert.deepEqual(Object.keys(all).sort(), ['SessionStart', 'UserPromptSubmit']);
+  assert.equal(all.UserPromptSubmit.length, 1);
+  const entry = all.UserPromptSubmit[0]; // UserPromptSubmit takes no matcher (hooks reference)
+  assert.equal('matcher' in entry, false);
+  assert.deepEqual(entry.hooks, [{ type: 'command', command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'hook-prompt'], timeout: 5 }]);
+});
+
+test('the UserPromptSubmit hook, run as declared, is silent with exit 0 when there is no plan directory (and in any directory)', () => {
+  const w = world(); const p = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.UserPromptSubmit[0].hooks[0];
+  const r = spawnSync(p.command, p.args.map(sub), { cwd: w.repo, env: w.env, input: JSON.stringify({ session_id: 's', prompt: 'look at ABC-1' }), encoding: 'utf8' });
+  assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', '']);
+  assert.deepEqual(fs.readdirSync(w.repo), ['.git']);
+});
+
 test('no plangraph: exit 0, stdout and stderr empty, and nothing is created (uv is not on PATH)', () => {
   const w = world(); assert.equal((spawnSync('uv', ['--version'], { env: w.env }).error as NodeJS.ErrnoException | undefined)?.code, 'ENOENT'); // fs and the readers throw errno-style errors with a code
   const r = ok(w.run()); assert.equal(r.stdout, '');
