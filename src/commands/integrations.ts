@@ -86,12 +86,12 @@ function spWrite(ctx: Ctx, next: Array<[Kind, Rec[], Rec[]]>): number {
   return openStore(ctx).writeChanged(next.map(([kind, rows, old]) => ({ kind, rows, old })), { validate: true });
 }
 
-async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; sprint?: string }>): Promise<number> {
+async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; sprint?: string; reassign?: boolean }>): Promise<number> {
   const v = args.values, out = ctx.io.out, V = verbose(args);
   try {
     const SP = await import('../../lib/integrations/superpowers.ts');
     const [planArg] = args.positionals;
-    if (!planArg) throw usage('usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]');
+    if (!planArg) throw usage('usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N] [--reassign]');
     if ((v.owner !== undefined) !== (v.sprint !== undefined)) throw usage('--owner and --sprint go together (seeding a schedule needs both)');
     needBrain(ctx);
     const plan = spFile(ctx, planArg, 'plan');
@@ -109,17 +109,20 @@ async function spIngest(ctx: Ctx, args: Args<{ ledger?: string; owner?: string; 
     const owner = v.owner, sprintArg = v.sprint;
     if (owner !== undefined && (!owner || owner.startsWith('--') || owner.length > 80 || oneLine(owner, 80) !== owner)) throw usage('--owner needs a plain name (at most 80 characters)');
     if (sprintArg !== undefined && !/^\d{1,4}$/.test(sprintArg)) throw usage('--sprint needs a whole number');
-    const names: Record<'tickets' | 'edges' | 'findings' | 'refs' | 'schedule', Kind> = { tickets: 'ticket', edges: 'edge', findings: 'finding', refs: 'ref', schedule: 'schedule' };
+    const names: Record<'tickets' | 'edges' | 'findings' | 'refs' | 'schedule' | 'links' | 'xrefs', Kind> = { tickets: 'ticket', edges: 'edge', findings: 'finding', refs: 'ref', schedule: 'schedule', links: 'link', xrefs: 'xref' };
     const existing = Object.fromEntries(Object.entries(names).map(([k, kind]) => [k, spReadTarget(ctx, kind)]));
-    const r = SP.ingestPlan({ plan: parsed, ledger, existing, owner, sprint: sprintArg !== undefined ? +sprintArg : undefined } as IngestOpts); // ingestPlan destructures owner and sprint without defaults: undefined and absent read the same
+    const r = SP.ingestPlan({ plan: parsed, ledger, existing: { ...existing, repos: spRead(ctx, 'repo') }, reassign: Boolean(v.reassign), owner, sprint: sprintArg !== undefined ? +sprintArg : undefined } as IngestOpts); // ingestPlan destructures owner and sprint without defaults: undefined and absent read the same
     spWrite(ctx, Object.entries(names).map(([k, kind]) => [kind, r[k as keyof typeof names], existing[k]] as [Kind, Rec[], Rec[]])); // k is a key of names; ingestPlan returns one record list per name
     const p = r.report, n = (k: number, w: string) => `${k} ${w}${k === 1 ? '' : 's'}`, extra: string[] = [];
     if (p.unclassified) extra.push(`${n(p.unclassified, 'unclassified ledger line')} (first: line ${p.firstUnclassified})`);
     if (p.removed) extra.push(`removed ${n(p.removed, 'task')} no longer in the plan`);
     if (p.orphanSchedule) extra.push(`${n(p.orphanSchedule, 'schedule row')} for removed tasks left in place`);
     if (p.seeded) extra.push(`scheduled ${n(p.seeded, 'task')}`);
+    if (p.links) extra.push(`${n(p.links, 'link')} (touches, satisfies)`);
+    if (p.xrefs) extra.push(`${n(p.xrefs, 'xref')} (tracked_by)`);
     if (p.warnings.length) extra.push(n(p.warnings.length, 'warning') + (V ? '' : ' (-v lists them)'));
     out(`ingested ${oneLine(p.key, 120)}: ${p.tasks} tasks, ${p.edges} edges, ${p.findings} findings, ${p.statuses} statuses from ledger${p.ledger ? '' : ` (${lo === 'none' ? '--ledger none' : 'no ledger found'}: ${p.kept ? `kept the previous impl_status of ${n(p.kept, 'task')}` : 'no impl_status set'}; plan checkboxes are never read as progress)`}${extra.length ? `; ${extra.join('; ')}` : ''}`);
+    for (const x of p.problems) out(`${x.code} ${oneLine(x.key, 120)}: ${oneLine(x.detail, 300)}`);
     for (const w of discovery) out(`warning: ${oneLine(w, 300)}`);
     if (p.seededWithPoints) out(`warning: seeded ${n(p.seeded, 'task')} for ${oneLine(owner, 80)} in sprint ${+(sprintArg as string)}: ${n(p.seededPoints, 'story point')} (capacity is not checked here)`); // seeded only when --sprint was given
     // Parser warnings quote plan and ledger text: untrusted, so printed only inside a fence (research section 6.3).
@@ -218,7 +221,7 @@ export const commands: CommandMap = {
   integrations: { run: integrations, positionals: [0, 0], guard: 'none', summary: 'which companion tools are installed or active (files only)' },
   'sp-ingest': {
     run: spIngest, positionals: [0, 1], writes: 'text', summary: 'superpowers plan + ledger -> tickets, edges, findings, refs (read-only on superpowers files)',
-    options: { ledger: { type: 'string', missing: '--ledger needs a file path or none' }, owner: { type: 'string', missing: '--owner needs a plain name (at most 80 characters)' }, sprint: { type: 'string', missing: '--sprint needs a whole number' } },
+    options: { ledger: { type: 'string', missing: '--ledger needs a file path or none' }, owner: { type: 'string', missing: '--owner needs a plain name (at most 80 characters)' }, sprint: { type: 'string', missing: '--sprint needs a whole number' }, reassign: { type: 'boolean' } },
   },
   'sp-link': { run: spLink, positionals: [0, 2], writes: 'text', options: { tasks: { type: 'string', missing: '--tasks needs a comma-separated list of task ids' }, track: { type: 'string', missing: '--track needs a Jira key such as ABC-123' } }, summary: 'point a ticket at superpowers plan tasks (refs.plans, fingerprinted by `plangraph stale`); --track JIRA_KEY records the Jira ticket an sp: ticket tracks (an xref)' },
   learn: { run: learn, positionals: [0, 0], writes: 'text', guard: 'strict', options: { 'from-wolf': { type: 'string', missing: LEARN_USAGE } }, summary: 'copy ONE repo rule from .wolf/cerebrum.md into learnings.jsonl' },
