@@ -27,7 +27,7 @@ const run = (ctx: never, positionals: string[], values: object = {}) => (command
 
 test('ingest is one writer command', () => {
   assert.notEqual(commands.ingest?.writes, 'none');
-  assert.deepEqual(commands.ingest?.positionals, [1, 1]);
+  assert.deepEqual(commands.ingest?.positionals, [1, Infinity]);
 });
 test('ingest git writes cache/git.jsonl at 0600 and git.cursor, and prints one summary line', async () => {
   const f = fixture();

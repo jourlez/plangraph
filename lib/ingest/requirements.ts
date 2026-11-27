@@ -1,9 +1,9 @@
 // Requirement documents to `requirement` nodes (spec 4.1). EARS sentences (`The <system> shall`, While, When, Where, If ... then), Gherkin
 // Feature/Rule/Scenario (the scenario steps become acceptance lines) and bullets under a `Requirements` heading (kind free). Pure functions:
 // no I/O, no store writes; the caller (ingest requirements) writes the nodes and applies --prune.
-// Ids: newId('requirement', source + first 40 characters of the text) where source is `<path>#<anchor>` and the anchor is the slug of the
-// nearest heading (or the Gherkin feature/rule/scenario slugs), never a position: reordering sections keeps every id, another document gives
-// other ids, and there is no sequence number to collide between two branches. The seed is creation input: a changed sentence is a new id.
+// Ids: newId('requirement', anchor + first 40 characters of the text) where the anchor is the slug of the nearest heading (or the Gherkin
+// feature/rule/scenario slugs), never a position and never the document path: reordering sections or moving the document keeps every id,
+// other text gives other ids, and there is no sequence number to collide between two branches. The seed is creation input: a changed sentence is a new id.
 // Text is stored as written. It is untrusted data (`ignore previous instructions` stays in `text`): it is fenced and length-capped where it is
 // printed, not here. The only guarantee made here is that `source` is a repo path, never a URL.
 import { newId } from '../store2/layout.ts';
@@ -25,12 +25,12 @@ export function parseRequirementsDoc(text: string, path: string): RequirementsRe
   if (Buffer.byteLength(text) > MAX_DOC_BYTES) return { nodes: [], problems: [{ code: 'TOO_LARGE', message: `requirements document over ${MAX_DOC_BYTES / 1024} KiB: not read` }] };
   const problems: IngestProblem[] = [], clean = cleanSource(path);
   if (clean === undefined) problems.push({ code: 'SOURCE_URL', message: 'source is not a repo path: not stored' });
-  // The id seed always carries the given path, so a rejected source still gives distinct, stable ids.
+  // The id seed never carries the document path: moving or renaming a document keeps every id.
   const nodes: Node[] = [], seen = new Set<string>();
   const add = (kind: string, anchor: string, body: string, acceptance?: string[]): void => {
     const txt = cap(tidy(body), TEXT_MAX);
     if (!txt) return;
-    const id = newId('requirement', `${path}#${anchor}${txt.slice(0, SEED_CHARS)}`);
+    const id = newId('requirement', `${anchor}${txt.slice(0, SEED_CHARS)}`);
     if (seen.has(id)) return;
     seen.add(id);
     const n: Node = { id, text: txt, kind, status: 'proposed' };
