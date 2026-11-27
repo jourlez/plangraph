@@ -7,7 +7,7 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 ## [1.0.3] - 2026-11-27
 
 ### Changed
-- Development dependency `@types/node` 26.6.11 (the latest; the code is still type-checked and tested against the Node 24.15 floor in CI) and the CI runner `ubuntu-26.04`. Every other pinned dependency, action, solver package and tool was verified to be at its latest release: `uv lock --upgrade` changes nothing, and OR-Tools 9.15.6755 is the latest and has no Python 3.15 wheel.
+- Development dependency `@types/node` 26.6.11 (the latest; the code is still type-checked and tested against the Node 24.15 floor in CI) and the CI runner `ubuntu-26.04`. Every other pinned dependency, action, solver package and tool was verified to be at its latest release: `uv lock --upgrade` changes nothing, and OR-Tools 9.15.6755 is the latest and has no Python 3.15 wheel. Dependabot no longer ignores `@types/node` major versions, so every dependency now follows its latest release.
 
 ## [1.0.2] - 2026-11-27
 

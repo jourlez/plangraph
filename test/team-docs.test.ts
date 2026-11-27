@@ -71,10 +71,10 @@ test('CHANGELOG: one [Unreleased] heading with the 0.3.0 Added section; history 
   assert.ok(/^## 0\.2\.4$/m.test(t) && /^## 0\.2\.0$/m.test(t));
 });
 
-test('dependabot: labels, @types/node major ignore, grouped updates', () => {
+test('dependabot: labels, grouped updates, and no version ignored (every dependency follows the latest release)', () => {
   const t = read('.github/dependabot.yml');
   assert.match(t, /labels:\n\s+- dependencies/);
-  assert.match(t, /dependency-name: '@types\/node'\n\s+update-types: \['version-update:semver-major'\]/);
+  assert.doesNotMatch(t, /^\s+ignore:/m);
   assert.match(t, /groups:/);
 });
 

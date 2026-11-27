@@ -6,10 +6,6 @@ updates:
       interval: weekly
     labels:
       - dependencies
-    ignore:
-      # Node 24 is the floor; a newer @types/node major would type APIs the floor lacks.
-      - dependency-name: '@types/node'
-        update-types: ['version-update:semver-major']
     groups:
       production-dependencies:
         dependency-type: production

@@ -172,13 +172,13 @@ test('SECURITY.md invents no contact and states the real limits', () => {
   assert.match(s, /live (Claude Code )?session/i);
 });
 
-test('no runtime dependencies: devDependencies are exactly typescript, @types/node 24, @biomejs/biome, knip and lefthook, pinned exactly and locked', () => {
+test('no runtime dependencies: devDependencies are exactly typescript, @types/node, @biomejs/biome, knip and lefthook, pinned exactly and locked', () => {
   const p = json('package.json');
   for (const k of ['dependencies', 'optionalDependencies', 'peerDependencies', 'bundleDependencies', 'bundledDependencies']) assert.equal(k in p, false, `package.json must not have ${k}`);
   assert.equal(p.type, 'module');
   assert.deepEqual(Object.keys(p.devDependencies).sort(), ['@biomejs/biome', '@types/node', 'knip', 'lefthook', 'typescript']);
   for (const [n, v] of Object.entries(p.devDependencies as Record<string, string>)) assert.match(v, /^\d+\.\d+\.\d+$/, `${n} must be an exact version`); // package.json pins each one with a version string
-  assert.match(p.devDependencies['@types/node'], /^24\./);
+  assert.match(p.devDependencies['@types/node'], /^\d+\.\d+\.\d+$/, 'pinned exactly');
   const lock = json('package-lock.json'), top = lock.packages[''];
   assert.deepEqual(top.devDependencies, p.devDependencies, 'package-lock.json matches package.json');
   assert.equal('dependencies' in top, false);
