@@ -103,7 +103,7 @@ test('ci.yml: the parallel jobs, their commands and gates', () => {
     ['mutation', ['npm run mutate']],
     ['secrets', ['gitleaks/gitleaks-action@']],
   ] as Array<[string, string[]]>)) for (const c of cmds) assert.ok(job(t, name).includes(c), `job ${name} is missing ${c}`);
-  for (const name of ['unit', 'slow', 'static', 'compat', 'floor', 'mutation', 'secrets', 'release-dry-run']) assert.match(job(t, name), /^ {4}runs-on: ubuntu-24\.04$/m, `${name} on ubuntu`);
+  for (const name of ['unit', 'slow', 'static', 'compat', 'floor', 'mutation', 'secrets', 'release-dry-run']) assert.match(job(t, name), /^ {4}runs-on: ubuntu-26\.04$/m, `${name} on ubuntu`);
   assert.equal((t.match(/actions\/setup-node@[0-9a-f]{40}[^\n]*\n\s+with:\n\s+node-version: '24'\n/g) ?? []).length, 5, 'slow, static, macos, mutation and the dry run set up Node 24 (unit, compat and floor through a matrix; gitleaks needs none)');
   assert.match(job(t, 'unit'), /^ {8}node: \['24'(?:, '\d+')*\]/m, 'the unit job runs a Node matrix of the floor major');
   assert.match(job(t, 'unit'), /node-version: \$\{\{ matrix\.node \}\}\n/);
@@ -267,7 +267,7 @@ test('ci.yml: the unit job runs the coverage group once with the floors; `npm te
 test('ci.yml: the mutation job is its own required job, ubuntu only, same Node and uv setup, 15 minute cap, never allowed to fail', () => {
   const t = read('workflows', 'ci.yml');
   const m = job(t, 'mutation');
-  assert.match(m, /^ {4}runs-on: ubuntu-24\.04$/m, 'mutation runs on ubuntu only, not the OS matrix');
+  assert.match(m, /^ {4}runs-on: ubuntu-26\.04$/m, 'mutation runs on ubuntu only, not the OS matrix');
   assert.ok(!/matrix/.test(m) && !/strategy:/.test(m));
   assert.ok(!/^ {4}needs:/m.test(m), 'it runs in parallel with the test job');
   assert.ok(!/^ {4}if:/m.test(m), 'it always runs');
@@ -310,7 +310,7 @@ const values = (j: string, key: string): string[] => (new RegExp(`^ {8}${key}: \
 test('compat: Node 24.15.0 and 26 on ubuntu run the portable group in one step that fails when the redirected warning file is non-empty', () => {
   const j = job(CI, 'compat');
   assert.deepEqual(values(j, 'node'), ['24.15.0', '26']);
-  assert.match(j, /^ {4}runs-on: ubuntu-24\.04$/m);
+  assert.match(j, /^ {4}runs-on: ubuntu-26\.04$/m);
   assert.match(j, /^ {10}NODE_OPTIONS: --redirect-warnings=\$\{\{ runner\.temp \}\}\/w\.log$/m, 'the expression, never a literal $RUNNER_TEMP (a YAML env value is not shell-expanded)');
   assert.ok(!/NODE_OPTIONS:.*\$RUNNER_TEMP/.test(j));
   assert.match(j, /node scripts\/ci-tests\.ts portable/);
@@ -322,7 +322,7 @@ test('compat: Node 24.15.0 and 26 on ubuntu run the portable group in one step t
 test('floor: Node 18, 20.9.0 and 24.14.0 on ubuntu, no npm ci; the hook exits 0, prints at most the one floor line and writes nothing', () => {
   const j = job(CI, 'floor');
   assert.deepEqual(values(j, 'node'), ['18', '20.9.0', '24.14.0']);
-  assert.match(j, /^ {4}runs-on: ubuntu-24\.04$/m);
+  assert.match(j, /^ {4}runs-on: ubuntu-26\.04$/m);
   assert.ok(!/run: npm ci/.test(j));
   assert.match(j, /node src\/entry\.js card --if-present --refresh >"\$out" 2>"\$err" \|\| rc=\$\?/);
   for (const c of ['test "$rc" = 0', 'test ! -s "$err"', "grep -Eq '^plangraph: needs Node >= 24\\.15, found v'", 'test -z "$(git status --porcelain)"']) assert.ok(j.includes(c), `floor step lacks ${c}`);
