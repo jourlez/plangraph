@@ -20,7 +20,7 @@ if (!nodeSupported(process.versions.node)) {
   if (!quiet) process.stderr.write(`${floorMessage(process.version)}\n${floorTry}\n`);
   else if (process.argv[2] === 'card') process.stdout.write(`${floorHookLine(process.version)}\n`);
   process.exitCode = quiet ? 0 : 3;
-} else if ((process.argv[2] === 'refresh' || process.argv[2] === 'hook-prompt') && await (await import('./no-plan-dir.js')).noPlanDir()) {
+} else if ((process.argv[2] === 'refresh' || process.argv[2] === 'hook-prompt') && await (await import('./floor.js')).noPlanDir()) {
   // Hooks that need a plan: with no plan directory there is nothing to do, so nothing else loads (no compile cache, no CLI): exit 0, silent.
 } else {
   try {
