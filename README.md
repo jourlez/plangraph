@@ -2,7 +2,9 @@
 
 [![ci](https://github.com/jourlez/plangraph/actions/workflows/ci.yml/badge.svg)](https://github.com/jourlez/plangraph/actions/workflows/ci.yml)
 
-plangraph is a Claude Code plugin that keeps a team's sprint plan as a small knowledge graph in git: tickets, dependency links, owners and sprints, readiness verdicts with the evidence behind them, and learnings. Claude answers plan questions ("can this start?", "what breaks if this moves to Ben?", "who is over capacity?") with one local command that prints a few lines, instead of reading the plan files into context. The command checks every answer against two exact rules (a handoff rule and a capacity rule), never calls a model, and never writes to Jira.
+plangraph is a Claude Code plugin that keeps a project's plan as a small graph in git: requirements, decisions, tasks and tickets, people, repositories and history, as one small text file per node. It takes over an existing repository (`plangraph takeover`) or starts from one plan document, answers plan questions with one local command that prints a few lines ("can this start?", "who owns this?", "what breaks if it moves to Ben?"), generates documents from the graph, and checks every answer against two exact rules (a handoff rule and a capacity rule). It never calls a model and never writes to Jira, GitHub or Confluence.
+
+Status: 1.0 is in preparation and not released yet. What was verified, and what was not, is listed in [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md) and in [Known limits](#known-limits-and-roadmap). Whether it saves tokens or improves answers is **results pending** (see [Measured results](#measured-results)); nothing here claims it does.
 
 ## Contents
 
@@ -33,7 +35,11 @@ plangraph is a Claude Code plugin that keeps a team's sprint plan as a small kno
 
 What it does:
 
-- Stores the plan as small text files in your repository (one file per ticket, person, sprint and so on, a line per field, canonical order), so plan changes are reviewed and merged like code with stock git: no merge driver, no setup per clone. `plangraph check` guards what git cannot, and `plangraph resolve` repairs mechanical conflicts.
+- Stores the plan as small text files in your repository (`nodes/<kind>/` with one file per ticket, person, sprint, requirement, decision and so on, a line per field, canonical order; `events/`, `runs/` and `schedules/` for append-only batches), so plan changes are reviewed and merged like code with stock git: no merge driver, no setup per clone. `plangraph check` guards what git cannot, and `plangraph resolve` repairs mechanical conflicts.
+- Takes over an existing project in one resumable pipeline (`plangraph takeover`): scans repositories, reads history, requirements, ADRs and plan documents, optionally fetches trusted trackers, builds and checks the graph, and ends with a gap report that lists every unknown instead of guessing it.
+- Orchestrates work from the graph (`plangraph flow next`, `flow brief`, `flow-claim`, `flow-progress`, `flow-done`): which task can start, a bounded brief for one task, and append-only events with evidence.
+- Generates documents from the graph (`plangraph docs-build`, `plangraph docs check`): roadmap, status, requirement trace, architecture, onboarding, decision index, release notes and one page per repository.
+- Gives an agent a short overview and one-task digest (`plangraph map`, `plangraph context`) and keeps the index fresh through git hooks and `plangraph refresh`.
 - Answers plan questions with the `plangraph` command: ticket details, what a ticket needs, whether it may start, the load of a person or a sprint, the longest chain behind a ticket, and which verdicts are stale.
 - Checks a plan, or a proposed move, against the strict handoff rule and the capacity rule, and lists every violation with a fix (`plangraph check`, `plangraph verify`, `plangraph whatif`).
 - Finds the smallest set of moves that brings an overloaded person under capacity (`plangraph whatif --relieve`), and every valid slot for one ticket (`plangraph whatif KEY --find`). Both are read-only.
@@ -50,18 +56,21 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 
 ## Requirements
 
-**Windows is not supported** (there is no `O_NOFOLLOW` there). Use macOS or Linux, or WSL.
+**Supported platforms: macOS and Linux.** Windows is not supported (there is no `O_NOFOLLOW` there, and nothing was run on it). Use WSL at your own risk; it is untested. The Claude Code hooks of the plugin run `node` directly, not a shell script. The optional git hook scripts that `plangraph githooks-install` writes are three-line POSIX `sh` wrappers.
 
 > **Which Node, how to get it.** Node.js 24.15 or newer (the floor; the index uses the built-in `node:sqlite`). Check with `node --version`. If it is older, install a current one with nvm (`nvm install 24`) or fnm (`fnm install 24`). The repository's `.node-version` file holds the Node major that development and CI use; `fnm use` reads it, and with nvm you pass the number yourself (`nvm use 24`).
 
 | Requirement | Version | Needed for |
 |---|---|---|
 | Node.js | 24.15 or newer (the index uses the built-in `node:sqlite`) | everything |
-| git | any recent version | the data, stale detection |
-| Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hook, skills, `plangraph` on the Bash PATH |
-| uv (recommended), or Python 3.10 to 3.14 | any uv; OR-Tools has no wheel for Python 3.15 yet | the solver only (`plangraph-solve-run`) |
+| git | any recent version | the data, history, stale detection |
+| Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hooks, skills, `plangraph` on the Bash PATH |
+| Python 3 with OR-Tools, installed through uv (recommended: uv installs pinned, hash-verified packages on the first run), or a Python 3.10 to 3.14 | OR-Tools has no wheel for Python 3.15 yet | the scheduling solver only (`plangraph-solve-run`); everything else works without it |
+| `gh`, signed in | any recent version | optional: `plangraph sync-fetch` reads GitHub with your own token |
 
 In short: Node 24.15 or newer, git, and Claude Code 2.1.329 or newer. (`engines.node` is `>=24.15` in `package.json`.) The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
+
+**Telemetry: none.** plangraph collects and sends nothing about you or your project. This was checked by searching the code (`src/`, `lib/`, `bin/`, `mcp/`, `hooks/`) for network access: the only HTTP client is `lib/jira/client.ts` (read-only Atlassian requests, run only by `jira-pull`, `jira-text` and `sync-fetch` for a Jira target you named in `config.json` and trusted with `plangraph trust`), GitHub is read through your own `gh` by `sync-fetch` the same way, and the solver's first run downloads pinned packages through uv. Nothing else opens a socket. The check is a search of the source, not a network capture; see [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md).
 
 ## Installation
 
@@ -111,7 +120,9 @@ claude plugin uninstall plangraph@plangraph-marketplace
 claude plugin marketplace remove plangraph-marketplace
 ```
 
-`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the plan directory (`.plangraph/` by default) is plain text that you own. To remove plangraph from a repository, delete that directory.
+`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the plan directory (`.plangraph/` by default) is plain text that you own.
+
+To remove what plangraph added to a repository, run `plangraph uninstall` first: it removes the `.githooks/` scripts it wrote (if you did not edit them) and the `.gitignore` lines it added, and, after you confirm with `--yes` or a typed `y`, the local cache and the index. It never deletes `nodes/`, `events/`, `runs/`, `schedules/`, `config.json` or `format.json`; delete the plan directory yourself if you want the plan gone. To remove one person's data from the plan and its history, see [docs/ERASURE.md](docs/ERASURE.md).
 
 ### Turning the session card off
 
@@ -124,7 +135,7 @@ The plugin declares one option, `card`, with the values `auto` (default) and `of
 
 ### Verifying the install
 
-1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `plangraph@plangraph-marketplace` should be listed as enabled. `claude plugin details plangraph` lists 8 skills, 1 hook and 0 MCP servers.
+1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `plangraph@plangraph-marketplace` should be listed as enabled. `claude plugin details plangraph` lists the skills, the two hooks and the MCP server (this count was last checked on Claude Code 2.1.329 for the 0.5.0 plugin, not for 1.0).
 2. In a Claude Code session, ask Claude to run `plangraph explain`. It prints the command list. `plangraph` is on the Bash PATH only inside Claude Code sessions with the plugin enabled; see [Troubleshooting](#troubleshooting) for terminal use.
 3. In a project, run `plangraph doctor`. It checks Node, the data format and the solver runtime, and exits 0 when all are fine.
 
@@ -134,156 +145,142 @@ Adopting it in another project takes one install and one pasted prompt: see [doc
 
 ## Quickstart
 
-The examples below were run on a small synthetic plan (three invented people, nine tickets) with the plugin's `bin/` on the PATH; the output is copied exactly. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/plangraph:init` skill wraps `plangraph init`. The commands used here are `plangraph init`, `plangraph build`, `plangraph check`, `plangraph verify`, `plangraph card`, `plangraph ready`, `plangraph blockers`, `plangraph whatif`, `plangraph export`, `plangraph report`, `plangraph doctor`, `plangraph integrations`, `plangraph sp-ingest`, `plangraph refs-update` and `plangraph stale`.
+Two ways in. Both are short here; [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks the first one end to end.
+
+- **An existing project** (a repository with history, documents and maybe a tracker): run `plangraph takeover` and read the gap report. Its commands, output and prose are in [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
+- **A new plan from one document**: below.
+
+Every command marked `# runs` in this README and in the getting-started guide is executed by `test/docs-examples.test.ts` in a temp copy of a small synthetic project (a git repository `widgets` with three commits, two authors and one plan document), and its output is compared with the block that follows. Inside Claude Code you normally ask in plain words and Claude runs these commands for you; the `/plangraph:init` skill wraps `plangraph init`.
 
 ### A new plan in five minutes
 
+The plan document is a superpowers-style implementation plan: `### Task N:` headings, a `Points:` line, a `Files:` list and an `Interfaces:` block that names what each task consumes and produces. Three tasks: a CSV formatter (task 1), an export query (task 2) and an HTTP handler that needs both (task 3).
+
 1. Create the plan directory in your repository:
 
-   ```console
-   $ plangraph init
-   initialised .plangraph: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then `plangraph build`
-   suggested lines for this repo's CLAUDE.md (printed only, nothing written):
-   ## Plan questions
-   Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.
-   Run `plangraph explain` for the full command list.
-   ```
+```bash
+plangraph init   # runs
+```
 
-   It writes `config.json`, empty data files, 16 generic learnings, `format.json` (format 2, entity storage) and a `.gitignore` for the cache, the index and the staging directory. It writes no `.gitattributes` and no git config. Use `.plangraphrc` (`{"dir": "docs/plan-graph"}`) for another directory.
+```text
+initialised .plangraph: edit config.json, then fill the plan with `plangraph takeover` (an existing project) or `plangraph sp-ingest PLAN` (a plan document), then `plangraph build`
+suggested lines for this repo's CLAUDE.md (printed only, nothing written):
+## Plan questions
+Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.
+Run `plangraph explain` for the full command list.
+```
 
-2. Set the sprints and capacity in `.plangraph/config.json` (here `"end_sprint": 4` and `"caps": {"default": 8}`), then add your data, one JSON object per line:
+   It writes `config.json`, `format.json` (format 2, entity storage), the generic learnings and a `.gitignore` for the cache, the index and the staging directory. It writes no `.gitattributes`, no git config and no CLAUDE.md (it prints the lines to add). Use `.plangraphrc` (`{"dir": "docs/plan-graph"}`) for another directory.
 
-   ```text
-   tickets.jsonl   {"key":"DEMO-2","summary":"Session store","epic":"E1","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}
-   edges.jsonl     {"consumer":"DEMO-4","producer":"DEMO-2","kind":"blocks","note":""}
-   schedule.jsonl  {"version":"current","key":"DEMO-2","owner":"Ana","sprint":1}
-   findings.jsonl  {"key":"DEMO-4","kind":"missing_ac","text":"reset link expiry is not specified"}
-   ```
+2. Ingest the plan document. `--owner` and `--sprint` place the tasks that have no slot yet:
 
-   An edge means "consumer needs producer". From Jira, `plangraph jira-pull` or `plangraph jira-import` produce a snapshot (see [Works with](#works-with)); from a superpowers plan, `plangraph sp-ingest PLAN`.
+```bash
+plangraph sp-ingest docs/superpowers/plans/2026-01-05-widget-export.md --owner Ana --sprint 1   # runs
+```
+
+```text
+ingested sp:2026-01-05-widget-export: 3 tasks, 2 edges, 0 findings, 0 statuses from ledger (no ledger found: no impl_status set; plan checkboxes are never read as progress); scheduled 3 tasks
+warning: seeded 3 tasks for Ana in sprint 1: 7 story points (capacity is not checked here)
+```
+
+   The ingest wrote one epic ticket and one ticket per task under `nodes/ticket/`, the two `needs` links of task 3 as `links` lines on that ticket, and a schedule version under `schedules/`. An edge means "consumer needs producer". From Jira, `plangraph jira-pull` or `plangraph jira-import` produce a snapshot (see [Works with](#works-with)); for a whole existing project, use `plangraph takeover`.
 
 3. Build the index and check the plan:
 
-   ```console
-   $ plangraph build
-   built .plangraph/plangraph.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
-   $ plangraph check
-   tickets 9 | links 8 | strict-rule violations 0 | person-sprints over cap 1 | loop-free true | last sprint 3
-   $ plangraph verify
-   CAPACITY Ben S2 10/8
-   ```
+```bash
+plangraph build   # runs
+```
 
-   `check` and `verify` exit 1 on a violation. `verify` is a second, independent implementation of the same rules.
+```text
+built .plangraph/plangraph.sqlite: 4 tickets, 2 links, 0 evidence rows, 0 findings, 16 learnings
+```
+
+```bash
+plangraph check   # runs
+```
+
+```text
+tickets 3 | links 2 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 1
+```
+
+```bash
+plangraph verify   # runs
+```
+
+```text
+OK plan valid (4 tickets)
+```
+
+   `check` and `verify` exit 1 on a violation. `verify` is a second, independent implementation of the same rules. The index holds 4 tickets (the epic and three tasks); `check` counts the 3 that are placed in a sprint.
 
 4. See what Claude sees at session start, and ask the common questions:
 
-   ```console
-   $ plangraph card
-   plangraph 68586064 | 9 tickets, 8 links, S1-S3, 3 people
-   verdicts: <untrusted n="20a6e65f">8 READY, 1 NEEDS_INFO</untrusted>
-   over cap: <untrusted n="5f11d001">Ben S2 +2</untrusted>
-   findings: <untrusted n="0584fcda">missing_ac 1</untrusted>
-   plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl
-   $ plangraph ready DEMO-8
-   NOT READY DEMO-8
-   - waits for DEMO-4 (To Do, planned S2 Ben)
-   (statuses as of the last build: pass --jira snapshot.json for live ones)
-   $ plangraph ready --person Ben --sprint 2
-   Ben S2: ready 2 of 3, done 0, not ready 1 (waiting on producers 1, open items 1, verdict not READY 1)
-   ready: DEMO-3 DEMO-9
-   waiting on producers (1): DEMO-4
-   open items (1): DEMO-4
-   verdict not READY (1): DEMO-4
-   (statuses as of the last build: pass --jira snapshot.json for live ones)
-   $ plangraph blockers
-   1 tickets not READY
-   NEEDS_INFO (1): DEMO-4
-   ```
+```bash
+plangraph card   # runs
+```
+
+```text
+plangraph 6736076e | 4 tickets, 2 links, S1-S1, 1 person
+verdicts: <untrusted n="cd74b53e">4 unrated</untrusted>
+over cap: none
+plan questions: use plangraph (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl
+```
+
+```bash
+plangraph ready sp:2026-01-05-widget-export/3   # runs exit 1
+```
+
+```text
+NOT READY sp:2026-01-05-widget-export/3
+- waits for sp:2026-01-05-widget-export/1 (impl_status todo, planned S1 Ana)
+- waits for sp:2026-01-05-widget-export/2 (impl_status todo, planned S1 Ana)
+(statuses as of the last build: pass --jira snapshot.json for live ones)
+```
+
+```bash
+plangraph map   # runs
+```
+
+```text
+plangraph map | 4 tickets, 0 repos, 1 person
+owners: Ana 3
+epics: sp:2026-01-05-widget-export 0/3
+fresh: index 6736076e, cache age unknown
+```
 
    Text that comes from your data is printed inside `<untrusted>` fences, so the model treats it as data.
 
-5. Test moves before making them. Every `whatif` below is a dry run:
+5. Test a move before making it. Every `whatif` is a dry run that changes nothing:
 
-   ```console
-   $ plangraph whatif DEMO-6 --sprint 2
-   NO: DEMO-6 -> Caro S2. PRODUCER_LATE DEMO-3 (S2 Ben, needs S1 for handoff). Fix: none found; try --earlier or --owner-change.
-   $ plangraph whatif DEMO-9 --find
-   FIND DEMO-9 (Ben S2): 2 valid slots of 2 tried (later sprints, same owner); best: S3 Ben (no change), S4 Ben (no change)
-   S3 Ben (no change): slip 1, load 2/8 | plangraph whatif DEMO-9 --sprint 3
-   S4 Ben (no change): slip 2, load 0/8 | plangraph whatif DEMO-9 --sprint 4
-   (dry run, nothing changed: each slot was checked with whatif and plangraph verify on a copy; to apply one, run its command with --apply-plan --write, then plangraph export)
-   $ plangraph whatif --relieve Ben --sprint 2
-   RELIEF: Ben S2 10/8 -> 7/8 with 1 move (slip 1, 0 owner changes)
-   DEMO-4 3 SP: Ben S2 > Ben S3 | plangraph whatif DEMO-4 --sprint 3
-   (dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then plangraph export)
-   ```
-
-6. Apply the relief, save it as text, and recheck:
-
-   ```console
-   $ plangraph whatif DEMO-4 --sprint 3 --apply-plan --write
-   PLAN: 1 move(s), 0 others shifted, 0 owner changes
-   DEMO-4 Ben S2 > Ben S3
-   written to the index; run `plangraph export` to save it as text
-   $ plangraph export
-   exported canonical text (learnings.jsonl and refs.jsonl are edited or generated separately)
-   $ plangraph check
-   tickets 9 | links 8 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 3
-   $ plangraph report
-   wrote .plangraph/report.md and .plangraph/report.html (9 tickets, 3 can start, 0 person-sprints over cap); publishing is a separate step
-   ```
-
-   Commit the text files (`git add .plangraph`). The index `plangraph.sqlite` is git-ignored and rebuilt by `plangraph build`.
-
-7. Check the setup and the companion tools:
-
-   ```console
-   $ plangraph doctor
-   data format v2; tool supports v2
-   node v24.18.0: ok
-   solver runtime: uv found (plangraph-solve-run will use it)
-   $ plangraph integrations
-   superpowers: absent
-   openwolf: absent
-   caveman: absent
-   context7: absent
-   gitkraken: absent
-   ```
-
-### An existing plan
-
-**A fresh clone.** Nothing to set up: the plan is plain files and stock git merges them. Run `plangraph build` to make the index.
-
-```console
-$ plangraph doctor
-data format v2; tool supports v2
-node v24.18.0: ok
-solver runtime: uv found (plangraph-solve-run will use it)
-$ plangraph build
-built .plangraph/plangraph.sqlite: 9 tickets, 8 links, 0 evidence rows, 1 findings, 0 learnings
+```bash
+plangraph whatif sp:2026-01-05-widget-export/1 --sprint 2   # runs exit 1
 ```
 
-**Incremental re-audit.** `plangraph refs-update` records the inputs of each audited verdict (here, the plan task sections of an ingested superpowers plan). After the plan text changes, `plangraph stale --list` names exactly the verdicts to redo:
-
-```console
-$ plangraph sp-ingest docs/plans/search.md --owner Caro --sprint 4
-ingested sp:search: 2 tasks, 0 edges, 0 findings, 0 statuses from ledger (no ledger found: no impl_status set; plan checkboxes are never read as progress); scheduled 2 tasks
-warning: seeded 2 tasks for Caro in sprint 4: 5 story points (capacity is not checked here)
-$ plangraph refs-update
-refs.jsonl updated for 3 tickets at 49dca7d (ref HEAD); run `plangraph build`
-$ plangraph build
-built .plangraph/plangraph.sqlite: 12 tickets, 8 links, 0 evidence rows, 1 findings, 16 learnings
+```text
+NO: sp:2026-01-05-widget-export/1 -> Ana S2. CONSUMER_EARLY sp:2026-01-05-widget-export/3 (S1 Ana, needs S2). Fix: keep S2 (1 other shifts, 0 owner changes). touches: plan docs/superpowers/plans/2026-01-05-widget-export.m~
 ```
 
-After a commit that edits the Task 2 heading of the plan:
-
-```console
-$ plangraph stale --list
-stale vs HEAD (8d5b06a): 1 of 3 need re-audit {"plan":1} | not checked: jira
-sp:search/2: plan
+```bash
+plangraph whatif sp:2026-01-05-widget-export/3 --sprint 2   # runs
 ```
 
-Add `--jira snapshot.jsonl` to include Jira changes. The `plangraph:audit` skill prepares agent work units for only those tickets and shows the cost before anything is spent.
+```text
+OK: sp:2026-01-05-widget-export/3 -> Ana S2. Ana S2 2/40. Frees 2 on Ana S1. touches: plan docs/superpowers/plans/2026-01-05-widget-export.m~
+```
+
+   Moving the formatter (task 1) to sprint 2 is refused, because task 3 needs it and stays in sprint 1. Moving the handler (task 3, which nothing needs) is fine.
+
+6. Commit the text files (`git add .plangraph`). The index `plangraph.sqlite` and the cache are git-ignored and rebuilt by `plangraph build`.
+
+7. Check the setup and the companion tools with `plangraph doctor` (data format, Node version, solver runtime) and `plangraph integrations` (which of superpowers, OpenWolf, context7 and the rest are present). Their output depends on the machine, so the tests do not run them.
+
+8. Keep the index fresh and see what else is there: `plangraph githooks-install` writes git hooks that run `plangraph refresh --fast --quiet`; `plangraph docs-build` writes the generated documents; `plangraph flow next` lists the tasks that can start. See [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md).
+
+### Merging and re-auditing
+
+**A fresh clone.** Nothing to set up: the plan is plain files and stock git merges them. Run `plangraph build` to make the index. After a merge, run `plangraph check`; if git left conflict markers in a plan file, `plangraph resolve` repairs the mechanical cases and `plangraph check` names the rest by file and line.
+
+**Incremental re-audit.** `plangraph refs-update` records the inputs of each audited verdict (here, the plan task sections of an ingested superpowers plan). After the plan text changes, `plangraph stale --list` names exactly the verdicts to redo, and the `plangraph:audit` skill prepares agent work units for only those tickets and shows the cost before anything is spent. Add `--jira snapshot.jsonl` to include Jira changes.
 
 ## How it works
 
@@ -307,15 +304,17 @@ Add `--jira snapshot.jsonl` to include Jira changes. The `plangraph:audit` skill
 ```mermaid
 flowchart LR
   subgraph repo["Your repository (git)"]
-    T["plan directory<br/>JSONL text + config.json"]
+    T["plan directory<br/>nodes/ events/ runs/ schedules/ + config.json"]
   end
-  J["Jira<br/>(read-only)"] -->|"plangraph jira-pull / jira-import"| S["snapshot.jsonl"]
+  J["Jira, GitHub, Confluence<br/>(read-only)"] -->|"plangraph sync-fetch / jira-pull / jira-import"| S["cache/ and snapshot.jsonl<br/>(git-ignored)"]
+  G["git history, documents"] -->|"plangraph takeover / ingest"| T
   SP["superpowers plan"] -->|"plangraph sp-ingest"| T
   T -->|"plangraph build"| I[("plangraph.sqlite<br/>derived, git-ignored")]
   I --> C["plangraph commands<br/>(terse answers)"]
-  I --> H["SessionStart hook<br/>plangraph card"]
+  I --> H["SessionStart and prompt hooks<br/>plangraph card / hook-prompt"]
   I --> SK["skills<br/>(call plangraph)"]
-  I -.->|"opt-in"| M["MCP adapter<br/>ready / whatif / ticket"]
+  I -.->|"opt-in"| M["MCP server<br/>ready / whatif / ticket / map / context / flow_next"]
+  T -->|"plangraph docs-build"| D["docs/plangraph/<br/>generated documents"]
   I --> SO["plangraph-solve-run<br/>(CP-SAT + verifier)"]
   SO -->|"schedule.json, then plangraph schedule-load"| I
   C -->|"whatif --write, schedule-load"| I
@@ -331,18 +330,20 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 
 | What | Started by | When | Network |
 |---|---|---|---|
-| `node bin/plangraph card --if-present --refresh` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled | none |
+| `node src/entry.js card --if-present --refresh` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled | none |
+| `node src/entry.js hook-prompt` (timeout 5 s) | the plugin's UserPromptSubmit hook | each prompt, while the plugin is enabled; prints at most 200 tokens, once per session per ticket | none |
 | `plangraph`, `plangraph-solve-run` (in `bin/`, on the Bash PATH in Claude Code sessions) | you, or Claude through the Bash tool | when run | none, except the rows below |
-| `git`, with an argument list and no shell | `plangraph` (for example `init`, `doctor`, `stale`, `refs-update`, `units`, `bundle`, `sp-ingest`) | when those commands run | none |
+| `git`, with an argument list and no shell | `plangraph` (for example `init`, `takeover`, `ingest git`, `doctor`, `stale`, `refs-update`, `units`, `bundle`, `sp-ingest`) | when those commands run | none |
 | `uv --version` | `plangraph doctor` | when run | none |
 | `op read`, `security find-generic-password` (macOS) or `secret-tool lookup` (Linux) | `plangraph jira-pull`, `plangraph jira-text` | only to read your Jira credential, in that order, when the environment does not hold it | none from plangraph; the helper is your own tool |
 | HTTPS requests from `lib/jira.ts` | `plangraph jira-pull`, `plangraph jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `PLANGRAPH_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/plangraph-solve`, or a Python venv with `pip install --require-hashes` | `plangraph-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
-| `node mcp/plangraph-mcp.ts` | your MCP client | only if you register it yourself (off by default) | none |
+| `gh api --method GET ...` | `plangraph sync-fetch` (also in `takeover` without `--no-fetch`, and in `refresh` without `--fast`) | only for a GitHub target you named in `config.json` and trusted with `plangraph trust`; your own `gh` token | whatever `gh` contacts (`github.com`); plangraph opens no socket itself |
+| `node mcp/plangraph-mcp.ts` | Claude Code, from the plugin's `.mcp.json`; or your MCP client | while the plugin option `mcp` is `on` (the default is a placeholder until the benchmark ruling, see [docs/MCP.md](docs/MCP.md)); `off` turns it off | none |
 
 What the hook does: if the project has a plangraph index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
 
-`plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the Node compile cache and, on the pip path, the solver venv.
+`plugin.json` declares the six network hosts above in `network.hosts`. plangraph sends no telemetry (see [Requirements](#requirements)). The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the Node compile cache and, on the pip path, the solver venv.
 
 ## Commands
 
@@ -364,7 +365,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph sync` | read-only drift report between the plan files and the observation cache (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) plus a tracker push list; `config.graph.stale_days` (default 14) | `--plan` | none |
 | `plangraph findings` | finding counts by kind, or the findings of one kind | `[KIND]` | none |
 | `plangraph graph` | nodes reachable from a key (id or `pg:` URI) with their relation path; `current` schedule version only; ids fenced, answer capped | `KEY`, `--rel R,..`, `--depth N` (1-20), `--reverse`, `--type T` | none |
-| `plangraph graph-materialize` | append the people, sprints and epics the v1 files name to `people.jsonl`, `sprints.jsonl` and `epics.jsonl`, one bare row each; idempotent, writes no v1 file | none | text |
+| `plangraph graph-materialize` | add a bare node under `nodes/person/`, `nodes/sprint/` or `nodes/epic/` for each person, sprint and epic the tickets and the schedule name; idempotent | none | text |
 | `plangraph import` | saved tool output (a Jira issue export, a superpowers plan, a `plangraph-ext-batch@1` batch) to observations in the git-ignored cache `cache/<sys>.jsonl`; advisory, never writes plan files, no network | `--sys jira\|sp\|generic\|github`, `FILE...`, `--tenant ALIAS`, `--ledger FILE` | text |
 | `plangraph fmt` | rewrite every non-canonical entity file to its canonical form | | files |
 | `plangraph resolve` | repair merge-conflict markers in entity files when every conflicting hunk is a collection line (union and sort); scalar conflicts are left for a person | | files |
@@ -388,18 +389,18 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph githooks-install` | write the post-commit, post-merge, post-checkout and post-rewrite scripts into `.githooks/` and print how to enable them; never changes git config | `--dry-run`, `--pre-commit` | files |
 | `plangraph takeover` | resumable takeover of an existing project: detect, scan, history, docs, plans, fetch, links, identities, build, check, map, docs-build, report; checkpoints in `cache/takeover.json`; ends with a gap report that lists every unknown | `--from STEP`, `--skip STEP`, `--no-fetch`, `--json` | files |
 | `plangraph uninstall` | undo what `init` and `githooks-install` added: unmodified `.githooks/` scripts and the `.gitignore` lines plangraph wrote; after confirmation the local cache, the index and the staging directory; never deletes `nodes/`, `events/`, `runs/`, `schedules/`, `config.json` or `format.json` | `--yes` | files |
-| `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
-| `plangraph init` | create the plan directory, config, generic learnings and the entity-layout stamp | | text |
+| `plangraph forecast` | delivery forecast from the sprint history in `history.jsonl`; refuses on thin history | `--seed N` | none |
+| `plangraph init` | create the plan directory, config, generic learnings, the `.gitignore` lines and the entity-layout stamp | | text |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
 | `plangraph jira-import` | merge issue JSON fetched elsewhere (for example by the Atlassian connector) into a snapshot; no network, no credentials | `FILE...`, `--out FILE` | file |
 | `plangraph jira-pull` | read-only Jira snapshot (delta by default) | `--out FILE`, `--full` | file |
 | `plangraph jira-text` | full description and comments of tickets as text files (read-only) | `KEY...`, `--out DIR`, `--from-json FILE` | file |
-| `plangraph learn` | copy one OpenWolf repo rule into `learnings.jsonl` | `--from-wolf HANDLE\|"text"` | text |
+| `plangraph learn` | copy one OpenWolf repo rule into the plan's learnings (sealed run files under `runs/`) | `--from-wolf HANDLE\|"text"` | text |
 | `plangraph neighbors` | what a ticket needs and what needs it, to a depth | `KEY [DEPTH]` | none |
 | `plangraph open-items` | open items from findings: compact view, close, reopen, register | `--close KEY KIND`, `--reopen KEY KIND`, `--register KEY KIND --owner O --due N --text T`, `--findings FILE\|-`, `--mine`, `--write`, `--suggest-from-status` | text |
 | `plangraph person` | one person's load per sprint | `NAME` | none |
 | `plangraph ready` | may this ticket start now? (exit 1 with reasons) | `KEY`; or `--person NAME` and/or `--sprint N` for the whole scope in one call; `--jira SNAPSHOT` | none |
-| `plangraph refs-update` | record fresh input fingerprints in `refs.jsonl` | `[KEY...]`, `--ref R`, `--jira SNAPSHOT`, `--full` | text |
+| `plangraph refs-update` | record fresh input fingerprints in the ref fields of the tickets (`files`, `plans`, `fp_files`, `audited_at`) | `[KEY...]`, `--ref R`, `--jira SNAPSHOT`, `--full` | text |
 | `plangraph report` | write `report.md` and `report.html` (deterministic); publishing is separate | `--out DIR`, `--jira SNAPSHOT --as-of YYYY-MM-DD` | text |
 | `plangraph rules` | learned rules by topic | `[TOPIC]`; `--repo` reads OpenWolf rules (`--topic WORD`, `--all`, `--max N`) | none |
 | `plangraph schedule-load` | keep the current plan under an archive name and load a new schedule (refuses to move a frozen ticket) | `FILE NAME` | index |
@@ -470,7 +471,7 @@ The plugin ships eleven skills. Claude picks one from its description, or you in
 |---|---|
 | `PLANGRAPH_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
 | `PLANGRAPH_DIR` | plan directory (relative, inside the repository) |
-| `CLAUDE_PLUGIN_DATA` | data directory for the merge shim and solver venv (set by Claude Code; default `~/.cache/plangraph`) |
+| `CLAUDE_PLUGIN_DATA` | data directory for the Node compile cache and the solver venv (set by Claude Code; default `~/.cache/plangraph`) |
 | `JIRA_EMAIL`, `JIRA_API_TOKEN` | Jira credential from your shell |
 | `JIRA_OP_REF` | 1Password reference (`op://vault/item/field`) for the token |
 | `JIRA_BASE_URL` | overrides `jira.base_url` for site tokens |
@@ -500,7 +501,7 @@ Every error prints `error: ...` on stderr and a last line `try: <exact command>`
 | Tool | What plangraph does with it | Verified |
 |---|---|---|
 | superpowers | Skills recommend `superpowers:brainstorming` and `superpowers:writing-plans` and never start them. `plangraph sp-ingest` reads a saved plan and its ledger into tickets; `plangraph sp-link` points a ticket at plan tasks. Superpowers files are never written. | Ledger layouts checked against the release sources of 6.1.1 to 7.0.2 and synthetic fixtures; no live superpowers run was ingested. |
-| OpenWolf | Read-only. `plangraph rules --repo` shows its repo rules in fences; `plangraph learn --from-wolf` copies one rule you choose into plangraph's own `learnings.jsonl`; the skills ask for one `plangraph card --line` line in the OpenWolf handoff. plangraph never writes under `.wolf/`. | Fixtures, plus a structural check against one real cerebrum and STATUS file; OpenWolf's hooks were not run. |
+| OpenWolf | Read-only. `plangraph rules --repo` shows its repo rules in fences; `plangraph learn --from-wolf` copies one rule you choose into plangraph's own learnings; the skills ask for one `plangraph card --line` line in the OpenWolf handoff. plangraph never writes under `.wolf/`. | Fixtures, plus a structural check against one real cerebrum and STATUS file; OpenWolf's hooks were not run. |
 | Jira, bulk reads | `plangraph jira-pull` with a scoped read-only API token: no model tokens spent, data goes to disk. | Tested against a local mock server only; real Atlassian behavior (paging, rate limits, time zones) is not covered by the tests. See [docs/JIRA.md](docs/JIRA.md). |
 | Atlassian connector | Single tickets and every Jira write. A connector result saved to a file is merged with `plangraph jira-import` (no network, no credentials). | Import tested on one real payload shape and synthetic fixtures. |
 | Slack, Claude Docs, Artifact, Meetings, Google Drive connectors | Propose and confirm: a Slack message is a draft a person sends; reports go to an Artifact, Claude Docs or Confluence page only after a yes; meeting text is data and never stored. | Skill text and routing tests only; not run against live connectors. |
@@ -519,15 +520,15 @@ Every error prints `error: ...` on stderr and a last line `try: <exact command>`
 
 The credential is never written to a file, logged, or accepted as a command-line argument. Requests are HTTPS only, to a fixed host rule, through a read-only method and path allowlist, and redirects are never followed. For one or a few tickets, use the Atlassian connector instead (no token at all); [docs/JIRA.md](docs/JIRA.md) has a slim `getJiraIssue` call shape (marked unverified) and the bulk rule.
 
-### Optional MCP adapter
+### The MCP server
 
-`mcp/plangraph-mcp.ts` is a read-only MCP server (stdio, no dependencies) with three tools, `ready`, `whatif` (dry run only) and `ticket`, returning the same text as the CLI. It is **off by default**: the plugin has no `mcpServers` entry and no `.mcp.json`, so a default install shows `MCP servers (0)` and pays nothing for it. To enable it for yourself:
+`mcp/plangraph-mcp.ts` is a read-only MCP server (stdio, no dependencies) with seven tools, `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`, `context` and `flow_next`, returning the same text as the CLI (the last three call the libraries and write nothing). The plugin bundles it in `.mcp.json` behind the option `mcp` (`on` or `off`). Whether `on` should be the default depends on the benchmark ruling, which is pending, so the default in `plugin.json` is a placeholder. To turn it off: `/plugin configure plangraph@plangraph-marketplace`, or toggle it in `/mcp`. Without the plugin:
 
 ```bash
 claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
 ```
 
-Cost: about 490 estimated tokens of tool definitions per session on a client that loads them up front. Claude Code 2.1.329 was seen to defer them and load them on demand through `ToolSearch`; the size of that deferred entry is not measured. Verified with Claude Code 2.1.329: it connects, lists its tools, and in one owner-run session the model made 3 correct calls. Not verified: other clients, other versions. It duplicates the CLI, so enable it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
+It implements the legacy `initialize` flow and not `server/discover`. It was connected and called in an owner-run Claude Code 2.1.329 session when it had three tools; the seven-tool version was tested through its own test suite, not in a live session. It duplicates the CLI, so keep it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
 
 ## The solver
 
@@ -551,25 +552,16 @@ loaded as current; previous plan kept as before-solve; run `plangraph export` to
 
 ## Measured results
 
-An owner-run evaluation in November 2026 compared Claude Code with the plugin (arm A) against bare Claude Code that could read the same plan files (arm B). The plan was a real project's plan of 1,397 tickets; that project's data is not in this repository and the results cannot be reproduced from it. The runner was `evals/run-p.ts` with natural prompts (questions phrased as a user asks them), deterministic graders generated from the library's ground truth, and the model pinned to Sonnet 5.5.
+**Results pending.** The 1.0 benchmark (`evals/ab/`, described in [docs/BENCHMARK.md](docs/BENCHMARK.md)) has not been run in full, and its ruling on which automatic injections stay on by default is open. Until then this README makes no claim that plangraph saves tokens, saves money or improves accuracy.
 
-| Measure (128 runs) | With plugin | Without | Note |
-|---|---|---|---|
-| Mean score | 0.98 | 0.93 | difference +0.05, 95% interval 0.01 to 0.11 |
-| Pass rate | 95% | 86% | |
-| Cost per run | $0.071 | $0.171 | as reported by the runner |
-| Tokens per run | about 98k | about 197k | as reported by the runner |
-| Prompt-injection cases resisted | 13 of 14 | 13 of 14 | |
-| Proposed moves still valid when re-checked | 3 of 4 | 2 of 4 | the report re-applies each move and re-runs the verifier |
+What exists today, stated plainly:
 
-Limits, stated plainly:
+- A pilot of 12 graph questions and 2 coding tasks on a synthetic 30-ticket plan, one run per cell. Accuracy was equal in both arms (12 of 12 and 2 of 2), and the plugin arm used more tokens and more money in that pilot, not fewer ([docs/BENCHMARK.md](docs/BENCHMARK.md), Pilot).
+- A measurement of the fixed prefix the plugin adds to one API call, and the trim that followed (docs/BENCHMARK.md, Prefix overhead). One run per condition.
+- An owner-run evaluation of version 0.5.0 on one real plan (data not in this repository, not reproducible from it). It is not carried into 1.0 as a claim: the plugin, the data layout and the skills changed since.
+- Answer sizes of single commands on a synthetic 1,400-ticket plan in [docs/TOKENS.md](docs/TOKENS.md): estimates (characters divided by 4) of one answer, not of agent behavior.
 
-- One plan, one model, and few runs per case. The interval on the score difference is wide, and its lower end is close to zero.
-- Natural prompts partly measure domain knowledge: the plugin's skills and card tell the model the rules that arm B had to infer.
-- Cost and tokens are the runner's own figures, not an invoice.
-- An earlier pilot on a different harness (`claude plugin eval`) was invalid for the plugin arm: that harness did not put the plugin's `bin/` on the Bash PATH, so every `plangraph` call failed. The numbers above are from the direct runner, which was checked to put `plangraph` on the PATH in arm A only.
-
-To run the evaluation on your own plan, see [evals/README.md](evals/README.md) (`node evals/run-p.ts --dry-run` shows the exact commands without spending anything). Separately, [docs/TOKENS.md](docs/TOKENS.md) measures answer sizes on a synthetic 1,400-ticket plan against grep and whole-file baselines; those figures are estimates (characters divided by 4) of a single turn, not of agent behavior.
+To run an evaluation on your own plan, see [evals/README.md](evals/README.md) (`node evals/run-p.ts --dry-run` shows the exact commands without spending anything).
 
 ## Security model
 
@@ -626,8 +618,10 @@ What is verified live, and what only against fixtures:
 | CLI, hook command, solver | tested on synthetic data, on Linux and macOS in CI |
 | Plugin install from GitHub and from a local path, configure, update, uninstall (`claude plugin` CLI) | run on Claude Code 2.1.329 in an isolated configuration |
 | Interactive `/plugin` menu | not exercised for this README |
-| Plugin loaded in live sessions (skills, card, `plangraph` on PATH) | owner-run evaluation sessions (see [Measured results](#measured-results)) |
-| MCP adapter | connected and called in one owner-run Claude Code 2.1.329 session |
+| Plugin loaded in live sessions (skills, card, `plangraph` on PATH) | owner-run sessions with the 0.5.0 plugin; the 1.0 plugin (new hooks, skills and MCP tools) was not run in a live session |
+| `takeover`, `flow`, `docs-build`, `map`, `context`, `refresh`, `uninstall`, the git hooks | tested on synthetic repositories and run in the documented examples ([docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)); not run on a real project |
+| Claude Code hooks (`SessionStart`, `UserPromptSubmit`) | their commands are tested through the CLI and a hook test world; not run in a live 1.0 session |
+| MCP server | three-tool version connected and called in one owner-run Claude Code 2.1.329 session; the seven-tool version only by its test suite |
 | superpowers, OpenWolf | fixtures from release sources and research; no live run |
 | Atlassian, Slack, Docs, Artifact, Meetings connectors | skill text and routing tests only |
 | Jira token client (`jira-pull`, `jira-text`) | tests against a local mock server only |
@@ -647,7 +641,7 @@ What is verified live, and what only against fixtures:
 | `plangraph-solve-run` exits 3 | no uv and no usable Python 3.10 to 3.14 | install uv (recommended), or a Python 3.10 to 3.14 |
 | `MODEL_INVALID: every ticket needs an sp` | a ticket without story points (for example the epic ticket `sp-ingest` creates for a plan) | give every ticket an `sp` value (`0` is allowed) |
 | `error: plan directory is outside the repository` | `--dir`, `PLANGRAPH_DIR` or `.plangraphrc` names an absolute or escaping path | use a relative path inside the repository |
-| Errors on Windows | not supported (the merge shim is POSIX shell; untested) | use macOS, Linux or WSL (WSL is also untested) |
+| Errors on Windows | not supported (no `O_NOFOLLOW`; nothing was run there) | use macOS or Linux (WSL is untested) |
 
 ## FAQ
 
@@ -657,18 +651,29 @@ What is verified live, and what only against fixtures:
 
 **Where is my data?** In your repository, as small text files in the plan directory, versioned by git. Nothing is uploaded. The SQLite index is a local cache you can delete at any time.
 
-**How do I uninstall?** `claude plugin uninstall plangraph@plangraph-marketplace`, then optionally `claude plugin marketplace remove plangraph-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
+**How do I uninstall?** `plangraph uninstall` in the repository (removes what plangraph added there, never your plan), then `claude plugin uninstall plangraph@plangraph-marketplace` and optionally `claude plugin marketplace remove plangraph-marketplace`. See [Uninstalling](#uninstalling). To remove one person's data, see [docs/ERASURE.md](docs/ERASURE.md).
 
 **Why SQLite, if the text is the truth?** Queries over thousands of tickets and links (chains, loads, readiness) are fast on an index and slow to re-parse every time. The index is rebuilt from text in well under a second at the measured plan size, carries a fingerprint so a stale index is reported, and is never committed. `node:sqlite` is built into Node, so there is no dependency.
 
-**Why a command and not an MCP server?** A CLI costs no tokens until it is used, and its output is the same text either way. The MCP adapter exists for clients without a shell and is off by default.
+**Why a command and not an MCP server?** A CLI costs no tokens until it is used, and its output is the same text either way. The MCP server exists for clients without a shell, and for sessions where you would rather grant seven read-only tools than `Bash(plangraph *)`; its default is pending the benchmark ruling.
 
 ## Known limits and roadmap
 
-- Validated on one real plan by its owner; the evaluation above is a single-plan, single-model measurement.
+What was verified, and how, is in [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md). The honest short list:
+
+- `takeover` has no per-step rollback: a failed step is recorded and the rest continue, and a re-run resumes from the checkpoint, but the files an earlier step wrote stay.
+- The MCP server implements the legacy `initialize` flow, not `server/discover`; its default (on or off) is a placeholder until the benchmark ruling.
+- The Claude Code plugin hooks are `SessionStart` and `UserPromptSubmit`; a `PostToolUse` hook is not registered. Git hooks are optional and never enabled by plangraph.
+- The skill `docs-publish` and the connector flows were not run against live Confluence, Google Docs, Notion or Claude Docs; they are skill text and routing tests.
+- The tracker fetchers (GitHub, Jira, Confluence) were tested against local doubles, not against real services at scale.
+- The benchmark ruling is pending: `results pending`.
+- A person's data can be removed from the current tree with a plan, but not from git history without rewriting it ([docs/ERASURE.md](docs/ERASURE.md)).
+- Format policy after 1.0: [docs/STABILITY.md](docs/STABILITY.md).
+
+- Validated on one real plan by its owner (version 0.5.0); 1.0 has not been validated on a real project end to end.
 - Claude Code releases after 2.1.329 and the interactive `/plugin` menu flow are not tested; Windows is not supported.
 - Story-point capacity is the only resource model. Holidays, partial progress and hiring are not modelled; the forecast refuses without enough sprint history.
-- `refs.jsonl` fingerprinting expects markdown plans with one heading per task (`ref_heading`).
+- Stale-verdict fingerprints (`refs-update`, `stale`) expect markdown plans with one heading per task (`ref_heading`).
 - Jira Data Center: changelog is not implemented. Project keys containing `_` are rejected.
 - Not built (documented in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md)): several superpowers ingest options (`--dry-run`, renumber acceptance), a card line for plan progress, OpenWolf `refs-update` integration.
 - Next steps depend on evidence: wider evaluation (more plans, more runs per case), testing newer Claude Code releases before raising `engines`, and the slim connector call in [docs/JIRA.md](docs/JIRA.md), which is not yet verified.
