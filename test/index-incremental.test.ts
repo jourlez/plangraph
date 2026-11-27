@@ -169,9 +169,9 @@ test('a tampered or missing index is rebuilt in full', () => {
 test('openIndex accepts an advisory table of any shape and refuses an unknown one', () => {
   const dir = planDir('entity'); buildIndex({ dir });
   const file = path.join(dir, INDEX_FILE);
-  { const db = new DatabaseSync(file); db.exec('CREATE TABLE identity(a, b); CREATE TABLE module(x PRIMARY KEY)'); db.close(); }
+  { const db = new DatabaseSync(file); db.exec('DROP TABLE identity; DROP TABLE module; CREATE TABLE identity(a, b); CREATE TABLE module(x PRIMARY KEY)'); db.close(); }
   { using h = openIndex(file, { dir }); assert.equal(h.stale, false); }
-  assert.equal(buildIndex({ dir }).rebuilt.length, 0, 'and an incremental build still works on it');
+  assert.equal(buildIndex({ dir }).rebuilt.length, 0, 'and an incremental build still works on it (advisory tables are never rebuilt when no source changed)');
   { const db = new DatabaseSync(file); db.exec('CREATE TABLE sneaky(a)'); db.close(); }
   assert.throws(() => openIndex(file), /unexpected schema/);
 });
