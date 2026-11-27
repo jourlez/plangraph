@@ -4,6 +4,51 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-27
+
+First public release. Releases 0.1 to 0.5 were never published, and 1.0.0 does not read their directories: there is no migration. A directory written by an earlier version is refused with a one-line message; recreate it with `plangraph takeover`.
+
+### Added
+- Storage in entity files: one canonical text file per node under `nodes/<kind>/<2 hex>/`, small append-only batch files for task events (`events/`) and audit outputs (`runs/`), immutable schedule version files (`schedules/`), and a git-ignored SQLite index and observation cache. Two branches that edit different entities merge with plain git, with no merge driver. `plangraph check` validates the layout, `plangraph fmt` rewrites non-canonical files, and `plangraph resolve` repairs merge conflicts that only touch collection lines.
+- Requirement, decision and team nodes, with the relations `satisfies`, `affects`, `supersedes`, `member_of` and `alias_of`.
+- `plangraph takeover`: a resumable pipeline that turns an existing project into the graph (repo scan, git history, decision records, requirements, plans, tracker observations, links, identities, map, documents) and ends with a gap report that lists every unknown.
+- `plangraph ingest` (`git`, `links`, `docs`, `requirements`): git history facts (churn, coupling, ownership, hotspots) from a full or blobless clone, links from tickets to repos by ranked evidence (branch, pull request title, commit message), and parsers for decision records and requirement documents.
+- `plangraph sync-fetch` and `plangraph trust`: read-only fetch of Jira, GitHub and Confluence observations with cursors and caps. A fetch target runs only after the user trusts it on this machine.
+- `plangraph identity` and `identity-map`: a local, uncommitted map from tracker identities to plan people.
+- `plangraph flow` (`next`, `brief`, `status`, `actions`) and the writers `flow-claim`, `flow-progress`, `flow-done` and `flow-link`: task state derived from events and dependency edges, evidence required for `done`, a live requirements traceability matrix, and tracker actions printed for the agent to run through the vendor tools.
+- `plangraph docs list|check|export` and `docs-build`: eight generated documents (roadmap, traceability, decision index, status, architecture, repository pages, onboarding, release notes) written into marker regions with fingerprints. A hand edit inside a region is refused, never overwritten. Generated documents follow a data-class policy and are scanned for URLs, hosts and identifiers before they are written.
+- `plangraph map` and `plangraph context`: bounded digests of the project and of the task at hand.
+- `plangraph refresh`, `hook-prompt` and `githooks-install`: automatic freshness from the session hook, the prompt hook, git hooks and a CI template; none of them blocks or writes a tracked file.
+- MCP tools `map`, `context` and `flow_next` with output schemas, and a bundled server entry that can be turned off with a plugin option.
+- Skills `takeover`, `flow` and `docs-publish`.
+- `plangraph uninstall`, a benchmark harness (`evals/ab`), and the documents `docs/GETTING-STARTED.md`, `docs/STABILITY.md`, `docs/ERASURE.md` and `docs/LAUNCH.md`.
+
+### Changed
+- `plangraph verify` reports `BLOCKED` rows as warnings (an error with `--strict`) and `SPRINT_CLOSED` rows as errors; the solver never places a ticket in a closed sprint.
+- Every `flow` writer takes `--by ACTOR`; taking over a held task needs `--force`.
+- The fetch trust list lives outside the work tree (the plugin data directory or the user config directory). Run `plangraph trust` once per target.
+
+### Removed
+- The git merge driver, the JSONL storage backend, `plangraph migrate`, `plangraph migrate-names` and every other compatibility path for versions that never shipped.
+
+### Security
+- A committed transaction journal can no longer make the next write move a file from outside the repository into it.
+- A node file that holds merge-conflict markers is never overwritten by a later write.
+- One malformed event timestamp can no longer hide every later event.
+- Concurrent writers no longer lose each other's rows.
+- A repository can no longer pre-trust fetch targets or steer a fetch to another host.
+- A glob in committed data can no longer hang a command.
+- Free-text owners, statuses and file names are fenced in every output, including the MCP tools.
+
+### Known limits
+- Windows is not supported.
+- The MCP server implements the `initialize` flow and not `server/discover`.
+- `takeover` has no per-step rollback; steps are idempotent and resume from the checkpoint.
+- The `PostToolUse` hook is not registered.
+- Three claims in the `docs-publish` skill are marked unverified (Confluence conflict responses, Google Docs suggestion request types, Notion locking).
+- `map` and `context` need about 325 ms on 5,000 tickets.
+- The benchmark ruling is in `docs/BENCHMARK.md`.
+
 ## [0.5.0] - 2026-11-26
 
 ### Added
