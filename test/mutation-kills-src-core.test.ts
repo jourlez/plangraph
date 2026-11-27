@@ -5,6 +5,9 @@
 // that survived scripts/mutate-all.ts. No process is started.
 // NOT covered: commands themselves (test/mutation-kills-cli.test.ts and the command tests).
 import { test } from 'node:test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { parse } from '../src/args.ts';
 import { PlangraphError, EXIT, EXIT_MEANING, exitCodeOf, errText, didYouMean, tryOf, errorLines } from '../src/errors.ts';
 import { nodeSupported, floorMessage, floorTry, NODE_FLOOR } from '../src/floor.js';
@@ -54,28 +57,34 @@ test('node floor, registry validation, collector and renderer', () => {
 });
 
 test('MCP: tool argv, every message shape, framing with oversized and partial lines', async () => {
-  G('tools', () => [TOOLS.map((t) => t.name), PROTOCOL_VERSIONS]);
-  G('tool-argv', () => [['ready', { key: 'T-1' }], ['ready', { key: 'T-1', jira: 'x' }], ['ready', {}], ['ready', { key: 5 }], ['whatif', { key: 'T-1', sprint: 3, to: 'Ana' }], ['whatif', { key: 'T-1', sprint: 'x' }], ['whatif', { key: 'T-1', sprint: 1.5 }], ['whatif', { key: 'T-1', write: true }],
-    ['ticket', { key: 'T-1' }], ['ticket', { key: '-x' }], ['ticket', { key: 'a'.repeat(300) }], ['ticket', { key: 'T-1', extra: 1 }], ['nope', {}]].map(([n, a]) => outcome(() => toolArgv((n as string), (a as Record<string, unknown>))))); // each case is [tool name, arguments object]
-  const calls: Array<[string[], unknown]> = [];
-  const run = async (argv: string[], io: RunIO, ctx: { cwd: string }) => { calls.push([argv, ctx.cwd]); io.out(`ran ${argv.join(' ')}`); io.err('warn'); return argv.includes('T-2') ? 2 : 0; };
-  const s = createServer({ cwd: '/w', run });
-  const enc = (o: unknown) => new TextEncoder().encode(typeof o === 'string' ? o : JSON.stringify(o));
-  const msgs = ['not json', [], [1], 5, { jsonrpc: '1.0', id: 1, method: 'ping' }, { jsonrpc: '2.0', id: { x: 1 }, method: 'ping' }, { jsonrpc: '2.0', id: 1.5, method: 'ping' }, { jsonrpc: '2.0', id: 1, method: 'tools/list' },
-    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'ready' } }, { jsonrpc: '2.0', id: 3, method: 'initialize', params: {} }, { jsonrpc: '2.0', id: 4, method: 'initialize', params: { protocolVersion: '1999-01-01' } }, { jsonrpc: '2.0', id: 5, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
-    { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 'p', method: 'ping' }, { jsonrpc: '2.0', id: 6, method: 'tools/list' }, { jsonrpc: '2.0', id: 7, method: 'tools/list', params: { cursor: 'x' } }, { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'ready', arguments: { key: 'T-1' } } },
-    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'ready', arguments: { key: 'T-2' } } }, { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'ready', arguments: { key: 5 } } }, { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'nope' } }, { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 5 } },
-    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'ready', arguments: [1] } }, { jsonrpc: '2.0', id: 14, method: 'other' }, { jsonrpc: '2.0', id: 15, result: {} }, { jsonrpc: '2.0', id: 16 }, { jsonrpc: '2.0' }, { jsonrpc: '2.0', id: 17, error: {} }];
-  const out = [];
-  for (const m of msgs) out.push(await s.handle(enc(m)));
-  out.push(await s.handle(new Uint8Array([0xff, 0xfe])));
-  golden('src-core', 'mcp-handle', { out, calls });
-  const lines = ([] as string[]); // an empty list of this element type
-  const s2 = createServer({ run });
-  const big = 'x'.repeat(1024 * 1024 + 5);
-  const chunks = [`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } })}\n  \n{"jsonrpc":"2.0","id":2,`, `"method":"ping"}\n${big}`, `${big}\n`, new TextEncoder().encode('{"jsonrpc":"2.0","id":3,"method":"ping"}')];
-  await serve((async function* () { for (const c of chunks) yield c; })(), (l) => lines.push(l), s2);
-  golden('src-core', 'mcp-serve', lines);
-  const s3 = createServer({ run: async () => { throw new Error('boom'); } });
-  golden('src-core', 'mcp-internal-error', [await s3.handle(enc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } })), await s3.handle(enc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'ticket', arguments: { key: 'T-1' } } }))]);
+  // The server answers initialize only where a plan directory exists (docs/MCP.md), so the session runs in a scratch directory that has one;
+  // cwd is the relative '.' so the recorded calls stay machine-independent.
+  const prev = process.cwd(), scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mcpgold-'));
+  fs.mkdirSync(path.join(scratch, '.plangraph')); process.chdir(scratch);
+  try {
+    G('tools', () => [TOOLS.map((t) => t.name), PROTOCOL_VERSIONS]);
+    G('tool-argv', () => [['ready', { key: 'T-1' }], ['ready', { key: 'T-1', jira: 'x' }], ['ready', {}], ['ready', { key: 5 }], ['whatif', { key: 'T-1', sprint: 3, to: 'Ana' }], ['whatif', { key: 'T-1', sprint: 'x' }], ['whatif', { key: 'T-1', sprint: 1.5 }], ['whatif', { key: 'T-1', write: true }],
+      ['ticket', { key: 'T-1' }], ['ticket', { key: '-x' }], ['ticket', { key: 'a'.repeat(300) }], ['ticket', { key: 'T-1', extra: 1 }], ['nope', {}]].map(([n, a]) => outcome(() => toolArgv((n as string), (a as Record<string, unknown>))))); // each case is [tool name, arguments object]
+    const calls: Array<[string[], unknown]> = [];
+    const run = async (argv: string[], io: RunIO, ctx: { cwd: string }) => { calls.push([argv, ctx.cwd]); io.out(`ran ${argv.join(' ')}`); io.err('warn'); return argv.includes('T-2') ? 2 : 0; };
+    const s = createServer({ cwd: '.', run });
+    const enc = (o: unknown) => new TextEncoder().encode(typeof o === 'string' ? o : JSON.stringify(o));
+    const msgs = ['not json', [], [1], 5, { jsonrpc: '1.0', id: 1, method: 'ping' }, { jsonrpc: '2.0', id: { x: 1 }, method: 'ping' }, { jsonrpc: '2.0', id: 1.5, method: 'ping' }, { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'ready' } }, { jsonrpc: '2.0', id: 3, method: 'initialize', params: {} }, { jsonrpc: '2.0', id: 4, method: 'initialize', params: { protocolVersion: '1999-01-01' } }, { jsonrpc: '2.0', id: 5, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
+      { jsonrpc: '2.0', method: 'notifications/initialized' }, { jsonrpc: '2.0', id: 'p', method: 'ping' }, { jsonrpc: '2.0', id: 6, method: 'tools/list' }, { jsonrpc: '2.0', id: 7, method: 'tools/list', params: { cursor: 'x' } }, { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'ready', arguments: { key: 'T-1' } } },
+      { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'ready', arguments: { key: 'T-2' } } }, { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'ready', arguments: { key: 5 } } }, { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'nope' } }, { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 5 } },
+      { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'ready', arguments: [1] } }, { jsonrpc: '2.0', id: 14, method: 'other' }, { jsonrpc: '2.0', id: 15, result: {} }, { jsonrpc: '2.0', id: 16 }, { jsonrpc: '2.0' }, { jsonrpc: '2.0', id: 17, error: {} }];
+    const out = [];
+    for (const m of msgs) out.push(await s.handle(enc(m)));
+    out.push(await s.handle(new Uint8Array([0xff, 0xfe])));
+    golden('src-core', 'mcp-handle', { out, calls });
+    const lines = ([] as string[]); // an empty list of this element type
+    const s2 = createServer({ run });
+    const big = 'x'.repeat(1024 * 1024 + 5);
+    const chunks = [`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } })}\n  \n{"jsonrpc":"2.0","id":2,`, `"method":"ping"}\n${big}`, `${big}\n`, new TextEncoder().encode('{"jsonrpc":"2.0","id":3,"method":"ping"}')];
+    await serve((async function* () { for (const c of chunks) yield c; })(), (l) => lines.push(l), s2);
+    golden('src-core', 'mcp-serve', lines);
+    const s3 = createServer({ run: async () => { throw new Error('boom'); } });
+    golden('src-core', 'mcp-internal-error', [await s3.handle(enc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } })), await s3.handle(enc({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'ticket', arguments: { key: 'T-1' } } }))]);
+  } finally { process.chdir(prev); fs.rmSync(scratch, { recursive: true, force: true }); }
 });

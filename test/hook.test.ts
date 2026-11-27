@@ -132,7 +132,9 @@ test('plugin.json userConfig.card: string, options auto and off, default auto (t
   assert.equal(c.default, 'auto');
   assert.ok(c.options.includes(c.default));
   assert.ok(typeof c.title === 'string' && c.title && typeof c.description === 'string' && /off/.test(c.description));
-  assert.deepEqual(Object.keys(pj.userConfig), ['card'], 'no other option the hook does not read');
+  assert.deepEqual(Object.keys(pj.userConfig), ['card', 'mcp'], 'no other option: card is read by the hook, mcp by the MCP server (docs/MCP.md)');
+  const m = pj.userConfig.mcp;
+  assert.equal(m?.type, 'string'); assert.deepEqual(m.options, ['on', 'off']); assert.equal(m.default, 'on');
 });
 
 test('running the hook writes nothing: no git config, no .gitattributes, no plan file, and a second run prints the same card', () => {

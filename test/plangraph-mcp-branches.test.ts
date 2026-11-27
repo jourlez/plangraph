@@ -31,6 +31,7 @@ test('below the Node floor it writes the floor message to stderr, serves nothing
 test('on a supported Node it answers initialize and tools/list on stdout and returns 0 when stdin ends', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mcp-br-'));
   try {
+    fs.mkdirSync(path.join(tmp, '.plangraph')); // with no plan directory the server answers one error and exits quietly (docs/MCP.md)
     const { h, out, err } = host({ cwd: tmp }, rpc([
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } } },
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },
@@ -39,7 +40,7 @@ test('on a supported Node it answers initialize and tools/list on stdout and ret
     assert.deepEqual(err, []);
     const msgs = out.join('').trim().split('\n').map((l) => JSON.parse(l) as { id: number; result: { protocolVersion?: string; tools?: Array<{ name: string }> } });
     assert.equal(msgs[0]?.result.protocolVersion, '2025-11-25');
-    assert.deepEqual(msgs[1]?.result.tools?.map((t) => t.name).sort(), ['graph', 'ready', 'ticket', 'whatif']);
+    assert.deepEqual(msgs[1]?.result.tools?.map((t) => t.name).sort(), ['context', 'flow_next', 'graph', 'map', 'ready', 'ticket', 'whatif']);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
