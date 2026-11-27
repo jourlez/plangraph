@@ -19,7 +19,7 @@ First public release. Releases 0.1 to 0.5 were never published, and 1.0.0 does n
 - `plangraph docs list|check|export` and `docs-build`: eight generated documents (roadmap, traceability, decision index, status, architecture, repository pages, onboarding, release notes) written into marker regions with fingerprints. A hand edit inside a region is refused, never overwritten. Generated documents follow a data-class policy and are scanned for URLs, hosts and identifiers before they are written.
 - `plangraph map` and `plangraph context`: bounded digests of the project and of the task at hand.
 - `plangraph refresh`, `hook-prompt` and `githooks-install`: automatic freshness from the session hook, the prompt hook, git hooks and a CI template; none of them blocks or writes a tracked file.
-- MCP tools `map`, `context` and `flow_next` with output schemas, and a bundled server entry that can be turned off with a plugin option.
+- MCP tools `map`, `context` and `flow_next` with output schemas, and a bundled server entry that stays off until the plugin option `mcp` is `on` or `PLANGRAPH_MCP=on` is set in the environment.
 - Skills `takeover`, `flow` and `docs-publish`.
 - `plangraph uninstall`, a benchmark harness (`evals/ab`), and the documents `docs/GETTING-STARTED.md`, `docs/STABILITY.md`, `docs/ERASURE.md` and `docs/LAUNCH.md`.
 

@@ -15,7 +15,7 @@ shell, or a locked-down session where you would rather grant seven read-only too
 ## Turning it on or off, or on without the plugin
 
 - Plugin option `mcp` (`/plugin configure`, `on` or `off`, default `off`, in `plugin.json` `userConfig`): `.mcp.json` passes it to the server as
-  `PLANGRAPH_MCP=${user_config.mcp}` (`${user_config.KEY}` substitution in MCP `env` is documented at code.claude.com plugins-reference).
+  `PLANGRAPH_MCP_OPTION=${user_config.mcp}` (`${user_config.KEY}` substitution in MCP `env` is documented at code.claude.com plugins-reference); it uses its own variable name so that a `PLANGRAPH_MCP=on` in your shell is not overridden.
   With `off` the server answers `initialize` with one JSON-RPC error ("disabled"), writes nothing to stderr and exits 0. You can also toggle
   the plugin's server off in `/mcp`.
 - No plan directory in the repository: the same one error ("no plan directory: run `plangraph init`") and a quiet exit 0, so a project
@@ -41,7 +41,7 @@ shell, or a locked-down session where you would rather grant seven read-only too
   }
   ```
 
-  The server is strictly opt-in: it runs only when `PLANGRAPH_MCP=on` is in its environment (the plugin passes the option; by hand, add `--env PLANGRAPH_MCP=on` to `claude mcp add`, or `"env": { "PLANGRAPH_MCP": "on" }` to the JSON above). Unset, empty or anything else gives the one "disabled" error and exit 0.
+  The server is strictly opt-in: it runs only when the value `on` reaches it through the plugin option `mcp` (`PLANGRAPH_MCP_OPTION`, or `CLAUDE_PLUGIN_OPTION_MCP`) or a `PLANGRAPH_MCP=on` variable (when you start it by hand, add `--env PLANGRAPH_MCP=on` to `claude mcp add`, or `"env": { "PLANGRAPH_MCP": "on" }` to the JSON above). Unset, empty or any other value gives the one "disabled" error and exit 0.
 
   Node 24.15 or newer is needed.
 
@@ -152,7 +152,7 @@ Read on 2026-11-26 at modelcontextprotocol.io (basic, basic/versioning, server/d
 
 Unverified: whether Claude Code 2.1.329 uses `outputSchema` or `structuredContent` (it was not observed doing so); how it limits the
 server `instructions`; whether `${user_config.mcp}` is substituted for a plugin loaded by the 2.1.329 CLI (the plugins reference documents it for
-MCP `env`, and `claude plugin validate` checks it from 2.1.281).
+MCP `env`, and `claude plugin validate` checks it from 2.1.281); the server also reads `CLAUDE_PLUGIN_OPTION_MCP`, so it does not depend on that substitution alone.
 
 ## Verified against a live client
 

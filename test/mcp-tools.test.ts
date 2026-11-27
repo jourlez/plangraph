@@ -211,7 +211,7 @@ test('plugin bundling: .mcp.json starts the server with node, passes the mcp opt
   const mcp = JSON.parse(fs.readFileSync(path.join(ROOT, '.mcp.json'), 'utf8'));
   const s = mcp.mcpServers.plangraph;
   assert.equal(s.command, 'node'); assert.deepEqual(s.args, ['${CLAUDE_PLUGIN_ROOT}/mcp/plangraph-mcp.ts']);
-  assert.equal(s.env.PLANGRAPH_MCP, '${user_config.mcp}');
+  assert.deepEqual(s.env, { PLANGRAPH_MCP_OPTION: '${user_config.mcp}' }, 'the option goes under its own name, so a PLANGRAPH_MCP variable of the shell is not overridden');
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
   assert.deepEqual(man.userConfig.mcp.options, ['on', 'off']);
   assert.equal(man.userConfig.card.type, 'string'); // the existing option is untouched

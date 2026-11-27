@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// plangraph-mcp: the read-only MCP server (stdio) of plangraph. The plugin bundles it in .mcp.json, off by default, switched on by the plugin option `mcp` (PLANGRAPH_MCP=on; off disables it);
+// plangraph-mcp: the read-only MCP server (stdio) of plangraph. The plugin bundles it in .mcp.json, off by default, switched on by the plugin option `mcp` (PLANGRAPH_MCP_OPTION or CLAUDE_PLUGIN_OPTION_MCP is `on`) or by a PLANGRAPH_MCP=on variable;
 // without the plugin an owner adds it by hand (docs/MCP.md). Tools: ready, whatif (dry run only), ticket, graph, map, context, flow_next; the protocol is in src/mcp.ts.
 // The repository is the working directory the client starts it in, and the plan dir follows the CLI rules (PLANGRAPH_DIR, .plangraphrc).
 // With no plan directory, or with the option off, `initialize` gets one JSON-RPC error and the process ends with exit 0 and nothing on stderr.

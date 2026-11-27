@@ -215,7 +215,9 @@ const SILENT = Object.freeze({ out() { /* nothing printed */ }, err() { /* nothi
 const hostContext = ({ env, cwd }: Host) => makeContext({ cwd, env, stdin: NO_STDIN, io: SILENT });
 /** Why the server cannot serve (switched off by the plugin option, or no plan directory), or null. Fixed messages. */
 function unavailable(env: Record<string, string | undefined>, cwd: string): string | null {
-  if (String(env.PLANGRAPH_MCP ?? '').trim().toLowerCase() !== 'on') return 'plangraph MCP server is disabled (plugin option mcp is not on)';
+  // opt-in: the plugin option (passed by .mcp.json as PLANGRAPH_MCP_OPTION, or exported by Claude Code as CLAUDE_PLUGIN_OPTION_MCP) or a PLANGRAPH_MCP variable of the shell; only the value `on` switches it on
+  const on = [env.PLANGRAPH_MCP_OPTION, env.CLAUDE_PLUGIN_OPTION_MCP, env.PLANGRAPH_MCP].some((v) => String(v ?? '').trim().toLowerCase() === 'on');
+  if (!on) return 'plangraph MCP server is disabled (plugin option mcp is not on)';
   try { if (fs.statSync(hostContext({ env, cwd }).dir).isDirectory()) return null; } catch { /* missing or refused: the same answer */ }
   return 'no plan directory: run `plangraph init`';
 }
