@@ -11,6 +11,9 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { parsePlan, ingestPlan } from '../lib/integrations/superpowers.ts';
 import { RELATIONS } from '../lib/graph/files.ts';
+import { openStore } from '../lib/planstore.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
+import type { Kind } from '../lib/planstore.ts';
 
 const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph');
 const REL = 'docs/superpowers/plans/slug.md', URI = 'pg:plantask/docs%2Fsuperpowers%2Fplans%2Fslug.md%232';
@@ -31,9 +34,11 @@ function project(text: string) {
   const pg = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
   assert.equal(pg('init').status, 0);
   const file = (n: string) => path.join(root, '.plangraph', n);
-  const rows = (k: string) => { const n = `${k}.jsonl`; return (fs.existsSync(file(n)) ? fs.readFileSync(file(n), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []); };
+  const KIND: Record<string, Kind> = { tickets: 'ticket', schedule: 'schedule', xrefs: 'xref', links: 'link' };
+  const rows = (k: string) => openStore({ dir: path.join(root, '.plangraph'), root }).readKind(KIND[k] as Kind) as Record<string, unknown>[];
   const ingest = (...a: string[]) => pg('sp-ingest', REL, '--ledger', 'none', ...a);
-  const snap = () => Object.fromEntries(fs.readdirSync(path.join(root, '.plangraph')).filter((n) => n.endsWith('.jsonl')).map((n) => [n, fs.readFileSync(file(n), 'utf8')]));
+  const walk = (d: string, base = d): string[] => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? (e.name === 'cache' || e.name === '.txn' ? [] : walk(path.join(d, e.name), base)) : e.name.startsWith('plangraph.sqlite') ? [] : [path.relative(base, path.join(d, e.name))]);
+  const snap = () => Object.fromEntries(walk(path.join(root, '.plangraph')).map((n) => [n, fs.readFileSync(file(n), 'utf8')]));
   return { root, pg, rows, ingest, write, file, snap };
 }
 
@@ -49,6 +54,7 @@ test('Assignee, Sprint and Ticket on a task: schedule row, tracked_by xref, one 
 test('a Jira ticket node that already exists is not duplicated: the xref attaches to the one canonical ticket', () => {
   const p = project(plan('', T2));
   fs.writeFileSync(p.file('tickets.jsonl'), JSON.stringify({ key: 'ABC-9', summary: 'tracked', jira_status: 'To Do', verdict: '', epic: '', sp: 3 }) + '\n');
+  adoptPlanDir(path.join(p.root, '.plangraph'));
   const r = p.ingest(); assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(p.rows('tickets').filter((t) => t.key === 'ABC-9').length, 1);
   assert.equal(p.rows('xrefs').length, 1);
@@ -85,6 +91,7 @@ test('the same Jira ticket on two tasks is XREF_DUPLICATE and only the first xre
 test('Repo (conf 1, why plan) and Files lines (through the repos paths) give touches links; plan-level Repo goes to the epic', () => {
   const p = project(plan('**Repo:** web\n', T2));
   fs.writeFileSync(p.file('repos.jsonl'), JSON.stringify({ id: 'repo:web', name: 'web' }) + '\n' + JSON.stringify({ id: 'repo:mono', name: 'mono', paths: [{ glob: 'web/**', sub: 'web' }] }) + '\n');
+  adoptPlanDir(path.join(p.root, '.plangraph'));
   const r = p.ingest(); assert.equal(r.status, 0, r.stderr);
   const touch = p.rows('links').filter((l) => l.rel === 'touches').map((l) => `${l.from} ${l.to} ${l.attrs.conf} ${l.attrs.why}`).sort();
   assert.deepEqual(touch, ['sp:slug repo:web 1 plan', 'sp:slug/1 repo:mono 0.7 files', 'sp:slug/2 repo:web 1 plan']);
@@ -118,6 +125,7 @@ test('re-ingest writes zero changes', () => {
 test('graph answers assigned_to, tracked_by and touches for a plan task in one call', () => {
   const p = project(plan('', T2));
   fs.writeFileSync(p.file('repos.jsonl'), JSON.stringify({ id: 'repo:web', name: 'web' }) + '\n');
+  adoptPlanDir(path.join(p.root, '.plangraph'));
   assert.equal(p.ingest().status, 0);
   const b = p.pg('build'); assert.equal(b.status, 0, b.stdout + b.stderr);
   const g = p.pg('graph', URI, '--depth', '2'); assert.equal(g.status, 0, g.stdout + g.stderr);
