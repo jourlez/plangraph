@@ -1,6 +1,6 @@
 ---
 name: whatif
-description: Prepare a read-only what-if for moving a ticket to another sprint or reassigning it to another person, listing every rule the change would break with a fix for each. Use when the owner asks what happens if a ticket moves, slips, or goes to someone else, before any move or reassignment is applied.
+description: Prepare a read-only what-if for moving a ticket to another sprint or reassigning it, listing every rule the change would break with a fix. Use when the owner asks what happens if a ticket moves, slips, or goes to someone else.
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph ready:*), Bash(plangraph blockers)
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: onboard
-description: Onboard an existing planning problem into plangraph, in order and with a fallback for every missing tool. Use when the owner wants to bring an existing project, a Jira backlog or superpowers plans under plangraph, or asks to start tracking work that already exists. Not for planning a new project.
+description: Onboard an existing planning problem into plangraph, with a fallback for every missing tool. Use when the owner wants to bring an existing project, a Jira backlog or superpowers plans under plangraph. Not for planning a new project.
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line), mcp__*Atlassian*__getJiraIssue, mcp__*Atlassian*__searchJiraIssuesUsingJql
 ---
 

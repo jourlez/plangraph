@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Prepare a token-efficient re-audit of only the tickets whose inputs changed (plan text, Jira, code, producers) and preview the cost before spending anything. Use when the owner asks to replan, re-verify readiness, or check what changed since the last audit in a project that has a plangraph.
+description: Prepare a token-efficient re-audit of only the tickets whose inputs changed, previewing the cost first. Use when the owner asks to replan, re-verify readiness, or check what changed since the last audit.
 disable-model-invocation: true
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph doctor), Bash(plangraph ticket:*), Bash(plangraph neighbors:*), Bash(plangraph chain:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph findings:*), Bash(plangraph rules:*), Bash(plangraph check), Bash(plangraph verify:*), Bash(plangraph ready:*), Bash(plangraph stale:*), Bash(plangraph forecast), Bash(plangraph card --line), mcp__*Atlassian*__getJiraIssue, mcp__*Atlassian*__searchJiraIssuesUsingJql
 ---
