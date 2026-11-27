@@ -18,7 +18,7 @@ export interface Expect {
 }
 
 const FINAL_FLAGS = ['noUnusedLocals', 'forceConsistentCasingInFileNames', 'strict', 'noImplicitAny', 'exactOptionalPropertyTypes', 'noImplicitOverride', 'noFallthroughCasesInSwitch', 'verbatimModuleSyntax', 'erasableSyntaxOnly', 'allowImportingTsExtensions'];
-const JS_SRC = ['src/floor.js', 'src/entry.js'];
+const JS_SRC = ['src/floor.js', 'src/entry.js', 'mcp/entry.js', 'mcp/below-floor.js'];
 export const TABLE: Expect[] = [
   { name: 'tsconfig.json', isTrue: [...FINAL_FLAGS, 'allowJs', 'checkJs'], notTrue: ['noUncheckedIndexedAccess', 'noPropertyAccessFromIndexSignature'], includeFiles: JS_SRC },
   { name: 'tsconfig.prod.json', isTrue: ['noUncheckedIndexedAccess'], notTrue: ['noPropertyAccessFromIndexSignature'], extendsPath: './tsconfig.json', includeDirs: ['lib', 'src', 'mcp'], includeFiles: JS_SRC },
@@ -38,9 +38,9 @@ export function checkConfig(cfg: Config, expect: Expect): string[] {
 const globToRegex = (g: string): RegExp => new RegExp(`^${g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '(?:.*/)?').replace(/\*/g, '[^/]*')}$`);
 /** True when an include entry (exact path or glob) selects the file. */
 export const included = (include: string[], file: string): boolean => include.some((i) => i === file || globToRegex(i).test(file));
-/** The problems of the tracked plain-JavaScript sources: only src/floor.js and src/entry.js may be in a tsconfig include. */
+/** The problems of the tracked plain-JavaScript sources: only the plugin's own (src/floor.js, src/entry.js, mcp/entry.js, mcp/below-floor.js) may be in a tsconfig include. */
 export function checkJsSources(tracked: string[], includes: Record<string, string[]>): string[] {
-  const out: string[] = [], want = ['src/entry.js', 'src/floor.js', 'workflows/audit.workflow.js'];
+  const out: string[] = [], want = ['mcp/below-floor.js', 'mcp/entry.js', 'src/entry.js', 'src/floor.js', 'workflows/audit.workflow.js'];
   if (tracked.slice().sort().join() !== want.join()) out.push(`tracked .js files must be ${want.join(', ')}; found ${tracked.join(', ')}`);
   for (const [name, inc] of Object.entries(includes)) for (const f of tracked) {
     const should = JS_SRC.includes(f);
@@ -53,7 +53,7 @@ const read = (rel: string): Config => JSON.parse(fs.readFileSync(path.join(ROOT,
 
 for (const e of TABLE) test(`${e.name} holds its expected flags and include`, () => assert.deepEqual(checkConfig(read(e.name), e), []));
 
-test('the tracked .js files are src/floor.js, src/entry.js and the workflow; only the two src files are in a tsconfig include (R25)', () => {
+test('the tracked .js files are the four plugin sources and the workflow; only the four plugin sources are in a tsconfig include (R25)', () => {
   const tracked = execFileSync('git', ['ls-files', '*.js'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).filter((f) => !f.startsWith('test/fixtures/release-')); // a frozen release (scripts/freeze-release.ts) holds its own .js files
   const includes = Object.fromEntries(TABLE.map((e) => [e.name, read(e.name).include ?? []]));
   assert.deepEqual(checkJsSources(tracked, includes), []);
@@ -80,7 +80,7 @@ test('checkJsSources fails on an extra tracked .js, a missing floor.js or a work
   const tracked = [...JS_SRC, 'workflows/audit.workflow.js'];
   assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', ...JS_SRC] }), []);
   assert.equal(checkJsSources([...tracked, 'lib/x.js'], { a: JS_SRC }).length, 1);
-  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', 'src/floor.js'] }), ['a: src/entry.js must be in the include']);
+  assert.deepEqual(checkJsSources(tracked, { a: ['**/*.ts', 'src/floor.js'] }), ['a: src/entry.js must be in the include', 'a: mcp/entry.js must be in the include', 'a: mcp/below-floor.js must be in the include']);
   assert.deepEqual(checkJsSources(tracked, { a: [...JS_SRC, 'workflows/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
   assert.deepEqual(checkJsSources(tracked, { a: [...JS_SRC, '**/*.js'] }), ['a: workflows/audit.workflow.js must not be in the include']);
 });

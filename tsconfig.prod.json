@@ -8,7 +8,9 @@
     "src/**/*.ts",
     "mcp/**/*.ts",
     "src/floor.js",
-    "src/entry.js"
+    "src/entry.js",
+    "mcp/entry.js",
+    "mcp/below-floor.js"
   ],
   "exclude": [
     "node_modules"

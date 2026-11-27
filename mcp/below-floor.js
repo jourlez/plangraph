@@ -9,8 +9,8 @@ const DEFAULT_PROTOCOL = '2025-11-25';
 
 /**
  * Answers the MCP handshake on the given streams until stdin ends.
- * @param {{ on(event: string, listener: (chunk: string) => void): unknown, setEncoding(enc: string): unknown }} stdin
- * @param {{ write(chunk: string): unknown, on(event: 'error', listener: () => void): unknown }} stdout
+ * @param {NodeJS.ReadableStream} stdin
+ * @param {NodeJS.WritableStream} stdout
  * @param {string} version the running Node version (process.version)
  * @returns {Promise<void>} settles when stdin has ended and the pending lines were answered
  */
