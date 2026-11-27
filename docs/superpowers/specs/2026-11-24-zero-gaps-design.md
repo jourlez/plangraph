@@ -208,7 +208,7 @@ overruled, K3 becomes an owner-accepted limit documented in `SECURITY.md`.
 
 ## 11. Verification that cannot run on the owner's machine
 
-All CI runs of unreleased work use a public snapshot branch (`ci/0.3.0`) made with `git commit-tree HEAD^{tree}` parented on the previous snapshot (on `origin/main` for the first one), so the branch only fast-forwards and the previous snapshot stays fetchable as `github.event.before`, under the owner's GitHub noreply identity (D17); a private branch is never pushed, because the private history holds personal paths and private project names. `ci.yml` gains a `push: branches: ['ci/**']` trigger and `workflow_dispatch` (0.3.0 Task 2), since it ran only on `main` pushes and pull requests.
+All CI runs of unreleased work use a public snapshot branch (`ci/0.3.0`) made with `git commit-tree HEAD^{tree}` parented on the previous snapshot (on `origin/main` for the first one), so the branch only fast-forwards and the previous snapshot stays fetchable as `github.event.before`, under the owner's GitHub noreply identity (D17); a work-in-progress branch is never pushed. `ci.yml` gains a `push: branches: ['ci/**']` trigger and `workflow_dispatch` (0.3.0 Task 2), since it ran only on `main` pushes and pull requests.
 
 - Private words: a dedicated `private-words` job holds the `BRAIN_PRIVATE_WORDS` secret and fails without it; every other job runs the
   generic rules only. Fork pull requests skip the job; the owner stores the value as a Dependabot secret too; `release.yml` passes

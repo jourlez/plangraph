@@ -112,7 +112,7 @@ Rule (the same as the plans' Global Constraints and Definition of done): the pla
 
 ### D15: Private names already in the public repository
 
-- Question: the published `test/public-clean.test.ts` (0.2.3 and every earlier public commit) spells the host project name, the client name and the personal handle as two concatenated string pieces each, and older public commits carry them too. Rewrite the public history to remove them, or accept that they are already published and stop adding them?
+- Question: the published `test/public-clean.test.ts` (0.2.3 and every earlier public commit) spells several private names as two concatenated string pieces each, and older public commits carry them too. Rewrite the public history to remove them, or accept that they are already published and stop adding them?
 - Recommendation: rewriting the public history is out of scope (it breaks every clone and marketplace install, and copies already exist). Move the private words to an out-of-repository list (local file plus a CI secret held only by the dedicated `private-words` job; HMAC-SHA-256 if hashes are ever committed) and remove the concatenated names from the tree in 0.3.0 (Task 2). Create no tag before then (D13), and publish every new public commit with the GitHub noreply identity (D17).
 - Cost if overruled: a history rewrite needs its own plan (force-push of `main`, every release commit re-created, tags re-made, marketplace users told to reinstall).
 - Tasks: 0.3.0 Task 2.
@@ -128,7 +128,7 @@ Rule (the same as the plans' Global Constraints and Definition of done): the pla
 ### D17: The owner's real e-mail address in existing public commits
 
 - Question: the author and committer fields of the existing public commits carry the owner's real e-mail address (git metadata, not file content, so the privacy scan does not see it). Rewrite them?
-- Recommendation: no rewrite needed; from 0.3.0 on every public commit (CI snapshots and release commits) is made with the owner's GitHub noreply identity (`<id>+<login>@users.noreply.github.com`, set in the owner's shell as `PB_NOREPLY`, never written to a file), and tags are lightweight.
+- Recommendation: no rewrite needed; from 0.3.0 on every public commit (CI snapshots and release commits) is made with the owner's GitHub noreply identity (`<id>+<login>@users.noreply.github.com`, never written to a file), and tags are lightweight.
 - Cost if overruled: a history rewrite with the costs listed under D15.
 - Tasks: 0.3.0 Global Constraints, the snapshot command, Task 24; graph plan Tasks 7 and 8.
 
