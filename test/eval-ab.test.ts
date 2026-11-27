@@ -3,11 +3,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { PROJECT, planMarkdown } from '../evals/ab/project.ts';
 import { graphQuestions } from '../evals/ab/questions.ts';
 import { summarize, renderReport, calibrate, wilson, ARMS } from '../evals/ab/report.ts';
-import { loadCodingTasks, cells, argvFor, requireLive, grade, parseRun, MODELS } from '../evals/ab/run.ts';
+import os from 'node:os';
+import { loadCodingTasks, cells, argvFor, requireLive, grade, parseRun, MODELS, claudeBin, claudeEnv, runStripped, runSetup, runWithSetupEnv, runnableTasks, prepareWorkspace, runHiddenTests, PLUGIN_DIR } from '../evals/ab/run.ts';
+import type { CodingTask } from '../evals/ab/run.ts';
+import { buildBaselineProject, buildGraphProject } from '../evals/ab/graph.ts';
 import { rule } from '../evals/graph-format/run.ts';
 import { estTokens, CHARS_PER_TOKEN } from '../lib/render.ts';
 
@@ -155,5 +159,113 @@ test('grading and run output parsing', () => {
   assert.ok(!grade({ answer: 'T-3,T-5' }, 'T-3'));
   assert.ok(grade({ answer: 'Ana' }, 'The owner is `Ana`.'));
   assert.ok(!grade({ answer: '6' }, 'T-6'));
-  assert.deepEqual(parseRun(JSON.stringify({ result: 'x', total_cost_usd: 0.5, num_turns: 3, usage: { input_tokens: 10, output_tokens: 5 } })), { reply: 'x', tokens: 15, calls: 3, cost: 0.5 });
+  assert.deepEqual(parseRun(JSON.stringify({ result: 'x', total_cost_usd: 0.5, num_turns: 3, usage: { input_tokens: 10, output_tokens: 5 } })), { reply: 'x', tokens: 15, tokensIn: 10, tokensOut: 5, calls: 3, toolCalls: 2, cost: 0.5, error: null });
+});
+
+const tmp = (): string => fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ab-test-')));
+
+test('cloned code runs in a stripped environment: a host sentinel never reaches it', () => {
+  process.env.PG_BENCH_SENTINEL = 'secret-value';
+  const dir = tmp();
+  try {
+    const r = runStripped(dir, 'env', 10);
+    assert.equal(r.status, 0);
+    assert.ok(!r.stdout.includes('PG_BENCH_SENTINEL') && !r.stdout.includes('secret-value'));
+    const names = r.stdout.split('\n').map((l) => l.split('=')[0]).filter((n) => n && !['PATH', 'HOME', 'PWD', 'SHLVL', '_', 'OLDPWD'].includes(n));
+    assert.deepEqual(names, []);
+    assert.ok(r.stdout.includes(`HOME=${path.join(dir + '.bench', 'home')}`));
+    const t = runWithSetupEnv(dir, 'echo "[${PG_BENCH_SENTINEL-unset}]"', 10);
+    assert.equal(t.stdout.trim(), '[unset]');
+  } finally { delete process.env.PG_BENCH_SENTINEL; fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
+});
+
+test('setup runs in one shell session: an export persists into the hidden test command; a failing setup line stops', () => {
+  const dir = tmp();
+  try {
+    assert.equal(runSetup(dir, ['mkdir -p bin', 'printf "#!/bin/sh\\necho from-setup\\n" > bin/tool', 'chmod +x bin/tool', 'export PATH="$PWD/bin:$PATH"', 'export MARK=kept']).ok, true);
+    const r = runWithSetupEnv(dir, 'tool; echo "$MARK"', 10);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), 'from-setup\nkept');
+    assert.equal(runSetup(dir, ['false', 'touch after-false']).ok, false);
+    assert.ok(!fs.existsSync(path.join(dir, 'after-false')));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
+});
+
+test('a .venv made by the setup is on the PATH of the hidden test command without an export', () => {
+  const dir = tmp();
+  try {
+    assert.equal(runSetup(dir, ['mkdir -p .venv/bin', 'printf "#!/bin/sh\\necho venv-python\\n" > .venv/bin/python', 'chmod +x .venv/bin/python']).ok, true);
+    assert.equal(runWithSetupEnv(dir, 'python', 10).stdout.trim(), 'venv-python');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
+});
+
+test('timeoutSec bounds a command; a missing setup leaves the plain environment', () => {
+  const dir = tmp();
+  try {
+    const t0 = Date.now();
+    assert.notEqual(runWithSetupEnv(dir, 'sleep 5', 1).status, 0);
+    assert.ok(Date.now() - t0 < 4000);
+    assert.equal(runWithSetupEnv(dir, 'true', 10).status, 0);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
+});
+
+test('descriptors: setup and timeoutSec are typed and a validated:false task is skipped with its reason', () => {
+  const all = loadCodingTasks();
+  const { run, skipped } = runnableTasks(all);
+  assert.equal(run.length + skipped.length, all.length);
+  assert.ok(skipped.length >= 1 && skipped.every((s) => s.reason.length > 10));
+  assert.ok(run.every((t) => t.validated && Array.isArray(t.setup) && (t.timeoutSec ?? 600) > 0));
+  const t = all.find((x) => !x.validated) as CodingTask;
+  const saved = process.env.EVAL_LIVE;
+  process.env.EVAL_LIVE = '1';
+  try {
+    assert.throws(() => prepareWorkspace(t, '/nonexistent/never-created'), /skipped: .+/);
+    assert.throws(() => runHiddenTests(t, '/nonexistent/never-created'), /skipped/);
+  } finally { if (saved === undefined) delete process.env.EVAL_LIVE; else process.env.EVAL_LIVE = saved; }
+  const bare: CodingTask = { ...t };
+  delete bare.reason;
+  assert.equal(runnableTasks([bare]).skipped[0]?.reason, 'not validated');
+});
+
+test('native binary: env var wins, argv carries the headless flags and an isolated config, plugin arms add --plugin-dir', () => {
+  assert.equal(claudeBin({ PLANGRAPH_BENCH_CLAUDE: '/x/claude' }), '/x/claude');
+  assert.ok(claudeBin({}).endsWith('claude'));
+  const off = argvFor({ arm: 'plugin-off', model: 'sonnet', repeat: 0 }, 'fix it');
+  for (const f of ['-p', '--model', '--output-format', '--setting-sources', '--strict-mcp-config', '--permission-mode', '--max-budget-usd', '--tools', '--allowed-tools']) assert.ok(off.includes(f), f);
+  assert.equal(off[off.indexOf('--setting-sources') + 1], 'project');
+  assert.ok(!off.includes('--plugin-dir'));
+  const on = argvFor({ arm: 'plugin-default', model: 'sonnet', repeat: 0 }, 'fix it');
+  assert.equal(on[on.indexOf('--plugin-dir') + 1], PLUGIN_DIR);
+  assert.ok(on.at(-1)?.split(',').includes('Skill'));
+  assert.ok(off.indexOf('--tools') > off.indexOf('--model'));
+});
+
+test('model run environment drops secrets, Claude session variables and PATH entries with a plangraph binary', () => {
+  const bin = tmp();
+  fs.writeFileSync(path.join(bin, 'plangraph'), '');
+  try {
+    const e = claudeEnv({ PATH: `${bin}:/usr/bin`, HOME: '/h', ANTHROPIC_API_KEY: 'k', GITHUB_TOKEN: 't', AWS_SECRET_ACCESS_KEY: 's', CLAUDECODE: '1', CLAUDE_CODE_OAUTH_TOKEN: 'login', LANG: 'C', EVAL_LIVE: '1' });
+    assert.deepEqual(Object.keys(e).sort(), ['CLAUDE_CODE_OAUTH_TOKEN', 'HOME', 'LANG', 'PATH']);
+    assert.equal(e.PATH, '/usr/bin');
+  } finally { fs.rmSync(bin, { recursive: true, force: true }); }
+});
+
+test('stream-json output: tool calls are the tool_use blocks', () => {
+  const lines = [{ type: 'system' }, { type: 'assistant', message: { content: [{ type: 'tool_use' }, { type: 'tool_use' }] } }, { type: 'assistant', message: { content: [{ type: 'text' }] } }, { type: 'result', result: 'Ana', num_turns: 3, total_cost_usd: 0.1, usage: { input_tokens: 2, output_tokens: 3, cache_read_input_tokens: 5, cache_creation_input_tokens: 7 } }];
+  const r = parseRun(lines.map((l) => JSON.stringify(l)).join('\n'));
+  assert.deepEqual([r.toolCalls, r.tokensIn, r.tokensOut, r.error], [2, 14, 3, null]);
+  assert.equal(parseRun(JSON.stringify({ result: '', is_error: true, subtype: 'error_max_turns' })).error, 'error_max_turns');
+});
+
+test('workspaces: baseline has only plan.md; graph arm has a built plan with the questions answerable by the plangraph CLI', () => {
+  const b = tmp(), g = tmp();
+  try {
+    buildBaselineProject(b);
+    assert.deepEqual(fs.readdirSync(b), ['plan.md']);
+    buildGraphProject(g);
+    assert.ok(!fs.existsSync(path.join(g, 'plan.md')) && fs.existsSync(path.join(g, '.plangraph', 'plangraph.sqlite')));
+    const out = spawnSync(process.execPath, [path.join(PLUGIN_DIR, 'bin', 'plangraph'), 'ticket', 'T-4', '-v'], { cwd: g, encoding: 'utf8' }).stdout;
+    const t = T.find((x) => x.key === 'T-4');
+    assert.ok(out.includes(`${t?.sprint} ${t?.owner}`) && out.includes(`stack=${PROJECT.stack['T-4']}`) && out.includes(`requirement=${PROJECT.requirement['T-4']}`), out);
+  } finally { fs.rmSync(b, { recursive: true, force: true }); fs.rmSync(g, { recursive: true, force: true }); }
 });
