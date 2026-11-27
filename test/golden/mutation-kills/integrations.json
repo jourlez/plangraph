@@ -820,6 +820,8 @@
     "sprint": 2
    }
   ],
+  "links": [],
+  "xrefs": [],
   "report": {
    "key": "sp:2026-11-20-widget-export",
    "format": "7",
@@ -836,21 +838,24 @@
    "seededPoints": 0,
    "seededWithPoints": 0,
    "orphanSchedule": 0,
+   "links": 0,
+   "xrefs": 0,
+   "problems": [],
    "warnings": [],
    "planWarnings": [],
    "ledgerWarnings": []
   }
  },
  "sp-ingest-sweep": [
-  "drop0 f1756ec03eeec166",
-  "drop2 0d2c9f61063bcdb5",
-  "drop4 f1756ec03eeec166",
-  "drop6 7421ab8014b76cb1",
-  "drop8 f1756ec03eeec166",
-  "crlf f1756ec03eeec166",
-  "double f1756ec03eeec166",
-  "half 60adac64455169c4",
-  "empty 89b218d83d1eb0c8"
+  "drop0 24af5fda9b6018de",
+  "drop2 1c4858b549a83f19",
+  "drop4 24af5fda9b6018de",
+  "drop6 09a154c5c7c819c3",
+  "drop8 24af5fda9b6018de",
+  "crlf 24af5fda9b6018de",
+  "double 24af5fda9b6018de",
+  "half 1a5e1673ff04c0db",
+  "empty 9d52bfaa17c3eae3"
  ],
  "sp-ledger": {
   "plan": "docs/superpowers/plans/2026-11-20-widget-export.md",
@@ -1166,6 +1171,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -1182,6 +1189,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -1331,6 +1341,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -1347,6 +1359,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -1721,6 +1736,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -1737,6 +1754,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -1886,6 +1906,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -1902,6 +1924,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -2140,6 +2165,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -2156,6 +2183,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -2334,6 +2364,8 @@
     }
    ],
    "schedule": [],
+   "links": [],
+   "xrefs": [],
    "report": {
     "key": "sp:2026-11-20-widget-export",
     "format": "7",
@@ -2350,6 +2382,9 @@
     "seededPoints": 0,
     "seededWithPoints": 0,
     "orphanSchedule": 0,
+    "links": 0,
+    "xrefs": 0,
+    "problems": [],
     "warnings": [],
     "planWarnings": [],
     "ledgerWarnings": []
@@ -2825,6 +2860,8 @@
     "sprint": 1
    }
   ],
+  "links": [],
+  "xrefs": [],
   "report": {
    "key": "sp:2026-11-20-widget-export",
    "format": "7",
@@ -2841,6 +2878,9 @@
    "seededPoints": 0,
    "seededWithPoints": 0,
    "orphanSchedule": 0,
+   "links": 0,
+   "xrefs": 0,
+   "problems": [],
    "warnings": [],
    "planWarnings": [],
    "ledgerWarnings": []
