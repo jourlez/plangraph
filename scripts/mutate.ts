@@ -143,6 +143,20 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/history/parse.ts", "p.length > 0 && p.length <= MAX_PATH && !CONTROL.test(p)", "p.length > 0 && p.length <= MAX_PATH", ["test/history-git.test.ts","test/history-link.test.ts"]],
   ["lib/history/parse.ts", ".update(email.trim().toLowerCase())", ".update(email.trim())", ["test/history-git.test.ts","test/history-link.test.ts"]],
   ["lib/history/parse.ts", "if (r.from === undefined) { r.from = tok; return; }", "", ["test/history-git.test.ts","test/history-link.test.ts"]],
+  // 1.0 ingest: decision records and requirements
+  ["lib/ingest/adr.ts", "if (Buffer.byteLength(text) > MAX_DOC_BYTES) return", "if (false) return", ["test/ingest-adr.test.ts"]],
+  ["lib/ingest/adr.ts", "s === '' || URLISH.test(s) || s.includes('://') ||", "s === '' ||", ["test/ingest-adr.test.ts"]],
+  ["lib/ingest/adr.ts", "/(^|\\/)\\.\\.(\\/|#|$)/.test(s) ||", "", ["test/ingest-adr.test.ts"]],
+  ["lib/ingest/adr.ts", "if (source !== undefined) node.source = source;", "node.source = path;", ["test/ingest-adr.test.ts"]],
+  ["lib/ingest/adr.ts", "if (head === undefined) return", "if (false) return", ["test/ingest-adr.test.ts"]],
+  ["lib/ingest/requirements.ts", "if (Buffer.byteLength(text) > MAX_DOC_BYTES) return", "if (Buffer.byteLength(text) > MAX_DOC_BYTES * 2) return", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "if (clean !== undefined) n.source =", "n.source =", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "if (seen.has(id)) return;", "", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "const TEXT_MAX = 2000, ACC_MAX = 200, ACC_LINES = 50,", "const TEXT_MAX = 2001, ACC_MAX = 200, ACC_LINES = 50,", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "ACC_MAX = 200, ACC_LINES = 50,", "ACC_MAX = 201, ACC_LINES = 50,", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "ACC_LINES = 50,", "ACC_LINES = 51,", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "if (fence) continue;", "", ["test/ingest-requirements.test.ts"]],
+  ["lib/ingest/requirements.ts", "if (!hit && bulletIn && inReq) add(", "if (!hit && bulletIn) add(", ["test/ingest-requirements.test.ts"]],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }

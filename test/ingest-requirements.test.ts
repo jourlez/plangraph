@@ -93,3 +93,34 @@ test('duplicate sentences in one section give one node', () => {
   const ns = parseRequirements('# A\n\nThe system shall x.\n\nThe system shall x.\n', D);
   assert.equal(ns.length, 1);
 });
+
+test('a Gherkin scenario keeps at most 50 acceptance lines, each at most 200 characters', () => {
+  const steps = Array.from({ length: 60 }, (_, i) => `    Given step ${i}`).join('\n');
+  const [s] = parseRequirements(`Feature: F\n  Scenario: S\n${steps}\n    Then ${'x'.repeat(300)}\n`, D);
+  assert.equal((s?.acceptance as string[]).length, 50);
+  const [t] = parseRequirements(`Feature: F\n  Scenario: S\n    Then ${'x'.repeat(300)}\n`, D);
+  const a = (t?.acceptance as string[])[0] as string;
+  assert.equal(a.length, 200);
+  assert.ok(a.endsWith('…'));
+});
+
+test('a requirement text is capped at 2000 characters with a visible marker', () => {
+  const [n] = parseRequirements(`## Requirements\n\n- ${'y'.repeat(2500)}\n`, D);
+  assert.equal((n?.text as string).length, 2000);
+  assert.ok((n?.text as string).endsWith('…'));
+});
+
+test('a sentence inside a code fence is not a requirement', () => {
+  const ns = parseRequirements('## Requirements\n\n```\nThe system shall fence.\n```\n\nThe system shall live.\n', D);
+  assert.deepEqual(ns.map((n) => n.text), ['The system shall live.']);
+});
+
+test('a bullet outside a Requirements section is not a free requirement', () => {
+  assert.deepEqual(parseRequirements('## Notes\n\n- remember the milk\n', D), []);
+});
+
+test('a source with no clean path stores no source on the node', () => {
+  const ns = parseRequirements('## Requirements\n\nThe system shall do it.\n', 'https://evil.example/doc.md');
+  assert.equal(ns.length, 1);
+  assert.equal('source' in (ns[0] as object), false);
+});
