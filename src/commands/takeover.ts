@@ -214,7 +214,7 @@ async function takeover(ctx: Ctx, args: Args<Opts>): Promise<number> {
   for (const step of STEPS.slice(start)) {
     if (skip.includes(step) || (from === undefined && state.done.includes(step))) continue;
     if (step === 'report') continue; // the report is always printed, below
-    state.done = state.done.filter((s) => s !== step); state.failed = state.failed.filter((f) => f.step !== step); state.skipped = state.skipped?.filter((f) => f.step !== step);
+    state.done = state.done.filter((s) => s !== step); state.failed = state.failed.filter((f) => f.step !== step); if (state.skipped) state.skipped = state.skipped.filter((f) => f.step !== step);
     const need = NEEDS[step];
     let line: string;
     if (need !== undefined && (failedNow.has(need) || state.failed.some((f) => f.step === need))) {
