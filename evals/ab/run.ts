@@ -284,7 +284,7 @@ export function copyWorkspace(src: string, dst: string): void {
   rewriteTree(path.join(dst, '.venv'), src, dst);
   const env = path.join(stateDir(src), 'env.sh');
   fs.mkdirSync(stateDir(dst), { recursive: true });
-  if (fs.existsSync(env)) fs.writeFileSync(path.join(stateDir(dst), 'env.sh'), fs.readFileSync(env, 'utf8').split(`${src}.bench`).map((x) => x.split(src).join(dst)).join(`${src}.bench`));
+  if (fs.existsSync(env)) fs.writeFileSync(path.join(stateDir(dst), 'env.sh'), fs.readFileSync(env, 'utf8').split(src).join(dst));
 }
 
 /** LIVE on a cache miss. A fresh workspace for one run: from the cache (prepared once per descriptor), copied to `dst`. Returns the seconds of preparation work this call did. */
