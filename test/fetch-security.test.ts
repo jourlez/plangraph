@@ -100,7 +100,7 @@ test('fetchGithub resumes only a page under its own pulls path', async () => {
   for (const page of ['repos/other/b/pulls?page=3', 'https://evil.example/x', 'repos/a/b/pulls?u=http://x']) {
     calls.length = 0;
     await fetchGithub(run, { repo: 'a/b', page });
-    assert.ok((calls[0]?.at(-1) as string).startsWith('repos/a/b/pulls?per_page=100'), page);
+    assert.ok(String(calls[0]?.[calls[0].length - 1]).startsWith('repos/a/b/pulls?per_page=100'), page);
   }
 });
 
