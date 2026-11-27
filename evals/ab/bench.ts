@@ -1,6 +1,6 @@
 // Full-pass driver (LIVE; refuses without EVAL_LIVE=1, except `report`).
 //   EVAL_LIVE=1 node evals/ab/bench.ts run --family graph|coding --out DIR [--parallel N] [--arms a,b] [--models sonnet,haiku,opus]
-//                                          [--tasks id,id] [--questions N] [--cache DIR] [--stagger-ms MS]
+//                                          [--tasks id,id] [--questions N] [--repeats N] [--cache DIR] [--stagger-ms MS]
 //   node evals/ab/bench.ts report --out DIR [--family graph|coding]       offline: the table from DIR/<family>.jsonl
 // Results are JSONL in `<out>/<family>.jsonl`, one line per finished cell, appended as each cell ends. `--out` must be outside this repository (transcripts and
 // results are never committed); stored text is scrubbed of absolute home paths and holds no transcript, only the first 80 characters of the reply.
@@ -16,7 +16,7 @@ import { PLUGIN_DIR, cells, copyWorkspace, grade, loadCodingTasks, preparePullOn
 import type { Cell, CodingTask } from './run.ts';
 
 export type Unit = { cell: Cell; id: string };
-export type Options = { family: 'graph' | 'coding'; out: string; parallel: number; arms: string[]; models: string[]; tasks: string[]; questions: number; cache: string; staggerMs: number };
+export type Options = { family: 'graph' | 'coding'; out: string; parallel: number; arms: string[]; models: string[]; tasks: string[]; questions: number; repeats: number; cache: string; staggerMs: number };
 /** One stored line: a Row plus what identifies and explains the run. */
 export type Stored = Row & { repeat: number; toolCalls: number; setupMs?: number; error: string | null; reply?: string };
 
@@ -32,7 +32,7 @@ export function parseArgs(argv: string[]): Options {
   const list = (f: string): string[] => (get(f) ?? '').split(',').filter(Boolean);
   const arms = list('--arms');
   for (const a of arms) if (!ARMS.some((x) => x.name === a && x.family === family)) throw new Error(`unknown arm for ${family}: ${a}`);
-  return { family, out: path.resolve(out), parallel, arms, models: list('--models'), tasks: list('--tasks'), questions: Number(get('--questions') ?? '200'), cache: path.resolve(get('--cache') ?? path.join(out, 'cache')), staggerMs: Number(get('--stagger-ms') ?? '1000') };
+  return { family, out: path.resolve(out), parallel, arms, models: list('--models'), tasks: list('--tasks'), questions: Number(get('--questions') ?? '200'), repeats: Number(get('--repeats') ?? '3'), cache: path.resolve(get('--cache') ?? path.join(out, 'cache')), staggerMs: Number(get('--stagger-ms') ?? '1000') };
 }
 
 /** `--out` must not be inside this repository: results and transcripts are never committed. */
@@ -59,9 +59,9 @@ export function doneKeys(records: Stored[]): Set<string> {
  * The cells to run, in order, minus `done`. Order: by item id, then repeat, then model, then arm, so the arms of one (item, model, repeat) run next to each other
  * (same time, same load) and one task's workspace cache is used by neighbours. Optional arms only when named in `arms`.
  */
-export function planUnits(family: 'graph' | 'coding', ids: string[], o: { arms?: string[]; models?: string[] } = {}, done: Set<string> = new Set()): Unit[] {
+export function planUnits(family: 'graph' | 'coding', ids: string[], o: { arms?: string[]; models?: string[]; repeats?: number } = {}, done: Set<string> = new Set()): Unit[] {
   const armRank = new Map(ARMS.map((a, i) => [a.name, i])), modelRank = new Map(['sonnet', 'haiku', 'opus'].map((m, i) => [m, i]));
-  const cs = cells(family, o.arms ?? []).filter((c) => (!o.arms?.length || o.arms.includes(c.arm)) && (!o.models?.length || o.models.includes(c.model)));
+  const cs = cells(family, o.arms ?? []).filter((c) => (!o.arms?.length || o.arms.includes(c.arm)) && (!o.models?.length || o.models.includes(c.model)) && c.repeat < (o.repeats ?? Infinity));
   const units = ids.flatMap((id) => cs.map((cell) => ({ cell, id })));
   const idRank = new Map(ids.map((id, i) => [id, i]));
   units.sort((a, b) => (idRank.get(a.id) as number) - (idRank.get(b.id) as number) || a.cell.repeat - b.cell.repeat || (modelRank.get(a.cell.model) as number) - (modelRank.get(b.cell.model) as number) || (armRank.get(a.cell.arm) as number) - (armRank.get(b.cell.arm) as number));
@@ -107,13 +107,13 @@ async function main(): Promise<void> {
   const append = (r: Stored): void => { fs.mkdirSync(o.out, { recursive: true }); fs.appendFileSync(file, JSON.stringify(r) + '\n'); console.log(`${r.arm} ${r.model} #${r.repeat} ${r.id} ${r.error ?? (r.correct ? 'ok' : 'wrong')} first=${r.firstIn} calls=${r.calls} $${r.cost.toFixed(4)}`); };
   const done = doneKeys(loadRecords(file));
   const pullOnly = path.join(o.cache, 'plugin-pull-only');
-  const pluginDirOf = (arm: string): string | undefined => (arm === 'plugin-pull-only' ? preparePullOnlyPlugin(pullOnly) : undefined);
+  const pluginDirOf = (arm: string): string | undefined => (arm.endsWith('pull-only') ? preparePullOnlyPlugin(pullOnly) : undefined);
   const run = path.join(o.cache, 'runs');
   if (o.family === 'graph') {
-    const all = graphQuestions().slice(0, o.questions), byId = new Map<string, GraphQuestion>(all.map((q) => [q.id, q]));
+    const all = graphQuestions().slice(0, o.questions).filter((q) => !o.tasks.length || o.tasks.includes(q.id)), byId = new Map<string, GraphQuestion>(all.map((q) => [q.id, q]));
     buildBaselineProject(path.join(o.cache, 'graph-baseline'));
     if (!fs.existsSync(path.join(o.cache, 'graph-graph', '.plangraph'))) buildGraphProject(path.join(o.cache, 'graph-graph'));
-    const units = planUnits('graph', all.map((q) => q.id), { arms: o.arms, models: o.models }, done);
+    const units = planUnits('graph', all.map((q) => q.id), { arms: o.arms, models: o.models, repeats: o.repeats }, done);
     console.log(`${units.length} cells to run (${done.size} already recorded), parallel ${o.parallel}`);
     await runPool(units, o.parallel, async (u, i) => {
       const q = byId.get(u.id) as GraphQuestion, dir = path.join(run, `g${i}`);
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     }, o.staggerMs);
   } else {
     const tasks = runnableTasks(loadCodingTasks()).run.filter((t) => !o.tasks.length || o.tasks.includes(t.id)), byId = new Map<string, CodingTask>(tasks.map((t) => [t.id, t]));
-    const units = planUnits('coding', tasks.map((t) => t.id), { arms: o.arms, models: o.models }, done);
+    const units = planUnits('coding', tasks.map((t) => t.id), { arms: o.arms, models: o.models, repeats: o.repeats }, done);
     console.log(`${units.length} cells to run (${done.size} already recorded), parallel ${o.parallel}`);
     await runPool(units, o.parallel, async (u, i) => {
       const t = byId.get(u.id) as CodingTask, dir = path.join(run, `c${i}`);

@@ -111,7 +111,8 @@ const norm = (s: string): string[] => s.toLowerCase().replace(/[`*]/g, '').split
 /** Offline grading of a graph answer: list answers compare as sets of tokens found in the reply; a single answer must appear as a whole token. */
 export function grade(q: Pick<GraphQuestion, 'answer'>, reply: string): boolean {
   const want = q.answer.split(',').map((x) => x.toLowerCase()), have = new Set(norm(reply));
-  return want.every((w) => have.has(w));
+  // the graph store keeps sprints as numbers (the CLI prints 1 for S1): a sprint label `S<n>` is also correct as the bare number
+  return want.every((w) => have.has(w) || (/^s\d+$/.test(w) && have.has(w.slice(1))));
 }
 
 type Usage = { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
@@ -125,7 +126,7 @@ export type Parsed = { reply: string; tokens: number; firstIn: number; tokensIn:
 const inputOf = (u: Usage): number => (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
 /** Parse the output of one run: one `--output-format json` object, or the `stream-json` lines (then tool calls are the tool_use blocks; with one object they are the turns minus one). */
 export function parseRun(stdout: string): Parsed {
-  const lines = stdout.split('\n').filter((l) => l.trim().startsWith('{')).map((l) => JSON.parse(l) as ClaudeJson);
+  const lines = stdout.split('\n').filter((l) => l.trim().startsWith('{')).flatMap((l) => { try { return [JSON.parse(l) as ClaudeJson]; } catch { return []; } }); // a torn or non-JSON line is skipped, not fatal
   const j = lines.find((l) => l.type === 'result') ?? lines.at(-1);
   if (!j) throw new Error('no result in the output');
   const u = j.usage ?? {}, tokensOut = u.output_tokens ?? 0, tokensIn = inputOf(u);
@@ -258,7 +259,8 @@ function rewriteTree(root: string, from: string, to: string): void {
     if (!e.isFile() || fs.statSync(p).size > (2 << 20)) continue;
     const buf = fs.readFileSync(p);
     if (buf.subarray(0, 8192).includes(0) || !buf.includes(from)) continue;
-    fs.writeFileSync(p, buf.toString('utf8').split(from).join(to), { mode: fs.statSync(p).mode });
+    // `<from>.bench` (the cache's state directory: HOME with the uv-managed python a venv points to) stays as it is; only the clone path itself moves
+    fs.writeFileSync(p, buf.toString('utf8').split(`${from}.bench`).map((x) => x.split(from).join(to)).join(`${from}.bench`), { mode: fs.statSync(p).mode });
   }
 }
 

@@ -20,6 +20,7 @@ const GRAPH_TOOLS = ['Read', 'Grep', 'Bash'], CODING_TOOLS = ['Read', 'Edit', 'W
 export const ARMS: Arm[] = [
   { name: 'baseline', family: 'graph', plugin: false, tools: GRAPH_TOOLS, hooks: false, mcp: false },
   { name: 'graph', family: 'graph', plugin: true, tools: GRAPH_TOOLS, hooks: true, mcp: false },
+  { name: 'graph-pull-only', family: 'graph', plugin: true, tools: GRAPH_TOOLS, hooks: false, mcp: false, optional: true },
   { name: 'plugin-off', family: 'coding', plugin: false, tools: CODING_TOOLS, hooks: false, mcp: false },
   { name: 'plugin-default', family: 'coding', plugin: true, tools: CODING_TOOLS, hooks: true, mcp: true },
   { name: 'plugin-pull-only', family: 'coding', plugin: true, tools: CODING_TOOLS, hooks: false, mcp: false, optional: true },
