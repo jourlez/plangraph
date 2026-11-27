@@ -262,7 +262,7 @@ async function init(ctx: Ctx): Promise<number> {
   if (!store.exists('meta')) { store.writeKind('meta', []); changes.push(`created ${kindFile('meta')}`); } // the one plan file that stays a single file
   if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION, storage: 'entity' }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
   if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);
-  else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`plangraph build\``);
+  else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then fill the plan with \`plangraph takeover\` (an existing project) or \`plangraph sp-ingest PLAN\` (a plan document), then \`plangraph build\``);
   // Print-only: plangraph never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
   if (!claudeSteer(ctx).steered) ctx.io.outBlock(["suggested lines for this repo's CLAUDE.md (printed only, nothing written):", ...claudeSnippet(rel(ctx, dir))]);
   return 0;

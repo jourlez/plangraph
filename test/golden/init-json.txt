@@ -1,5 +1,5 @@
 $ plangraph init --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"init","ok":true,"exit":0,"data":{"lines":["initialised .plangraph: edit config.json, then add <FILE>, <FILE> and <FILE> (see the plugin README), then `plangraph build`","suggested lines for this repo's CLAUDE.md (printed only, nothing written):","## Plan questions","Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.","Run `plangraph explain` for the full command list."]},"fresh":null,"next":[]}
+{"v":2,"cmd":"init","ok":true,"exit":0,"data":{"lines":["initialised .plangraph: edit config.json, then fill the plan with `plangraph takeover` (an existing project) or `plangraph sp-ingest PLAN` (a plan document), then `plangraph build`","suggested lines for this repo's CLAUDE.md (printed only, nothing written):","## Plan questions","Use `plangraph` for plan questions (ticket, ready, whatif, blockers, sprint, person); do not read .plangraph/*.jsonl or the index.","Run `plangraph explain` for the full command list."]},"fresh":null,"next":[]}
 --- stderr
