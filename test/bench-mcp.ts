@@ -2,7 +2,7 @@
 // Token cost of the optional MCP adapter (docs/MCP.md), measured the way docs/research/ai-engineering.md section 6 asks:
 //   node test/bench-mcp.ts [--dir SCRATCH] [--check [--doc FILE]]
 // --check compares the block with the one between the MCP-BENCH markers of docs/MCP.md (or FILE) and exits 1 on drift; it never writes.
-// 1. the up-front cost: bytes of the tools/list result (what a client without deferred tool loading puts in context every session)
+// 1. the up-front cost (bound: 3,500 characters of tools/list): bytes of the tools/list result (what a client without deferred tool loading puts in context every session)
 //    and of the initialize result; 2. the per-call cost on the token benchmark's plan (test/bench-tokens.ts, 1400 tickets): for each
 //    of its 24 questions that one of the tools can answer (ticket, ready), the CLI answer vs the MCP tool text and the whole
 //    JSON-RPC reply line. est tok = ceil(chars/4 x factor) from test/token-calibration.json (UNVERIFIED until the owner calibrates it).
@@ -43,8 +43,8 @@ const reply = (id: number) => { const l = out.find((x) => JSON.parse(x).id === i
 const cli = (a: string[]) => { const r = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), ...a], { cwd: SCRATCH, env, encoding: 'utf8' }); return [r.stdout, r.stderr].map((s) => s.replace(/\n$/, '')).filter(Boolean).join('\n'); };
 
 const list = reply(1), init = reply(0), defs = JSON.stringify(TOOLS);
-const MAX_LIST_BYTES = 2600; // amendment 3.8: tools/list stays under this many bytes (the reply line, what a client loads eagerly)
-if (bytes(list) > MAX_LIST_BYTES) { console.error(`tools/list reply is ${bytes(list)} bytes, over the ${MAX_LIST_BYTES} byte bound`); process.exit(1); }
+const MAX_LIST_CHARS = 3500; // task 28: tools/list stays under this many characters (the reply line, what a client loads eagerly)
+if (list.length > MAX_LIST_CHARS) { console.error(`tools/list reply is ${list.length} characters, over the ${MAX_LIST_CHARS} character bound`); process.exit(1); }
 const md = [`Tokenizer: est tok = ceil(chars/4) x ${loadCalibration().factor} (test/token-calibration.json, unverified). Bytes are exact.`, '',
   '| up-front item | bytes | est tok |', '|---|--:|--:|',
   `| tool definitions (JSON of the ${TOOLS.length} tools) | ${bytes(defs)} | ${est(defs)} |`,
