@@ -266,7 +266,8 @@ function rewriteTree(root: string, from: string, to: string): void {
     if (!e.isFile() || fs.statSync(p).size > (2 << 20)) continue;
     const buf = fs.readFileSync(p);
     if (buf.subarray(0, 8192).includes(0) || !buf.includes(from)) continue;
-    fs.writeFileSync(p, buf.toString('utf8').split(from).join(to), { mode: fs.statSync(p).mode });
+    // `<from>.bench` (the cache's state directory: HOME with the uv-managed python a venv points to) stays as it is; only the clone path itself moves
+    fs.writeFileSync(p, buf.toString('utf8').split(`${from}.bench`).map((x) => x.split(from).join(to)).join(`${from}.bench`), { mode: fs.statSync(p).mode });
   }
 }
 
@@ -283,7 +284,7 @@ export function copyWorkspace(src: string, dst: string): void {
   rewriteTree(path.join(dst, '.venv'), src, dst);
   const env = path.join(stateDir(src), 'env.sh');
   fs.mkdirSync(stateDir(dst), { recursive: true });
-  if (fs.existsSync(env)) fs.writeFileSync(path.join(stateDir(dst), 'env.sh'), fs.readFileSync(env, 'utf8').split(src).join(dst));
+  if (fs.existsSync(env)) fs.writeFileSync(path.join(stateDir(dst), 'env.sh'), fs.readFileSync(env, 'utf8').split(`${src}.bench`).map((x) => x.split(src).join(dst)).join(`${src}.bench`));
 }
 
 /** LIVE on a cache miss. A fresh workspace for one run: from the cache (prepared once per descriptor), copied to `dst`. Returns the seconds of preparation work this call did. */
