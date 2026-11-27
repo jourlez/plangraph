@@ -19,14 +19,15 @@ const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph');
 const REL = 'docs/superpowers/plans/slug.md', URI = 'pg:plantask/docs%2Fsuperpowers%2Fplans%2Fslug.md%232';
 const HAS_SATISFIES = (RELATIONS as readonly string[]).includes('satisfies');
 const DATA = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-splinks-data-')));
-process.on('exit', () => fs.rmSync(DATA, { recursive: true, force: true }));
+const MADE: string[] = [DATA];
+process.on('exit', () => { for (const d of MADE) fs.rmSync(d, { recursive: true, force: true }); });
 
 const plan = (head = '', t2 = '', t1 = '') => `# Slug Plan\n\n**Goal:** g\n${head}\n### Task 1: One\n\n${t1}**Files:** Create \`web/a.ts\`\n\n- [ ] **Step 1: x**\n\n### Task 2: Two\n\n${t2}\n- [ ] **Step 1: x**\n`;
 const T2 = '**Assignee:** ana\n**Sprint:** 3\n**Ticket:** ABC-9\n**Repo:** web\n';
 
 function project(text: string) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-splinks-')));
-  process.on('exit', () => fs.rmSync(root, { recursive: true, force: true }));
+  MADE.push(root);
   execFileSync('git', ['init', '-q'], { cwd: root });
   fs.mkdirSync(path.join(root, 'docs/superpowers/plans'), { recursive: true });
   const write = (t: string) => fs.writeFileSync(path.join(root, REL), t);

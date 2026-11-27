@@ -18,9 +18,12 @@ const POINTS = { 1: 2, 2: 3, 3: 5 };
 const PLAN = ['# Demo Gadget Plan', '', '**Goal:** Ship a demo gadget.', '',
   ...Object.entries(POINTS).flatMap(([n, p]) => [`### Task ${n}: Part ${n}`, '', `Points: ${p}`, '', `Build part ${n}.`, ''])].join('\n');
 
+const MADE: string[] = [];
+process.on('exit', () => { for (const d of MADE) fs.rmSync(d, { recursive: true, force: true }); });
+
 function ingested() {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-spsolve-')));
-  process.on('exit', () => fs.rmSync(root, { recursive: true, force: true }));
+  MADE.push(root);
   execFileSync('git', ['init', '-q'], { cwd: root });
   const rel = 'docs/superpowers/plans/demo.md';
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), PLAN);

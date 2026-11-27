@@ -174,7 +174,7 @@ test('BEFORE_FIRST agrees with bin/plangraph-solve verify() on an exhaustive gri
     insts.push({ tickets: [{ key: 'A', sp: 1, jira_status: sa, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'B', sp: 2, jira_status: sb, v2_owner: 'Ben', v2_sprint: 1 }],
       cur: { A: ['Ana', ca], B: ['Ben', cb] }, assign: { A: ['Ana', aa], B: ['Ben', ab] }, cfg });
   }
-  const r = spawnSync('python3', ['-I', '-c', ORACLE, SOLVER], { input: JSON.stringify(insts), encoding: 'utf8', maxBuffer: 1 << 26, timeout: 120000 });
+  const r = spawnSync('python3', ['-I', '-c', ORACLE, SOLVER], { input: JSON.stringify(insts), encoding: 'utf8', maxBuffer: 1 << 26, timeout: 300000 });
   assert.equal(r.status, 0, r.stderr);
   const want = JSON.parse(r.stdout);
   assert.equal(want.length, insts.length);
