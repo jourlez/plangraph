@@ -1,6 +1,6 @@
 {
   "name": "plangraph",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A small knowledge graph for planning with Claude Code: tickets, dependency links, readiness verdicts with evidence fingerprints, schedules, and learnings. Text in git, a cheap query CLI, no model calls.",
   "author": { "name": "jourlez" },
   "keywords": ["planning", "jira", "knowledge-graph", "memory", "scheduling"],

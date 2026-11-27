@@ -4,6 +4,12 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-27
+
+### Changed
+- Development dependency `@biomejs/biome` 2.6.9 and the CI action `gitleaks/gitleaks-action` 3.0.0 (the Node 24 runtime; inputs, outputs and behavior are unchanged). Every other pinned dependency, action, solver package and tool was already at its latest release; `@types/node` stays on the 24 line because the runtime floor is Node 24.15 and newer type definitions would accept APIs that floor does not have.
+- `docs/LAUNCH.md` records the published releases and how each was verified.
+
 ## [1.0.1] - 2026-11-27
 
 ### Fixed
