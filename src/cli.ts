@@ -100,7 +100,7 @@ export async function main(argv: string[], { registry = defaultRegistry, makeCon
   const [name, ...rest] = argv;
   // The SessionStart hook runs `card --if-present --refresh`: it must never print and never exit non-zero. Any failure there (a bad
   // .plangraphrc, a refused plan dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
-  const hook = name === 'card' && rest.includes('--if-present');
+  const hook = (name === 'card' && rest.includes('--if-present')) || name === 'hook-prompt' || (name === 'refresh' && rest.includes('--quiet')); // hook-prompt and refresh --quiet obey the same rule
   const col = makeCollector({ strict: strictOutput(env) });
   let values: Record<string, unknown> = Object.create(null), code: number, shown: ShellCtx | undefined, command: string | undefined;
   // --json seen on the command line: an error before or during option parsing still prints the envelope (cmd: a registered name or null)

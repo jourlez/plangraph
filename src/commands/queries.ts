@@ -208,7 +208,15 @@ function rules(ctx: Ctx, args: Args<RulesValues>): Promise<number> | number {
 
 // Frozen history (lib/frozen.ts): a link with a closed producer, or between two frozen tickets, is no violation; a cell is over cap only
 // when it holds a free ticket with story points.
-async function check(ctx: Ctx): Promise<number> {
+// --quiet (the optional pre-commit git hook): nothing is printed when the plan passes; a failure prints everything.
+async function check(ctx: Ctx, args: Args<{ quiet?: boolean }>): Promise<number> {
+  if (!args.values.quiet) return checkBody(ctx);
+  const held: string[] = [];
+  const code = await checkBody({ ...ctx, io: { ...ctx.io, out: (l: string) => { held.push(l); }, data: () => {} } } as Ctx);
+  if (code !== 0) for (const l of held) ctx.io.out(l);
+  return code;
+}
+async function checkBody(ctx: Ctx): Promise<number> {
   const F = await import('../../lib/frozen.ts');
   const d = ctx.db(), cfg = ctx.config(), skip = new Set<unknown>(cfg.ignore_link_kinds || []), model = modelFromDb(ctx), frozen = F.frozenTest(model);
   const sched = new Map((d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`) as PlaceRow[]).map((r) => [r.key, r])); // the columns this SELECT names
@@ -389,10 +397,13 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
 }
 
 // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card; a manual
-// `plangraph card` is never affected. --refresh is accepted and does nothing yet (the hook passes it; task 29 gives it work).
+// `plangraph card` is never affected. --refresh runs the quiet refresh (src/commands/refresh.ts) AFTER the card is printed, so the card line
+// stays the last fingerprint the session saw; it is bounded by the refresh budget and never changes the card's exit code or output.
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
-  return cardBody(ctx, args);
+  const code = await cardBody(ctx, args);
+  if (code === 0 && args.values.refresh) { try { await (await import('./refresh.ts')).runRefresh(ctx); } catch { /* the card already printed; a refresh never fails it */ } }
+  return code;
 }
 async function cardBody(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values.line) return cardLine(ctx);
@@ -421,7 +432,7 @@ export const commands: CommandMap = {
   blockers: { run: blockers, positionals: [0, 0], summary: 'tickets whose verdict is not READY' },
   findings: { run: findings, positionals: [0, 1], summary: 'finding counts by kind, or the findings of one kind' },
   rules: { run: rules, positionals: [0, 1], options: { repo: B, max: { type: 'string', missing: '--max needs a whole number from 1 to 30 (up to 200 with -v)' }, topic: { type: 'string', missing: TOPIC_USAGE }, all: B }, summary: 'learned rules by topic; --repo reads OpenWolf rules (--topic WORD, --all adds dated sections)' },
-  check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)' },
+  check: { run: check, positionals: [0, 0], options: { quiet: B }, summary: 'strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B, strict: B }, summary: 'independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless --strict)' },
   ready: { run: ready, positionals: [0, 1], options: { jira: { type: 'string' }, person: { type: 'string' }, sprint: { type: 'integer' } }, summary: 'may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start' },
   card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, refresh: B }, guard: (v: Record<string, unknown>) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
