@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "plangraph": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/plangraph-mcp.ts"],
+      "env": { "PLANGRAPH_MCP": "${user_config.mcp}" }
+    }
+  }
+}

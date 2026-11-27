@@ -9,7 +9,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, spawnSync, execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
-import { createServer, serve, TOOLS, RESOURCE_TEMPLATES, PROTOCOL_VERSIONS, LATEST_PROTOCOL, MAX_MESSAGE, SERVER_VERSION, toolArgv, resourceArgv } from '../src/mcp.ts';
+import { createServer, serve, TOOLS, INSTRUCTIONS, RESOURCE_TEMPLATES, PROTOCOL_VERSIONS, LATEST_PROTOCOL, MAX_MESSAGE, SERVER_VERSION, toolArgv, resourceArgv } from '../src/mcp.ts';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { adoptPlanDir, readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
 /** A JSON-RPC reply as these tests read it: every field the assertions touch (a reply without it fails the assertion, never passes). */
@@ -111,7 +111,7 @@ function hashTree(dir: string): string {
 test('initialize echoes a supported version and answers the latest one for an unsupported version', async () => {
   const r = await session(lines(INIT, req(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {} })));
   assert.equal(r.code, 0);
-  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION } } });
+  assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 0, result: { protocolVersion: '2025-06-18', capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } }, serverInfo: { name: 'plangraph', version: SERVER_VERSION }, instructions: INSTRUCTIONS } });
   assert.deepEqual(r.msgs[1].error.code, -32600, 'a second initialize is refused');
   for (const v of PROTOCOL_VERSIONS) {
     const [m] = await inproc(req(1, 'initialize', { protocolVersion: v, capabilities: {} }) + '\n');
@@ -135,7 +135,7 @@ test('replay of the exchange Claude Code 2.1.329 sent (captured live): discover 
     note('notifications/initialized'), JSON.stringify({ method: 'tools/list', jsonrpc: '2.0', id: 1 })));
   assert.deepEqual(r.msgs[0], { jsonrpc: '2.0', id: 'server-discover-probe-1', error: { code: -32601, message: 'method not found' } });
   assert.equal(r.msgs[1].result.protocolVersion, '2025-11-25');
-  assert.deepEqual(r.msgs[2].result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph']);
+  assert.deepEqual(r.msgs[2].result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph', 'map', 'context', 'flow_next']);
   assert.equal(r.msgs.length, 3);
 });
 
@@ -147,15 +147,16 @@ test('ping works before and after initialize; tools/* before initialize is refus
   assert.deepEqual(byId(r.msgs, 'b'), { jsonrpc: '2.0', id: 'b', result: {} });
 });
 
-test('tools/list: exactly ready, whatif, ticket, graph; read-only annotations; strict schemas; no write or apply argument anywhere', async () => {
+test('tools/list: exactly ready, whatif, ticket, graph, map, context, flow_next; read-only annotations; strict schemas; no write or apply argument anywhere', async () => {
   const r = await session(lines(INIT, note('notifications/initialized'), req(1, 'tools/list'), req(2, 'tools/list', { cursor: 'x' })));
   const m = byId(r.msgs, 1);
-  assert.deepEqual(m.result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph']);
+  assert.deepEqual(m.result.tools.map((t) => t.name), ['ready', 'whatif', 'ticket', 'graph', 'map', 'context', 'flow_next']);
   assert.equal('nextCursor' in m.result, false);
   for (const t of m.result.tools) {
-    assert.equal(t.inputSchema.type, 'object'); assert.equal(t.inputSchema.additionalProperties, false); assert.deepEqual(t.inputSchema.required, ['key']);
-    assert.deepEqual(t.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+    assert.equal(t.inputSchema.type, 'object'); assert.equal(t.inputSchema.additionalProperties, false); assert.deepEqual(t.inputSchema.required ?? [], ['map', 'context', 'flow_next'].includes(t.name) ? [] : ['key']);
+    assert.deepEqual(t.annotations, { readOnlyHint: true });
     assert.ok(t.description.length > 20 && t.description.length < 400);
+    assert.equal((t as unknown as { outputSchema: { type: string } }).outputSchema.type, 'object');
   }
   assert.doesNotMatch(JSON.stringify(m.result), /apply|write|jira|dir|path/i);
   assert.deepEqual(byId(r.msgs, 2).error, { code: -32602, message: 'invalid params: unknown cursor' });
@@ -263,7 +264,7 @@ test('parity: the tool text is byte for byte the CLI output (golden fixture), er
   const r = await session(lines(INIT, ...cases.map(([n, a], i) => call(i + 1, n, a))));
   cases.forEach(([n, a, argv, gold], i) => {
     const m = byId(r.msgs, i + 1), c = cli(argv), text = m.result.content[0].text;
-    assert.deepEqual(Object.keys(m.result).sort(), ['content', 'isError']);
+    assert.deepEqual(Object.keys(m.result).sort(), (c.status as number) < 2 ? ['content', 'isError', 'structuredContent'] : ['content', 'isError']);
     assert.equal(m.result.content[0].type, 'text');
     assert.equal(text, cliText(c), `${n} ${JSON.stringify(a)} differs from plangraph ${argv.join(' ')}`);
     assert.equal(m.result.isError, (c.status as number) >= 2, 'isError only for usage, data or environment errors, not for a NOT READY / NO answer'); // the CLI ran: it has an exit status
@@ -274,10 +275,8 @@ test('parity: the tool text is byte for byte the CLI output (golden fixture), er
 test('parity holds on errors and the stale policy: no index -> the CLI error lines; stale index -> the same STALE warning', async () => {
   const empty = path.join(BASE, 'empty'); fs.mkdirSync(empty); git(empty, 'init', '-q');
   const r1 = await session(lines(INIT, call(1, 'ticket', { key: 'T-1' })), { cwd: empty });
-  const c1 = spawnSync(process.execPath, [BRAIN, 'ticket', 'T-1'], { cwd: empty, env: env(), encoding: 'utf8' });
-  assert.equal(byId(r1.msgs, 1).result.content[0].text, cliText(c1));
-  assert.equal(byId(r1.msgs, 1).result.isError, true);
-  assert.match(cliText(c1), /no plan directory: run `plangraph init`\ntry: plangraph init/); // no plan directory: the first step is init
+  assert.equal(r1.code, 0); assert.equal(r1.err, ''); // no plan directory: one JSON-RPC error on initialize, then the server ends quietly (test/mcp-tools.test.ts)
+  assert.equal(r1.msgs.length, 1); assert.match(r1.msgs[0].error.message, /no plan directory: run `plangraph init`/);
   const stale = path.join(BASE, 'stale'); fs.cpSync(REPO, stale, { recursive: true });
   fs.appendFileSync(path.join(stale, '.plangraph/findings.jsonl'), JSON.stringify({ key: 'T-7', kind: 'note', text: 'late' }) + '\n');
   adoptPlanDir(path.join(stale, '.plangraph'));
@@ -334,23 +333,23 @@ test('the tool text is bounded: oversized command output is cut with a marker', 
   assert.match(text, /\n\.\.\. output cut at 262144 bytes$/);
 });
 
-// ---------- packaging: off by default ----------
-test('default install declares no MCP server: no mcpServers in plugin.json, no .mcp.json at the plugin root, entry not on PATH', () => {
+// ---------- packaging: bundled in .mcp.json, switched off by the plugin option ----------
+test('the plugin bundles the server in .mcp.json behind the mcp option; no inline mcpServers, entry not on PATH, doc says how to turn it off', () => {
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
   assert.equal('mcpServers' in man, false);
-  for (const f of ['.mcp.json', 'mcp.json', '.claude-plugin/.mcp.json']) assert.equal(fs.existsSync(path.join(ROOT, f)), false, `${f} would auto-load an MCP server`);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT, '.mcp.json'), 'utf8')).mcpServers), ['plangraph']);
   assert.equal(fs.readdirSync(path.join(ROOT, 'bin')).some((n) => /mcp/i.test(n)), false, 'the adapter must not be a bin/ command');
   assert.doesNotMatch(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8'), /mcp/i);
   assert.ok(fs.statSync(ENTRY).isFile());
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
-  assert.match(doc, /off by default/i); assert.match(doc, /"mcpServers"/); assert.match(doc, /no worse than the CLI/i);
+  assert.match(doc, /\.mcp\.json/); assert.match(doc, /"mcpServers"/); assert.match(doc, /no worse than the CLI/i); assert.match(doc, /user_config\.mcp|option `mcp`/);
   assert.equal(SERVER_VERSION, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version);
 });
 
 // ---------- graph tool and resources (0.5.0, decision D25) ----------
-test('graph tool: text is the CLI text, structuredContent and resource_link ride along, tools/list stays within 2600 bytes', async () => {
+test('graph tool: text is the CLI text, structuredContent and resource_link ride along, tools/list stays within 3500 characters', async () => {
   const [list] = (await inproc(INIT + '\n' + req(1, 'tools/list') + '\n')).slice(1);
-  assert.ok(Buffer.byteLength(JSON.stringify(list)) <= 2600, 'tools/list reply bound');
+  assert.ok(JSON.stringify(list).length <= 3500, 'tools/list reply bound');
   const [, m] = await inproc(INIT + '\n' + call(1, 'graph', { key: 'T-3', depth: 2 }) + '\n');
   assert.equal(m.result.isError, false);
   const text = (m.result.content[0] as { text: string }).text;
@@ -363,7 +362,7 @@ test('graph tool: text is the CLI text, structuredContent and resource_link ride
 });
 
 test('graph tool arguments: only ticket keys and canonical pg: URIs; materialize and bad rel or depth are refused', () => {
-  assert.deepEqual(toolArgv('graph', { key: 'T-3', rel: 'needs,x-gh/closes', depth: 2, reverse: true, verbose: true }), ['graph', '--rel=needs,x-gh/closes', '--depth=2', '--reverse', '-v', '--', 'T-3']);
+  assert.deepEqual(toolArgv('graph', { key: 'T-3', rel: 'needs,x-gh/closes', depth: 2, reverse: true, detail: 'detailed' }), ['graph', '--rel=needs,x-gh/closes', '--depth=2', '--reverse', '-v', '--', 'T-3']);
   assert.deepEqual(toolArgv('graph', { key: 'pg:person/Ana%20B' }), ['graph', '--', 'pg:person/Ana%20B']);
   for (const a of [{ key: 'materialize' }, { key: 'pg:person/Ana B' }, { key: 'pg:nope/x' }, { key: 'Ana' }, { key: 'T-3', rel: 'nope' }, { key: 'T-3', rel: 'needs,' }, { key: 'T-3', depth: 0 },
     { key: 'T-3', depth: 21 }, { key: 'T-3', depth: 1.5 }, { key: 'T-3', depth: '2' }, { key: 'T-3', reverse: 1 }, { key: 'T-3', type: 'ticket' }, { key: 'T-3', write: true }]) {

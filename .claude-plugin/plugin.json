@@ -17,6 +17,13 @@
       "description": "Inject the short plan card at session start. Set to off to disable; the plangraph command and skills still work.",
       "options": ["auto", "off"],
       "default": "auto"
+    },
+    "mcp": {
+      "type": "string",
+      "title": "Plan graph MCP server",
+      "description": "Start the read-only plangraph MCP server (map, context, flow_next, ready, ticket, whatif, graph). Set to off to disable it; the plangraph command and skills still work.",
+      "options": ["on", "off"],
+      "default": "on"
     }
   }
 }

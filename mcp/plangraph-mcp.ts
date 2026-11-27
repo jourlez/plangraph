@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// plangraph-mcp: the optional, read-only MCP server (stdio) of plangraph. NOT started by the plugin and not on PATH; an owner who wants
-// it adds it to an MCP config by hand (docs/MCP.md). Tools: ready, whatif (dry run only), ticket; the protocol is in src/mcp.ts.
+// plangraph-mcp: the read-only MCP server (stdio) of plangraph. The plugin bundles it in .mcp.json, switched off by the plugin option `mcp` (PLANGRAPH_MCP=off);
+// without the plugin an owner adds it by hand (docs/MCP.md). Tools: ready, whatif (dry run only), ticket, graph, map, context, flow_next; the protocol is in src/mcp.ts.
 // The repository is the working directory the client starts it in, and the plan dir follows the CLI rules (PLANGRAPH_DIR, .plangraphrc).
+// With no plan directory, or with the option off, `initialize` gets one JSON-RPC error and the process ends with exit 0 and nothing on stderr.
 // stdout carries only JSON-RPC lines; nothing is logged. It exits when stdin closes, after answering what it already read.
 import { nodeSupported, floorMessage } from '../src/floor.js';
 
