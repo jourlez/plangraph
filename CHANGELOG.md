@@ -139,8 +139,8 @@ and moved the data and cache directory. Both are back to `project-brain` (`~/.co
 
 ## 0.1.3
 
-Renamed: the plugin, the marketplace and the repository are now `open-brain` (`/plugin install open-brain@open-brain-marketplace`; skills are
-`open-brain:brain`, `open-brain:brain-onboard` and so on). The Jira credential and cache locations keep their names
+Renamed: the plugin, the marketplace and the repository took a new name at that point (`/plugin install <plugin>@<marketplace>`; skills are
+`<plugin>:brain`, `<plugin>:brain-onboard` and so on). The Jira credential and cache locations keep their names
 (`~/.config/project-brain/`, the keychain service `project-brain-jira`, `~/.cache/project-brain`), so existing bindings and the solver
 environment keep working. Added: the `brain-autopilot` skill (`docs/AUTOPILOT.md`). Changed: one function, `resolveTenant`, now decides
 whether the generic Jira credentials may be used, for both `brain jira-pull` and `brain doctor`. No change to any command output.
@@ -192,7 +192,7 @@ Packaging:
   warning is gone.
 - `engines.claude-code` is `>=2.1.329` in `plugin.json`: the plugin was installed and run on 2.1.329; the newest published, 2.1.330, was not tested.
 - `repository` and `homepage` in `plugin.json`, and `repository`, `homepage` and `bugs` in `package.json` (still `private`), all pointing at
-  the one GitHub repository. README installs with `/plugin marketplace add jourlez/open-brain`; `.github/CODEOWNERS` names the owner;
+  the one GitHub repository. README installs with `/plugin marketplace add` and the repository name; `.github/CODEOWNERS` names the owner;
   SECURITY.md uses GitHub private vulnerability reporting (it must be enabled in the repository settings); CONTRIBUTING.md uses issues and pull requests.
 
 Changed:
