@@ -97,17 +97,17 @@ test('duplicate sentences in one section give one node', () => {
 test('a Gherkin scenario keeps at most 50 acceptance lines, each at most 200 characters', () => {
   const steps = Array.from({ length: 60 }, (_, i) => `    Given step ${i}`).join('\n');
   const [s] = parseRequirements(`Feature: F\n  Scenario: S\n${steps}\n    Then ${'x'.repeat(300)}\n`, D);
-  assert.equal((s?.acceptance as string[]).length, 50);
+  assert.equal(((s as unknown as { acceptance: string[] }).acceptance).length, 50);
   const [t] = parseRequirements(`Feature: F\n  Scenario: S\n    Then ${'x'.repeat(300)}\n`, D);
-  const a = (t?.acceptance as string[])[0] as string;
+  const a = ((t as unknown as { acceptance: string[] }).acceptance)[0] as string;
   assert.equal(a.length, 200);
   assert.ok(a.endsWith('…'));
 });
 
 test('a requirement text is capped at 2000 characters with a visible marker', () => {
   const [n] = parseRequirements(`## Requirements\n\n- ${'y'.repeat(2500)}\n`, D);
-  assert.equal((n?.text as string).length, 2000);
-  assert.ok((n?.text as string).endsWith('…'));
+  assert.equal(((n as unknown as { text: string }).text).length, 2000);
+  assert.ok(((n as unknown as { text: string }).text).endsWith('…'));
 });
 
 test('a sentence inside a code fence is not a requirement', () => {

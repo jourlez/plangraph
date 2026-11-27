@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { genPlan } from './fixtures/gen.ts';
 import { writePlanDir } from './helpers/plan-dir.ts';
-import { TABLES, ADVISORY_TABLES, contentDigest, buildIndex, INDEX_FILE, IndexHandle } from '../src/db.ts';
+import { TABLES, ADVISORY_TABLES, contentDigest, buildIndex, INDEX_FILE, type IndexHandle } from '../src/db.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');

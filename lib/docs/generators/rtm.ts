@@ -10,7 +10,7 @@ export const rtm = defineGenerator({
     const proven = (k: string): boolean => ev.some((e) => e.task === k && (e.evidence ?? []).some((x) => x.startsWith('test:') || x.startsWith('human:')));
     return sorted(c.extras.requirements ?? [], (r) => r.id).map((r) => {
       const ks = [...new Set(r.satisfiedBy ?? [])].sort();
-      const st = ks.map((k) => ({ k: idText(k), s: model.tickets.has(k) ? statusOf(model.tickets.get(k)!) : 'missing', p: proven(k) }));
+      const st = ks.map((k) => { const t = model.tickets.get(k); return { k: idText(k), s: model.tickets.has(k) ? statusOf(t as NonNullable<typeof t>) : 'missing', p: proven(k) }; });
       const state = r.status === 'dropped' ? 'dropped' : st.length === 0 ? 'orphan' : st.every((x) => x.s === 'done') ? (st.every((x) => x.p) ? 'verified' : 'implemented') : 'open';
       return { id: idText(r.id), status: r.status ?? 'proposed', pr: r.priority ?? '', state, st, text: r.text ?? '', acc: r.acceptance ?? [] };
     });

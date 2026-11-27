@@ -20,7 +20,7 @@ async function sync(ctx: Ctx, args: Args<{ plan?: boolean }>): Promise<number> {
   if (db.older) throw new PlangraphError('STALE', 'the index was built by an older plangraph', { hint: 'run `plangraph build`' });
   const cfg = ctx.config() as { graph?: { stale_days?: unknown } }, sd = cfg.graph?.stale_days;
   const staleDays = Number.isSafeInteger(sd) && (sd as number) >= 0 ? (sd as number) : DEFAULT_STALE_DAYS;
-  let identities;
+  let identities: ReturnType<typeof readIdentityMap>;
   try { identities = readIdentityMap(ctx.dir); } catch (e) { if ((e as { code?: unknown }).code === 'DATA') throw new PlangraphError('DATA', (e as Error).message, { hint: 'fix or delete cache/identities.json' }); throw e; }
   const all = (sql: string) => db.all(sql) as never[];
   const found = drift({

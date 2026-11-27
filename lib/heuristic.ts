@@ -20,12 +20,12 @@ function topoOrder(items: readonly HItem[]): { order: HItem[]; bad: string[] } {
   for (const i of items) {
     const ds = [...new Set(i.deps)];
     left.set(i.key, ds.length);
-    for (const d of ds) { if (!by.has(d)) left.set(i.key, Infinity); else (cons.get(d) ?? cons.set(d, []).get(d)!).push(i.key); }
+    for (const d of ds) { if (!by.has(d)) left.set(i.key, Infinity); else (cons.get(d) ?? cons.set(d, []).get(d) as string[]).push(i.key); }
   }
   const ready = items.filter((i) => left.get(i.key) === 0).map((i) => i.key).sort();
   const order: HItem[] = [];
   while (ready.length) {
-    const k = ready.shift()!; order.push(by.get(k)!);
+    const k = ready.shift() as string; order.push(by.get(k) as HItem);
     for (const c of (cons.get(k) ?? []).sort()) { const n = (left.get(c) ?? 0) - 1; left.set(c, n); if (n === 0) ready.push(c); }
     ready.sort();
   }
@@ -40,7 +40,7 @@ export function listSchedule(items: readonly HItem[], opts: HOpts): HResult {
   const by = new Map(order.map((i) => [i.key, i]));
   // tail[k] = longest chain of sprints from k to the end (counting owner hops), computed in reverse topological order
   const tail = new Map<string, number>(); const cons = new Map<string, HItem[]>();
-  for (const i of order) for (const d of new Set(i.deps)) (cons.get(d) ?? cons.set(d, []).get(d)!).push(i);
+  for (const i of order) for (const d of new Set(i.deps)) (cons.get(d) ?? cons.set(d, []).get(d) as HItem[]).push(i);
   for (let n = order.length - 1; n >= 0; n--) {
     const i = order[n] as HItem; let t = 0;
     for (const c of cons.get(i.key) ?? []) t = Math.max(t, (c.owner === i.owner ? 0 : 1) + (tail.get(c.key) ?? 0));
@@ -49,7 +49,7 @@ export function listSchedule(items: readonly HItem[], opts: HOpts): HResult {
   // earliest start ignoring capacity (the critical-path bound), in topological order
   const early = new Map<string, number>(); let cp = first;
   for (const i of order) {
-    let s = first; for (const d of i.deps) s = Math.max(s, (early.get(d) ?? first) + (by.get(d)!.owner === i.owner ? 0 : 1));
+    let s = first; for (const d of i.deps) s = Math.max(s, (early.get(d) ?? first) + ((by.get(d) as HItem).owner === i.owner ? 0 : 1));
     early.set(i.key, s); cp = Math.max(cp, s);
   }
   const used = new Map<string, number>(); // "owner|sprint" -> points
@@ -58,8 +58,8 @@ export function listSchedule(items: readonly HItem[], opts: HOpts): HResult {
   while (pending.size) { // pick the available item with the longest tail (critical path first), ties by key
     let pick: HItem | null = null;
     for (const k of pending) {
-      const i = by.get(k)!; if (!i.deps.every((d) => done.has(d))) continue;
-      if (!pick || (tail.get(k)! > tail.get(pick.key)!) || (tail.get(k) === tail.get(pick.key) && k < pick.key)) pick = i;
+      const i = by.get(k) as HItem; if (!i.deps.every((d) => done.has(d))) continue;
+      if (!pick || ((tail.get(k) as number) > (tail.get(pick.key) as number)) || (tail.get(k) === tail.get(pick.key) && k < pick.key)) pick = i;
     }
     const i = pick!; let s = first;
     for (const d of i.deps) s = Math.max(s, sprint.get(d)! + (by.get(d)!.owner === i.owner ? 0 : 1));

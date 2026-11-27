@@ -55,7 +55,7 @@ function splitLines(text: string): Line[] {
   // one split, not an indexOf per line (each indexOf from an offset is a scan of the rest of the text: quadratic in the document size)
   const parts = text.split('\n'), out: Line[] = [];
   for (let k = 0; k < parts.length; k++) {
-    const p = parts[k]!, last = k === parts.length - 1;
+    const p = parts[k] as string, last = k === parts.length - 1;
     if (last) { if (p !== '') out.push({ s: p, eol: '' }); break; }
     const cr = p.endsWith('\r');
     out.push({ s: cr ? p.slice(0, -1) : p, eol: cr ? '\r\n' : '\n' });
@@ -67,7 +67,7 @@ function parseBegin(s: string): Begin | null {
   const t = s.trim();
   const tok = t.split(' ');
   if (tok.length !== 7 || tok[0] !== '<!--' || tok[1] !== 'plangraph:begin' || tok[6] !== '-->') return null;
-  const [id, fp, bh, v] = [tok[2]!, tok[3]!, tok[4]!, tok[5]!];
+  const [id, fp, bh, v] = [tok[2] as string, tok[3] as string, tok[4] as string, tok[5] as string];
   if (!id.startsWith('id=') || !fp.startsWith('fp=') || !bh.startsWith('bh=') || !v.startsWith('v=')) return null;
   const b = { id: id.slice(3), fp: fp.slice(3), bh: bh.slice(3), v: v.slice(2) };
   if (!isId(b.id) || !isHex16(b.fp) || !isHex16(b.bh) || !isDigits(b.v)) return null;
@@ -77,8 +77,8 @@ function parseBegin(s: string): Begin | null {
 // id of an end marker, or null when it is not a well-formed end line
 function parseEnd(s: string): string | null {
   const tok = s.trim().split(' ');
-  if (tok.length !== 4 || tok[0] !== '<!--' || tok[1] !== 'plangraph:end' || tok[3] !== '-->' || !tok[2]!.startsWith('id=')) return null;
-  const id = tok[2]!.slice(3);
+  if (tok.length !== 4 || tok[0] !== '<!--' || tok[1] !== 'plangraph:end' || tok[3] !== '-->' || !(tok[2] as string).startsWith('id=')) return null;
+  const id = (tok[2] as string).slice(3);
   return isId(id) ? id : null;
 }
 
@@ -95,7 +95,7 @@ function scan(text: string): Scan {
   let open: { at: number; begin: Begin } | null = null;
   const dropOpen = () => { if (open) { problems.push(open.begin.id); open = null; } };
   for (let i = 0; i < lines.length; i++) {
-    const s = lines[i]!.s;
+    const s = (lines[i] as Line).s;
     const t = s.trimStart();
     if (!t.startsWith(TAG)) continue;
     if (t.startsWith(BEGIN)) {
@@ -141,7 +141,7 @@ export function injectRegions(text: string, regions: readonly Region[], opts: { 
       let head = cur;
       if (head !== '') {
         if (!head.endsWith('\n')) head += eol;
-        if (sc.lines.length > 0 && sc.lines[sc.lines.length - 1]!.s !== '') head += eol;
+        if (sc.lines.length > 0 && (sc.lines[sc.lines.length - 1] as Line).s !== '') head += eol;
       }
       cur = `${head}${add}${eol}`;
       changed.push(r.id);
@@ -150,8 +150,8 @@ export function injectRegions(text: string, regions: readonly Region[], opts: { 
     const edited = bodyHash(bodyOf(sc, block)) !== block.begin.bh;
     if (edited && !opts.force) { refused.push({ id: r.id, reason: 'REGION_EDITED' }); continue; }
     if (!edited && block.begin.fp === r.fp && block.begin.v === r.v) continue;
-    const beginEol = sc.lines[block.at]!.eol;
-    const endEol = sc.lines[block.end]!.eol;
+    const beginEol = (sc.lines[block.at] as Line).eol;
+    const endEol = (sc.lines[block.end] as Line).eol;
     const bodyEol = beginEol || '\n';
     const out: string[] = sc.lines.slice(0, block.at).map((l) => l.s + l.eol);
     out.push(beginLine(r, wantHash) + beginEol);

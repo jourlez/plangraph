@@ -5,7 +5,7 @@ import path from 'node:path';
 import type { FsLike } from './registry.ts';
 
 export type RealFsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
-const escape = (): RealFsError => Object.assign(new Error('docs.out must be a plain directory inside the repository (no symlink)'), { code: 'OUT_OUTSIDE_ROOT' as const });
+const outsideRoot = (): RealFsError => Object.assign(new Error('docs.out must be a plain directory inside the repository (no symlink)'), { code: 'OUT_OUTSIDE_ROOT' as const });
 
 /** Throws OUT_OUTSIDE_ROOT when a component of rel (under root) is a symlink or a non-directory parent. A missing component is fine. */
 function guard(root: string, rel: string): void {
@@ -14,7 +14,7 @@ function guard(root: string, rel: string): void {
     cur = path.join(cur, part);
     let st: fs.Stats;
     try { st = fs.lstatSync(cur); } catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return; throw e; }
-    if (st.isSymbolicLink()) throw escape();
+    if (st.isSymbolicLink()) throw outsideRoot();
   }
 }
 

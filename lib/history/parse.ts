@@ -12,7 +12,7 @@ export interface CommitFact { sha: string; at: string; author: string; files: Fi
 export const emailRef = (email: string): string => `git:${crypto.createHash('sha256').update(email.trim().toLowerCase()).digest('hex').slice(0, 16)}`;
 
 const HEADER = /^\x01([0-9a-f]{40}|[0-9a-f]{64})\t(\d{1,12})\t([^\0]*)$/;
-const NUMSTAT = /^(\d+|-)\t(\d+|-)\t([^]*)$/;
+const NUMSTAT = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/;
 const CONTROL = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]');
 const MAX_PATH = 500;
 const okPath = (p: string): boolean => p.length > 0 && p.length <= MAX_PATH && !CONTROL.test(p);
