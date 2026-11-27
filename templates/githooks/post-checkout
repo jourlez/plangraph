@@ -1,0 +1,7 @@
+#!/bin/sh
+# plangraph: refresh the derived index after a git operation (post-checkout). Never blocks git: every path ends with exit 0.
+command -v plangraph >/dev/null 2>&1 || exit 0
+# $3 is 1 for a branch checkout and 0 for a file checkout; a file checkout changes no plan.
+[ "$3" = "0" ] && exit 0
+plangraph refresh --fast --quiet || true
+exit 0

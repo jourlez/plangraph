@@ -1,0 +1,7 @@
+#!/bin/sh
+# plangraph: refresh the derived index after an amend or a rebase (post-rewrite). Never blocks git: every path ends with exit 0.
+# git feeds "old-sha new-sha" lines on stdin; they are not needed, and stdin may be empty or a terminal, so it is drained only when it is a pipe or file.
+command -v plangraph >/dev/null 2>&1 || exit 0
+[ -t 0 ] || cat >/dev/null 2>&1 || true
+plangraph refresh --fast --quiet || true
+exit 0

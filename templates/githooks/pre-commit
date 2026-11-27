@@ -1,0 +1,6 @@
+#!/bin/sh
+# plangraph: optional pre-commit check, installed only by `plangraph githooks-install --pre-commit`.
+# Fails the commit when `plangraph check` finds a violation in the plan; a missing plangraph never blocks.
+command -v plangraph >/dev/null 2>&1 || exit 0
+plangraph check --quiet || exit 1
+exit 0
