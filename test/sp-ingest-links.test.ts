@@ -93,7 +93,7 @@ test('Repo (conf 1, why plan) and Files lines (through the repos paths) give tou
   fs.writeFileSync(p.file('repos.jsonl'), JSON.stringify({ id: 'repo:web', name: 'web' }) + '\n' + JSON.stringify({ id: 'repo:mono', name: 'mono', paths: [{ glob: 'web/**', sub: 'web' }] }) + '\n');
   adoptPlanDir(path.join(p.root, '.plangraph'));
   const r = p.ingest(); assert.equal(r.status, 0, r.stderr);
-  const touch = p.rows('links').filter((l) => l.rel === 'touches').map((l) => `${l.from} ${l.to} ${l.attrs.conf} ${l.attrs.why}`).sort();
+  const touch = p.rows('links').filter((l) => l.rel === 'touches').map((l) => `${l.from} ${l.to} ${(l.attrs as Record<string, unknown>).conf} ${(l.attrs as Record<string, unknown>).why}`).sort();
   assert.deepEqual(touch, ['sp:slug repo:web 1 plan', 'sp:slug/1 repo:mono 0.7 files', 'sp:slug/2 repo:web 1 plan']);
 });
 

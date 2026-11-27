@@ -7,6 +7,8 @@ import { commands } from '../src/commands/ingest.ts';
 import { makeGit } from '../lib/gitsafe.ts';
 import { makeRepo, ANA, T0 } from './helpers/gitrepo.ts';
 import type { Repo } from './helpers/gitrepo.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { openStore } from '../lib/planstore.ts';
 
 const keep: Repo[] = [];
 after(() => { for (const r of keep) r.cleanup(); });
@@ -18,10 +20,11 @@ function fixture(opts: { config?: object; messages?: string[]; tickets?: string[
   fs.writeFileSync(path.join(dir, 'tickets.jsonl'), jl((opts.tickets ?? ['ABC-12', 'ABC-13', 'ABC-14']).map((key) => ({ key, sp: 1 }))));
   fs.writeFileSync(path.join(dir, 'repos.jsonl'), jl(opts.repos ?? [{ id: 'repo:web', name: 'web', github: ['acme/web'] }]));
   if (opts.prs) fs.writeFileSync(path.join(dir, 'cache/github.jsonl'), jl(opts.prs));
+  adoptPlanDir(dir);
   const out: string[] = [], err: string[] = [];
   const ctx = { root: r.dir, cwd: r.dir, dir, flags: {}, env: {}, git: makeGit(r.dir), now: () => new Date((T0 + 400 * 3600) * 1000), config: () => opts.config ?? { project_keys: ['ABC'] },
     io: { out: (s: string) => out.push(s), err: (s: string) => err.push(s), raw: (s: string) => out.push(s), outBlock: (l: string[]) => out.push(...l) } } as never;
-  const links = () => { try { return fs.readFileSync(path.join(dir, 'links.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; } };
+  const links = () => (openStore({ dir, root: r.dir }).readKind('link') as { from: string; from_type: string; rel: string; to: string; to_type: string; attrs: Record<string, unknown> }[]);
   return { ctx, dir, out, err, links, repo: r };
 }
 const pr = (n: number, title: string, extra: object = {}) => ({ sys: 'github:acme/web', xid: `acme/web#${n}`, type: 'x-github.pr', fields: { title, state: 'open', branch: '', ...extra }, links: [], fp: String(n).padStart(16, '0'), seen: '2026-11-26' });
@@ -34,7 +37,7 @@ test('a commit message key writes a touches link with conf and why', async () =>
   assert.equal(l.length, 1);
   assert.deepEqual([l[0].from, l[0].from_type, l[0].rel, l[0].to, l[0].to_type], ['ABC-12', 'ticket', 'touches', 'repo:web', 'repo']);
   assert.equal(l[0].attrs.conf, 0.75);
-  assert.match(l[0].attrs.why, /commit/);
+  assert.match(String(l[0].attrs.why), /commit/);
   assert.match(f.out.join('\n'), /^linked 1 ticket\(s\) to repo:web/m);
 });
 
@@ -43,16 +46,16 @@ test('a pull request observation in cache/github.jsonl links its title key at 0.
   await run(f.ctx, ['links']);
   const l = f.links();
   assert.deepEqual(l.map((x) => [x.from, x.to, x.attrs.conf]), [['ABC-13', 'repo:web', 0.9]]);
-  assert.match(l[0].attrs.why, /pr 7/);
+  assert.match(String(l[0].attrs.why), /pr 7/);
 });
 
 test('branch and commit evidence merge and a rerun writes nothing new', async () => {
   const f = fixture({ prs: [pr(8, 'work', { branch: 'feature/ABC-12-login' })] });
   await run(f.ctx, ['links']);
   assert.deepEqual(f.links().map((x) => x.attrs.conf), [0.95]);
-  const before = fs.readFileSync(path.join(f.dir, 'links.jsonl'), 'utf8');
+  const before = JSON.stringify(f.links());
   await run(f.ctx, ['links']);
-  assert.equal(fs.readFileSync(path.join(f.dir, 'links.jsonl'), 'utf8'), before);
+  assert.equal(JSON.stringify(f.links()), before);
   assert.match(f.out[f.out.length - 1] ?? '', /linked 0 ticket\(s\)/);
 });
 
@@ -73,6 +76,7 @@ test('keys that are not tickets of the plan, and look-alikes, are ignored', asyn
 test('an existing link of the pair is never overwritten', async () => {
   const f = fixture();
   fs.writeFileSync(path.join(f.dir, 'links.jsonl'), jl([{ from: 'ABC-12', from_type: 'ticket', rel: 'touches', to: 'repo:web', to_type: 'repo', attrs: { conf: 1, why: 'manual' } }]));
+  adoptPlanDir(f.dir);
   await run(f.ctx, ['links']);
   assert.deepEqual(f.links().map((x) => x.attrs.why), ['manual']);
 });
