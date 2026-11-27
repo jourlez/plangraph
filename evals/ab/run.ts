@@ -111,7 +111,8 @@ const norm = (s: string): string[] => s.toLowerCase().replace(/[`*]/g, '').split
 /** Offline grading of a graph answer: list answers compare as sets of tokens found in the reply; a single answer must appear as a whole token. */
 export function grade(q: Pick<GraphQuestion, 'answer'>, reply: string): boolean {
   const want = q.answer.split(',').map((x) => x.toLowerCase()), have = new Set(norm(reply));
-  return want.every((w) => have.has(w));
+  // the graph store keeps sprints as numbers (the CLI prints 1 for S1): a sprint label `S<n>` is also correct as the bare number
+  return want.every((w) => have.has(w) || (/^s\d+$/.test(w) && have.has(w.slice(1))));
 }
 
 type Usage = { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };

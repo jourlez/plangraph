@@ -162,6 +162,7 @@ test('grading and run output parsing', () => {
   assert.ok(!grade({ answer: 'T-3,T-5' }, 'T-3'));
   assert.ok(grade({ answer: 'Ana' }, 'The owner is `Ana`.'));
   assert.ok(!grade({ answer: '6' }, 'T-6'));
+  assert.ok(grade({ answer: 'S2' }, '2') && grade({ answer: 'S2' }, 'S2') && !grade({ answer: 'S2' }, '3'));
   assert.deepEqual(parseRun(JSON.stringify({ result: 'x', total_cost_usd: 0.5, num_turns: 3, usage: { input_tokens: 10, output_tokens: 5 } })), { reply: 'x', tokens: 15, firstIn: 0, tokensIn: 10, tokensOut: 5, calls: 3, toolCalls: 2, cost: 0.5, error: null });
 });
 
