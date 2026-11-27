@@ -37,7 +37,7 @@ export const SCHEMA = 'plangraph-eval-case/2';
 // `unknown[]` on the lists that untrusted values are looked up in: includes() compares by identity, any value is safe
 export const KINDS: unknown[] = ['task', 'control', 'safety', 'trigger'];
 export const SIZES: unknown[] = ['S', 'M', 'L', 'R'];
-export const SKILLS: string[] = ['plangraph', 'audit', 'autopilot', 'init', 'onboard', 'plan', 'report', 'whatif'];
+export const SKILLS: string[] = ['plangraph', 'audit', 'autopilot', 'init', 'onboard', 'plan', 'report', 'whatif', 'docs-publish'];
 export const JOBS: unknown[] = ['onboarding', 'planning', 'replanning', 'reassigning', 'reporting', 'handoff']; // the router skill's jobs
 export const ROLES: unknown[] = ['outcome', 'safety', 'diagnostic', 'judge'];
 export const GRADER_TYPES: unknown[] = ['regex', 'tool_used', 'file_exists', 'llm'];
