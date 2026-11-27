@@ -3,6 +3,7 @@
 // already in people.jsonl) reach the row; nothing else from a file is copied.
 import { createHash } from 'node:crypto';
 import { parseCatalogInfo } from './catalog.ts';
+export { MAX_GLOB_WILDCARDS, wildcardsOf } from '../schema.ts';
 
 export const MAX_FILE = 256 * 1024;
 const SCANNER = 'plangraph-scan/1';
@@ -162,10 +163,45 @@ export function parseCodeowners(text: string): Rule[] {
   }
   return rules;
 }
-export function globRe(pattern: string): RegExp {
-  const dirOnly = pattern.endsWith('/'), p = dirOnly ? pattern.slice(0, -1) : pattern, anchored = p.startsWith('/') || p.includes('/'), body = (p.startsWith('/') ? p.slice(1) : p)
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*/g, '\0').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]').replace(/\0/g, '.*');
-  return new RegExp(`${anchored ? '^' : '(?:^|/)'}${body}${dirOnly ? '/' : '(?:/|$)'}`);
+export interface Glob { test(path: string): boolean }
+const LINE_END = /[\n\r\u2028\u2029]/;
+/** A CODEOWNERS-style glob as a matcher: `**` matches any run of characters (not a line break), `*` any run without `/`, `?` one character without `/`.
+ *  Unanchored at the end (the body is followed by `/` or the end of the path, or only by `/` for a pattern ending in `/`); a pattern without a `/`
+ *  may start at any segment. It runs as an NFA over the pattern tokens, one pass over the path: time is O(path x pattern), never exponential. */
+export function globRe(pattern: string): Glob {
+  const dirOnly = pattern.endsWith('/'), p = dirOnly ? pattern.slice(0, -1) : pattern, anchored = p.startsWith('/') || p.includes('/'), body = p.startsWith('/') ? p.slice(1) : p;
+  const toks: string[] = []; // a literal character, or '**', '*', '?'
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i] as string;
+    if (c === '*') { let n = 1; while (body[i + 1] === '*') { n++; i++; } for (let q = 0; q + 1 < n; q += 2) toks.push('**'); if (n % 2) toks.push('*'); } // pairs of `*` are `**`, a lone one `*`: the same reading the regex had
+    else if (c === '?') toks.push('?');
+    else toks.push(`=${c}`);
+  }
+  const m = toks.length, isStar = (t: string): boolean => t === '*' || t === '**';
+  return {
+    test(s: string): boolean {
+      let cur = new Uint8Array(m + 1), nxt = new Uint8Array(m + 1);
+      const close = (set: Uint8Array): void => { for (let t = 0; t < m; t++) if (set[t] && isStar(toks[t] as string)) set[t + 1] = 1; };
+      for (let k = 0; k <= s.length; k++) {
+        if (!anchored ? k === 0 || s[k - 1] === '/' : k === 0) { cur[0] = 1; }
+        close(cur);
+        if (cur[m] && (k < s.length ? s[k] === '/' : !dirOnly)) return true;
+        if (k === s.length) return false;
+        const ch = s[k] as string;
+        nxt.fill(0);
+        for (let t = 0; t < m; t++) {
+          if (!cur[t]) continue;
+          const tk = toks[t] as string;
+          if (tk === '**') { if (!LINE_END.test(ch)) nxt[t] = 1; }
+          else if (tk === '*') { if (ch !== '/') nxt[t] = 1; }
+          else if (tk === '?') { if (ch !== '/') nxt[t + 1] = 1; }
+          else if (tk[1] === ch) nxt[t + 1] = 1;
+        }
+        [cur, nxt] = [nxt, cur];
+      }
+      return false;
+    },
+  };
 }
 /** The owners of `path`: the last matching rule wins. */
 export function ownersFor(rules: readonly Rule[], path: string): string[] {
