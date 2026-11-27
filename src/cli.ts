@@ -98,7 +98,7 @@ const rawOf = (io: IO) => (text: unknown): void => { const s = rawText(text); if
 export async function main(argv: string[], { registry = defaultRegistry, makeContext = defaultMakeContext, io = processIo(), env = process.env, cwd = process.cwd() }:
   { registry?: Map<string, Command>; makeContext?: (opts: ContextOptions) => ShellCtx; io?: IO; env?: Record<string, string | undefined>; cwd?: string } = {}): Promise<number> {
   const [name, ...rest] = argv;
-  // The SessionStart hook runs `card --if-present [--heal]`: it must never print and never exit non-zero. Any failure there (a bad
+  // The SessionStart hook runs `card --if-present --refresh`: it must never print and never exit non-zero. Any failure there (a bad
   // .plangraphrc, a refused plan dir, a corrupt index, a bad option, any thrown error) returns 0 with no output; success prints the card.
   const hook = name === 'card' && rest.includes('--if-present');
   const col = makeCollector({ strict: strictOutput(env) });

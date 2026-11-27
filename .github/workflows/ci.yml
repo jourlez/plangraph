@@ -225,7 +225,7 @@ jobs:
         run: |
           out="$RUNNER_TEMP/hook.out"; err="$RUNNER_TEMP/hook.err"
           rc=0
-          node src/entry.js card --if-present --heal >"$out" 2>"$err" || rc=$?
+          node src/entry.js card --if-present --refresh >"$out" 2>"$err" || rc=$?
           echo "exit $rc"; echo "--- stdout"; cat "$out"; echo "--- stderr"; cat "$err"
           test "$rc" = 0
           test ! -s "$err"
