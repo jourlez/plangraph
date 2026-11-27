@@ -1,0 +1,6 @@
+$ plangraph flow-done T-1 --by ana
+exit: 2
+--- stdout
+--- stderr
+error: flow-done needs --evidence KIND:VALUE (for example pr:org/repo#12 or test:suite)
+try: plangraph explain flow-done

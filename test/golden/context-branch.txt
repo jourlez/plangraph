@@ -1,0 +1,5 @@
+$ plangraph context --branch
+exit: 0
+--- stdout
+plangraph: no task detected, pass a ticket key: `plangraph context KEY`
+--- stderr

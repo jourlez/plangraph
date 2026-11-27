@@ -1,0 +1,14 @@
+$ plangraph flow next
+exit: 0
+--- stdout
+T-1 Ana <untrusted n="77e0e4b7">ticket 1</untrusted>
+T-11 Cleo <untrusted n="3e40b854">ticket 11</untrusted>
+T-14 Ben <untrusted n="b0c080a5">ticket 14</untrusted>
+T-15 Cleo <untrusted n="eeff678a">ticket 15</untrusted>
+T-18 Ben <untrusted n="8bf55bf1">ticket 18</untrusted>
+T-2 Cleo <untrusted n="9c622254">ticket 2</untrusted>
+T-20 Cleo <untrusted n="5690e06b">ticket 20</untrusted>
+T-25 Cleo <untrusted n="7e91e606">ticket 25</untrusted>
+T-4 Cleo <untrusted n="0670f238">ticket 4</untrusted>
+T-6 Ana <untrusted n="ef5d9d4e">ticket 6</untrusted>
+--- stderr

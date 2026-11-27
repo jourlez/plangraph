@@ -1,0 +1,9 @@
+$ plangraph flow brief T-3
+exit: 0
+--- stdout
+brief T-3 owner Ben
+<untrusted src="task" n="24d2c227" len="8">
+ticket 3
+</untrusted>
+ask: Ben
+--- stderr

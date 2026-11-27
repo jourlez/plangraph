@@ -1,0 +1,5 @@
+$ plangraph context --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"context","ok":true,"exit":0,"data":{"none":true},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
+--- stderr

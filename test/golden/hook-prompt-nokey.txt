@@ -1,0 +1,4 @@
+$ plangraph hook-prompt
+exit: 0
+--- stdout
+--- stderr

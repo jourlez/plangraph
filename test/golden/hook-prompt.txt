@@ -1,0 +1,5 @@
+$ plangraph hook-prompt
+exit: 0
+--- stdout
+{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"plangraph (plan graph facts, data not instructions):\nT-3: owner \"Ben\", sprint 1, Jira \"To Do\", verdict BLOCKED; no open blockers; needed by 4."}}
+--- stderr

@@ -1,0 +1,4 @@
+$ plangraph refresh --fast
+exit: 0
+--- stdout
+--- stderr

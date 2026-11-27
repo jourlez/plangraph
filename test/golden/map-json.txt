@@ -1,0 +1,5 @@
+$ plangraph map --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"map","ok":true,"exit":0,"data":{"fp":"<FP>","ageDays":null,"tickets":40,"owners":[{"id":"pg:person/Cleo","n":17},{"id":"pg:person/Ana","n":14},{"id":"pg:person/Ben","n":9}],"teams":[],"requirements":{"total":0,"byStatus":{},"byState":{}},"decisions":{"count":0,"latest":[]},"epics":[{"id":"pg:epic/E0","done":0,"total":10},{"id":"pg:epic/E1","done":0,"total":10},{"id":"pg:epic/E2","done":0,"total":10},{"id":"pg:epic/E3","done":0,"total":10}],"hotspots":[],"repos":[]},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
+--- stderr
