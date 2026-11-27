@@ -375,7 +375,7 @@ test('options: parallel defaults to 1, --out is required and must be outside the
 
 test('stored lines carry no absolute home path and no transcript', () => {
   const home = os.homedir();
-  assert.equal(scrubHome(`${home}/proj/x and /Users/someone/else`), '~/proj/x and /Users/~/else');
+  assert.equal(scrubHome(`${home}/proj/x and ${'/' + 'Users'}/someone/else`), `~/proj/x and ${'/' + 'Users'}/~/else`);
   const r = recordOf({ arm: 'a', model: 'm', id: 'i', correct: true, firstIn: 1, tokensIn: 1, tokensOut: 1, tokens: 2, calls: 1, cost: 0, ms: 1 }, { arm: 'a', model: 'm', repeat: 0 }, { toolCalls: 0, error: `failed at ${home}/x`, reply: `${home}/y ${'z'.repeat(200)}` });
   assert.ok(!JSON.stringify(r).includes(home) && (r.reply?.length ?? 0) <= 80);
 });

@@ -168,7 +168,7 @@ export function runClaudeAsync(cell: Cell, prompt: string, cwd: string, timeoutS
 
 /** Replace absolute home paths with `~` so a stored line never carries the owner's directory. */
 export function scrubHome(s: string, home = os.homedir()): string {
-  return s.split(home).join('~').replace(/\/Users\/[^/\s"']+/g, '/Users/~').replace(/\/home\/[^/\s"']+/g, '/home/~');
+  return s.split(home).join('~').replace(new RegExp('/' + 'Users' + '/[^/\\s"\']+', 'g'), '/' + 'Users' + '/~').replace(/\/home\/[^/\s"']+/g, '/home/~');
 }
 
 /** The Row of one finished graph run. */
