@@ -40,7 +40,8 @@ import { SCHEMAS } from '../lib/store.ts';
 import type { Schema } from '../lib/store.ts';
 import { parseJsonl, readDataCapped, IngestError, DATA_REFUSALS } from '../lib/jsonl.ts';
 import { validators } from '../lib/schema.ts';
-import { readStoreAt, openStore, backendOf, kindFile, kindOfFile } from '../lib/planstore.ts';
+import { openStore, kindFile, kindOfFile } from '../lib/planstore.ts';
+import { writeSolverInput, writeSolverConfig, SOLVER_INPUT_DIR } from '../lib/solver-input.ts';
 import type { Kind } from '../lib/planstore.ts';
 import { GRAPH_FILES, parseGraphFile } from '../lib/graph/files.ts';
 import { GRAPH_VIEWS } from '../lib/graph/views.ts';
@@ -129,7 +130,6 @@ export const TABLES = new Map<string, Readonly<TableSpec>>(DEFS.map(([name, pk, 
   })];
 }));
 Object.freeze(TABLES);
-const SOURCE_FILES = Object.freeze([...[...TABLES.values()].map((t) => t.file).filter((f) => f !== OBS_FILE), ...CACHE_FILES].toSorted());
 const GRAPH_SET: ReadonlySet<string> = new Set([...GRAPH_FILES, ...CACHE_FILES]); // files that add bytes to the fingerprint only when present
 const V1_TABLES = Object.freeze([...TABLES.values()].slice(0, V1_TABLE_COUNT));
 const PREV_TABLES = Object.freeze([...TABLES.values()].filter((t) => t.name !== 'obs')); // the table list of 0.4.0
@@ -198,15 +198,6 @@ const scalarCheck = (t: Readonly<TableSpec>) => (r: Record<string, unknown>): st
 const validatorOf = (t: Readonly<TableSpec>): ((r: Record<string, unknown>) => string | null) => { const v = Object.hasOwn(validators, t.file) ? validators[t.file] : null, sc = scalarCheck(t); return (r) => (v ? v(r) : null) || sc(r); };
 
 // ---------- sources and fingerprint ----------
-// Reads every index source once (capped, regular files only). Missing file -> null. Returns [[file, text|null]] sorted by file name.
-function readSources(dir: string): Array<[string, string | null]> {
-  const store = readStoreAt(dir);
-  return SOURCE_FILES.map((f) => {
-    const kind = kindOfFile(f);
-    if (kind) return [f, store.readSource(kind, MAX_SOURCE_BYTES)]; // a plan kind: the store's capped, symlink-refusing read
-    return [f, readPlain(dir, f)];
-  });
-}
 /** A plain source file (a cache file): capped, regular files only, null when missing. */
 function readPlain(dir: string, f: string): string | null {
   // A source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read.
@@ -219,15 +210,6 @@ function readPlain(dir: string, f: string): string | null {
     if (DATA_REFUSALS.has((e as { code: string }).code)) throw new IngestError(`${f}: ${(e as Error).message}`); // a missing code is simply not in the set
     throw e;
   }
-}
-function fingerprintOf(sources: Array<[string, string | null]>): string {
-  const h = crypto.createHash('sha256');
-  for (const [f, text] of sources) {
-    if (text === null) { if (!GRAPH_SET.has(f)) h.update(`${f}\0-\0`); continue; } // a missing graph file adds no bytes: a v1-only directory keeps its 0.3.0 fingerprint
-    const b = Buffer.from(text, 'utf8');
-    h.update(`${f}\0${b.length}\0`); h.update(b); h.update('\0');
-  }
-  return h.digest('hex');
 }
 const sha = (b: string | Buffer): string => crypto.createHash('sha256').update(b).digest('hex');
 /** Table builders and the file hash, as one object so a test can spy on them: rows(t, textOf) is the one place a table's rows are built from text;
@@ -247,12 +229,13 @@ interface SrcRow { size: number; mtime: number; hash: string }
 type SrcMap = Map<string, SrcRow>;
 /** What the last build recorded: the rows of source_file and the index file's own modification time (the racy-entry bound). */
 interface Prior { rows: SrcMap; indexMtime: number }
-const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'ext', 'openitem'];
+// the node directories that are index sources (open items are read from the store directly and are not in the fingerprint, as open-items.jsonl never was)
+const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'ext'];
 const RUN_DIRS: Readonly<Record<string, string>> = { evidence: 'evidence', findings: 'finding', learnings: 'learning' };
 // the tables built from each node directory (a link or xref table reads every directory that can hold a source node)
 const NODE_TABLES: Readonly<Record<string, readonly string[]>> = {
   ticket: ['ticket', 'edge', 'ref', 'link', 'xref'], person: ['person', 'capacity', 'link', 'xref'], sprint: ['sprint', 'link', 'xref'], epic: ['epic', 'ref', 'link', 'xref'],
-  repo: ['repo', 'link', 'xref'], ext: ['link', 'xref'], openitem: ['openitem'],
+  repo: ['repo', 'link', 'xref'], ext: ['link', 'xref'],
 };
 /** The tables built from a source file of either layout (an old-layout file name, an entity path, a cache file). */
 function tablesOf(rel: string): readonly string[] {
@@ -292,16 +275,6 @@ function scanEntity(dir: string, prior: SrcMap | null, racyBefore: number): SrcM
   }
   return out;
 }
-/** The same record for the old layout, from the texts already read for the fingerprint. */
-function scanText(dir: string, sources: Array<[string, string | null]>): SrcMap {
-  const out: SrcMap = new Map();
-  for (const [f, text] of sources) {
-    if (text === null) continue;
-    let mtime = 0; try { mtime = Math.trunc(fs.lstatSync(path.join(dir, f)).mtimeMs); } catch { /* gone */ }
-    out.set(f, { size: Buffer.byteLength(text), mtime, hash: sha(text) });
-  }
-  return out;
-}
 const fingerprintFiles = (files: SrcMap): string => {
   const h = crypto.createHash('sha256'); h.update('entity\0');
   for (const rel of [...files.keys()].sort()) h.update(`${rel}\0${(files.get(rel) as SrcRow).hash}\0`);
@@ -324,8 +297,7 @@ function loadPrior(file: string): Prior | null {
 /** sha256 (hex) over the sorted index source files of dir: name, byte length and bytes of each; a missing file differs from an empty one.
  * An entity directory: over the (path, hash) of its source files; prior (what the index recorded) saves reading the files whose (size, mtime) did not change. */
 export function sourceFingerprint(dir: string, prior: Prior | null = null): string {
-  if (backendOf(dir) === 'entity') return fingerprintFiles(scanEntity(dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity));
-  return fingerprintOf(readSources(dir));
+  return fingerprintFiles(scanEntity(dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity));
 }
 
 // ---------- content digest ----------
@@ -441,16 +413,9 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   removeStaleTemps(path.dirname(file), `${path.basename(file)}.tmp-`, now);
   clearSidecars(file, false); // fail fast on a symlinked or non-file sidecar; regular ones are removed only right before the rename
   const prior = incremental ? loadPrior(file) : null;
-  let scan: SrcMap, fingerprint: string, textOf: (f: string) => string | null;
-  if (backendOf(ctx.dir) === 'entity') {
-    const store = openStore({ dir: ctx.dir, root: ctx.dir }), read = new Map<string, string | null>();
-    scan = scanEntity(ctx.dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity);
-    fingerprint = fingerprintFiles(scan);
-    textOf = (f) => { if (!read.has(f)) { const kind = kindOfFile(f); read.set(f, kind ? store.readSource(kind, MAX_SOURCE_BYTES) : readPlain(ctx.dir, f)); } return read.get(f) ?? null; };
-  } else {
-    const sources = readSources(ctx.dir), text = new Map(sources);
-    scan = scanText(ctx.dir, sources); fingerprint = fingerprintOf(sources); textOf = (f) => text.get(f) ?? null;
-  }
+  const store = openStore({ dir: ctx.dir, root: ctx.dir }), read = new Map<string, string | null>();
+  const scan = scanEntity(ctx.dir, prior?.rows ?? null, prior ? prior.indexMtime - RACY_MS : -Infinity), fingerprint = fingerprintFiles(scan);
+  const textOf = (f: string): string | null => { if (!read.has(f)) { const kind = kindOfFile(f); read.set(f, kind ? store.readSource(kind, MAX_SOURCE_BYTES) : readPlain(ctx.dir, f)); } return read.get(f) ?? null; };
   // which tables are built from text: all, or those of a file that is new, gone or whose hash differs from the recorded one
   const dirty = new Set<string>();
   if (!prior) for (const n of TABLES.keys()) dirty.add(n);
@@ -459,10 +424,13 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
     for (const rel of prior.rows.keys()) if (!scan.has(rel)) for (const n of tablesOf(rel)) dirty.add(n);
     const unchanged = !dirty.size && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime);
     if (unchanged) { // nothing to do: the index stays as it is (leftovers at this build's own temp name are still cleared, or refused if a symlink)
-      clearSidecars(`${file}.tmp-${process.pid}`, true);
+      const own = `${file}.tmp-${process.pid}`;
+      try { fs.lstatSync(own); throw new PlangraphError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); } // removeStaleTemps took a leftover regular file: what is still here is a symlink or a late file
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs errno errors; the refusal above carries no errno code
+      clearSidecars(own, true);
       using h = openIndex(file);
       const sum = summaryOf(h);
-      if (sum.fingerprint === fingerprint) return { file, ...sum, rebuilt: [] };
+      if (sum.fingerprint === fingerprint) { if (fs.existsSync(path.join(ctx.dir, SOLVER_INPUT_DIR, 'tickets.jsonl'))) writeSolverConfig(ctx.dir); else writeSolverInput(ctx.dir); return { file, ...sum, rebuilt: [] }; }
     }
   }
   // parse everything before touching the database
@@ -512,6 +480,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
     clearSidecars(tmp, true);
     clearSidecars(file, true); // a journal of the old (or a planted) index must never be replayed into the new one
     fs.renameSync(tmp, file); // rename replaces a symlink at `file` itself, never its target
+    writeSolverInput(ctx.dir); // derived, git-ignored: bin/plangraph-solve --jsonl-dir reads it
     return { file, counts, fingerprint, digest, rebuilt: [...TABLES.keys()].filter((n) => dirty.has(n)) };
   } catch (e) {
     try { const now = fs.lstatSync(tmp); if (now.isFile() && now.ino === mine.ino && now.dev === mine.dev) fs.rmSync(tmp, { force: true }); } catch { /* gone */ }
@@ -632,5 +601,6 @@ export function stampFingerprint(file: string, dir: string): string {
   h.prepare('INSERT OR REPLACE INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
   stampContent(h); // the digest covers index_meta (the fingerprint row included)
   h.exec('COMMIT');
+  writeSolverInput(dir); // export rewrote the text from the index: the derived solver input follows
   return fingerprint;
 }

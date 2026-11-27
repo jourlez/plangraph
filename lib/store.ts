@@ -1,14 +1,13 @@
-// Canonical serialization, format versioning, locks, merge-driver install/doctor. See docs/FORMAT.md.
+// Canonical serialization, format versioning and locks. See docs/FORMAT.md.
 // Node built-ins only. Uses fs/child_process (store layer); no console output, no process.exit.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { execFileSync } from 'node:child_process';
 import { writeAtomicSafe } from './fsafe.ts';
 import { parseJsonl, readDataCapped, presentDataFile, IngestError, DATA_REFUSALS } from './jsonl.ts';
 
-export const FORMAT_VERSION = 1; // what this tool writes
-export type FormatErrorCode = 'BAD_FORMAT' | 'TOO_NEW';
+export const FORMAT_VERSION = 2; // what this tool writes (2: entity files, docs/FORMAT.md)
+export type FormatErrorCode = 'BAD_FORMAT' | 'TOO_NEW' | 'PRE_1_0';
 export class FormatError extends Error { declare code: FormatErrorCode; constructor(code: FormatErrorCode, msg: string) { super(msg); this.code = code; } }
 
 const sha = (s: string, n = 32): string => crypto.createHash('sha256').update(s).digest('hex').slice(0, n);
@@ -221,105 +220,26 @@ export function readFormat(dir: string): FormatInfo {
   if (!Number.isInteger(min) || (min as number) < 0 || (min as number) > (j.format_version as number)) throw bad('min_reader must be an integer <= format_version'); // Number.isInteger is the check (both)
   return { ...j, min_reader: min } as FormatInfo; // format_version and min_reader were both tested as integers above
 }
-export function writeFormat(dir: string, { format_version, min_reader }: { format_version: number; min_reader: number }): void {
+export function writeFormat(dir: string, { format_version, min_reader, storage }: { format_version: number; min_reader: number; storage?: string }): void {
   const old = ((): Partial<FormatInfo> => { try { return readFormat(dir); } catch { return {}; } })(); // keep unknown fields
-  writeAtomic(path.join(dir, FORMAT_FILE), canonLine({ ...old, format_version, min_reader }, { order: ['format_version', 'min_reader'] }) + '\n');
+  writeAtomic(path.join(dir, FORMAT_FILE), canonLine({ ...old, format_version, min_reader, ...(storage === undefined ? {} : { storage }) }, { order: ['format_version', 'min_reader', 'storage'] }) + '\n');
 }
 // supported = {version, min}. mode 'write' (default): any newer directory is a hard error. mode 'read': a newer directory is readable
 // when its min_reader <= our version (additive changes only; unknown fields are ignored).
 export interface FormatCheck { version: number; min_reader: number; status: 'newer-readable' | 'ok' }
+/** The refusal text for a directory written by a pre-1.0 tool (format below 2, or no stamp beside old-layout files). */
+export const PRE_1_0_MESSAGE = 'unsupported pre-1.0 directory: recreate it with plangraph takeover';
+/** The plan files of the old (one JSONL file per kind) layout; meta.jsonl is also a file of the entity layout and is not one of them. */
+export const OLD_LAYOUT_FILES: readonly string[] = Object.freeze(Object.keys(SCHEMAS).filter((f) => f !== 'meta.jsonl'));
+const hasOldLayout = (dir: string): boolean => OLD_LAYOUT_FILES.some((f) => { try { fs.lstatSync(path.join(dir, f)); return true; } catch { return false; } }); // lstat: only presence matters, nothing is read
 export function checkFormat(dir: string, supported: { version: number } = { version: FORMAT_VERSION }, { mode = 'write' }: { mode?: 'read' | 'write' } = {}): FormatCheck {
   const f = readFormat(dir);
+  if (f.format_version < 2 && (f.format_version > 0 || hasOldLayout(dir))) throw new FormatError('PRE_1_0', PRE_1_0_MESSAGE);
   const tooNew = mode === 'read' ? f.min_reader > supported.version : f.format_version > supported.version;
   if (tooNew) throw new FormatError('TOO_NEW', `${dir}: data format ${f.format_version} (needs reader >= ${f.min_reader}) is newer than this tool supports (${supported.version}): upgrade the plangraph tool`);
   return { version: f.format_version, min_reader: f.min_reader, status: f.format_version > supported.version ? 'newer-readable' : 'ok' };
 }
 
-// ---------- git merge driver install / doctor ----------
-const git = (cwd: string, args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });
-const tryGit = (cwd: string, args: string[]): { ok: true; out: string; err?: never } | { ok: false; err: string; out?: never } => { try { return { ok: true, out: git(cwd, args) }; } catch (e) { return { ok: false, err: String((e as Coded & { stderr?: unknown }).stderr || (e as Coded).message) }; } }; // whatever was thrown: its fields are read as before
-const DRIVER = 'plangraph-jsonl';
-const VERSIONED = '/plugins/cache/';
-/** A plan directory name that may go into a gitattributes line or hook output: A-Z a-z 0-9 . _ / - only. */
+// ---------- plan directory names ----------
+/** A plan directory name that may go into hook output: A-Z a-z 0-9 . _ / - only. */
 export const SAFE_ATTR_DIR = /^[A-Za-z0-9._/-]+$/;
-const shq = (s: string): string => (/^[\w@%+=:,./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`);
-export function installMergeDriver(repoRoot: string, { dir = '.plangraph', driverPath = 'plangraph-merge' }: { dir?: string; driverPath?: string } = {}): { gitattributes: string; driver: string } {
-  if (String(driverPath).includes(VERSIONED)) throw new TypeError(`refusing a versioned plugin-cache driver path (${VERSIONED} is deleted after a plugin update); pass the stable shim from ensureStableDriver`);
-  // The dir becomes a gitattributes pattern line: only a plain name can go there (no newline, space, glob, comment or quote character).
-  if (typeof dir !== 'string' || !SAFE_ATTR_DIR.test(dir)) throw new TypeError('refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -');
-  const line = `${dir}/*.jsonl merge=${DRIVER}`;
-  const ga = path.join(repoRoot, '.gitattributes');
-  const cur = readGitattributes(ga);
-  if (!cur.split('\n').some((l) => l.trim() === line)) writeAtomic(ga, cur + (cur && !cur.endsWith('\n') ? '\n' : '') + line + '\n');
-  git(repoRoot, ['config', `merge.${DRIVER}.name`, 'plangraph jsonl three-way merge']);
-  git(repoRoot, ['config', `merge.${DRIVER}.driver`, mergeDriverCommand(driverPath)]);
-  return { gitattributes: line, driver: mergeDriverCommand(driverPath) };
-}
-/** The git config `merge.plangraph-jsonl.driver` value for a driver path (shell-quoted when needed). */
-export const mergeDriverCommand = (driverPath: string): string => `${shq(driverPath)} %O %A %B %P`;
-// .gitattributes is repo-controlled: lstat first (a symlink is refused, never followed), then one capped read of a regular file (a FIFO,
-// device or directory is refused without blocking). Missing -> ''. A refusal throws code ATTR_REFUSED with a fixed message.
-export const GITATTRIBUTES_MAX = 256 * 1024;
-function readGitattributes(ga: string): string {
-  const refused = (why: string) => Object.assign(new Error(`refusing to read .gitattributes: ${why}`), { code: 'ATTR_REFUSED', why });
-  let st: fs.Stats; try { st = fs.lstatSync(ga); } catch (e) { if ((e as Coded).code === 'ENOENT') return ''; throw e; } // whatever was thrown: its fields are read as before
-  if (st.isSymbolicLink()) throw refused('it is a symlink');
-  if (!st.isFile()) throw refused('not a regular file');
-  try { return readDataCapped(ga, GITATTRIBUTES_MAX); } catch (e) {
-    if ((e as Coded).code === 'SYMLINK') throw refused('it is a symlink'); // whatever was thrown: its fields are read as before
-    if ((e as Coded).code === 'SWAPPED') throw refused('it was replaced while it was read'); // whatever was thrown: its fields are read as before
-    if ((e as Coded).code === 'TOO_LARGE') throw refused(`larger than ${GITATTRIBUTES_MAX} bytes`); // whatever was thrown: its fields are read as before
-    if ((e as Coded).code === 'NOT_A_FILE') throw refused('not a regular file'); // whatever was thrown: its fields are read as before
-    throw e;
-  }
-}
-// nofollow: driver.target / driver.node in the data dir are files we wrote, never symlinks (the shim path itself may legitimately be one)
-const readLine = (f: string, nofollow = false): string => { // reads at most 4096 bytes, never the whole file
-  let fd: number | undefined;
-  try { fd = fs.openSync(f, fs.constants.O_RDONLY | (nofollow ? fs.constants.O_NOFOLLOW || 0 : 0)); const buf = Buffer.alloc(4096); const n = fs.readSync(fd, buf, 0, 4096, 0); return buf.toString('utf8', 0, n).trim(); }
-  catch { return ''; }
-  finally { if (fd !== undefined) fs.closeSync(fd); }
-};
-// Same file by real path (a symlinked install path to the same plugin is not "another install"); false when either cannot be resolved.
-const sameFile = (a: string, b: string): boolean => { try { return fs.realpathSync.native(a) === fs.realpathSync.native(b); } catch { return false; } };
-// expected: the plangraph-merge of the RUNNING plugin. After a plugin update the old versioned install may still exist, so a readable
-// driver.target is not enough: one that resolves to a different file is reported, and `doctor --fix` / `card --heal` repoint it.
-// A path of the shim's data dir that is not ours or that others can write: a later widening of what ensureStableDriver made private.
-const widened = (p: string): string => {
-  if (process.platform === 'win32' || typeof process.getuid !== 'function') return '';
-  try { const st = fs.lstatSync(p); if (st.uid !== process.getuid()) return 'is not owned by the current user'; if (st.mode & 0o022) return `is group or world writable (mode ${(st.mode & 0o777).toString(8)})`; } catch { /* a missing path is reported by the readers below */ }
-  return '';
-};
-function shimProblems(dataDir: string, problems: string[], expected: string | undefined): void {
-  for (const p of [dataDir, path.join(dataDir, 'bin'), path.join(dataDir, 'driver.target'), path.join(dataDir, 'driver.node')]) {
-    const why = widened(p); if (why) problems.push(`merge driver shim path ${path.basename(p)} ${why} in ${dataDir}: run \`chmod go-w\` on it, then \`plangraph doctor --fix\``);
-  }
-  const t = readLine(path.join(dataDir, 'driver.target'), true), n = readLine(path.join(dataDir, 'driver.node'), true);
-  if (!t) problems.push(`merge driver shim has an unreadable or empty driver.target in ${dataDir}: run \`plangraph doctor --fix\``);
-  else if (!fs.existsSync(t)) problems.push(`merge driver.target points to a missing file: ${t}: run \`plangraph doctor --fix\``);
-  else if (expected && !sameFile(t, expected)) problems.push(`merge driver.target points to another plugin install, not the running one: ${t}: run \`plangraph doctor --fix\``);
-  if (!n) problems.push(`merge driver shim has an unreadable or empty driver.node in ${dataDir}: run \`plangraph doctor --fix\``);
-  else if (!fs.existsSync(n)) problems.push(`merge driver.node points to a missing file: ${n}: run \`plangraph doctor --fix\``);
-}
-// target (optional): the plangraph-merge the running plugin would install; when given, a shim whose driver.target is another file is a problem.
-export interface MergeDriverDoctor { installed: boolean; attributes: boolean; config: boolean; executable: boolean; driver: string; problems: string[] }
-export function doctorMergeDriver(repoRoot: string, { dir = '.plangraph', target }: { dir?: string; target?: string } = {}): MergeDriverDoctor {
-  const problems: string[] = [];
-  let text = '', refusedWhy = '';
-  try { text = readGitattributes(path.join(repoRoot, '.gitattributes')); } catch (e) { if ((e as Coded).code !== 'ATTR_REFUSED') throw e; refusedWhy = (e as Coded & { why: string }).why; } // ATTR_REFUSED is only thrown by refused(), which sets why
-  const attrs = text.split('\n').some((l) => l.trim() === `${dir}/*.jsonl merge=${DRIVER}`);
-  if (refusedWhy) problems.push(`.gitattributes refused: ${refusedWhy}`);
-  else if (!attrs) problems.push(`.gitattributes lacks "${dir}/*.jsonl merge=${DRIVER}"`);
-  const cfg = tryGit(repoRoot, ['config', '--get', `merge.${DRIVER}.driver`]);
-  const driver = cfg.ok ? cfg.out.trim() : '';
-  if (!driver) problems.push(`git config merge.${DRIVER}.driver is not set (it is not versioned: run \`plangraph init\` or \`plangraph doctor --fix\` in every clone)`);
-  let executable = false;
-  if (driver) {
-    const exe = (driver.match(/^'((?:[^']|'\\'')*)'|^(\S+)/) || []).slice(1).find(Boolean)?.replace(/'\\''/g, "'");
-    executable = !!exe && (path.isAbsolute(exe) ? fs.existsSync(exe) : (process.env.PATH || '').split(path.delimiter).some((d) => fs.existsSync(path.join(d, exe))));
-    if (!executable) problems.push(`merge driver executable not found: ${exe}`);
-    if (exe?.includes(VERSIONED)) problems.push(`merge driver path is the versioned plugin cache (orphaned after a plugin update): run \`plangraph doctor --fix\``);
-    else if (exe && path.isAbsolute(exe) && executable && readLine(exe).includes('driver.target')) shimProblems(path.join(path.dirname(exe), '..'), problems, target);
-  }
-  return { installed: attrs && !!driver && executable, attributes: !!attrs, config: !!driver, executable, driver, problems };
-}

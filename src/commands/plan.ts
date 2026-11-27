@@ -15,7 +15,7 @@ import { NODE_FLOOR, nodeSupported } from '../floor.js';
 import { claudeSnippet } from '../../lib/steer.ts';
 import { resolveTenant, loadRegistry, repoKey, approveAlias, isAliasName } from '../jira-tenant.ts';
 import { siteTag } from '../../lib/tracker.ts';
-import { BIN, CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, readItems, capOf, wireMergeDriver, recordHealConsent, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
+import { CUR, SEED, claudeSteer, dbFile, rel, verbose, usage, dataError, readJsonInput, modelFromDb, readItems, capOf, precheckTargets, writeState, refuseWrite, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { Model, PlanRecord } from '../../lib/model.ts';
@@ -211,21 +211,22 @@ const CONFIG = {
   stage_order: ['end_sprint', 'shortfall', 'load_of', 'peak_load', 'owner_changes'],
   ref_heading: '^#{2,3} Task {id}:', jira: { base_url: '', jql: '' },
 };
-// The plan dir's .gitignore lines: the derived index and the sidecar files SQLite may leave beside it (a committed journal is replayed into
-// the index by SQLite; src/db.ts SIDECARS). A line counts as present when a line of the file equals it after trimming.
-const INDEX_PATTERN = '*.sqlite';
-const IGNORE_LINES = Object.freeze([INDEX_PATTERN, ...SIDECARS.map((s) => INDEX_PATTERN + s)]);
+// The plan dir's .gitignore lines: the derived cache, the index with the sidecar files SQLite may leave beside it (a committed journal is replayed
+// into the index by SQLite; src/db.ts SIDECARS), and the transaction staging directory. A line counts as present when a line of the file equals it
+// after trimming. The entity layout needs no git attribute, so none is written.
+const IGNORE_LINES = Object.freeze(['cache/', 'plangraph.sqlite*', '.txn/']);
 const missingIgnoreLines = (text: string) => { const have = new Set(text.split(/\r?\n/).map((l) => l.trim())); return IGNORE_LINES.filter((l) => !have.has(l)); };
 async function init(ctx: Ctx): Promise<number> {
   const S = await import('../../lib/store.ts'), dir = ctx.dir, cfg = path.join(dir, 'config.json'), fmt = path.join(dir, S.FORMAT_FILE);
   precheckTargets(ctx, [fmt]); // a symlinked format.json (even a dangling one) is REFUSED (exit 4) before anything is written
+  if (fs.existsSync(dir)) S.checkFormat(dir); // a pre-1.0 directory (or a newer one) is refused before anything is written
   fs.mkdirSync(dir, { recursive: true });
   const missing = (f: string) => !fs.existsSync(f), gi = path.join(dir, '.gitignore'), changes: string[] = [];
   const store = openStore(ctx), existing = !missing(cfg) || store.exists('ticket'); // a plangraph that was set up before: init must not read as a first set-up
   precheckTargets(ctx, [gi]);
   if (missing(cfg)) writeState(ctx, cfg, `${JSON.stringify(CONFIG, null, 2)}\n`);
   if (!store.exists('learning') && fs.existsSync(SEED)) store.writeText('learning', readCapped(SEED, 1024 * 1024));
-  // Only ADD the lines init needs (the index and its SQLite sidecars): every user line in an existing .gitignore stays, in order, byte for
+  // Only ADD the lines init needs (cache, index and its SQLite sidecars, staging): every user line in an existing .gitignore stays, in order, byte for
   // byte; the missing lines are appended in IGNORE_LINES order with the file's own line ending; nothing is written when all are there.
   const old = missing(gi) ? null : readCapped(gi, 1024 * 1024);
   if (old === null) { writeState(ctx, gi, `${IGNORE_LINES.join('\n')}\n`); changes.push(`created .gitignore with ${IGNORE_LINES.join(', ')}`); }
@@ -236,9 +237,8 @@ async function init(ctx: Ctx): Promise<number> {
       writeState(ctx, gi, `${old}${old === '' || old.endsWith('\n') ? '' : eol}${add.map((l) => l + eol).join('')}`); changes.push(`added ${add.join(', ')} to .gitignore`);
     }
   }
-  for (const [t] of EXPORT) { if (!store.exists(t)) { store.writeKind(t, []); changes.push(`created ${kindFile(t)}`); } } // an empty kind is an empty file
-  if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
-  try { await wireMergeDriver(ctx, { consent: true }); } catch (e) { ctx.io.err(`merge driver not installed: ${oneLine(String((e as Error).message).split('\n')[0], 200)}; run \`plangraph doctor --fix\` inside a git repo`); } // whatever was thrown: String() of its message
+  if (!store.exists('meta')) { store.writeKind('meta', []); changes.push(`created ${kindFile('meta')}`); } // the one plan file that stays a single file
+  if (missing(fmt)) { try { S.writeFormat(dir, { format_version: S.FORMAT_VERSION, min_reader: S.FORMAT_VERSION, storage: 'entity' }); changes.push('created format.json'); } catch (e) { refuseWrite(e); } }
   if (existing) ctx.io.out(`already initialised: ${rel(ctx, dir)} (${changes.length ? changes.join('; ') : 'no changes'})`);
   else ctx.io.out(`initialised ${rel(ctx, dir)}: edit config.json, then add tickets.jsonl, edges.jsonl and schedule.jsonl (see the plugin README), then \`plangraph build\``);
   // Print-only: plangraph never writes a repo's CLAUDE.md. Shown until a CLAUDE.md carries the steer.
@@ -246,7 +246,7 @@ async function init(ctx: Ctx): Promise<number> {
   return 0;
 }
 
-// ---- doctor: data format, merge driver, node, solver runtime; warnings never change the exit code ----
+// ---- doctor: data format, node, solver runtime; warnings never change the exit code ----
 // `doctor --fix --alias NAME`: the user approves the alias for THIS repository. It needs a terminal on stdin (an agent that follows a printed hint
 // has none) and a typed host, and writes nothing before the confirmation. Returns false when the user did not confirm.
 async function approveAliasHere(ctx: Ctx, name: string): Promise<boolean> {
@@ -271,7 +271,7 @@ async function approveAliasHere(ctx: Ctx, name: string): Promise<boolean> {
   return true;
 }
 async function doctor(ctx: Ctx, args: Args<{ fix?: boolean; alias?: string }>): Promise<number> {
-  const S = await import('../../lib/store.ts'), out = ctx.io.out, dir = rel(ctx, ctx.dir); let bad = 0;
+  const S = await import('../../lib/store.ts'), out = ctx.io.out; let bad = 0;
   if (args.values.alias !== undefined) {
     if (!args.values.fix) throw usage('--alias goes with --fix: plangraph doctor --fix --alias NAME');
     if (!(await approveAliasHere(ctx, args.values.alias))) return 1;
@@ -279,18 +279,10 @@ async function doctor(ctx: Ctx, args: Args<{ fix?: boolean; alias?: string }>): 
   const f = S.readFormat(ctx.dir);
   ctx.config(); // a bad config.json is refused (exit 2) exactly as by every reader, after the data-format check
   out(`data format v${f.format_version}; tool supports v${S.FORMAT_VERSION}`);
-  const target = path.join(BIN, 'plangraph-merge'); // the running plugin's driver: a shim left at another install is a problem
-  let dm = S.doctorMergeDriver(ctx.root, { dir, target }), wireErr = '', consentErr = '';
-  if (dm.problems.length && args.values.fix) {
-    try { await wireMergeDriver(ctx, { consent: true }); } catch (e) { wireErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
-    dm = S.doctorMergeDriver(ctx.root, { dir, target });
-  } else if (args.values.fix) {
-    // Already wired (by hand, or before 0.3.0): `doctor --fix` run by the user is the consent the session hook needs to keep it healed.
-    try { await recordHealConsent(ctx); } catch (e) { consentErr = oneLine(String((e as Error).message).split('\n')[0], 200); } // whatever was thrown: String() of its message
+  try { S.checkFormat(ctx.dir); } catch (e) {
+    if (!(e instanceof S.FormatError)) throw e;
+    if (e.code === 'PRE_1_0') { out(S.PRE_1_0_MESSAGE); bad++; } // the one-line refusal every other command prints, and the exit code of a problem
   }
-  out(dm.problems.length ? `merge driver: ${dm.problems.join('; ')}` : 'merge driver: ok'); bad += dm.problems.length;
-  if (wireErr) { out(`merge driver not installed: ${wireErr}`); if (!dm.problems.length) bad++; }
-  if (consentErr) { out(`merge driver: consent to heal not recorded: ${consentErr}`); bad++; }
   const idx = trackedIndex(ctx);
   if (idx) { out(`tracked index: ${idx} is committed; untrack it with \`git rm --cached ${idx}\``); bad++; }
   doctorSidecars(ctx);
@@ -360,33 +352,16 @@ function doctorSidecars(ctx: Ctx): void {
   for (const s of SIDECARS) { const t = trackedIndex(ctx, INDEX_FILE + s); if (t) out(`warning: tracked journal: ${t} is committed; untrack it with \`git rm --cached ${t}\``); }
   const gi = path.join(ctx.dir, '.gitignore');
   let text = null; try { text = readCapped(gi, 1024 * 1024, { follow: false }); } catch { /* missing or refused */ }
-  if (text !== null && missingIgnoreLines(text).some((l) => l !== INDEX_PATTERN)) {
-    out(`warning: ${shown(gi)} does not ignore the SQLite journal files (${IGNORE_LINES.slice(1).join(', ')}): run \`plangraph init\` to add the missing lines`);
+  if (text !== null && missingIgnoreLines(text).length) {
+    out(`warning: ${shown(gi)} does not ignore the derived files (${IGNORE_LINES.join(', ')}): run \`plangraph init\` to add the missing lines`);
   }
 }
 const listMore = (out: (line: string) => void, found: string[], max: number, line: (x: string) => string): void => { for (const x of found.slice(0, max)) out(line(x)); if (found.length > max) out(`  ... and ${found.length - max} more`); };
 // Files and JSON only, no process, no network.
 async function doctorWarnings(ctx: Ctx): Promise<void> {
   const out = ctx.io.out, DIR = ctx.dir, ROOT = ctx.root;
-  // Conflict-marker scan: at most 20 .jsonl files, 64 MiB in total, lstat only (symlinks and non-regular files are never followed or read).
-  // A file that does not fit the remaining budget is reported, not silently ignored.
-  const markers = ([] as string[]), skipped: string[] = []; let budget = 64 * 1024 * 1024, more = 0; // an empty list of this element type
-  try {
-    const names = fs.readdirSync(DIR).filter((n) => n.endsWith('.jsonl')).sort(); let scanned = 0;
-    for (const f of names) {
-      let st: fs.Stats; try { st = fs.lstatSync(path.join(DIR, f)); } catch { continue; }
-      if (!st.isFile()) continue;
-      if (scanned >= 20) { more++; continue; }
-      scanned++;
-      if (st.size > budget) { skipped.push(f); continue; }
-      let text: string; try { text = readCapped(path.join(DIR, f), budget); } catch { continue; }
-      budget -= st.size;
-      text.split('\n').forEach((l, i) => { if (/^(<{7}|={7}|>{7})/.test(l)) markers.push(`${oneLine(f, 60)}:${i + 1}`); });
-    }
-  } catch { /* no plan directory yet */ }
-  listMore(out, markers, 5, (m) => `warning: unresolved conflict marker ${m} (GitKraken Desktop may ignore the merge driver; resolve it, then run \`plangraph build\`)`);
-  for (const f of skipped) out(`warning: skipped (too large): ${oneLine(f, 60)}`);
-  if (more) out(`  ... and ${more} more .jsonl files not scanned (the scan reads at most 20)`);
+  // Files the readers skip (a conflict marker, a bad line, a misplaced or duplicate node file): counted, listed by `plangraph check`.
+  try { const n = (await import('../../lib/store2/check.ts')).problemFiles(DIR); if (n) out(`warning: store: ${n} problem files (run plangraph check)`); } catch { /* no plan directory yet */ }
   const strays: string[] = [];
   for (const d of [ROOT, path.join(ROOT, 'docs'), path.join(ROOT, '.claude')]) {
     try { for (const n of fs.readdirSync(d).sort()) if (n.endsWith('.original.md') && fs.lstatSync(path.join(d, n)).isFile()) strays.push(path.relative(ROOT, path.join(d, n))); } catch { /* absent */ }
@@ -411,12 +386,11 @@ async function doctorWarnings(ctx: Ctx): Promise<void> {
 }
 
 const B = { type: 'boolean' };
-const WIRING: readonly string[] = ['git-config', 'gitattributes', 'merge-shim']; // what wireMergeDriver writes (src/registry.ts SIDE_WRITES)
 export const commands: CommandMap = {
   whatif: { run: whatif, positionals: [0, 1], writes: 'index', options: { to: { type: 'string' }, sprint: { type: 'integer' }, earlier: B, 'owner-change': B, slip: B, strict: B, 'apply-plan': B, write: B, relieve: { type: 'string' }, find: B }, summary: 'dry run of one reassignment or move (exit 1 when unsafe); --apply-plan [--write] repairs; --relieve NAME --sprint N: fewest moves to get under cap; KEY --find: every valid slot, ranked (both read-only)' },
   'schedule-load': { run: scheduleLoad, positionals: [2, 2], writes: 'index', summary: 'keep the current plan under an archive name and load a new schedule into the index' },
   export: { run: exportText, positionals: [0, 0], writes: 'text', guard: 'strict', summary: 'index -> canonical text (stable order, diffable)' },
   build: { run: build, positionals: [0, 0], writes: 'index', summary: 'text -> index (atomic; stores the source fingerprint)' },
-  init: { run: init, positionals: [0, 0], writes: 'text', also: WIRING, guard: 'none', summary: 'create the plan directory, config, generic learnings and the merge driver' },
-  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: { ...B, writes: WIRING }, alias: { type: 'string' } }, summary: 'data format, merge driver, node and solver runtime checks (exit 1 on a problem)' },
+  init: { run: init, positionals: [0, 0], writes: 'text', guard: 'none', summary: 'create the plan directory, config, generic learnings and the entity-layout stamp' },
+  doctor: { run: doctor, positionals: [0, 0], guard: 'none', options: { fix: B, alias: { type: 'string' } }, summary: 'data format, node and solver runtime checks (exit 1 on a problem)' },
 };
