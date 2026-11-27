@@ -6,12 +6,14 @@
 // No plan directory: it returns before any heavy module loads (src/entry.js does the same check even before the CLI loads).
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 
 type Values = { fast?: boolean; budget?: number; quiet?: boolean };
 /** Test seams, never set by the shell: syncFetch replaces the fetch step, beforeStep runs (and may delay) before each step. */
-export interface RefreshDeps { syncFetch?(ctx: Ctx): Promise<unknown>; beforeStep?(name: string): Promise<void> | void }
+export interface RefreshDeps { syncFetch?(ctx: Ctx): Promise<unknown>; beforeStep?(name: string): Promise<void> | void; buildCommand?: readonly string[] }
 export const DEFAULT_BUDGET_SECONDS = 8;
 const TIMED_OUT = Symbol('budget');
 
@@ -31,12 +33,31 @@ async function indexStale(ctx: Ctx): Promise<boolean> {
   try { using h = openIndex(file, { readOnly: true, dir: ctx.dir }); return Boolean(h.stale || h.older); } catch { return true; }
 }
 
-async function rebuildIndex(ctx: Ctx): Promise<void> {
+/** The index build runs in a child process (`plangraph build`) with a hard deadline: buildIndex is synchronous, so inside this process the budget
+ *  could never fire while it ran, and a hook killed by its own timeout would stop it partway. At the deadline the child gets SIGKILL and the temp
+ *  files it made (`<index>.tmp-<its pid>` and the SQLite sidecars of that name) are removed; the build writes a temp file and renames it, so the
+ *  old index is untouched. A failed build throws (the command turns that into exit 0 under --quiet). */
+async function rebuildIndex(ctx: Ctx, ms: number, command?: readonly string[]): Promise<void> {
   if (!(await indexStale(ctx))) return;
   const { checkFormat } = await import('../../lib/store.ts');
   checkFormat(ctx.dir); // a directory of another format version is left alone
   ctx.config(); // a bad config.json is refused as everywhere
-  (await import('../db.ts')).buildIndex(ctx); // builds into a temp file and renames: a stop leaves the old or the new index, never a partial one
+  const { INDEX_FILE } = await import('../db.ts');
+  const [exe, ...argv] = command ?? [process.execPath, fileURLToPath(new URL('../entry.js', import.meta.url)), 'build'];
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(ctx.env)) if (typeof v === 'string') env[k] = v;
+  const child = spawn(exe as string, argv, { cwd: ctx.root, env, stdio: 'ignore', windowsHide: true });
+  let late = false;
+  const code = await new Promise<number | null>((resolve) => {
+    const timer = setTimeout(() => { late = true; child.kill('SIGKILL'); }, Math.max(0, ms)); // the close event follows the kill
+    child.on('error', () => { clearTimeout(timer); resolve(1); });
+    child.on('close', (c) => { clearTimeout(timer); resolve(c); });
+  });
+  if (late || code !== 0) {
+    const prefix = `${INDEX_FILE}.tmp-${child.pid}`;
+    try { for (const f of fs.readdirSync(ctx.dir)) if (f === prefix || f.startsWith(`${prefix}-`)) fs.rmSync(path.join(ctx.dir, f), { force: true }); } catch { /* best effort: removeStaleTemps takes a dead pid's leftovers at the next build */ }
+  }
+  if (!late && code !== 0) throw new Error('the index build failed');
 }
 
 async function regenerateDocs(ctx: Ctx, say: (line: string) => void): Promise<void> {
@@ -64,11 +85,11 @@ async function regenerateDocs(ctx: Ctx, say: (line: string) => void): Promise<vo
 export async function runRefresh(ctx: Ctx, { fast = false, budgetMs = DEFAULT_BUDGET_SECONDS * 1000, say = () => {} }: { fast?: boolean; budgetMs?: number; say?: (line: string) => void } = {}): Promise<void> {
   if (!fs.existsSync(ctx.dir)) return;
   const deps = (ctx as Ctx & { refreshDeps?: RefreshDeps }).refreshDeps ?? {}, deadline = Date.now() + budgetMs, left = () => deadline - Date.now();
-  const step = async (name: string, fn: () => unknown): Promise<boolean> => {
+  const step = async (name: string, fn: () => unknown, grace = 0): Promise<boolean> => {
     if (left() <= 0) return false;
-    return within((async () => { await deps.beforeStep?.(name); return fn(); })(), left());
+    return within((async () => { await deps.beforeStep?.(name); return fn(); })(), left() + grace); // grace: a step with its own hard deadline gets time to clean up after it
   };
-  if (!(await step('index', () => rebuildIndex(ctx)))) return;
+  if (!(await step('index', () => rebuildIndex(ctx, left(), deps.buildCommand), 1000))) return;
   if (!fast) {
     const fetchStep = async (): Promise<void> => {
       try {
@@ -78,7 +99,7 @@ export async function runRefresh(ctx: Ctx, { fast = false, budgetMs = DEFAULT_BU
       } catch { /* a fetch failure never fails the session; the cache and the index stay as they were */ }
     };
     if (!(await step('fetch', fetchStep))) return;
-    if (!(await step('index', () => rebuildIndex(ctx)))) return;
+    if (!(await step('index', () => rebuildIndex(ctx, left(), deps.buildCommand), 1000))) return;
   }
   await step('docs', async () => { try { await regenerateDocs(ctx, say); } catch { /* the live copy is optional */ } });
 }

@@ -200,7 +200,7 @@ Every automatic script is POSIX `sh`, does nothing when `plangraph` is not on `P
 
 ### `refresh`
 
-`plangraph refresh [--fast] [--budget SECONDS] [--quiet]` rebuilds the index when it is stale (it builds into a temporary file and renames it, so a stop at the budget leaves a valid index), runs `sync-fetch` for trusted targets unless `--fast` (the trust list is kept outside the work tree, see the Trust section below), and regenerates stale generated documents into the live copy `docs.out`. The live copy is written only when git ignores `docs.out`; with `docs.commit: true` it writes `docs.commit_out` instead. A hand-edited region is kept and reported on one line. It writes only the index, `cache/` and the live copy, prints nothing on success, and with `--quiet` exits 0 whatever happens.
+`plangraph refresh [--fast] [--budget SECONDS] [--quiet]` rebuilds the index when it is stale (the build runs in a child process, `plangraph build`, with a hard deadline: at the budget the child is killed and its temporary files removed; it builds into a temporary file and renames it, so a stop at the budget leaves the old, valid index), runs `sync-fetch` for trusted targets unless `--fast` (the trust list is kept outside the work tree, see the Trust section below), and regenerates stale generated documents into the live copy `docs.out`. The live copy is written only when git ignores `docs.out`; with `docs.commit: true` it writes `docs.commit_out` instead. A hand-edited region is kept and reported on one line. It writes only the index, `cache/` and the live copy, prints nothing on success, and with `--quiet` exits 0 whatever happens.
 
 ### CI
 
