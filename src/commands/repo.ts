@@ -69,7 +69,7 @@ function link(ctx: Ctx, args: Args<Opts>): number {
     if (!has(ticket, to)) { add.push({ from: ticket, from_type: 'ticket', rel: 'touches', to, to_type: 'repo', attrs: { conf: conf ?? 1, why: oneLine(why ?? 'manual', 60) } }); say.push(`${oneLine(ticket, 120)} touches ${to}`); }
     else say.push(`${oneLine(ticket, 120)} already touches ${to}, nothing written`);
   }
-  if (add.length) store.writeKind('link', [...links, ...add], { precheck: true });
+  if (add.length) store.addRows('link', add, { precheck: true }); // a delta under the store lock: a link another writer added meanwhile is kept
   if (!say.length) ctx.io.out('no missing touches links, nothing written');
   for (const l of say) ctx.io.out(l);
   return 0;
@@ -92,7 +92,7 @@ function catalog(ctx: Ctx, args: Args<Opts>): number {
   if (!args.values.write || !added.length) return 0;
   const next: Row = old ? { ...old, owners } : { id, name: seed.name ?? slug, owners, src: 'catalog' };
   if (old && old.role === undefined && seed.role !== undefined) next.role = seed.role;
-  store.writeKind('repo', [...rows.filter((r) => r.id !== id), next], { precheck: true });
+  store.addRows('repo', [next], { precheck: true });
   return 0;
 }
 
