@@ -52,14 +52,13 @@ type Block = { id: string; at: number; end: number; begin: Begin };
 type Scan = { lines: Line[]; blocks: Block[]; problems: (string | null)[] };
 
 function splitLines(text: string): Line[] {
-  const out: Line[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const nl = text.indexOf('\n', i);
-    if (nl < 0) { out.push({ s: text.slice(i), eol: '' }); break; }
-    const cr = nl > i && text[nl - 1] === '\r';
-    out.push({ s: text.slice(i, cr ? nl - 1 : nl), eol: cr ? '\r\n' : '\n' });
-    i = nl + 1;
+  // one split, not an indexOf per line (each indexOf from an offset is a scan of the rest of the text: quadratic in the document size)
+  const parts = text.split('\n'), out: Line[] = [];
+  for (let k = 0; k < parts.length; k++) {
+    const p = parts[k]!, last = k === parts.length - 1;
+    if (last) { if (p !== '') out.push({ s: p, eol: '' }); break; }
+    const cr = p.endsWith('\r');
+    out.push({ s: cr ? p.slice(0, -1) : p, eol: cr ? '\r\n' : '\n' });
   }
   return out;
 }
