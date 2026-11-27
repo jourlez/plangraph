@@ -387,6 +387,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph hook-prompt` | the UserPromptSubmit hook: reads the hook JSON on stdin and prints owner and blockers of a ticket named in the prompt, once per session, at most 200 tokens | | files |
 | `plangraph githooks-install` | write the post-commit, post-merge, post-checkout and post-rewrite scripts into `.githooks/` and print how to enable them; never changes git config | `--dry-run`, `--pre-commit` | files |
 | `plangraph takeover` | resumable takeover of an existing project: detect, scan, history, docs, plans, fetch, links, identities, build, check, map, docs-build, report; checkpoints in `cache/takeover.json`; ends with a gap report that lists every unknown | `--from STEP`, `--skip STEP`, `--no-fetch`, `--json` | files |
+| `plangraph uninstall` | undo what `init` and `githooks-install` added: unmodified `.githooks/` scripts and the `.gitignore` lines plangraph wrote; after confirmation the local cache, the index and the staging directory; never deletes `nodes/`, `events/`, `runs/`, `schedules/`, `config.json` or `format.json` | `--yes` | files |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the entity-layout stamp | | text |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |

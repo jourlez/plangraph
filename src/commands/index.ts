@@ -32,5 +32,6 @@ import { commands as refresh } from './refresh.ts';
 import { commands as hookPrompt } from './hook-prompt.ts';
 import { commands as githooksInstall } from './githooks-install.ts';
 import { commands as takeover } from './takeover.ts';
+import { commands as uninstall } from './uninstall.ts';
 
-export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact, docs, docsBuild, ingest, syncFetch, trust, identity, identityMap, flow, flowClaim, flowProgress, flowDone, flowLink, map, context, refresh, hookPrompt, githooksInstall , takeover});
+export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact, docs, docsBuild, ingest, syncFetch, trust, identity, identityMap, flow, flowClaim, flowProgress, flowDone, flowLink, map, context, refresh, hookPrompt, githooksInstall, takeover, uninstall });
