@@ -17,14 +17,14 @@ import { RELATIONS } from '../graph/files.ts';
 export interface SpTask {
   id: string; alias: string | null; title: string; level: number; line: number; files: string[]; consumes: string[]; produces: string[]; steps: number; ticked: number;
   refs: string[]; points: number | null;
-  assignee: string | null; sprint: number | null; ticket: string | null; repo: string | null; requirements: string[];
+  assignee?: string; sprint?: number; ticket?: string; repo?: string; requirements?: string[]; // set only when the plan names them
 }
 /** A plan's header fields (a type alias, so the header-field loop can write it by name). */
 export type PlanHeader = { title: string; goal: string; architecture: string; techStack: string; spec: string | null; banner: boolean };
 /** The optional plan-level link fields (`**Sprint:**`, `**Ticket:**`, `**Repo:**`, `**Requirements:**`; plan-level ones attach to the epic ticket). */
-export interface PlanLinks { sprint: number | null; ticket: string | null; repo: string | null; requirements: string[] }
+export interface PlanLinks { sprint?: number; ticket?: string; repo?: string; requirements?: string[] }
 /** parsePlan's answer. */
-export interface ParsedPlan { slug: string; path: string; format: string; header: PlanHeader; links: PlanLinks; globalConstraints: string[]; reviewFocus: string[]; tasks: SpTask[]; warnings: string[] }
+export interface ParsedPlan { slug: string; path: string; format: string; header: PlanHeader; links?: PlanLinks; globalConstraints: string[]; reviewFocus: string[]; tasks: SpTask[]; warnings: string[] }
 /** One task status derived from a ledger. */
 export interface LedgerEntry { task: string; status: ImplStatus; commits?: string; notes: string[] }
 /** A ruling, parked or deferred line; task is null for a plan-level line. */
@@ -230,7 +230,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
   if (unclosedComment) throw fail(`${oneLine(base, 80)}: unclosed HTML comment at line ${unclosedComment}`);
 
   const warnings: string[] = [], header: PlanHeader = { title: '', goal: '', architecture: '', techStack: '', spec: null, banner: false };
-  const links: PlanLinks = { sprint: null, ticket: null, repo: null, requirements: [] };
+  const links: PlanLinks = {};
   const globalConstraints: string[] = [], reviewFocus: string[] = [], tasks: SpTask[] = [];
   for (const [start, at] of swallowed.slice(0, 20)) warnings.push(`HTML comment starting at line ${start} swallows a task heading (line ${at}): tasks inside comments are not ingested`);
   let section: string[] | null = null, task: SpTask | null = null, mode: string | null = null, item: number | [string[], number] | null = null, headerSeen = false;
@@ -247,7 +247,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
       if (id.length > LIMITS.idChars) throw fail(`${oneLine(base, 80)}: task ${tasks.length + (task ? 2 : 1)} (line ${i + 1}): id longer than ${LIMITS.idChars} characters`);
       closeTask(); section = null;
       const tm = taskTitle(t.rest);
-      task = { id, alias: tm.alias ? oneLine(tm.alias, 20) : null, title: oneLine(tm.title, LIMITS.summary), level, line: i + 1, files: [], consumes: [], produces: [], steps: 0, ticked: 0, refs: [], points: null, assignee: null, sprint: null, ticket: null, repo: null, requirements: [] };
+      task = { id, alias: tm.alias ? oneLine(tm.alias, 20) : null, title: oneLine(tm.title, LIMITS.summary), level, line: i + 1, files: [], consumes: [], produces: [], steps: 0, ticked: 0, refs: [], points: null };
       continue;
     }
     const h = RX.heading.exec(l);
@@ -318,7 +318,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
   if (header.spec) spec = cleanPath(header.spec.replace(/^`|`$/g, ''), 'spec', warnings);
   header.spec = spec;
   return {
-    slug, path: String(name), format: header.spec || reviewFocus.length ? '7' : '6.1', header, links,
+    slug, path: String(name), format: header.spec || reviewFocus.length ? '7' : '6.1', header, ...(Object.keys(links).length ? { links } : {}),
     globalConstraints: globalConstraints.map((c) => oneLine(c, LIMITS.finding)), reviewFocus: reviewFocus.map((c) => oneLine(c, LIMITS.finding)),
     tasks, warnings,
   };
@@ -625,7 +625,7 @@ export function ingestPlan({ plan, ledger = null, existing = {}, owner, sprint, 
   const jiraX = (x: GraphRow): boolean => x.type === 'ticket' && String(x.sys).split(':')[0] === 'jira';
   const subjects: Array<{ key: string; ticket: string | null; repo: string | null; requirements: readonly string[] }> = [
     { key: epic, ticket: plan.links?.ticket ?? null, repo: plan.links?.repo ?? null, requirements: plan.links?.requirements ?? [] },
-    ...plan.tasks.map((t) => ({ key: keyOf(t.id), ticket: t.ticket, repo: t.repo, requirements: t.requirements })),
+    ...plan.tasks.map((t) => ({ key: keyOf(t.id), ticket: t.ticket ?? null, repo: t.repo ?? null, requirements: t.requirements ?? [] })),
   ];
   for (const x of subjects) {
     if (x.ticket) {
