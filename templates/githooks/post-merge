@@ -1,0 +1,5 @@
+#!/bin/sh
+# plangraph: refresh the derived index after a git operation (post-merge). Never blocks git: every path ends with exit 0.
+command -v plangraph >/dev/null 2>&1 || exit 0
+plangraph refresh --fast --quiet || true
+exit 0

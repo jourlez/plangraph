@@ -1,0 +1,46 @@
+# plangraph CI template: copy to .github/workflows/plangraph.yml and adjust the plangraph install step.
+# Builds the index from the committed plan, checks it, verifies the generated documents are committable, refreshes nightly, and on the default
+# branch commits the generated documents (docs.commit_out) and compacts the plan. Read-only fetches use the runner's own token.
+name: plangraph
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * *'
+permissions:
+  contents: write
+jobs:
+  plangraph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      # Install plangraph however your project does (a pinned checkout of the plugin, or a package); `plangraph` must be on PATH after this step.
+      - name: Install plangraph
+        run: echo "install plangraph here and put it on PATH"
+      - name: Build
+        run: plangraph build
+      - name: Check
+        run: plangraph check
+      - name: Generated documents are committable
+        run: plangraph docs-build --commit-ready
+      - name: Nightly full refresh
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: plangraph refresh --budget 300
+      - name: Commit generated documents and compact (default branch only)
+        if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.event_name != 'pull_request'
+        run: |
+          out="$(node -e "const c=JSON.parse(require('fs').readFileSync('.plangraph/config.json','utf8'));console.log((c.docs&&c.docs.commit_out)||'docs/generated')")"
+          plangraph compact --ci
+          git config user.name "plangraph-ci"
+          git config user.email "plangraph-ci@users.noreply.github.com"
+          git add -A -- "$out" .plangraph
+          git diff --cached --quiet || git commit -m "update generated plangraph documents"
+          git push
