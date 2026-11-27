@@ -69,3 +69,28 @@ test('bad stdin and a missing index: nothing, exit 0', async () => {
   for (const stdin of ['', 'not json', '{"prompt":5}', '[]', 'null']) assert.deepEqual((await run(w.root, ['hook-prompt'], { stdin })).out, [], stdin);
   assert.deepEqual(await run(w.root, ['hook-prompt'], { stdin: prompt('ABC-3') }), { code: 0, out: [], err: [] }, 'no index yet');
 });
+
+test('at most three nodes are injected per prompt', async () => {
+  const w = await built();
+  const c = ctxOf((await run(w.root, ['hook-prompt'], { stdin: prompt('ABC-1 ABC-2 ABC-3 ABC-4 ABC-5') })).out);
+  assert.equal(c.split('\n').filter((l) => /^ABC-\d:/.test(l)).length, 3);
+});
+
+test('the seen file is only written when the plan directory ignores cache/', async () => {
+  const w = await built();
+  fs.writeFileSync(path.join(w.dir, '.gitignore'), 'plangraph.sqlite*\n.txn/\n');
+  assert.equal((await run(w.root, ['hook-prompt'], { stdin: prompt('ABC-3') })).out.length, 1);
+  assert.equal(fs.existsSync(path.join(w.dir, 'cache', 'prompt-seen')), false);
+  assert.equal((await run(w.root, ['hook-prompt'], { stdin: prompt('ABC-3 again') })).out.length, 1, 'nothing was remembered, so it is injected again');
+});
+
+test('output never holds a raw angle bracket and the fence of a ticket is not reproduced', async () => {
+  const w = await built();
+  const r = await run(w.root, ['hook-prompt'], { stdin: prompt('ABC-3') });
+  assert.ok(!/[<>]/.test(r.out[0] as string));
+});
+
+test('a node whose type does not match a pg: URI is not injected as another type', async () => {
+  const w = await built();
+  assert.deepEqual((await run(w.root, ['hook-prompt'], { stdin: prompt('see pg:person/ABC-1', 's7') })).out, []);
+});
