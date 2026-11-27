@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
+import { trustFile } from '../lib/fetch/trust.ts';
 import { world, run, git, cleanup } from './helpers/hook-world.ts';
 
 const BIN = path.join(import.meta.dirname, '../bin/plangraph');
@@ -98,7 +99,7 @@ const MUTS: Mut[] = [
   { name: 'meta.jsonl: bad lines', apply: ({ dir }) => { fs.writeFileSync(path.join(dir, 'meta.jsonl'), BADLINES); return null; } },
   { name: 'cache/git.jsonl: bad lines', apply: ({ dir }) => { fs.writeFileSync(path.join(dir, 'cache/git.jsonl'), BADLINES); return null; } },
   { name: 'cache/github.jsonl and confluence.jsonl: bad lines', apply: ({ dir }) => { for (const n of ['github', 'confluence', 'jira']) fs.writeFileSync(path.join(dir, `cache/${n}.jsonl`), BADLINES); return null; } },
-  { name: 'cache/trusted.json, identities.json and prompt-seen: garbage', apply: ({ dir }) => { for (const n of ['trusted.json', 'identities.json', 'prompt-seen', 'takeover.json', 'github.cursor', 'jira.cursor']) fs.writeFileSync(path.join(dir, 'cache', n), '\u0000{"a":[1,'); return null; } },
+  { name: 'cache/trusted.json, identities.json and prompt-seen: garbage', apply: ({ dir }) => { for (const n of ['identities.json', 'prompt-seen', 'takeover.json', 'github.cursor', 'jira.cursor']) fs.writeFileSync(path.join(dir, 'cache', n), '\u0000{"a":[1,'); return null; } },
   { name: 'cache is a file, not a directory', apply: ({ dir }) => { fs.rmSync(path.join(dir, 'cache'), { recursive: true }); fs.writeFileSync(path.join(dir, 'cache'), 'x'); return null; } },
   { name: 'the index file is garbage', apply: ({ dir }) => { fs.writeFileSync(path.join(dir, 'plangraph.sqlite'), Buffer.from(Array.from({ length: 8192 }, (_, i) => (i * 13) & 255))); return null; } },
   { name: 'the index file is a symlink', apply: ({ dir }) => { fs.rmSync(path.join(dir, 'plangraph.sqlite')); fs.symlinkSync('/etc/passwd', path.join(dir, 'plangraph.sqlite')); return null; } },
@@ -160,6 +161,19 @@ for (const m of MUTS) {
     assert.equal(dirty, '', 'a command changed a tracked file outside the plan');
   });
 }
+
+test('the trust list outside the work tree (garbage in its config directory): trust, sync-fetch and every command exit cleanly', async () => {
+  const w = copy(), cfg = path.join(w.root, '..', `${path.basename(w.root)}-cfg`); copies.push(cfg);
+  fs.mkdirSync(cfg, { recursive: true });
+  const e = { ...env, CLAUDE_PLUGIN_DATA: cfg };
+  const tr = await run(w.root, ['trust', 'github:example/widgets'], { env: e });
+  const f = trustFile(w.root, e);
+  assert.ok(fs.existsSync(f) && f.startsWith(cfg), `trust wrote its list in the config directory: ${tr.code} ${[...tr.out, ...tr.err].join('|')}`);
+  fs.writeFileSync(f, '\u0000{"a":[1,');
+  const bad: string[] = [];
+  for (const argv of CMDS) bad.push(...verdict('trust list garbage', argv, (await run(w.root, argv, { env: e })) as R));
+  assert.deepEqual(bad, []);
+});
 
 test('no plan directory, no repository: every new command exits 0 or 2 with one short message', async () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(path.dirname(BASE.root), 'fz-'))); copies.push(root);
