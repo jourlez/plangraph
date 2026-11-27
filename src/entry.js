@@ -7,7 +7,7 @@
 // Too-old Node: exit 3 with the message and a try line; with --if-present exit 0 and nothing on stderr, and `card --if-present` (the
 // SessionStart hook) prints ONE stdout line saying the floor; `card --if-present` is also silent with exit 0 on any failure in src/cli.ts.
 // Compile cache (supported Node only, before the CLI loads): kept in a PRIVATE directory, <data>/compile-cache, where <data> is CLAUDE_PLUGIN_DATA
-// when absolute, else ~/.cache/plangraph (the lib/driver.ts defaultDataDir rule, inlined: nothing from lib/ or a .ts file loads before the
+// when absolute, else ~/.cache/plangraph (the plugin data directory rule, inlined: nothing from lib/ or a .ts file loads before the
 // cache is on, since the first .ts file pays the type-stripper start-up). Node trusts a cache directory of any owner and mode (CRC32-checked
 // entries, plain JavaScript in the transpile cache), so a shared one would run code another local user planted. Both directories must be real
 // directories (lstat: no symlink) owned by this uid; <data> without group or world write (the driver's trust-root rule), the cache without any

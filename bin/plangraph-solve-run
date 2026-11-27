@@ -2,7 +2,7 @@
 # Launcher for plangraph-solve: finds or builds a Python (3.10-3.14) that has OR-Tools, then runs the solver with the given flags.
 # Dependencies are locked: bin/plangraph-solve.lock (uv) and the hash-pinned solver/solver-requirements.txt (venv fallback); both come from `uv lock/export --script bin/plangraph-solve`.
 # Order: uv (no install), else a cached venv under <base>/venv, else a python3 that already has ortools.
-# Venv base: CLAUDE_PLUGIN_DATA when absolute, else $HOME/.cache/plangraph (the lib/driver.ts defaultDataDir rule). Whoever can write the base
+# Venv base: CLAUDE_PLUGIN_DATA when absolute, else $HOME/.cache/plangraph (the plugin data directory rule of src/entry.js). Whoever can write the base
 # can plant venv/bin/python, which this launcher would run, so before the first use of the venv the base must be a real directory (no
 # symlink) owned by the user without group or world write; a missing one is created 0700 (umask 077). A group- or world-writable
 # CLAUDE_PLUGIN_DATA (Claude Code creates it with the default mode, so 775 under umask 002) is not an error: one stderr line, then the

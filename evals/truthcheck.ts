@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { readStoreAt } from '../lib/planstore.ts';
 import type { EvalCase, TruthArgs, TruthValue } from './schema.ts';
 
 export interface TruthCheck { checked: string[]; unchecked: string[]; mismatches: Array<{ id: string; what: string }> }
@@ -55,7 +56,7 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
       }
       case 'blockers-of': { const r = readyOf(a.key); if (!r || !same(r.waits, v.blockers)) bad('blockers'); break; }
       case 'readySet': {
-        const sched = fs.readFileSync(path.join(sc.ws, c.fixture.size === 'R' ? (fs.readFileSync(path.join(sc.ws, '.plangraphrc'), 'utf8').match(/"dir":"([^"]+)"/) as RegExpMatchArray)[1] : '.plangraph', 'schedule.jsonl'), 'utf8'); // as RegExpMatchArray: the scaffold wrote .plangraphrc with a "dir"
+        const sched = readStoreAt(path.join(sc.ws, c.fixture.size === 'R' ? (fs.readFileSync(path.join(sc.ws, '.plangraphrc'), 'utf8').match(/"dir":"([^"]+)"/) as RegExpMatchArray)[1] : '.plangraph')).readText('schedule') ?? ''; // as RegExpMatchArray: the scaffold wrote .plangraphrc with a "dir"
         const cell = sched.split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((r) => (r.version ?? 'current') === 'current' && r.owner === a.owner && r.sprint === a.sprint).map((r) => r.key);
         const got = cell.filter((k) => readyOf(k)?.ready === true);
         if (!same(got, v.ready)) bad('ready set');
@@ -119,7 +120,7 @@ export function checkTruth(cases: EvalCase[], { evalDir, tmp }: { evalDir: strin
       default: handled = false;
     }
     (handled ? out.checked : out.unchecked).push(c.id);
-    fs.rmSync(sc.ws, { recursive: true, force: true });
+    fs.rmSync(sc.ws, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); // a file system indexer can add an entry while the tree is removed
   }
   return out;
 }

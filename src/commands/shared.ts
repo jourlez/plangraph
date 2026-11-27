@@ -136,28 +136,5 @@ export function jiraErrors(e: unknown): never {
   throw e;
 }
 
-/** Install the merge driver through the stable shim in the data dir (see lib/driver.ts for the trust model). The target is the
- * plangraph-merge next to bin/plangraph, so a plugin update that moves the install is repaired by the next run. Throws on failure.
- * consent (init and doctor --fix, commands the user runs): after a successful wiring, record plangraph.heal (recordHealConsent). */
-export async function wireMergeDriver(ctx: Ctx, opts: { consent?: boolean } = {}) {
-  const [S, D] = await Promise.all([import('../../lib/store.ts'), import('../../lib/driver.ts')]);
-  const shim = D.ensureStableDriver({ dataDir: D.defaultDataDir(ctx.env), target: path.join(BIN, 'plangraph-merge'), nodePath: process.execPath });
-  const r = S.installMergeDriver(ctx.root, { dir: rel(ctx, ctx.dir), driverPath: shim });
-  if (opts.consent) await recordHealConsent(ctx);
-  return r;
-}
-/** The running plugin's version (package.json next to bin/), the value recorded as heal consent. */
-export function pluginVersion(): string {
-  const v = (JSON.parse(readCapped(path.join(BIN, '..', 'package.json'), 1024 * 1024)) as { version?: unknown }).version; // our own package.json
-  if (typeof v !== 'string' || !/^\d+\.\d+\.\d+/.test(v)) throw new TypeError('package.json has no version');
-  return v;
-}
-/** Record the user's consent to heal (plangraph.heal = the plugin version) in the clone's local git config, unless a version is already
- * there. Only for commands the user runs (init, doctor --fix), never from the session hook except for a grandfathered clone. Throws on failure. */
-export async function recordHealConsent(ctx: Ctx): Promise<void> {
-  const D = await import('../../lib/driver.ts'), common = D.gitCommonDir(ctx.root);
-  if (common && !D.hasConsent(common)) D.recordConsent(common, pluginVersion());
-}
-
 // ---------- confined state writes ----------
 export { refuseWrite, precheckTargets, writeState } from '../../lib/planstore.ts'; // the confined write helpers live with the PlanStore

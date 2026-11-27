@@ -37,8 +37,8 @@ export function assertInside(root: string, target: string): SafePath {
 // Absolute plan directory for dir under root. Rejects absolute dirs and anything escaping root
 // (lexically or through a symlink). Returns the LEXICAL absolute path, not the real one: confinement is only enforced later, and only when
 // the caller passes { root } to writeAtomicSafe (which re-checks with assertInside at write time). Resolving here is advisory.
-// The name also reaches .gitattributes (`<dir>/*.jsonl merge=...`, one pattern per line) and printed lines, so a control character,
-// any whitespace (a newline would start a new attribute line) or a gitattributes pattern/comment/quote character is refused with code
+// The name also reaches hook output and printed lines, so a control character,
+// any whitespace or a pattern, comment or quote character is refused with code
 // BAD_DIR_NAME; the message never echoes the name.
 const BAD_DIR_CHARS = /[\u0000- \u007F-\u009F\s*?[\]\\!#"]/u;
 export function resolveBrainDir(root: string, dir: string): SafePath {

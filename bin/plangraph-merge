@@ -1,3 +1,0 @@
-#!/usr/bin/env node
-// plangraph-merge: launcher only; the logic is in src/merge-main.ts.
-import('../src/merge-entry.js').catch((e) => { process.stderr.write(`plangraph-merge: ${String(e?.message ?? e).slice(0, 300)}\n`); process.exitCode = 2; });

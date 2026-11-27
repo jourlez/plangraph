@@ -28,6 +28,7 @@ import { pathToFileURL } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { readCapped } from '../lib/jsonl.ts';
+import { adoptOldLayout } from '../lib/store2/adopt.ts';
 import { sourceCases, strictNumber, Usage, DEFAULT_MODEL, select } from './run.ts';
 import { copyPlugin } from './native.ts';
 import { grade, parseAnswer, WRITE_BASH } from './schema.ts';
@@ -149,8 +150,8 @@ function writeFixtures(suite: string, fixtures: Record<string, string | Record<s
   }
 }
 const git = (ws: string, args: string[], env: Record<string, string>) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', ...args], { cwd: ws, encoding: 'utf8', env });
-/** Build a case workspace (same steps as the native scaffold.sh, plus the merge driver wired before the commit so the plugin's session
- * hook finds nothing to heal, and a .gitignore for the derived index as a real project has). Returns the plan dir relative to ws. */
+/** Build a case workspace (same steps as the native scaffold.sh, the fixture's old-layout files converted into entity files, and a .gitignore
+ * for the derived files as a real project has). Returns the plan dir relative to ws. */
 export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDir = null, brainDir = '.plangraph' }: { suite: string; rcDir?: string | null | undefined; brainDir?: string | undefined }): string {
   const fx = path.join(suite, 'fixtures', c.fixture.size), dir = rcDir || brainDir, brainBin = path.join(suite, 'plugin', 'bin', 'plangraph');
   const env = { ...childEnv(), CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data'), HOME: process.env.HOME || os.homedir() };
@@ -160,10 +161,10 @@ export function scaffold(ws: string, c: Pick<EvalCase, 'fixture'>, { suite, rcDi
     for (const n of fs.readdirSync(fx)) if (/\.jsonl$/.test(n) || n === 'config.json' || n === 'format.json') fs.copyFileSync(path.join(fx, n), path.join(ws, dir, n));
     if (rcDir) fs.writeFileSync(path.join(ws, '.plangraphrc'), `${JSON.stringify({ dir: rcDir })}\n`);
     if (c.fixture.overlay.length) applyOverlayToDisk(c.fixture.overlay, dir, ws);
-    fs.writeFileSync(path.join(ws, '.gitignore'), '*.sqlite\n*.sqlite-*\n');
+    adoptOldLayout(path.join(ws, dir)); // the fixture files are old-layout JSONL: entity files and the format stamp
+    fs.writeFileSync(path.join(ws, '.gitignore'), 'cache/\nplangraph.sqlite*\n.txn/\n');
   }
   if (git(ws, ['init', '-q'], env).status !== 0) throw new Error('git init failed in the workspace');
-  if (c.fixture.plangraph) spawnSync(process.execPath, [brainBin, 'doctor', '--fix'], { cwd: ws, env, encoding: 'utf8', timeout: 60000 });
   git(ws, ['add', '-A'], env);
   if (git(ws, ['commit', '-qm', 'fixture'], env).status !== 0) throw new Error('git commit failed in the workspace');
   if (c.fixture.plangraph && spawnSync(process.execPath, [brainBin, 'build'], { cwd: ws, env, encoding: 'utf8', timeout: 300000 }).status !== 0) throw new Error('plangraph build failed in the workspace');

@@ -15,9 +15,7 @@
  "lib/jsonl.ts",
  "lib/gitsafe.ts",
  "lib/sanitize.ts",
- "lib/driver.ts",
  "lib/tracker.ts",
  "src/jira-tenant.ts",
- "src/entry.js",
- "src/merge-entry.js"
+ "src/entry.js"
 ]

@@ -2,10 +2,8 @@
   "$schema": "https://unpkg.com/knip@6.48.0/schema.json",
   "entry": [
     "bin/plangraph",
-    "bin/plangraph-merge",
     "src/cli.ts",
     "src/entry.js",
-    "src/merge-entry.js",
     "mcp/plangraph-mcp.ts",
     "scripts/*.ts",
     "evals/*.ts",

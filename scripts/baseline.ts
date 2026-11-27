@@ -6,7 +6,7 @@
 //   node scripts/baseline.ts bench [--runs N]                  print `median_ms: X` and `runs: N`: the warm median of `plangraph card --if-present`
 //                                                                on the plan fixture (one untimed warm-up run first; N defaults to 30)
 // Observations: (a) a CLI matrix built from `plangraph explain --json` (each command plain, -v, --json, with a bad flag, with a bad argument,
-// and on an empty repository and one whose plan directory has no format.json), (b) the SessionStart hook, the merge driver and a scripted MCP stdio session, (c) library
+// and on an empty repository and one whose plan directory has no format.json), (b) the SessionStart hook and a scripted MCP stdio session, (c) library
 // probes with canned inputs. Every child runs with a fixed HOME, TZ=UTC and LC_ALL=C. Output is normalized (see normalizeOutput) so that
 // the planned file-extension rename (.mjs to .ts) is the only accepted difference.
 // NOT covered: the Python solver (own tests), live network calls (Jira is only probed over a stub fetch), the real clock.
@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 
 const PLUGIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BRAIN = path.join(PLUGIN, 'bin/plangraph');
-const MERGE = path.join(PLUGIN, 'bin/plangraph-merge');
 const MCP = path.join(PLUGIN, 'mcp/plangraph-mcp.ts');
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
 
@@ -82,7 +81,7 @@ const EXTRA = Object.freeze([
   ['ready', '@KEY@'], ['ready', '--person', '@PERSON@'], ['ready', '--sprint', '@SPRINT@'], ['findings', 'risk'], ['rules', '--repo'], ['rules', '--all'],
   ['stale', '--list'], ['stale', '--full'], ['verify', '--enforce-min'], ['forecast', '--seed', '3'], ['simulate', '--runs', '50', '--seed', '2'],
   ['whatif', '@KEY@', '--sprint', '2'], ['whatif', '@KEY@', '--to', '@PERSON@'], ['whatif', '@KEY@', '--find'], ['whatif', '--relieve', '@PERSON@', '--sprint', '@SPRINT@'], ['whatif', '@KEY@', '--slip'],
-  ['neighbors', '@KEY@', '2'], ['bundle', '@KEY@', '--ref', 'HEAD'], ['units', '--keys', '@KEY@'], ['units', '--stale'], ['card', '--line'], ['card', '--write'], ['card', '--heal'], ['doctor', '--fix'],
+  ['neighbors', '@KEY@', '2'], ['bundle', '@KEY@', '--ref', 'HEAD'], ['units', '--keys', '@KEY@'], ['units', '--stale'], ['card', '--line'], ['card', '--write'], ['card', '--refresh'], ['doctor', '--fix'],
   ['open-items', '--mine'], ['open-items', '--suggest-from-status'], ['report', '--as-of', '2026-01-01'], ['export'], ['sp-ingest'], ['sp-link', '@KEY@'], ['refs-update', '--full'],
 ].map((a) => Object.freeze([...a])));
 
@@ -98,7 +97,7 @@ function buildMatrix() {
     for (const [tag, rest] of [['plain', []], ['v', ['-v']], ['json', ['--json']], ['badflag', ['--no-such-flag']]]) add('plan', `${c.name}.${tag}`, [c.name, ...good, ...rest]);
     add('plan', `${c.name}.badarg`, [c.name, ...tooMany]);
     if (min > 0) add('plan', `${c.name}.missing`, [c.name]);
-    // a missing index, and a plan directory with no format.json (task 10 turns this into the unsupported pre-1.0 refusal), with the same valid arguments
+    // a missing index, and a pre-1.0 plan directory (old-layout files, no format.json: the unsupported pre-1.0 refusal), with the same valid arguments
     for (const fx of ((['empty', 'unstamped']) as const)) { add(fx, `${c.name}.plain`, [c.name, ...good]); add(fx, `${c.name}.json`, [c.name, ...good, '--json']); }
   }
   for (const a of EXTRA) add('plan', slug(a), [...a]);
@@ -134,7 +133,7 @@ const clone = (from: string, to: string) => fs.cpSync(from, to, { recursive: tru
 function buildTemplates(work: string, planSrc: string, dataDir: string | undefined): { plan: string; empty: string; unstamped: string; vars: Record<string, string>; brainDir: string } {
   const plan = path.join(work, 'tpl-plan'), empty = path.join(work, 'tpl-empty'), unstamped = path.join(work, 'tpl-unstamped');
   fs.mkdirSync(path.join(empty, 'repo'), { recursive: true }); gitInit(path.join(empty, 'repo'));
-  clone(planSrc, path.join(unstamped, 'repo')); fs.rmSync(path.join(unstamped, 'repo/.plangraph/format.json'), { force: true });
+  clone(planSrc, path.join(unstamped, 'repo')); fs.rmSync(path.join(unstamped, 'repo/.plangraph/format.json'), { force: true }); fs.writeFileSync(path.join(unstamped, 'repo/.plangraph/tickets.jsonl'), `${row('T-1')}\n`); // an old-layout file beside no stamp
   let vars = { KEY: 'T-3', PERSON: 'Ana', SPRINT: '1' }, brainDir = '.plangraph';
   if (dataDir) {
     // the owner's directory is copied first and never touched again; commands run against the copy
@@ -149,7 +148,7 @@ function buildTemplates(work: string, planSrc: string, dataDir: string | undefin
   return { plan, empty, unstamped, vars, brainDir };
 }
 
-// ---------------------------------------------------------------------------------------------------------------- hook, merge driver, MCP
+// ---------------------------------------------------------------------------------------------------------------- hook, MCP
 const HOOK = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0].hooks[0];
 const hookHome = (root: string) => { const h = path.join(root, '.baseline-home'); fs.mkdirSync(h, { recursive: true }); return h; };
 
@@ -164,22 +163,6 @@ export function runHook(root: string): { code: number; out: string; err: string 
 
 const row = (key: string, o: Record<string, unknown> = {}) => JSON.stringify({ key, summary: `ticket ${key}`, epic: 'E0', sp: 2, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', ...o });
 const lines = (a: string[]) => `${a.join('\n')}\n`;
-/**
- * Run bin/plangraph-merge on three fixed files written into `root`: `clean` edits distinct tickets on each side, `conflict` edits the same
- * field of one ticket differently.
- * @param {string} root @param {'clean' | 'conflict'} [variant] @returns {{ code: number, merged: string }}
- */
-export function runMergeDriver(root: string, variant: 'clean' | 'conflict' = 'clean'): { code: number; merged: string } {
-  const base = lines([row('T-1'), row('T-2'), row('T-3')]);
-  const ours = lines([row('T-1', { sp: 5 }), row('T-2'), row('T-3', variant === 'conflict' ? { summary: 'ours' } : {})]);
-  const theirs = lines([row('T-1'), row('T-2', { summary: 'theirs' }), row('T-3', variant === 'conflict' ? { summary: 'theirs' } : {}), row('T-4')]);
-  const dir = path.join(root, `.baseline-merge-${variant}`); fs.mkdirSync(dir, { recursive: true });
-  const [O, A, B] = ['base', 'ours', 'theirs'].map((n) => path.join(dir, `${n}.jsonl`));
-  fs.writeFileSync(O, base); fs.writeFileSync(A, ours); fs.writeFileSync(B, theirs);
-  const r = spawnSync(process.execPath, [MERGE, O, A, B, 'tickets.jsonl'], { cwd: root, env: childEnv(hookHome(root)), encoding: 'utf8', timeout: 60000 });
-  return { code: r.status ?? -1, merged: fs.readFileSync(A, 'utf8') };
-}
-
 /**
  * A scripted stdio session against mcp/plangraph-mcp.ts: initialize, initialized, tools/list, one tools/call for `ready`.
  * @param {string} root a repository with a plan directory, used as the working directory @returns {string[]} the responses, one JSON-RPC message per entry
@@ -289,14 +272,6 @@ export const PROBES: Probe[] = [
   { id: 'whatif', run: async () => {
     const { whatif, findSlots, relieve } = await lib('lib/whatif.ts'); const { model } = await genModel();
     return { later: whatif(model, { key: 'T-3', sprint: 4 }), earlier: whatif(model, { key: 'T-9', sprint: 1 }), owner: whatif(model, { key: 'T-3', to: 'Ben' }), find: findSlots(model, 'T-5'), relieve: relieve(model, { person: 'Ana', sprint: 1 }) };
-  } },
-  { id: 'merge', run: async () => {
-    const { mergeJsonl } = await lib('lib/merge.ts'); const { schemaFor } = await lib('lib/store.ts'); const sch = schemaFor('tickets.jsonl');
-    const b = lines([row('T-1'), row('T-2')]);
-    return {
-      clean: mergeJsonl({ base: b, ours: lines([row('T-1', { sp: 8 }), row('T-2')]), theirs: lines([row('T-1'), row('T-2', { summary: 'x' }), row('T-3')]) }, sch, { name: 'tickets.jsonl' }),
-      conflict: mergeJsonl({ base: b, ours: lines([row('T-1', { sp: 8 }), row('T-2')]), theirs: lines([row('T-1', { sp: 3 }), row('T-2')]) }, sch, { name: 'tickets.jsonl' }),
-    };
   } },
   { id: 'stale', run: async () => {
     const { computeStale, refsUpdate } = await lib('lib/stale.ts'); const { model } = await genModel();
@@ -460,7 +435,7 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
       const cmd = e.args[0] ?? '';
       // a command that may write runs on a fresh copy; a read-only one shares the template (nothing it does is kept by the next run)
       const tplRoot = tpl[e.fixture];
-      const live = writes.get(cmd) || e.args.some((a) => /^--(write|fix|heal|apply-plan)$/.test(a)) ? (() => { const d = path.join(work, `run-${n++}`); clone(tplRoot, d); return d; })() : tplRoot;
+      const live = writes.get(cmd) || e.args.some((a) => /^--(write|fix|refresh|apply-plan)$/.test(a)) ? (() => { const d = path.join(work, `run-${n++}`); clone(tplRoot, d); return d; })() : tplRoot;
       const cwd = path.join(live, 'repo');
       const sub = (a: string) => a.replace(/@KEY@/g, tpl.vars.KEY).replace(/@PERSON@/g, tpl.vars.PERSON).replace(/@SPRINT@/g, tpl.vars.SPRINT).replace(/@BRAINDIR@/g, tpl.brainDir);
       const runEnv = dataDir && e.fixture === 'plan' ? { ...env, PLANGRAPH_DIR: tpl.brainDir } : env;
@@ -469,11 +444,10 @@ export async function captureAll({ root, outDir, dataDir }: { root: string; outD
       if (live !== tplRoot) fs.rmSync(live, { recursive: true, force: true });
     }
     for (const p of PROBES) save(`probe.${p.id}`, { id: p.id, result: stable(await attempt(() => p.run())) });
-    // hook, merge driver and MCP session, each on its own copy of the synthetic plan fixture (also when --data is given)
+    // hook and MCP session, each on its own copy of the synthetic plan fixture (also when --data is given)
     const copyPlan = () => { const d = path.join(work, `run-${n++}`); clone(planSrc, path.join(d, 'repo')); return path.join(d, 'repo'); };
     const hookRoot = copyPlan(); save('hook.session-start', { id: 'hook', ...runHook(hookRoot) });
     const hookAgain = copyPlan(); fs.rmSync(path.join(hookAgain, '.plangraph'), { recursive: true, force: true }); save('hook.session-start-no-brain', { id: 'hook-no-plangraph', ...runHook(hookAgain) });
-    for (const variant of ((['clean', 'conflict']) as const)) save(`merge-driver.${variant}`, { id: `merge-driver-${variant}`, ...runMergeDriver(copyPlan(), variant) });
     save('mcp.session', { id: 'mcp', responses: runMcpSession(copyPlan()) });
   } finally { fs.rmSync(work, { recursive: true, force: true }); if (planSrc) fs.rmSync(planSrc, { recursive: true, force: true }); }
   return { count };

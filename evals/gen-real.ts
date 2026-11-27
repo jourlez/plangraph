@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readCapped } from '../lib/jsonl.ts';
+import { readStoreAt, kindOfFile } from '../lib/planstore.ts';
 import { resolveBrainDir, writeAtomicSafe } from '../lib/fsafe.ts';
 import { validateCase } from './schema.ts';
 import type { EvalCase } from './schema.ts';
@@ -56,13 +57,17 @@ export function readBrain(from: string): { dir: string; files: Record<string, st
     dir = j.dir;
   }
   let abs: string | undefined; try { abs = resolveBrainDir(root, dir); } catch { refuse('the plan directory is not usable'); }
-  if (!fs.existsSync(path.join(abs, 'tickets.jsonl'))) refuse('no tickets.jsonl in the plan directory');
+  const store = readStoreAt(abs);
+  if (!store.exists('ticket')) refuse('no tickets in the plan directory');
   const files: Record<string, string> = {};
   for (const n of COPY) {
-    const f = path.join(abs, n);
-    if (!fs.existsSync(f)) { files[n] = n === 'config.json' ? '{}\n' : ''; continue; }
-    if (fs.lstatSync(f).isSymbolicLink()) refuse('a plan data file is a symlink');
-    files[n] = readCapped(f, MAX_FILE);
+    const kind = kindOfFile(n);
+    if (!kind) { // config.json: a plain file
+      const f = path.join(abs, n);
+      if (!fs.existsSync(f)) { files[n] = '{}\n'; continue; }
+      if (fs.lstatSync(f).isSymbolicLink()) refuse('a plan data file is a symlink');
+      files[n] = readCapped(f, MAX_FILE);
+    } else files[n] = store.readText(kind, { maxBytes: MAX_FILE }) ?? ''; // the canonical text of the kind, as the old file held it
   }
   return { dir: path.posix.normalize(dir.split(path.sep).join('/')).replace(/\/$/, ''), files };
 }

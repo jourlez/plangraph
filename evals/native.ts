@@ -33,6 +33,7 @@ export function nativeFiles(c: EvalCase, { runs, brainDir = '.plangraph', rcDir 
     sh.push(`mkdir -p ${shq(dir)}`, `for f in "$fx"/*.jsonl "$fx"/config.json "$fx"/format.json; do cp "$f" ${shq(dir)}/; done`);
     if (rcDir) sh.push(`printf '%s\\n' ${shq(JSON.stringify({ dir: rcDir }))} > .plangraphrc`);
     if (ov) sh.push(`${node} "$plugin_root/evals/overlay.ts" "$case_dir/overlay.json" ${shq(dir)} .`);
+    sh.push(`${node} "$plugin_root/evals/adopt.ts" ${shq(dir)}`); // the fixture is old-layout JSONL: entity files and the format stamp
   }
   sh.push('git init -q', 'git -c user.name=eval -c user.email=eval@example.invalid add -A', 'git -c user.name=eval -c user.email=eval@example.invalid commit -qm fixture');
   if (c.fixture.plangraph) sh.push(`${node} "$plugin_root/bin/plangraph" build >/dev/null`);
@@ -84,7 +85,7 @@ export function copyPlugin(srcRoot: string, dest: string, { variant = 'full' }: 
   }
   if (variant === 'no-card' && fs.existsSync(path.join(dest, 'hooks', 'hooks.json'))) writeAtomicSafe(path.join(dest, 'hooks', 'hooks.json'), '{"hooks":{}}\n', { root: dest });
   fs.mkdirSync(path.join(dest, 'evals'), { recursive: true });
-  for (const f of ['overlay.ts']) fs.copyFileSync(path.join(srcRoot, 'evals', f), path.join(dest, 'evals', f));
+  for (const f of ['overlay.ts', 'adopt.ts']) fs.copyFileSync(path.join(srcRoot, 'evals', f), path.join(dest, 'evals', f));
   return dest;
 }
 

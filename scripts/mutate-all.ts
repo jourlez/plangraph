@@ -13,7 +13,7 @@
 // Test mapping: tier 1 = test files that import the target directly, plus, for a module under src/ or one no test imports directly, the
 // tests that load it in-process through other modules; minus those whose unmutated run takes longer than --tier1-budget ms (default 10000; they move to
 // tier 2, the fastest file always stays); tier 2 = test files whose transitive import graph reaches it, or that
-// run bin/plangraph, bin/plangraph-merge or mcp/plangraph-mcp.ts (found from the path text in the test) when that entry point reaches it; plus the
+// run bin/plangraph or mcp/plangraph-mcp.ts (found from the path text in the test) when that entry point reaches it; plus the
 // OVERRIDES table below. Tier 2 runs only for mutants tier 1 left alive. Test files that fail on the unmutated copy are dropped from the
 // mapping and reported (a red test would kill every mutant).
 //
@@ -35,8 +35,8 @@ import type { Readable } from 'node:stream';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 export const DEFAULT_TARGETS = ['lib/*', 'lib/integrations/*', 'lib/jira/*', 'lib/graph/*', 'src/*', 'src/commands/*', 'mcp/*'];
-/** the plain .js files that are mutated: the Node floor guard and the two launcher entry files */
-const PLAIN_JS = new Set(['src/floor.js', 'src/entry.js', 'src/merge-entry.js']);
+/** the plain .js files that are mutated: the Node floor guard and the launcher entry file */
+const PLAIN_JS = new Set(['src/floor.js', 'src/entry.js']);
 /** a source file whatever its extension during the .mjs to .ts migration; PLAIN_JS lists the plain .js files that count @param {string} f */
 export const isSource = (f: string) => /\.(mjs|ts)$/.test(f) || PLAIN_JS.has(f);
 /** a test file whatever its extension @param {string} f */
@@ -45,13 +45,11 @@ const isTestFile = (f: string) => /^test\/[^/]+\.test\.(mjs|ts)$/.test(f);
 const EXCLUDED_TESTS = new Set(['test/solver.test.ts', 'test/solver.test.ts']);
 /** Manual additions to the derived mapping: target -> extra test files (tier 2). @type {Record<string, string[]>} */
 export const OVERRIDES: Record<string, string[]> = {
-  'lib/driver.ts': ['test/driver-wiring.test.ts'],
   'lib/stale.ts': ['test/stale.test.ts'], // loads the module through a computed dynamic import (STALE_MODULE), invisible to the scan
 };
 /** Test files run in tier 1 for a target no test imports (a launcher script run as a subprocess): without this its tests are all tier 2, behind the whole suite. */
 export const TIER1_OVERRIDES: Record<string, string[]> = {
   'src/entry.js': ['test/compile-cache.test.ts', 'test/floor.test.ts', 'test/launchers.test.ts'],
-  'src/merge-entry.js': ['test/floor.test.ts', 'test/launchers.test.ts'],
 };
 const EQUIVALENT_FILE = 'scripts/mutate/equivalent.json';
 // bumped when the tier rules change, so survivors recorded under older rules are re-run
@@ -308,7 +306,6 @@ export function importsOf(src: string) {
 
 const ENTRY_PATTERNS: Array<[string, RegExp]> = ([
   ['bin/plangraph', /bin(?:\/|['"`]\s*,\s*['"`])plangraph(?:['"`]|$)|['"`]plangraph['"`]\s*\)|PLANGRAPH_BIN/m],
-  ['bin/plangraph-merge', /plangraph-merge/],
   ['mcp/plangraph-mcp.ts', /plangraph-mcp\.(?:mjs|ts)/],
 ]);
 
