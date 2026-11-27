@@ -1,0 +1,4 @@
+# actionlint 1.7.12 (the latest release) does not know GitHub's ubuntu-26.04 runner label yet; the jobs run on it. Remove this file when actionlint lists it.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
