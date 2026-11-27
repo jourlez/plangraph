@@ -60,3 +60,17 @@ test('spawnLines: a line split across chunks is delivered once and whole', async
 test('spawnLines: only the first 400 bytes of stderr reach the message', async () => {
   await assert.rejects(spawnLines(node, ['-e', "console.error('E'.repeat(5000));process.exit(1)"], () => {}), (e: Error) => !e.message.includes('E'.repeat(201)) && e.message.includes('E'.repeat(150)));
 });
+test('spawnLines refuses one token over the per-line cap (1 MiB) quickly and kills the child', async () => {
+  const t = Date.now();
+  await assert.rejects(
+    spawnLines(node, ['-e', "const c='x'.repeat(65536);let n=0;const w=()=>{while(n++<80){if(!process.stdout.write(c)){process.stdout.once('drain',w);return;}}setInterval(()=>{},1000)};w()"], () => {}),
+    (e: NodeJS.ErrnoException) => e.code === 'LINE_TOO_LONG' && /line over 1048576 bytes/.test(e.message));
+  assert.ok(Date.now() - t < 3000, `${Date.now() - t} ms`);
+});
+test('spawnLines accepts a line just under the cap split over many chunks, and honors lineMax', async () => {
+  const got: number[] = [];
+  const prog = "const c='y'.repeat(8192);for(let i=0;i<100;i++)process.stdout.write(c);process.stdout.write('\\n'+'z'.repeat(10)+'\\n')";
+  await spawnLines(node, ['-e', prog], (l) => got.push(l.length));
+  assert.deepEqual(got, [819200, 10]);
+  await assert.rejects(spawnLines(node, ['-e', prog], () => {}, { lineMax: 100000 }), (e: NodeJS.ErrnoException) => e.code === 'LINE_TOO_LONG');
+});

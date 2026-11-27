@@ -21,7 +21,7 @@ function plainGet(argv: readonly string[]): { path: string } | string {
   if (argv.length < 5 || argv[0] !== 'api' || argv[1] !== '--include' || argv[2] !== '--method' || argv[3] !== 'GET') return 'only `api --include --method GET PATH` is allowed';
   const path = argv[argv.length - 1] as string;
   for (let i = 4; i < argv.length - 1; i += 2) if (argv[i] !== '-H' || !HEADER.test(argv[i + 1] ?? '')) return 'only the Accept and If-None-Match headers are allowed';
-  if ((argv.length - 5) % 2 !== 0 || !GH_PATH.test(path)) return 'the request path is not plain';
+  if ((argv.length - 5) % 2 !== 0 || path.includes('://') || !GH_PATH.test(path)) return 'the request path is not plain';
   return { path };
 }
 

@@ -29,16 +29,16 @@ function rec(steps: Step[]): { run: Runner; calls: string[][] } {
 function fixture(config: object, deps: { github?: Runner; jira?: Runner; confluence?: Runner } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-syncfetch-'))); bases.push(root);
   const dir = path.join(root, '.plangraph'); fs.mkdirSync(dir);
-  const out: string[] = [], err: string[] = [];
+  const out: string[] = [], err: string[] = [], env = { XDG_CONFIG_HOME: fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-syncfetch-cfg-'))) }; bases.push(env.XDG_CONFIG_HOME);
   const fetchDeps = {
     github: () => deps.github as Runner,
     atlassian: { tenant: () => 'cloud-1234', runner: async () => (deps.jira ?? deps.confluence) as Runner, confluenceRunner: async () => (deps.confluence ?? deps.jira) as Runner },
   };
-  const ctx = { root, cwd: root, dir, flags: {}, env: {}, config: () => config, now: () => new Date('2026-11-26T00:00:00Z'), fetchDeps,
+  const ctx = { root, cwd: root, dir, flags: {}, env, config: () => config, now: () => new Date('2026-11-26T00:00:00Z'), fetchDeps,
     io: { out: (s: string) => out.push(s), err: (s: string) => err.push(s), raw: (s: string) => out.push(s), outBlock: (l: string[]) => out.push(...l) } } as never;
   const cache = (n: string) => path.join(dir, 'cache', n);
   const rows = (n: string) => fs.readFileSync(cache(n), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
-  return { ctx, dir, out, err, cache, rows };
+  return { ctx, root, dir, env, out, err, cache, rows };
 }
 const run = (ctx: never, values: object = {}) => (commands['sync-fetch'] as { run: (c: never, a: never) => Promise<number> }).run(ctx, { values, positionals: [] } as never);
 const GH = { fetch: { github: ['example/widgets'] }, jira: { tenant: 'acme', jql: 'project = ABC' } };
@@ -62,7 +62,7 @@ test('an untrusted target is refused, the exact trust line is printed and no req
 test('a trusted github target writes cache/github.jsonl and the cursor at 0600, reports caps', async () => {
   const gh = rec(['gh-page1.http', 'gh-page2.http']);
   const f = fixture(GH, { github: gh.run });
-  trust(f.dir, 'github:example/widgets');
+  trust(f.root, 'github:example/widgets', f.env);
   assert.equal(await run(f.ctx), 0);
   assert.equal(fs.statSync(f.cache('github.jsonl')).mode & 0o777, 0o600);
   assert.equal(fs.statSync(f.cache('github_example_widgets.cursor')).mode & 0o777, 0o600);
@@ -73,13 +73,13 @@ test('a trusted github target writes cache/github.jsonl and the cursor at 0600, 
   assert.equal(c?.etag, 'W/"aaa111"');
   assert.match(f.out.join('\n'), /fetch\.max_items 50000/);
   assert.match(f.out.join('\n'), /fetch\.max_bytes 67108864/);
-  assert.ok(fs.readFileSync(path.join(f.dir, '.gitignore'), 'utf8').split('\n').includes('cache/'));
+  assert.equal(fs.existsSync(path.join(f.dir, '.gitignore')), false, 'the cache/ ignore line is written by init or import, never by a fetch');
 });
 
 test('a second run sends the etag, a 304 keeps the cache; --full ignores the cursor', async () => {
   const gh = rec(['gh-page1.http', 'gh-page2.http', 'gh-304.http', 'gh-page1.http', 'gh-page2.http']);
   const f = fixture(GH, { github: gh.run });
-  trust(f.dir, 'github:example/widgets');
+  trust(f.root, 'github:example/widgets', f.env);
   await run(f.ctx);
   const before = fs.readFileSync(f.cache('github.jsonl'), 'utf8');
   await run(f.ctx);
@@ -92,7 +92,7 @@ test('a second run sends the etag, a 304 keeps the cache; --full ignores the cur
 test('retry-after stops, keeps what was read and records the cursor page', async () => {
   const gh = rec(['gh-page1.http', 'gh-retry.http']);
   const f = fixture(GH, { github: gh.run });
-  trust(f.dir, 'github:example/widgets');
+  trust(f.root, 'github:example/widgets', f.env);
   assert.equal(await run(f.ctx), 0);
   assert.match(f.out.join('\n'), /Retry-After 30s/);
   assert.ok(readCursor(f.dir, 'github:example/widgets')?.page);
@@ -102,7 +102,7 @@ test('retry-after stops, keeps what was read and records the cursor page', async
 test('a network error and a 429 change no file and exit 0; --strict exits 1', async () => {
   for (const step of [new Error('socket hang up'), { code: 0, out: 'HTTP/2.0 429 Too Many Requests\n\n{}', err: '' }] as Step[]) {
     const f = fixture(GH, { github: rec([step]).run });
-    trust(f.dir, 'github:example/widgets');
+    trust(f.root, 'github:example/widgets', f.env);
     assert.equal(await run(f.ctx), 0);
     assert.equal(fs.existsSync(f.cache('github.jsonl')), false);
     assert.equal(fs.existsSync(f.cache('github_example_widgets.cursor')), false);
@@ -115,7 +115,7 @@ test('a sentinel token in the environment appears in no output', async () => {
   process.env.PLANGRAPH_TEST_TOKEN = sentinel;
   try {
     const f = fixture(GH, { github: rec([{ code: 1, out: '', err: `bad credentials ${sentinel}` }]).run });
-    trust(f.dir, 'github:example/widgets');
+    trust(f.root, 'github:example/widgets', f.env);
     await run(f.ctx, { strict: true });
     assert.ok(!(f.out.join('\n') + f.err.join('\n')).includes(sentinel));
   } finally { delete process.env.PLANGRAPH_TEST_TOKEN; }
@@ -123,7 +123,7 @@ test('a sentinel token in the environment appears in no output', async () => {
 
 test('fetch.max_items is reported when it is reached and never silent', async () => {
   const f = fixture({ ...GH, fetch: { github: ['example/widgets'], max_items: 1 } }, { github: rec(['gh-page1.http']).run });
-  trust(f.dir, 'github:example/widgets');
+  trust(f.root, 'github:example/widgets', f.env);
   await run(f.ctx);
   assert.match(f.out.join('\n'), /fetch\.max_items 1 reached/);
   assert.match(f.out.join('\n'), /caps: fetch\.max_items 1/);
@@ -136,7 +136,7 @@ test('jira: untrusted refused with the trust line; trusted pages by nextPageToke
   await run(f.ctx, { sys: 'jira' });
   assert.ok(f.out.includes('plangraph trust jira:cloud-1234'), f.out.join('|'));
   assert.equal(jr.calls.length, 0);
-  trust(f.dir, 'jira:cloud-1234');
+  trust(f.root, 'jira:cloud-1234', f.env);
   assert.equal(await run(f.ctx, { sys: 'jira' }), 0);
   assert.equal(jr.calls.length, 2);
   assert.match(jr.calls[1]?.at(-1) ?? '', /nextPageToken=tok-2/);
@@ -157,7 +157,7 @@ test('confluence: trusted space is fetched, only labelled pages kept, injection 
   const f = fixture({ jira: { tenant: 'acme' }, fetch: { confluence: { space: '123', labels: ['plan'] } } }, { confluence: cr.run });
   await run(f.ctx, { sys: 'confluence' });
   assert.ok(f.out.includes('plangraph trust confluence:cloud-1234/123'), f.out.join('|'));
-  trust(f.dir, 'confluence:cloud-1234/123');
+  trust(f.root, 'confluence:cloud-1234/123', f.env);
   assert.equal(await run(f.ctx, { sys: 'confluence' }), 0);
   const rs = f.rows('confluence.jsonl');
   assert.ok(rs.length >= 1 && rs.every((r) => r.type === 'x-confluence.page' && r.sys === 'confluence:acme'));
@@ -167,7 +167,7 @@ test('confluence: trusted space is fetched, only labelled pages kept, injection 
 test('--sys limits the run; an unknown --sys and nothing configured are reported', async () => {
   const gh = rec(['gh-page1.http']);
   const f = fixture(GH, { github: gh.run });
-  trust(f.dir, 'github:example/widgets');
+  trust(f.root, 'github:example/widgets', f.env);
   await run(f.ctx, { sys: 'jira' });
   assert.equal(gh.calls.length, 0);
   await assert.rejects(run(f.ctx, { sys: 'linear' }), (e: Error & { exitCode?: number }) => e.exitCode === 2);

@@ -18,28 +18,38 @@ export const makeGit = (root: string, { timeoutMs = 30000 }: { timeoutMs?: numbe
 
 // Streaming line reader over spawn: no shell, no timeout, no buffering of the whole output. `git` is the executable (argv is everything after
 // it, `-C root` included). onLine gets each line without its terminator (delimiter default "\n"; a NUL delimiter suits `-z` output). Output
-// over maxBytes (default 64 MiB) kills the child and rejects with code TOO_LARGE; a non-zero exit rejects with the first stderr bytes.
-export function spawnLines(git: string, argv: readonly string[], onLine: (line: string) => void, { maxBytes = 64 * 1024 * 1024, delimiter = '\n' }: { maxBytes?: number; delimiter?: string } = {}): Promise<void> {
+// over maxBytes (default 64 MiB) kills the child and rejects with code TOO_LARGE; one token over lineMax (default 1 MiB, no delimiter seen) kills it and rejects with LINE_TOO_LONG; a non-zero exit rejects with the first stderr bytes.
+export function spawnLines(git: string, argv: readonly string[], onLine: (line: string) => void, { maxBytes = 64 * 1024 * 1024, delimiter = '\n', lineMax = 1024 * 1024 }: { maxBytes?: number; delimiter?: string; lineMax?: number } = {}): Promise<void> {
   const sep = delimiter.charCodeAt(0);
   return new Promise<void>((resolve, reject) => {
     const child = spawn(git, [...argv], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' } });
-    let total = 0, rest: Buffer = Buffer.alloc(0), stderr = '', done = false;
+    let total = 0, pending: Buffer[] = [], pendingLen = 0, stderr = '', done = false; // pending: the chunks of the unfinished token (each byte is scanned once)
     const fail = (e: Error) => { if (done) return; done = true; child.kill('SIGKILL'); reject(e); };
     child.stderr.on('data', (d: Buffer) => { if (stderr.length < 400) stderr += d.toString('utf8').slice(0, 400); });
     child.stdout.on('data', (d: Buffer) => {
       if (done) return;
       total += d.length;
       if (total > maxBytes) { fail(Object.assign(new Error(`output over ${maxBytes} bytes`), { code: 'TOO_LARGE' })); return; }
-      let buf = rest.length ? Buffer.concat([rest, d]) : d, from = 0, i: number;
-      try { while ((i = buf.indexOf(sep, from)) !== -1) { onLine(buf.toString('utf8', from, i)); from = i + 1; } } catch (e) { fail(e as Error); return; }
-      rest = from < buf.length ? Buffer.from(buf.subarray(from)) : Buffer.alloc(0);
+      const tooLong = (): void => fail(Object.assign(new Error(`line over ${lineMax} bytes`), { code: 'LINE_TOO_LONG' }));
+      let from = 0, i = d.indexOf(sep, 0);
+      try {
+        while (i !== -1) {
+          if (pendingLen + (i - from) > lineMax) { tooLong(); return; }
+          onLine(pendingLen ? Buffer.concat([...pending, d.subarray(from, i)]).toString('utf8') : d.toString('utf8', from, i));
+          pending = []; pendingLen = 0; from = i + 1; i = d.indexOf(sep, from);
+        }
+      } catch (e) { fail(e as Error); return; }
+      if (from < d.length) {
+        if (pendingLen + (d.length - from) > lineMax) { tooLong(); return; }
+        pending.push(from ? Buffer.from(d.subarray(from)) : d); pendingLen += d.length - from;
+      }
     });
     child.on('error', (e) => fail(e));
     child.on('close', (code) => {
       if (done) return;
       done = true;
       if (code !== 0) { reject(Object.assign(new Error(`git exited ${code}: ${stderr.trim().slice(0, 200)}`), { code: 'GIT_FAILED' })); return; }
-      try { if (rest.length) onLine(rest.toString('utf8')); } catch (e) { reject(e as Error); return; }
+      try { if (pendingLen) onLine(Buffer.concat(pending).toString('utf8')); } catch (e) { reject(e as Error); return; }
       resolve();
     });
   });

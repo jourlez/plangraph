@@ -39,7 +39,7 @@ export interface Run { code: number | string; out: string[]; err: string[] }
 export async function run(cwd: string, argv: string[], opts: { stdin?: string; deps?: RefreshDeps; env?: Record<string, string> } = {}): Promise<Run> {
   const out: string[] = [], err: string[] = [];
   const io = { out: (s: string) => out.push(...String(s).split('\n')), err: (s: string) => err.push(s), raw: (s: string) => out.push(...String(s).split('\n')) };
-  const env = { PATH: process.env.PATH, HOME: cwd, LC_ALL: 'C', TZ: 'UTC', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV, ...(opts.env ?? {}) };
+  const env = { PATH: process.env.PATH, HOME: cwd, XDG_CONFIG_HOME: path.join(path.dirname(cwd), '.pg-config'), CLAUDE_PLUGIN_DATA: path.join(path.dirname(cwd), '.pg-data'), LC_ALL: 'C', TZ: 'UTC', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV, ...(opts.env ?? {}) };
   const wrap = (o: Parameters<typeof makeContext>[0]) => {
     const c = makeContext({ ...o, ...(opts.stdin !== undefined ? { stdin: { isTTY: false, read: () => opts.stdin as string } } : {}) });
     return (opts.deps ? Object.assign(Object.create(Object.getPrototypeOf(c)), c, { refreshDeps: opts.deps }) : c) as typeof c;

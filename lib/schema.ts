@@ -32,7 +32,12 @@ const optDate: FieldCheck = (r, k) => (has(r, k) && !isDate(r[k]) ? `"${k}" must
 // schema_version: the version of the row's own shape; a row of a newer shape is read, never refused (unknown fields are kept)
 const optSchemaVersion: FieldCheck = (r, k) => optInt(r, k) ?? (has(r, k) && (r[k] as number) < 1 ? `"${k}" must be at least 1` : null); // optInt returned null: absent or a whole number
 const optCmds: FieldCheck = (r, k) => optObject(r, k) ?? (has(r, k) && !Object.values(r[k] as object).every((x) => typeof x === 'string') ? `"${k}" values must be strings` : null); // optObject returned null: absent or an object
-const optPaths: FieldCheck = (r, k) => (has(r, k) && !(Array.isArray(r[k]) && (r[k] as unknown[]).every((x) => isObject(x) && typeof (x as Rec).glob === 'string' && typeof (x as Rec).sub === 'string')) ? `"${k}" must be an array of {glob, sub} objects` : null);
+/** Most wildcards (runs of `*`, and each `?`) a glob may hold; the schema refuses more (BAD_SCHEMA). */
+export const MAX_GLOB_WILDCARDS = 8;
+/** The number of wildcards of a glob: each run of `*` counts one, each `?` one. */
+export const wildcardsOf = (g: string): number => (g.match(/\*+|\?/g) ?? []).length;
+const optPaths: FieldCheck = (r, k) => (has(r, k) && !(Array.isArray(r[k]) && (r[k] as unknown[]).every((x) => isObject(x) && typeof (x as Rec).glob === 'string' && typeof (x as Rec).sub === 'string')) ? `"${k}" must be an array of {glob, sub} objects` : (has(r, k) && (r[k] as Array<{ glob: string }>).some((x) => wildcardsOf(x.glob) > MAX_GLOB_WILDCARDS) ? `"${k}" globs may hold at most ${MAX_GLOB_WILDCARDS} wildcards` : null));
+const optGlobs: FieldCheck = (r, k) => optStrings(r, k) ?? (has(r, k) && (r[k] as string[]).some((g) => wildcardsOf(g) > MAX_GLOB_WILDCARDS) ? `"${k}" globs may hold at most ${MAX_GLOB_WILDCARDS} wildcards` : null);
 const withVersion = (...checks: Array<(r: Rec) => string | null>) => (r: Rec): string | null => first(r, [...checks, (x: Rec) => optSchemaVersion(x, 'schema_version')]);
 const REPO_ROLES = ['service', 'lib', 'app', 'infra', 'docs', 'monorepo'], REPO_SRC = ['scan', 'manual', 'catalog'];
 
@@ -56,7 +61,7 @@ const optSource: FieldCheck = (r, k) => (has(r, k) ? sourceProblem(r[k]) : null)
 
 export const validators: Record<string, (r: Rec) => string | null> = {
   'requirements.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'text'), (x) => optEnum(...REQ_KINDS)(x, 'kind'), (x) => optEnum(...REQ_STATUS)(x, 'status'), (x) => optSource(x, 'source'), (x) => optStrings(x, 'acceptance'), (x) => optStr(x, 'priority')),
-  'decisions.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'title'), (x) => optEnum(...DEC_STATUS)(x, 'status'), (x) => optDate(x, 'date'), (x) => optStrings(x, 'affects'), (x) => optStr(x, 'source'), (x) => optStr(x, 'derivation')),
+  'decisions.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'title'), (x) => optEnum(...DEC_STATUS)(x, 'status'), (x) => optDate(x, 'date'), (x) => optGlobs(x, 'affects'), (x) => optStr(x, 'source'), (x) => optStr(x, 'derivation')),
   'teams.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'name'), (x) => optStrings(x, 'members'), (x) => optStrings(x, 'owns')),
   'tickets.jsonl': (r: Rec) => first(r, [need('key'), (x: Rec) => optNonNeg(x, 'sp'), (x: Rec) => optNum(x, 'v2_sprint'), (x: Rec) => optStr(x, 'v2_owner'), (x: Rec) => (has(x, 'impl_status') && !(IMPL_STATUSES as readonly unknown[]).includes(x.impl_status) /* includes accepts any value; the cast only widens the list type */ ? '"impl_status" must be one of todo, in_progress, done, blocked' : null)]),
   'edges.jsonl': need('consumer', 'producer'),

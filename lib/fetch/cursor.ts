@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { writeAtomicSafe } from '../fsafe.ts';
+import { readCapped } from '../jsonl.ts';
 import { sysOk } from '../graph/files.ts';
 
 export interface Cursor { sys: string; watermark: string; etag: string; page: string; at: string }
@@ -15,12 +16,16 @@ function fileOf(dir: string, sys: string): string | null {
 }
 const isStr = (x: unknown): x is string => typeof x === 'string';
 
-/** The stored cursor, or null when the file is absent, unreadable or not a cursor (a bad file never stops a fetch: it starts again). */
-export function readCursor(dir: string, sys: string): Cursor | null {
+/** Asks git whether a path is tracked (the plan directory is in the repository: a committed cursor is repository-controlled). */
+export type Tracked = (file: string) => boolean;
+
+/** The stored cursor, or null when the file is absent, unreadable, a symlink, tracked by git, or not a cursor (a bad file never stops a fetch: it starts again). */
+export function readCursor(dir: string, sys: string, tracked?: Tracked): Cursor | null {
   const f = fileOf(dir, sys);
   if (!f) return null;
   try {
-    const j: unknown = JSON.parse(fs.readFileSync(f, 'utf8'));
+    if (tracked?.(f)) return null;
+    const j: unknown = JSON.parse(readCapped(f, 64 * 1024, { follow: false }));
     if (!j || typeof j !== 'object' || Array.isArray(j)) return null;
     const o = j as Record<string, unknown>;
     if (![o.sys, o.watermark, o.etag, o.page, o.at].every(isStr) || o.sys !== sys) return null;
@@ -28,12 +33,15 @@ export function readCursor(dir: string, sys: string): Cursor | null {
   } catch { return null; }
 }
 
-/** Write the cursor atomically with mode 0600. Throws on a bad `sys` (a programming error, not a network one). */
-export function writeCursor(dir: string, c: Cursor): void {
+/** Write the cursor atomically with mode 0600; false (nothing written) when the file is a symlink or tracked by git. Throws on a bad `sys` (a programming error, not a network one). */
+export function writeCursor(dir: string, c: Cursor, tracked?: Tracked): boolean {
   const f = fileOf(dir, c.sys);
   if (!f) throw new Error('cursor: "sys" is not a system name');
+  try { if (fs.lstatSync(f).isSymbolicLink()) return false; } catch { /* absent: fine */ }
+  if (tracked?.(f)) return false;
   fs.mkdirSync(path.dirname(f), { recursive: true, mode: 0o700 });
   writeAtomicSafe(f, `${JSON.stringify({ sys: c.sys, watermark: c.watermark, etag: c.etag, page: c.page, at: c.at })}\n`, { mode: 0o600 });
+  return true;
 }
 
 /** Replace the value of every secret-looking environment variable (name has TOKEN, SECRET, PASSWORD, API_KEY or CREDENTIAL; 8+ characters) by `***`. */
