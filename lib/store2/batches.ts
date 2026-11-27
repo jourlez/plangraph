@@ -56,7 +56,12 @@ function readRows(abs: string): { rows: { row: Row; line: number; raw: string }[
   });
   return { rows, bad, unreadable: false };
 }
-const validEvent = (r: Row): boolean => typeof r.at === 'string' && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
+/** `at` is exactly `yyyy-mm-ddThh:mm:ssZ`: it names the month directory and the day of the file an event is appended to, and sorts as text. */
+export const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+export const validEvent = (r: Row): boolean => typeof r.at === 'string' && AT.test(r.at) && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
+
+/** A row that counts as an event of its file: well formed, and in a plain file (named for its actor) written by that actor. A compact file's rows carry their own actor. */
+export const eventOk = (f: BatchFile, r: Row): boolean => validEvent(r) && (f.kind !== 'plain' || r.by === f.actor);
 
 /** Every event batch file under events/, in name order. Symlinks and odd names are ignored here (check reports them). */
 export function eventFiles(root: string): BatchFile[] {
@@ -78,7 +83,7 @@ const dedupeKey = (e: Event): string => canon([e.task, e.to, e.by, e.at, e.seq])
 function toEvents(fl: readonly BatchFile[]): Event[] {
   const all: Event[] = [];
   for (const f of fl) for (const { row } of f.rows) {
-    if (!validEvent(row)) continue;
+    if (!eventOk(f, row)) continue;
     const actor = f.kind === 'plain' ? f.actor : typeof row.actor === 'string' ? row.actor : '', bh8 = f.kind === 'plain' ? f.bh8 : typeof row.bh8 === 'string' ? row.bh8 : '';
     all.push({ ...row, actor, bh8 } as Event);
   }
@@ -97,22 +102,32 @@ export function readEvents(root: string, opts: { fileOrder?: (files: string[]) =
 
 const actorName = (a: string): string => String(a).toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 40) || '_';
 
-/** Append one event. `at` = max(wall clock to the second, latest `at` already on disk); `seq` = 1 + the highest `seq` seen at that same `at`
- *  (0 if none), so an event written after reading another always sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
+const SKEW_MS = 24 * 3600 * 1000;
+/** Where the next event goes: `at` = max(wall clock to the second, latest valid `at` already read), `seq` = 1 + the highest `seq` at that `at` (0 if none).
+ *  A `latest` more than 24 hours ahead of the wall clock is ignored: one row (or one clock set to 2099) must not pin every later event to its month. */
+export function nextPosition(seen: readonly { at: string; seq: number }[], now: Date): { at: string; seq: number } {
+  const wall = iso(now), limit = iso(new Date(now.getTime() + SKEW_MS));
+  let latest = '';
+  for (const s of seen) if (AT.test(s.at) && s.at > latest && s.at <= limit) latest = s.at;
+  const at = wall > latest ? wall : latest;
+  let seq = -1;
+  for (const s of seen) if (s.at === at && s.seq > seq) seq = s.seq;
+  return { at, seq: seq + 1 };
+}
+
+/** Append one event at nextPosition: an event written after reading another sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
 export function appendEvent(root: string, actor: string, e: EventInput, opts: { now?: Date; branch?: string; guard?: (seen: readonly Event[]) => void } = {}): Event {
   const bh8 = branchHash(root, opts.branch), name = actorName(actor);
+  if (e.by !== name) throw Object.assign(new Error('an event is written by its own actor: by must equal the actor'), { code: 'BAD_EVENT' }); // a reader would not count the row
   let result: Event | undefined;
   withTxn(root, (tx) => {
     const seen = readEvents(root);
     opts.guard?.(seen); // the caller's rule runs on the events as they are under the lock, so two processes cannot both pass it
-    const wall = iso(opts.now ?? new Date());
-    const latest = seen.length ? (seen[seen.length - 1] as Event).at : '';
-    const at = wall > latest ? wall : latest;
-    let seq = -1;
-    for (const s of seen) if (s.at === at && s.seq > seq) seq = s.seq;
+    const { at, seq } = nextPosition(seen, opts.now ?? new Date());
     const { at: _a, seq: _s, actor: _c, bh8: _b, ...rest } = e as Event;
-    const row = { ...rest, at, seq: seq + 1 };
+    const row = { ...rest, at, seq };
     const rel = `events/${at.slice(0, 7)}/${name}.${bh8}.${at.slice(8, 10)}.jsonl`;
+    if (!AT.test(at) || !MONTH.test(at.slice(0, 7)) || !PLAIN.test(rel.split('/')[2] as string)) throw Object.assign(new Error('the event time does not give an events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl path'), { code: 'BAD_PATH' }); // nothing is written
     let old = '';
     try { old = readDataCapped(path.join(root, rel), MAX_FILE); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; } // whatever was thrown: read its code
     if (old && !old.endsWith('\n')) old += '\n';
@@ -203,7 +218,7 @@ export function compact(root: string, opts: { ci?: boolean; now?: Date } = {}): 
     for (const f of eventFiles(root)) { const m = f.rel.split('/')[1] as string; byMonth.set(m, [...(byMonth.get(m) ?? []), f]); }
     for (const [m, fl] of [...byMonth].sort()) {
       if (m >= current || (fl.length === 1 && (fl[0] as BatchFile).kind === 'compact')) continue;
-      if (fl.some((f) => f.bad.length || f.unreadable || f.rows.some((r) => !validEvent(r.row)))) { skipped.push(`events/${m}`); continue; }
+      if (fl.some((f) => f.bad.length || f.unreadable || f.rows.some((r) => !eventOk(f, r.row)))) { skipped.push(`events/${m}`); continue; }
       const evs = toEvents(fl).map((e) => ({ ...e }));
       const body = text(evs.map((e) => canon(e))), rel = `events/${m}/_compact.${sha8(body)}.jsonl`;
       for (const f of fl) if (f.rel !== rel) tx.remove(f.rel);

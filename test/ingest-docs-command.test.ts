@@ -99,8 +99,8 @@ test('ingest requirements writes requirement nodes; re-ingest keeps a later stat
   assert.match(f.out[0] ?? '', /^ingested \d+ requirement\(s\) \(created \d+, changed 0, same 0\)$/);
   const w = ns.find((n) => String(n.text).startsWith('When the user submits'))!;
   assert.equal(w.source, 'docs/reqs.md#forms');
-  const { writeNodeKind } = await import('../lib/ingest/write.ts');
-  writeNodeKind(f.ctx as never, 'requirement', { ...w, status: 'satisfied' });
+  const { updateNodes } = await import('../lib/ingest/write.ts');
+  updateNodes(f.ctx as never, (t) => t.write('requirement', { ...w, status: 'satisfied' }));
   await run(f.ctx, ['requirements', 'docs/reqs.md']);
   assert.equal(readNodeKind(f.ctx as never, 'requirement').find((n) => n.id === w.id)!.status, 'satisfied');
 });

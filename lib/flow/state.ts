@@ -3,7 +3,7 @@
 // An event `to: 'blocked'` is always BAD_TRANSITION. Order is (at, seq, actor, bh8), then the event's own content, so file order never matters.
 
 export type TaskState = 'proposed' | 'ready' | 'claimed' | 'in_progress' | 'in_review' | 'done' | 'blocked' | 'needs_input' | 'failed' | 'skipped' | 'removed';
-export type TaskEvent = { at: string; seq: number; actor: string; task: string; to: TaskState; by: string; evidence: string[]; note?: string };
+export type TaskEvent = { at: string; seq: number; actor: string; task: string; to: TaskState; by: string; evidence: string[]; note?: string; force?: boolean };
 export type FlowFinding = { code: 'UNVERIFIED_DONE' | 'DONE_WITHOUT_EVIDENCE' | 'STALE_CLAIM' | 'DOUBLE_CLAIM' | 'BAD_TRANSITION'; key: string; detail: string };
 
 /** What an event file row looks like on input: `to` is unchecked, `evidence` may be missing, `bh8` is the branch hash from lib/store2/batches.ts. */
@@ -52,6 +52,8 @@ const content = (e: EventIn): string => JSON.stringify([e.to, e.by, e.note ?? ''
 const order = (a: EventIn, b: EventIn): number => cmp(a.at, b.at) || a.seq - b.seq || cmp(a.actor, b.actor) || cmp(a.bh8 ?? '', b.bh8 ?? '') || cmp(content(a), content(b));
 const DAY = 86_400_000;
 const HELD: readonly TaskState[] = ['claimed', 'in_progress', 'in_review', 'needs_input'];
+/** The states in which one actor holds the task: only that actor (or an event with `force: true`) moves it out. */
+const HOLDING: readonly TaskState[] = ['claimed', 'in_progress', 'in_review'];
 
 interface Asserted { state: TaskState | null; evidence: string[]; findings: FlowFinding[]; lastAt: string; lastClaim: boolean; verified: boolean }
 
@@ -63,7 +65,9 @@ function assertState(key: string, evs: readonly EventIn[], opts: DeriveOpts): As
     const from: TaskState = state ?? 'ready';
     const bad = (why: string): void => { findings.push({ code: 'BAD_TRANSITION', key, detail: `${from} -> ${String(e.to)} at ${e.at}#${e.seq}${why}` }); };
     if (!isState(e.to) || e.to === 'blocked') { bad(' (not an assertable state)'); continue; }
-    if (e.to === 'claimed' && holder !== null && holder !== e.by && state !== null && HELD.includes(state)) { findings.push({ code: 'DOUBLE_CLAIM', key, detail: `${e.by} claimed at ${e.at}#${e.seq} while ${holder} holds it` }); continue; }
+    const forced = (e as { force?: unknown }).force === true, holding = state !== null && HOLDING.includes(state);
+    if (!forced && e.to === 'claimed' && holder !== null && holder !== e.by && state !== null && HELD.includes(state)) { findings.push({ code: 'DOUBLE_CLAIM', key, detail: `${e.by} claimed at ${e.at}#${e.seq} while ${holder} holds it` }); continue; }
+    if (!forced && holding && holder !== null && holder !== e.by) { bad(` (held by ${holder}; only the holder, or an event with force, moves it)`); continue; }
     if (!canTransition(from, e.to)) { bad(''); continue; }
     const ev = [...(e.evidence ?? [])];
     let to: TaskState = e.to;
@@ -72,7 +76,7 @@ function assertState(key: string, evs: readonly EventIn[], opts: DeriveOpts): As
       else verified = ev.some((r) => r.startsWith('pr:') && !!opts.merged?.(r));
     }
     if (to === 'ready') state = null; else state = to;
-    if (to === 'claimed') holder = holder ?? e.by;
+    if (HOLDING.includes(to) && (!holding || forced)) holder = e.by; // a task entered at a holding state belongs to the actor who entered it
     if (state === null || !HELD.includes(state)) holder = null;
     evidence = ev; lastAt = e.at; lastClaim = to === 'claimed';
     if (to !== 'done') verified = false;

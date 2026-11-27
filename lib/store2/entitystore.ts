@@ -22,7 +22,7 @@ import type { Kind, PlanStore, Row, WriteOpts, WriteResult, ReadTextOpts, StoreC
 import { IngestError, parseJsonl, readJsonl, readDataCapped, presentDataFile, DATA_REFUSALS } from '../jsonl.ts';
 import { validators } from '../schema.ts';
 import { assertInside } from '../fsafe.ts';
-import { listNodeFiles, loadRaw } from './nodes.ts';
+import { listNodeFiles, loadRaw, refuseOccupied } from './nodes.ts';
 import { nodePath } from './layout.ts';
 import { formatPg, MAX_LINE } from './pg.ts';
 import { withTxn } from './txn.ts';
@@ -111,13 +111,17 @@ class Model {
   readonly entries = new Map<string, Entry>();
   readonly root: string;
   readonly dirs: ReadonlySet<string>;
+  /** Files that exist but are not the node of any entry: a damaged file (conflict markers, a bad line, oversize) or a file that holds another id.
+   * They are skipped when reading (`check` reports them); a write that would land on one is refused, so it is never overwritten. */
+  readonly occupied = new Map<string, string>();
   constructor(root: string, dirs: readonly string[]) {
     this.root = root;
     this.dirs = new Set(dirs);
     for (const dir of dirs) {
       for (const abs of listNodeFiles(root, dir)) {
         const r = loadRaw(root, abs);
-        if ('problem' in r || abs !== nodePath(root, dir, r.node.id)) continue; // a damaged or misplaced file is `check`'s business: skipped here
+        if ('problem' in r) { if (r.problem.code !== 'SYMLINK') this.occupied.set(abs, r.problem.code); continue; } // a symlink is refused by the transaction itself
+        if (abs !== nodePath(root, dir, r.node.id)) { this.occupied.set(abs, 'it holds a different id'); continue; }
         this.entries.set(`${dir}\0${r.node.id}`, { dir, id: r.node.id, parts: decode(dir, r.node), text: r.text });
       }
     }
@@ -128,6 +132,7 @@ class Model {
     if (!e) { e = { dir, id, parts: emptyParts(), text: null }; this.entries.set(k, e); }
     return e;
   }
+  find(dir: string, id: string): Entry | undefined { return this.entries.get(`${dir}\0${id}`); }
   inDir(dirs: readonly string[]): Entry[] { return [...this.entries.values()].filter((e) => dirs.includes(e.dir)); }
 }
 
@@ -242,16 +247,24 @@ export class EntityStore implements PlanStore {
   }
 
   // ---------- writing ----------
+  /** Build the model, run `fn` on it and write the changed files, all inside one transaction under the store lock: what `fn` read is what is on disk when it writes. */
   #mutate(kinds: readonly Kind[], fn: (m: Model) => void): number {
-    const m = new Model(this.#dir, [...new Set(kinds.flatMap((k) => DIRS[k] as readonly string[]))]);
-    fn(m);
-    const changes: Array<{ rel: string; text: string | null }> = [];
-    for (const e of m.entries.values()) {
-      const t = encode(e);
-      if (t !== e.text) changes.push({ rel: path.relative(this.#dir, nodePath(this.#dir, e.dir, e.id)), text: t });
-    }
-    if (changes.length) withTxn(this.#dir, (tx) => { for (const c of changes) { if (c.text === null) tx.remove(c.rel); else tx.write(c.rel, c.text); } }, this.#txn);
-    return changes.length;
+    let count = 0;
+    withTxn(this.#dir, (tx) => {
+      const m = new Model(this.#dir, [...new Set(kinds.flatMap((k) => DIRS[k] as readonly string[]))]);
+      fn(m);
+      const changes: Array<{ rel: string; text: string | null }> = [];
+      for (const e of m.entries.values()) {
+        const t = encode(e);
+        if (t === e.text) continue;
+        const abs = nodePath(this.#dir, e.dir, e.id), why = m.occupied.get(abs);
+        if (t !== null && why !== undefined) refuseOccupied(this.#dir, abs, why); // never write over a file that could not be read as this node
+        changes.push({ rel: path.relative(this.#dir, abs), text: t });
+      }
+      for (const c of changes) { if (c.text === null) tx.remove(c.rel); else tx.write(c.rel, c.text); }
+      count = changes.length;
+    }, this.#txn);
+    return count;
   }
 
   #replace(kind: Kind, rows: readonly Row[]): void { this.#mutate([kind], (m) => this.#apply(m, kind, rows)); }
@@ -261,6 +274,67 @@ export class EntityStore implements PlanStore {
     const kinds = entries.map(([k]) => k);
     for (const k of kinds) if (k === 'meta' || k === 'schedule' || RUN_NAMES[k]) throw new TypeError(`${k} is not a node kind: write it with writeKind`);
     this.#mutate(kinds, (m) => { for (const [k, rows] of entries) this.#apply(m, k, canonRows(k, rows)); });
+  }
+
+  /** Adds or replaces rows by identity (a ticket by key, an xref by type+id+sys+xid, a link by from_type+from+rel+to, an edge by consumer+producer, a capacity by
+   * person+sprint, a ref by key) and leaves every other row alone, in one read-modify-write under the store lock. Returns how many files changed. */
+  addRows(kind: Kind, rows: readonly Row[], opts: WriteOpts = {}): number {
+    this.#nodeKind(kind);
+    if (opts.precheck) this.precheck([kind]);
+    const canon = canonRows(kind, rows);
+    return this.#mutate([kind], (m) => this.#add(m, kind, canon));
+  }
+
+  /** Removes the rows named by `keys` (rows holding the identity columns of addRows; a primary kind by its id columns). Returns how many files changed. */
+  removeRows(kind: Kind, keys: readonly Row[], opts: WriteOpts = {}): number {
+    this.#nodeKind(kind);
+    if (opts.precheck) this.precheck([kind]);
+    return this.#mutate([kind], (m) => this.#remove(m, kind, keys));
+  }
+
+  #nodeKind(kind: Kind): void { if (kind === 'meta' || kind === 'schedule' || RUN_NAMES[kind]) throw new TypeError(`${kind} is not a node kind: write it with writeKind`); }
+
+  #add(m: Model, kind: Kind, rows: readonly Row[]): void {
+    if (kind in PRIMARY) {
+      const pr = PRIMARY[kind] as (typeof PRIMARY)[string];
+      for (const r of rows) m.at(pr.dir, pr.id(r)).parts.primary = without(r, pr.idCols);
+    } else if (kind === 'edge') {
+      for (const r of rows) {
+        const to = text1(r.producer, 'an edge producer'), attrs = without(r, ['consumer', 'producer']), p = m.at('ticket', text1(r.consumer, 'an edge consumer')).parts;
+        p.needs = [...p.needs.filter((l) => l.to !== to), { rel: 'needs', to, ...(Object.keys(attrs).length ? { attrs } : {}) }];
+      }
+    } else if (kind === 'ref') {
+      for (const r of rows) { const key = text1(r.key, 'a ref key'); m.at(refDirOf(key), key).parts.ref = without(r, ['key']); }
+    } else if (kind === 'capacity') {
+      for (const r of rows) { const p = m.at('person', text1(r.person, 'a capacity person')).parts; p.capacity = [...p.capacity.filter((c) => c.sprint !== r.sprint), without(r, ['person'])]; }
+    } else if (kind === 'link') {
+      for (const r of rows) {
+        const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'a link source id')), line = without(r, ['from', 'from_type']), p = m.at(t.dir, t.id).parts;
+        p.links = [...p.links.filter((l) => !(l.rel === r.rel && l.to === r.to)), r.rel === 'needs' ? { ...line, k: 'link' } : line];
+      }
+    } else if (kind === 'xref') {
+      for (const r of rows) {
+        const t = linkDirOf(text1(r.type, 'an xref type'), text1(r.id, 'an xref id')), p = m.at(t.dir, t.id).parts;
+        p.xrefs = [...p.xrefs.filter((x) => !(x.sys === r.sys && x.xid === r.xid)), without(r, ['type', 'id'])];
+      }
+    }
+  }
+
+  #remove(m: Model, kind: Kind, keys: readonly Row[]): void {
+    if (kind in PRIMARY) {
+      const pr = PRIMARY[kind] as (typeof PRIMARY)[string];
+      for (const r of keys) { const e = m.find(pr.dir, pr.id(r)); if (e) e.parts.primary = null; }
+    } else if (kind === 'edge') {
+      for (const r of keys) { const e = m.find('ticket', text1(r.consumer, 'an edge consumer')); if (e) e.parts.needs = e.parts.needs.filter((l) => l.to !== r.producer); }
+    } else if (kind === 'ref') {
+      for (const r of keys) { const key = text1(r.key, 'a ref key'), e = m.find(refDirOf(key), key); if (e) e.parts.ref = null; }
+    } else if (kind === 'capacity') {
+      for (const r of keys) { const e = m.find('person', text1(r.person, 'a capacity person')); if (e) e.parts.capacity = e.parts.capacity.filter((c) => c.sprint !== r.sprint); }
+    } else if (kind === 'link') {
+      for (const r of keys) { const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'a link source id')), e = m.find(t.dir, t.id); if (e) e.parts.links = e.parts.links.filter((l) => !(l.rel === r.rel && l.to === r.to)); }
+    } else if (kind === 'xref') {
+      for (const r of keys) { const t = linkDirOf(text1(r.type, 'an xref type'), text1(r.id, 'an xref id')), e = m.find(t.dir, t.id); if (e) e.parts.xrefs = e.parts.xrefs.filter((x) => !(x.sys === r.sys && x.xid === r.xid)); }
+    }
   }
 
   #apply(m: Model, kind: Kind, rows: readonly Row[]): void {

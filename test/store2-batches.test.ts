@@ -88,14 +88,14 @@ test('readEvents de-duplicates by (task, to, by, at, seq) across files', () => {
 
 test('a clone whose clock is one hour fast does not outrank a later event once it has been read', () => {
   const d = repo(), real = T('2026-03-09T10:00:00Z'), fast = T('2026-03-09T11:00:00Z');
-  ok(git(d, 'checkout', '-q', '-b', 'fastclone')); appendEvent(d, 'zed', ev('T-fast'), { now: fast }); commit(d);
+  ok(git(d, 'checkout', '-q', '-b', 'fastclone')); appendEvent(d, 'zed', ev('T-fast', 'doing', 'zed'), { now: fast }); commit(d);
   ok(git(d, 'checkout', '-q', 'main')); ok(git(d, 'checkout', '-q', '-b', 'normal'));
   ok(git(d, 'merge', '-q', '--no-edit', 'fastclone'));
-  const later = appendEvent(d, 'amy', ev('T-later'), { now: real }); // actor sorts BEFORE zed: only at/seq can put it after
+  const later = appendEvent(d, 'amy', ev('T-later', 'doing', 'amy'), { now: real }); // actor sorts BEFORE zed: only at/seq can put it after
   assert.equal(later.at, '2026-03-09T11:00:00Z', 'at = max(wall clock, latest seen)');
   assert.ok(later.seq > 0);
   assert.deepEqual(readEvents(d).map((e) => e.task), ['T-fast', 'T-later']);
-  const wall = appendEvent(d, 'amy', ev('T-wall'), { now: T('2026-03-09T12:00:00Z') });
+  const wall = appendEvent(d, 'amy', ev('T-wall', 'doing', 'amy'), { now: T('2026-03-09T12:00:00Z') });
   assert.equal(wall.at, '2026-03-09T12:00:00Z');
   assert.deepEqual(readEvents(d).map((e) => e.task), ['T-fast', 'T-later', 'T-wall']);
 });
@@ -174,7 +174,7 @@ test('compact merges sealed months into one content-hashed file per month and ki
     const d = tmp();
     // two branches' files for March, one for April (sealed), May is the current month (untouched)
     appendEvent(d, 'ana', ev('T-1'), { now: T('2026-03-09T10:00:00Z'), branch: 'a' });
-    appendEvent(d, 'bob', ev('T-2'), { now: T('2026-03-10T10:00:00Z'), branch: 'b' });
+    appendEvent(d, 'bob', ev('T-2', 'doing', 'bob'), { now: T('2026-03-10T10:00:00Z'), branch: 'b' });
     appendEvent(d, 'ana', ev('T-3'), { now: T('2026-03-10T10:00:00Z'), branch: 'c' });
     appendEvent(d, 'ana', ev('T-4'), { now: T('2026-04-02T10:00:00Z'), branch: 'a' });
     appendEvent(d, 'ana', ev('T-5'), { now: T('2026-05-03T10:00:00Z'), branch: 'a' });

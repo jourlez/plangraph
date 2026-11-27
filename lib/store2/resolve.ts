@@ -2,8 +2,8 @@
 // acceptance, members, owns, affects) is resolved by union; with a diff3 base section, a line that one side deleted stays deleted.
 // A hunk that touches a scalar field leaves the whole file untouched and is reported with its field. Result files are canonical.
 import path from 'node:path';
-import { writeAtomicSafe } from '../fsafe.ts';
 import { readDataCapped } from '../jsonl.ts';
+import { withTxn } from './txn.ts';
 import { listKinds, listNodeFiles, MAX_NODE_BYTES } from './nodes.ts';
 import { COLLECTION_FIELDS, canon, formatPg, parsePg } from './pg.ts';
 
@@ -40,8 +40,21 @@ function unionHunks(rows: string[]): string[] | [string, number] {
   return out;
 }
 
-export function resolveConflicts(root: string): { resolved: string[]; left: Left[] } {
-  const resolved: string[] = [], left: Left[] = [];
+// The key of an element inside its collection: two different elements with one key are one value changed on both sides, not two values.
+const ELEMENT_KEY: Readonly<Record<string, readonly string[]>> = { capacity: ['sprint'], links: ['rel', 'to'], xrefs: ['sys', 'xid'] };
+const keyOf = (e: unknown, cols: readonly string[]): string => canon(cols.map((c) => (e && typeof e === 'object' ? (e as Record<string, unknown>)[c] : undefined) ?? null));
+/** The first collection that holds two different elements with one key, or null. */
+function duplicateKey(node: Record<string, unknown>): string | null {
+  for (const [f, cols] of Object.entries(ELEMENT_KEY)) {
+    if (!Array.isArray(node[f])) continue;
+    const seen = new Set<string>();
+    for (const e of node[f] as unknown[]) { const k = keyOf(e, cols); if (seen.has(k)) return f; seen.add(k); }
+  }
+  return null;
+}
+
+function plan(root: string): { resolved: string[]; left: Left[]; writes: Array<{ rel: string; text: string }> } {
+  const resolved: string[] = [], left: Left[] = [], writes: Array<{ rel: string; text: string }> = [];
   for (const kind of listKinds(root)) {
     for (const abs of listNodeFiles(root, kind)) {
       let text: string;
@@ -55,9 +68,17 @@ export function resolveConflicts(root: string): { resolved: string[]; left: Left
       if (!('node' in parsed)) { left.push({ path: rel, field: fieldOf((u as string[])[parsed.line - 1] ?? ''), line: parsed.line }); continue; }
       const node = { ...parsed.node };
       for (const f of COLLECTION_FIELDS) if (Array.isArray(node[f])) node[f] = [...new Map((node[f] as unknown[]).map((e) => [canon(e), e])).values()];
-      writeAtomicSafe(abs, formatPg(node), { root });
+      const dup = duplicateKey(node);
+      if (dup !== null) { left.push({ path: rel, field: dup, line: rows.findIndex((r) => OPEN.test(r)) + 1 }); continue; } // a scalar conflict in disguise
+      writes.push({ rel: rel.split(path.sep).join('/'), text: formatPg(node) });
       resolved.push(rel);
     }
   }
-  return { resolved: resolved.sort(), left: left.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) };
+  return { resolved: resolved.sort(), left: left.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)), writes };
+}
+
+export function resolveConflicts(root: string): { resolved: string[]; left: Left[] } {
+  let r = plan(root);
+  if (r.writes.length) withTxn(root, (tx) => { r = plan(root); for (const w of r.writes) tx.write(w.rel, w.text); }); // planned again under the store lock, written in one transaction
+  return { resolved: r.resolved, left: r.left };
 }

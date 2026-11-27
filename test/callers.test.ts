@@ -24,8 +24,8 @@ const rel = (f: string): string => path.relative(ROOT, f).split(path.sep).join('
 const NEEDS_DECISION: Readonly<Record<string, readonly string[]>> = {
   'added in 1.0, no command, hook or tool calls it (its own test does): the controller decides to wire it or delete it with the test; the pins in scripts/mutate/*.json may name it': [
     'lib/digest.ts#contextJson', 'lib/digest.ts#mapJson', 'lib/docs/regions.ts#renderMarkers', 'lib/flow/state.ts#canTransition', 'lib/flow/state.ts#mapTrackerStatus',
-    'lib/graph/repo.ts#ownersFor', 'lib/history/parse.ts#parseLog', 'lib/ingest/adr.ts#parseAdr', 'lib/ingest/requirements.ts#parseRequirements',
-    'lib/store2/nodes.ts#deleteNode', 'lib/store2/nodes.ts#eraseNode', 'lib/store2/nodes.ts#renameNode', 'lib/store2/txn.ts#recoverTxn',
+    'lib/graph/repo.ts#ownersFor', 'lib/ingest/write.ts#readNodeKind', 'lib/history/parse.ts#parseLog', 'lib/ingest/adr.ts#parseAdr', 'lib/ingest/requirements.ts#parseRequirements',
+    'lib/store2/nodes.ts#deleteNode', 'lib/store2/nodes.ts#eraseNode', 'lib/store2/nodes.ts#renameNode', 'lib/store2/nodes.ts#writeNode', 'lib/store2/txn.ts#recoverTxn',
   ],
   'a fixture converter for tests (test/helpers/plan-dir.ts adoptPlanDir): it belongs under test/helpers, moving it changes the imports of four test files': ['lib/store2/adopt.ts#adoptOldLayout'],
   'older than 1.0, called by tests or by scripts/ only (backtest, forecast, solver measurement, the older Jira client, open-item helpers): delete them or accept them as library surface': [

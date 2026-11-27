@@ -4,5 +4,5 @@ exit: 0
 plangraph map | 40 tickets, 0 repos, 3 people
 owners: Cleo 17, Ana 14, Ben 9
 epics: E0 0/10, E1 0/10, E2 0/10, E3 0/10
-fresh: index 44bc945e, cache age unknown
+fresh: index 0d12bcaa, cache age unknown
 --- stderr

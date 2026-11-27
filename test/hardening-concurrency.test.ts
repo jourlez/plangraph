@@ -49,10 +49,11 @@ test('Review Focus 6: two processes claiming the same task: exactly one wins, th
 
 test('ingest writers in parallel with flow-claim and each other: every node and event is on disk, every file parses, check finds no bad line', async () => {
   const before = readEvents(W.dir).length;
+  const holder = (readEvents(W.dir).find((e) => e.task === 'ABC-1' && e.to === 'claimed') as { by: string }).by; // whoever won the claim above: only the holder moves the task
   const jobs = await Promise.all([
     ...['a', 'b', 'c', 'd'].map((n) => child(['ingest', 'requirements', `docs/req-${n}.md`])),
     child(['ingest', 'requirements', 'docs/req-a.md']), child(['ingest', 'requirements', 'docs/req-a.md']), // the same document twice at once
-    child(['flow-progress', 'ABC-1', '--to', 'in_progress', '--by', 'ana']), ...['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'ABC-6', 'ABC-3'].map((t) => child(['flow-link', t, 'jira', t])),
+    child(['flow-progress', 'ABC-1', '--to', 'in_progress', '--by', holder]), ...['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'ABC-6', 'ABC-3'].map((t) => child(['flow-link', t, 'jira', t])),
   ]);
   for (const j of jobs) assert.equal(j.code, 0, `${j.err} ${j.out}`);
   assert.equal(readNodeKind({ dir: W.dir }, 'requirement').length, 12, '4 documents of 3 requirements, nothing lost, no duplicate');

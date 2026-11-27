@@ -9,7 +9,7 @@ The plan is a directory of small text files in the repository (`.plangraph/` by 
   format.json                   {"format_version":2,"min_reader":2,"storage":"entity"}
   config.json                   constraints (caps, stage order, ...); one file, not an entity
   meta.jsonl                    key/value rows; the one plan file that stays a single JSONL file
-  nodes/<kind>/<h2>/<slug>~<h8>.pg      one file per node: ticket, person, sprint, epic, repo, openitem, ext
+  nodes/<kind>/<h2>/<slug>~<h12>.pg      one file per node: ticket, person, sprint, epic, repo, openitem, ext
   events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl   append-only task events, one writer per file
   runs/<kind>/<yyyy-mm>/<h8>.jsonl      sealed audit output: evidence, findings, learnings
   schedules/<version>.jsonl     immutable schedule versions
@@ -24,7 +24,7 @@ The plan is a directory of small text files in the repository (`.plangraph/` by 
 
 ## 2. Node files (`.pg`)
 
-Path: `nodes/<kind>/<h2>/<slug>~<h8>.pg`. `h8` is the first 8 hex of the sha256 of the exact id, `h2` its first two characters (256 directories), `slug` the id lower-cased with every character outside `[a-z0-9._-]` replaced by `_`, at most 60 characters. Two ids that differ only in case get different names, so a case-insensitive file system cannot merge them. The slug is for people; it is never parsed back.
+Path: `nodes/<kind>/<h2>/<slug>~<h12>.pg`. `h12` is the first 12 hex of the sha256 of the exact id, `h2` its first two characters (256 directories), `slug` the id lower-cased with every character outside `[a-z0-9._-]` replaced by `_`, at most 60 characters. Two ids that differ only in case get different names, so a case-insensitive file system cannot merge them. The slug is for people; it is never parsed back.
 
 Content: line 1 is `id <json string>`; then one line per field, `<name> <json value>`, sorted by name. A collection field (`links`, `xrefs`, `acceptance`, `members`, `owns`, `affects`, `capacity`) repeats its name once per element, elements sorted by their canonical JSON. Rules, all checked by `plangraph check`:
 
@@ -74,7 +74,7 @@ Defaults for missing optional fields are applied on read, never written. A numer
 
 ## 3. Batch files
 
-- Events: `events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl`, where `bh8` is the first 8 hex of the sha256 of the branch name at write time and `dd` the day. One writer per file, so two branches never append to one file. A line is one JSON object with `at`, `seq`, `task`, `to`, `by`. `at` is the maximum of the wall clock (to the second) and the latest `at` already read, with a per-file `seq`, so a clone with a fast clock cannot outrank events it has seen. Readers sort by `(at, seq, actor, bh8)` and drop exact duplicates.
+- Events: `events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl`, where `bh8` is the first 8 hex of the sha256 of the branch name at write time and `dd` the day. One writer per file, so two branches never append to one file. A line is one JSON object with `at`, `seq`, `task`, `to`, `by`, and `force: true` when a flow command was run with `--force`. `at` is exactly `yyyy-mm-ddThh:mm:ssZ`; a row with any other `at` is not an event and `check` reports it. `at` is the maximum of the wall clock (to the second) and the latest `at` already read that is at most 24 hours ahead of the wall clock, with a per-file `seq`, so a clone with a fast clock cannot outrank events it has seen, and one wrong clock cannot pin every later event to its month. In a file named for an actor, `by` is that actor: a row by someone else is not an event. A task held by one actor (`claimed`, `in_progress`, `in_review`) is not moved by another actor unless the event carries `force`. Readers sort by `(at, seq, actor, bh8)` and drop exact duplicates.
 - Runs: `runs/<kind>/<yyyy-mm>/<h8>.jsonl`, `h8` the content hash, lines sorted. Identical runs are one file.
 - Schedules: `schedules/<version>.jsonl` with `version = v<n>-<h8 of content>`, immutable. `schedules/CURRENT` holds one version name; two branches that both change it conflict there, on purpose.
 - `plangraph compact` merges sealed months into one content-hashed file per month and kind. It refuses unless `CI=true` or `--ci`, so two clones cannot race; events later than a compacted month land in a fresh file.
