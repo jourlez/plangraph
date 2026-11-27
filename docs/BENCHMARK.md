@@ -9,7 +9,15 @@ Offline harness in `evals/ab/`; no model or API call happens unless `EVAL_LIVE=1
 
 ## Arms and matrix
 
-Graph questions: `baseline` (plugin off, Read, Grep, Bash) and `graph` (plugin on). Coding tasks: `plugin-off` and `plugin-default`. Each pass runs sonnet and haiku three times each and opus once. `summarize` reports accuracy with a Wilson 95 percent interval, median and p90 tokens, median calls and median cost per arm.
+Graph questions: `baseline` (plugin off, Read, Grep, Bash) and `graph` (plugin on, MCP off as in the pilot). Coding tasks: `plugin-off` and `plugin-default` (all default injections: hooks and the MCP server, passed with `--mcp-config` under the strict config); optional `plugin-pull-only` (named with `--arms`): the plugin loaded from a temporary copy whose `hooks/hooks.json` is emptied and whose `.mcp.json` is removed, MCP off, so the model only sees the skill list (`preparePullOnlyPlugin`). Every arm, plugin or not, gets Claude Code's own Skill tool through `--tools` (see Methodology fixes). Each pass runs sonnet and haiku three times each and opus once. `summarize` and `renderReport` report, per arm and model, accuracy with a Wilson 95 percent interval, median first-call input tokens (the fixed prefix), median total input and output tokens, median calls, cost and time.
+
+## Driver
+
+`EVAL_LIVE=1 node evals/ab/bench.ts run --family graph|coding --out DIR [--parallel N] [--arms a,b] [--models sonnet,haiku,opus] [--tasks id,id] [--questions N] [--cache DIR] [--stagger-ms MS]`, and offline `node evals/ab/bench.ts report --out DIR [--family F]`.
+- `--out` is a scratch directory outside this repository (refused otherwise); results are JSONL, `DIR/<family>.jsonl`, one line per finished cell: arm, model, repeat, id, correct, first-call input, total input and output tokens, calls, tool calls, cost, time, setup time, error, and the first 80 characters of the reply. No transcript is stored and absolute home paths are scrubbed.
+- Resume: rerun with the same `--out`; a cell already recorded without error is skipped (a cell that ended in a harness error runs again; errored cells stay out of the report).
+- `--parallel N` (default 1) runs N cells at once, each in its own workspace, with the agent runs non-blocking and the first wave staggered by `--stagger-ms` (default 1000) to be rate-limit friendly. Cells are ordered by item, repeat, model, arm, so the arms of one item run side by side.
+- Workspace cache: a coding task is cloned and set up once into `CACHE/<id>-<descriptor hash>` (hash of repository, commit, setup and language) and copied per run with `cp -R` (copy-on-write on macOS). Absolute cache paths inside `.venv` (shebangs, `pyvenv.cfg`, editable installs) and in the saved exports are rewritten to the copy, and the runner activates `.venv` for the agent and the hidden tests, so a descriptor that only runs `uv venv` still gets python on the PATH. Setup no longer costs 14 to 32 s per run.
 
 ## Running the live pass
 
@@ -29,6 +37,13 @@ Clean configuration: a temporary `CLAUDE_CONFIG_DIR` is NOT logged in (the run e
 Graph arm workspace (`buildGraphProject`): a committed `.plangraph/` built from `project.ts` (owner, sprint and blocked-by edges as fields; stack, requirement and history facts in the ticket summary, because `plangraph ticket -v` prints no other free text) and no plan.md. Baseline workspace (`buildBaselineProject`): only plan.md.
 
 Coding descriptors. `setup` (string array) runs after the clone in ONE `sh` session with `set -e`; what it exports (`PATH`, `VIRTUAL_ENV`) is saved and sourced before the hidden test command. A `.venv` the setup created is activated even when the descriptor has no export (many only run `uv venv`; without this `python` was not found and every hidden test returned 127). `timeoutSec` (default 600) bounds the hidden test command; setup gets at least 600 seconds. A `validated: false` descriptor is skipped with its `reason` (`runnableTasks`; `prepareWorkspace` and `runHiddenTests` refuse it). Setup and hidden tests, and the git clone and fetch, run in a stripped environment: `env -i PATH=<host PATH> HOME=<temporary directory>` and nothing else, so no token or credential of the host reaches cloned code. The temporary HOME and saved exports live in `<clone>.bench`, outside the clone.
+
+## Methodology fixes
+
+The prefix bisect (next section) found three flaws in the pilot; all are fixed in the harness, so pilot numbers above are not comparable with new passes.
+1. Token accounting. The pilot's `tokens in` summed input, cache creation and cache reads over every API call, counting the fixed prefix 3 to 6 times. Each run now records the first call's input (`firstIn`, where the prefix shows), total input, total output and the number of API calls (distinct main-thread assistant message ids of the stream), and every report table shows them.
+2. The plugin-off arms lacked the Skill tool (3,344 tokens per call). `argvFor` now names `Skill` in `--tools` and `--allowed-tools` for every arm. That is how the bisect measured `no plugin plus the Skill tool` (11,202 tokens on one call): the flag exposes Claude Code's built-in Skill tool without any plugin. Not re-measured in this change (no live runs); the first pass's plugin-off `firstIn` should land near 11,200 with the haiku probe prompt. If it does not, subtract the 3,344 constant from the plugin arms instead and say so.
+3. Per-run setup. See the workspace cache above.
 
 ## Ruling
 
