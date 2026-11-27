@@ -53,6 +53,14 @@ export function fenceInline(text: unknown, max: number = 60): string {
   return `<untrusted n="${crypto.createHash('sha256').update(body).digest('hex').slice(0, 8)}">${body}</untrusted>`;
 }
 
+// A short identifier from a tracker or a plan (a person, a status, a file name) shown on a line of ours. One or two words that were not cut stay as they are
+// (`Ana`, `In Progress`, `src/a.ts`); anything longer is free text and comes back as an inline fence, so a sentence of instructions never shows unfenced.
+// Bound: two words of instruction text pass, and nothing else: no line break, no tag, no more than the cap.
+export function ident(s: unknown, max: number = 60): string {
+  const t = oneLine(s, max);
+  return /^\S+(?: \S+)?$/.test(t) && !MARKER.test(t) && t.length <= max ? t : fenceInline(s, max);
+}
+
 // ---------- central output guard ----------
 // The last line of defense for text an agent reads (src/cli.ts runs every collected and raw output through it): every `<untrusted` or
 // `</untrusted` tag that is not part of one of OUR fences is neutralized to `<\untrusted`, so a value that slipped past a per-site

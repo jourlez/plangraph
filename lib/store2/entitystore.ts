@@ -110,8 +110,10 @@ function encode(e: Entry): string | null {
 class Model {
   readonly entries = new Map<string, Entry>();
   readonly root: string;
+  readonly dirs: ReadonlySet<string>;
   constructor(root: string, dirs: readonly string[]) {
     this.root = root;
+    this.dirs = new Set(dirs);
     for (const dir of dirs) {
       for (const abs of listNodeFiles(root, dir)) {
         const r = loadRaw(root, abs);
@@ -174,11 +176,26 @@ export class EntityStore implements PlanStore {
   get #dir(): string { return this.ctx.dir; }
 
   // ---------- reading ----------
+  // The parsed node files of ONE readKinds call, shared by the kinds that live in the same files (link, ref and xref all read every ticket file: parsing them
+  // once per kind tripled the cost of loadExtras on a large plan). Outside readKinds every read parses the files as they are on disk now.
+  #pool: Model[] | null = null;
+  #modelFor(dirs: readonly string[]): Model {
+    const have = this.#pool?.find((m) => dirs.every((d) => m.dirs.has(d)));
+    if (have) return have;
+    const m = new Model(this.#dir, dirs);
+    this.#pool?.push(m);
+    return m;
+  }
+  /** readKind for several kinds over one parse of the node files they share; the rows come back in the order of `kinds`. */
+  readKinds(kinds: readonly Kind[], opts: { defaults?: boolean } = {}): Row[][] {
+    this.#pool = [];
+    try { return kinds.map((k) => this.readKind(k, opts)); } finally { this.#pool = null; }
+  }
   #raw(kind: Kind): Row[] {
     if (kind === 'schedule') { const v = currentVersion(this.#dir); return v === null ? [] : (() => { try { return readSchedule(this.#dir, v); } catch { return []; } })(); }
     const run = RUN_NAMES[kind];
     if (run) return readRuns(this.#dir, run);
-    const m = new Model(this.#dir, DIRS[kind] as readonly string[]);
+    const m = this.#modelFor(DIRS[kind] as readonly string[]);
     const out: Row[] = [];
     if (kind in PRIMARY) {
       const pr = PRIMARY[kind] as (typeof PRIMARY)[string];
@@ -190,9 +207,9 @@ export class EntityStore implements PlanStore {
     } else if (kind === 'capacity') {
       for (const e of m.inDir(['person'])) for (const c of e.parts.capacity) out.push({ person: e.id, ...c });
     } else if (kind === 'link') {
-      for (const e of m.entries.values()) { const s = sourceOf(e); for (const l of e.parts.links) out.push({ from: s.id, from_type: s.type, ...without(l, ['k']) }); }
+      for (const e of m.inDir(DIRS.link as readonly string[])) { const s = sourceOf(e); for (const l of e.parts.links) out.push({ from: s.id, from_type: s.type, ...without(l, ['k']) }); }
     } else if (kind === 'xref') {
-      for (const e of m.entries.values()) { const s = sourceOf(e); for (const x of e.parts.xrefs) out.push({ type: s.type, id: s.id, ...x }); }
+      for (const e of m.inDir(DIRS.xref as readonly string[])) { const s = sourceOf(e); for (const x of e.parts.xrefs) out.push({ type: s.type, id: s.id, ...x }); }
     }
     return out;
   }

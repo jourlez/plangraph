@@ -41,10 +41,14 @@ export class PlangraphError extends Error {
   }
 }
 
+// A plan or cache path that is not what it must be (a FIFO or a directory where a file belongs, a file where a directory belongs) is a data error with its own message, never an internal error.
+const DATA_FS = new Set(['NOT_A_FILE', 'SWAPPED', 'ENOTDIR', 'EISDIR', 'ELOOP']);
+const isDataFs = (e: unknown): boolean => e instanceof Error && DATA_FS.has((e as { code?: unknown }).code as string);
+
 /** Exit code for anything a command may throw. Parse and format errors of the data are 2; anything unexpected is 5. */
 export function exitCodeOf(e: unknown): number {
   if (e instanceof PlangraphError) return e.exitCode;
-  if (e instanceof FormatError || (e instanceof Error && e.name === 'IngestError')) return EXIT.DATA;
+  if (e instanceof FormatError || (e instanceof Error && e.name === 'IngestError') || isDataFs(e)) return EXIT.DATA;
   return EXIT.UNKNOWN;
 }
 
@@ -99,6 +103,7 @@ export function errorLines(e: unknown, opts: { command?: string | undefined; roo
   const t = `try: ${tryOf(e, opts)}`, root = opts.root;
   const msg = (m: unknown) => (typeof root === 'string' && root.length > 1 ? String(m).split(root).join('.') : String(m));
   if (e instanceof PlangraphError) return [`error: ${oneLine(msg(e.message), 400)}`, ...(e.hint && !commandIn(e.hint) ? [`hint: ${oneLine(e.hint, 200)}`] : []), t];
+  if (isDataFs(e)) return [`error: ${oneLine(msg((e as Error).message), 300)}`, t];
   if (e instanceof FormatError || (e instanceof Error && e.name === 'IngestError')) return [...msg(e.message).split('\n').slice(0, 11).map((l) => `error: ${oneLine(l, 300)}`), t];
   return [`error: internal error: ${oneLine(msg(e instanceof Error ? e.message : String(e)), 200)}`, t];
 }

@@ -44,7 +44,8 @@ function readModules(dir: string): ExtraModule[] {
 /** Every extra of a plan directory. `model` is the loaded model when the caller has one (else it is loaded here, for the requirement states). */
 export function loadExtras(ctx: StoreCtx, { model }: { model?: Model } = {}): Extras {
   const st = openStore(ctx), rows = (k: Parameters<typeof st.readKind>[0]): Row[] => st.readKind(k, { defaults: false });
-  const links = rows('link').map((l) => ({ ...l, from: String(l.from), from_type: String(l.from_type), rel: String(l.rel), to: String(l.to), to_type: String(l.to_type) })).sort((a, b) => cmp(`${a.from_type}\0${a.from}\0${a.rel}\0${a.to}`, `${b.from_type}\0${b.from}\0${b.rel}\0${b.to}`));
+  const [linkRows, refRows, xrefRows] = st.readKinds(['link', 'ref', 'xref'], { defaults: false }) as [Row[], Row[], Row[]]; // all three live in the ticket files: parse them once
+  const links = linkRows.map((l) => ({ ...l, from: String(l.from), from_type: String(l.from_type), rel: String(l.rel), to: String(l.to), to_type: String(l.to_type) })).sort((a, b) => cmp(`${a.from_type}\0${a.from}\0${a.rel}\0${a.to}`, `${b.from_type}\0${b.from}\0${b.rel}\0${b.to}`));
   const by = (rel: string, fromType: string, toType: string): Map<string, string[]> => { // to -> sources
     const m = new Map<string, string[]>();
     for (const l of links) if (l.rel === rel && l.from_type === fromType && l.to_type === toType) m.set(l.to, [...(m.get(l.to) ?? []), l.from]);
@@ -66,7 +67,7 @@ export function loadExtras(ctx: StoreCtx, { model }: { model?: Model } = {}): Ex
     return { id, ...opt('title', r.title), ...opt('status', r.status), ...opt('date', r.date), ...opt('source', r.source), ...opt('derivation', r.derivation), affects: uniq([...strs(r.affects), ...(affected.get(id) ?? [])]), supersedes: uniq(supersedes.get(id) ?? []) };
   }).sort((a, b) => cmp(a.id, b.id));
   const touches = by('touches', 'ticket', 'repo'), files = new Map<string, string[]>();
-  for (const r of rows('ref')) if (r.files !== null && typeof r.files === 'object' && !Array.isArray(r.files)) files.set(String(r.key), Object.keys(r.files as Row).sort(cmp));
+  for (const r of refRows) if (r.files !== null && typeof r.files === 'object' && !Array.isArray(r.files)) files.set(String(r.key), Object.keys(r.files as Row).sort(cmp));
   const repos = rows('repo').map((r): ExtraRepo => {
     const id = String(r.id), tickets = uniq(touches.get(id) ?? []), globs = (Array.isArray(r.paths) ? r.paths : []).flatMap((p) => (p !== null && typeof p === 'object' && typeof (p as Row).glob === 'string' ? [globRe((p as Row).glob as string)] : []));
     const touched: Record<string, string[]> = {};
@@ -76,7 +77,7 @@ export function loadExtras(ctx: StoreCtx, { model }: { model?: Model } = {}): Ex
   }).sort((a, b) => cmp(a.id, b.id));
   const members = by('member_of', 'person', 'team');
   const teams = rows('team').map((r): ExtraTeam => { const id = String(r.id); return { id, ...opt('name', r.name), members: uniq([...strs(r.members), ...(members.get(id) ?? [])]), owns: uniq(strs(r.owns)) }; }).sort((a, b) => cmp(a.id, b.id));
-  return { requirements, decisions, repos, teams, events, modules: readModules(ctx.dir), links, xrefs: rows('xref') };
+  return { requirements, decisions, repos, teams, events, modules: readModules(ctx.dir), links, xrefs: xrefRows };
 }
 
 /** The value lib/docs takes: modules in its own shape (`hotspot` the rank of the module among the hot ones, 0 when it is not hot; `authors` person ids). */

@@ -99,11 +99,12 @@ const actorName = (a: string): string => String(a).toLowerCase().replace(/[^a-z0
 
 /** Append one event. `at` = max(wall clock to the second, latest `at` already on disk); `seq` = 1 + the highest `seq` seen at that same `at`
  *  (0 if none), so an event written after reading another always sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
-export function appendEvent(root: string, actor: string, e: EventInput, opts: { now?: Date; branch?: string } = {}): Event {
+export function appendEvent(root: string, actor: string, e: EventInput, opts: { now?: Date; branch?: string; guard?: (seen: readonly Event[]) => void } = {}): Event {
   const bh8 = branchHash(root, opts.branch), name = actorName(actor);
   let result: Event | undefined;
   withTxn(root, (tx) => {
     const seen = readEvents(root);
+    opts.guard?.(seen); // the caller's rule runs on the events as they are under the lock, so two processes cannot both pass it
     const wall = iso(opts.now ?? new Date());
     const latest = seen.length ? (seen[seen.length - 1] as Event).at : '';
     const at = wall > latest ? wall : latest;

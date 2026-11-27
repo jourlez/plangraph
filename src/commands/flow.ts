@@ -1,6 +1,6 @@
 // plangraph flow next|brief|status|actions: read-only. Nothing is written and no tracker is called (`actions` only prints what the agent would do
 // through the vendor tool). Every title, summary, requirement and command from the plan or a tracker prints inside a fence.
-import { oneLine, fenceInline } from '../../lib/sanitize.ts';
+import { oneLine, fenceInline, ident } from '../../lib/sanitize.ts';
 import { deriveAll } from '../../lib/flow/state.ts';
 import { depsFromModel } from '../../lib/flow/deps.ts';
 import { buildBrief } from '../../lib/flow/brief.ts';
@@ -26,7 +26,7 @@ function next(ctx: Ctx, args: Args<V>): number {
   const shown = rows.slice(0, limit);
   ctx.io.data?.({ ready: shown.map((r) => ({ key: r.k, owner: r.owner || null, own: Boolean(me) && r.owner === me })), omitted: rows.length - shown.length }, { next: [] });
   if (!shown.length) { ctx.io.out('no ready task'); return 0; }
-  for (const r of shown) ctx.io.out(`${oneLine(r.k, 80)}${me && r.owner === me ? ' (yours)' : ''} ${r.owner ? oneLine(r.owner, 40) : 'unowned'} ${fenceInline(r.t, 60)}`);
+  for (const r of shown) ctx.io.out(`${oneLine(r.k, 80)}${me && r.owner === me ? ' (yours)' : ''} ${r.owner ? ident(r.owner, 40) : 'unowned'} ${fenceInline(r.t, 60)}`);
   if (rows.length > shown.length) ctx.io.out(`omitted ${rows.length - shown.length}, raise --limit`);
   return 0;
 }
@@ -38,7 +38,8 @@ function brief(ctx: Ctx, args: Args): number {
   needTask(model, key);
   const files = [...new Set(extras.repos.flatMap((r) => r.touched[key] ?? []))].sort(cmp);
   const b = buildBrief(model, key, { requirements: extras.requirements, decisions: extras.decisions, repos: extras.repos as unknown as Repo[], links: extras.links, task: { files } });
-  ctx.io.data?.({ key: b.key, title: b.title, owner: b.owner, repos: b.repos, requirements: b.requirements, decisions: b.decisions, files: b.files, ask: b.ask, omitted: b.omitted }, { next: [] });
+  const fz = (s: string): string => fenceInline(s, 300); // the text of a plan, a tracker or a repository is fenced in the data as it is in the text
+  ctx.io.data?.({ key: b.key, title: fz(b.title), owner: b.owner, repos: b.repos.map((r) => ({ id: r.id, test: fz(r.test), build: fz(r.build) })), requirements: b.requirements.map((r) => ({ id: r.id, text: fz(r.text) })), decisions: b.decisions.map((d) => ({ id: d.id, title: fz(d.title) })), files: b.files, ask: b.ask, omitted: b.omitted }, { next: [] });
   ctx.io.outBlock(b.text.split('\n'));
   if (verbose(args)) {
     const d = deriveAll([key], extras.events, depsFromModel(model), { now: ctx.now() }).get(key);

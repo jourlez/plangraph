@@ -28,6 +28,7 @@ const MAX_PAIRS = 2_000_000;
 const MAX_COUPLED = 10;
 const OTHER = 'other';
 const DAY = 86400;
+const SINCE_MIN = 1e12; // milliseconds: git takes a bare number as seconds only from about the year 2001 (a smaller one is a date)
 
 export const isShallow = (git: GitRun): boolean => { try { return git('rev-parse', '--is-shallow-repository').trim() === 'true'; } catch { return false; } };
 export function isPartial(git: GitRun): boolean {
@@ -148,7 +149,7 @@ export async function ingestGit(ctx: Pick<Ctx, 'root' | 'dir' | 'git' | 'now' | 
   }
   const parser = new LogParser();
   const argv = ['-C', ctx.root, '-c', 'core.quotepath=false', 'log', '-M', '--numstat', '-z', `--format=${LOG_FORMAT}`];
-  if (!incremental) argv.push(`--since=${Math.floor(cutoffMs / 1000) - DAY}`);
+  if (!incremental && cutoffMs >= SINCE_MIN) argv.push(`--since=${Math.floor(cutoffMs / 1000) - DAY}`); // git reads a small number as no time at all and lists nothing: an older cutoff lists everything and the filter below applies it
   argv.push(range, '--');
   await spawnLines('git', argv, (tok) => parser.push(tok), { delimiter: '\0', maxBytes: MAX_LOG_BYTES });
 
@@ -164,7 +165,7 @@ export async function ingestGit(ctx: Pick<Ctx, 'root' | 'dir' | 'git' | 'now' | 
  *  bytes. Messages are untrusted data: they are matched by lib/history/link.ts and never printed. No author, e-mail or file is read. */
 export async function readLinkCommits(ctx: Pick<Ctx, 'root'>, opts: { since: Date; max?: number }): Promise<Array<CommitFact & { message: string }>> {
   const out: Array<CommitFact & { message: string }> = [];
-  const argv = ['-C', ctx.root, 'log', '-z', `--since=${Math.floor(opts.since.getTime() / 1000)}`, `--max-count=${opts.max ?? 20000}`, '--format=%H%x1f%cI%x1f%B', '--'];
+  const argv = ['-C', ctx.root, 'log', '-z', ...(opts.since.getTime() >= SINCE_MIN ? [`--since=${Math.floor(opts.since.getTime() / 1000)}`] : []), `--max-count=${opts.max ?? 20000}`, '--format=%H%x1f%cI%x1f%B', '--'];
   try {
     await spawnLines('git', argv, (tok) => {
       const [sha, at, ...rest] = tok.replace(/^\n+/, '').split('\x1f');

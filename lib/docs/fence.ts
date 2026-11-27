@@ -1,7 +1,7 @@
 // Minimal fencing and text helpers for generated documents. Everything that came from a tracker, a repository or a person is
 // sanitized, capped and (for blocks) wrapped in an <untrusted> fence; text with a URL, host, email or token is withheld.
 import crypto from 'node:crypto';
-import { fence, oneLine, sanitizeText } from '../sanitize.ts';
+import { fence, fenceInline, oneLine, sanitizeText } from '../sanitize.ts';
 import { hasD24 } from './policy.ts';
 
 export const WITHHELD = '[withheld: contains a URL, host, email or token]';
@@ -9,7 +9,7 @@ export const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0
 export const hash8 = (s: string): string => crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
 
 /** An id as one table-safe line. Not withheld: a D24 value in an id is a source defect the build scan must stop. */
-export const idText = (s: unknown): string => oneLine(s, 80).replaceAll('|', '/');
+export const idText = (s: unknown): string => { const t = oneLine(s, 80).replaceAll('|', '/'); return /\s/.test(t) ? fenceInline(String(s ?? '').replaceAll('|', '/'), 80) : t; };
 /** A short piece of text (title, name) as one line; withheld when it holds D24 material. */
 export function short(s: unknown, max = 100): string {
   const t = oneLine(s, max).replaceAll('|', '/');

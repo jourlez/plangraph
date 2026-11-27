@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { readCapped } from '../../lib/jsonl.ts';
 import { openStore, kindFile } from '../../lib/planstore.ts';
 import type { Kind } from '../../lib/planstore.ts';
-import { oneLine } from '../../lib/sanitize.ts';
+import { oneLine, ident, sanitizeText } from '../../lib/sanitize.ts';
 import { PlangraphError } from '../errors.ts';
 import { buildIndex, openIndex, stampFingerprint, stampContent, sidecarsOf, INDEX_FILE, SIDECARS } from '../db.ts';
 import { checkRepoPath } from '../../lib/gitsafe.ts';
@@ -36,7 +36,7 @@ const FLAGS = ['earlier', 'owner-change', 'slip', 'strict'] as const;
 function whatifData(W: WhatifLib, r: ReturnType<WhatifLib['whatif']>, key: string, v: WhatifValues, limit: number) {
   const mv = r.ripple?.[0], g = r.suggestion, s = (x: unknown, n = 60) => oneLine(x ?? '', n);
   const data = {
-    key: s(key, 120), ok: r.ok, to: mv ? { owner: s(mv.to.owner), sprint: mv.to.sprint } : null,
+    key: s(key, 120), ok: r.ok, to: mv ? { owner: ident(mv.to.owner, 60), sprint: mv.to.sprint } : null,
     reasons: r.reasons.slice(0, limit).map((x) => ({ code: s(x.code, 40), key: s(x.key, 120), detail: dataText(x.detail), ...(x.fix ? { fix: dataText(x.fix) } : {}), ...(x.warn ? { warn: true } : {}) })),
     more: Math.max(0, r.reasons.length - limit), ripple: (r.ripple || []).length,
     ...(r.touches ? { touches: dataText(r.touches) } : {}),
@@ -109,7 +109,7 @@ async function whatif(ctx: Ctx, args: Args<WhatifValues>): Promise<number> {
     if (!ctx.db().older && !r.reasons.some((x) => x.code === 'UNKNOWN_TICKET')) { // the graph views exist only in an index of this version
       const t = W.touchesLine((await import('../../lib/graph/views.ts')).graphReader(ctx.db(), items), mv.key as string); if (t) r.touches = t; // key is defined past the --relieve return
     }
-    out(dataText(W.renderWhatif(r, { limit }), 4000)); // one line: keys and owners from data cannot start a new line
+    out(sanitizeText(W.renderWhatif(r, { limit }).replace(/\s+/g, ' ').trim(), { max: 4000 })); // one line: keys and owners from data cannot start a new line; owners that are free text come fenced from renderWhatif, and the output guard neutralizes any other tag
     const { data, next } = whatifData(W, r, mv.key as string, v, limit); ctx.io.data?.(data, { next }); // key is defined past the --relieve return (checked above)
     return r.ok ? 0 : 1;
   }

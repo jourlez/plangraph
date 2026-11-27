@@ -63,9 +63,11 @@ export function writeEvent(ctx: Ctx, args: { key: string; to: string; by: unknow
   const { model, extras } = loadFlow(ctx);
   needTask(model, args.key);
   const actor = actorOf(ctx, args.by), evidence = args.evidence ?? [];
-  const before = checkEvent(model, extras, args.key, { to: args.to, by: actor, evidence });
+  let before = checkEvent(model, extras, args.key, { to: args.to, by: actor, evidence });
   const note = typeof args.note === 'string' && args.note ? oneLine(args.note, 200) : undefined;
-  appendEvent(ctx.dir, actor, { task: args.key, to: args.to, by: actor, ...(evidence.length ? { evidence } : {}), ...(note ? { note } : {}) }, { now: ctx.now() });
+  // the same rule again under the store lock, over the events on disk at that moment: two agents claiming one task cannot both pass it
+  const guard = (seen: readonly { evidence?: unknown }[]): void => { before = checkEvent(model, { ...extras, events: seen.map((e) => ({ ...e, evidence: Array.isArray(e.evidence) ? e.evidence.map(String) : [] })) as Extras['events'] }, args.key, { to: args.to, by: actor, evidence }); };
+  appendEvent(ctx.dir, actor, { task: args.key, to: args.to, by: actor, ...(evidence.length ? { evidence } : {}), ...(note ? { note } : {}) }, { now: ctx.now(), guard });
   ctx.io.data?.({ task: args.key, from: before, to: args.to, by: actor }, { next: [] });
   ctx.io.out(`${oneLine(args.key, 80)} ${before} -> ${args.to} by ${actor}`);
   return 0;
