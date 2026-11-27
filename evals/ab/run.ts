@@ -145,7 +145,7 @@ export function parseRun(stdout: string): Parsed {
  * `graph` and `plugin-default` run the card (auto) and the prompt hook (on); `plugin-default` also gets the MCP server (`mcpConfigFor`, mcp on).
  * The numbers in docs/BENCHMARK.md (Ruling) were measured with those options ON.
  */
-export const optionEnv = (cell: Cell): Record<string, string> => (ARMS.find((a) => a.name === cell.arm)?.hooks ? { PLANGRAPH_CARD: 'auto', PLANGRAPH_PROMPT_HOOK: 'on' } : {});
+const optionEnv = (cell: Cell): Record<string, string> => (ARMS.find((a) => a.name === cell.arm)?.hooks ? { PLANGRAPH_CARD: 'auto', PLANGRAPH_PROMPT_HOOK: 'on' } : {});
 const withPrefix = (e: Record<string, string>, prefix: string, extra: Record<string, string> = {}): Record<string, string> => ({ ...e, ...extra, ...(prefix ? { PATH: `${prefix}${path.delimiter}${e.PATH ?? ''}` } : {}) });
 export type Detail = Parsed & { ms: number };
 const NONE: Parsed = { reply: '', tokens: 0, firstIn: 0, tokensIn: 0, tokensOut: 0, calls: 0, toolCalls: 0, cost: 0, error: null };

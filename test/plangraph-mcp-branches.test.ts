@@ -32,7 +32,7 @@ test('on a supported Node it answers initialize and tools/list on stdout and ret
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-mcp-br-'));
   try {
     fs.mkdirSync(path.join(tmp, '.plangraph')); // with no plan directory the server answers one error and exits quietly (docs/MCP.md)
-    const { h, out, err } = host({ cwd: tmp }, rpc([
+    const { h, out, err } = host({ cwd: tmp, env: { PLANGRAPH_MCP: 'on' } }, rpc([
       { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } } },
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     ]));
@@ -50,7 +50,7 @@ test('after a stdout error nothing more is written but the session still drains 
     let hook: (() => void) | undefined;
     const written: string[] = [];
     const { h } = host({
-      cwd: tmp,
+      cwd: tmp, env: { PLANGRAPH_MCP: 'on' },
       stdin: (async function* () { yield rpc([{ jsonrpc: '2.0', id: 1, method: 'ping' }]); hook?.(); yield rpc([{ jsonrpc: '2.0', id: 2, method: 'ping' }]); })(),
       stdout: { write: (c) => written.push(c), on: (_e, l) => { hook = l; } },
     });

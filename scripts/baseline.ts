@@ -175,7 +175,7 @@ export function runMcpSession(root: string): string[] {
     msg({ id: 2, method: 'tools/list' }),
     msg({ id: 3, method: 'tools/call', params: { name: 'ready', arguments: { key: 'T-3' } } }),
   ]);
-  const r = spawnSync(process.execPath, [MCP], { cwd: root, env: childEnv(hookHome(root)), input, encoding: 'utf8', timeout: 60000 });
+  const r = spawnSync(process.execPath, [MCP], { cwd: root, env: { ...childEnv(hookHome(root)), PLANGRAPH_MCP: 'on' }, input, encoding: 'utf8', timeout: 60000 });
   return (r.stdout ?? '').split('\n').filter(Boolean);
 }
 

@@ -42,7 +42,9 @@ printf '{"key":"T-1","plans":[{"plan":"docs/plan.md","task":"1","fp":""}],"files
 "$BRAIN" blockers | grep -q "BLOCKED (1): T-3" || fail blockers
 "$BRAIN" rules | grep -q "solver" || fail rules
 "$BRAIN" card --write >/dev/null && grep -q "3 tickets" .plangraph/CARD.md || fail card
-"$BRAIN" card --if-present | grep -q "3 tickets" || fail "session-start hook command"
+PLANGRAPH_CARD=auto "$BRAIN" card --if-present | grep -q "3 tickets" || fail "session-start hook command"
+# the card hook is opt-in: without the option it prints nothing
+[ -z "$(env -u PLANGRAPH_CARD -u CLAUDE_PLUGIN_OPTION_CARD "$BRAIN" card --if-present)" ] || fail "card hook is silent without the option"
 "$BRAIN" stale --ref HEAD | grep -q ": 0 of " || fail stale-clean
 printf '\n### Task 3: third\n' >> docs/plan.md && sed -i.bak 's/build a$/build a differently/' docs/plan.md && git add -A && git commit -qm change
 "$BRAIN" stale --ref HEAD | grep -qE ": [123] of " || fail stale-detects-change

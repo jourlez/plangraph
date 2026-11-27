@@ -12,7 +12,7 @@ const ROOT = path.join(import.meta.dirname, '..');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const repo = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-nmd-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d }); return d; };
-const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const ENV = { ...process.env, PLANGRAPH_CARD: 'auto', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], entry = path.join(ROOT, 'bin/plangraph')) => spawnSync(process.execPath, [entry, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data') } });
 
 test('no file under lib, src, bin or scripts mentions the merge driver or --heal, and the removed files are gone', () => {
