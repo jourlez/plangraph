@@ -12,7 +12,7 @@ import { trustFile } from '../lib/fetch/trust.ts';
 import { world, run, git, cleanup } from './helpers/hook-world.ts';
 
 const BIN = path.join(import.meta.dirname, '../bin/plangraph');
-const env = { PLANGRAPH_STRICT_OUT: '1' };
+const env = { PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on' };
 let BASE: { root: string; dir: string };
 const copies: string[] = [];
 

@@ -124,17 +124,19 @@ test('card off never silences a manual card: CLAUDE_PLUGIN_OPTION_CARD=off or PL
 
 // plugin.json userConfig.card is what Claude Code exports as CLAUDE_PLUGIN_OPTION_CARD: a string with the options the hook understands
 // ("off" silences it, anything else prints) and the default that keeps the card on.
-test('plugin.json userConfig.card: string, options auto and off, default auto (the value the hook treats as on)', () => {
+test('plugin.json userConfig.card: string, options auto and off, default off (opt-in; auto turns the card on)', () => {
   const pj = JSON.parse(fs.readFileSync(path.join(PLUGIN, '.claude-plugin/plugin.json'), 'utf8'));
   const c = pj.userConfig?.card;
   assert.equal(c?.type, 'string');
   assert.deepEqual(c.options, ['auto', 'off']);
-  assert.equal(c.default, 'auto');
+  assert.equal(c.default, 'off');
   assert.ok(c.options.includes(c.default));
-  assert.ok(typeof c.title === 'string' && c.title && typeof c.description === 'string' && /off/.test(c.description));
-  assert.deepEqual(Object.keys(pj.userConfig), ['card', 'mcp'], 'no other option: card is read by the hook, mcp by the MCP server (docs/MCP.md)');
+  assert.ok(typeof c.title === 'string' && c.title && typeof c.description === 'string' && /auto/.test(c.description) && /off/.test(c.description));
+  assert.deepEqual(Object.keys(pj.userConfig), ['card', 'mcp', 'prompt_hook'], 'no other option: card and prompt_hook are read by the hooks, mcp by the MCP server (docs/MCP.md)');
   const m = pj.userConfig.mcp;
-  assert.equal(m?.type, 'string'); assert.deepEqual(m.options, ['on', 'off']); assert.equal(m.default, 'on');
+  assert.equal(m?.type, 'string'); assert.deepEqual(m.options, ['on', 'off']); assert.equal(m.default, 'off');
+  const ph = pj.userConfig.prompt_hook;
+  assert.equal(ph?.type, 'string'); assert.deepEqual(ph.options, ['on', 'off']); assert.equal(ph.default, 'off');
 });
 
 test('running the hook writes nothing: no git config, no .gitattributes, no plan file, and a second run prints the same card', () => {
@@ -205,4 +207,15 @@ test('work: the hook path touches linearly many elements in the plan size (n vs 
   const s = await workScaling(once, 500);
   console.log(`# hook path work: ${s.small} at 500 tickets, ${s.large} at 2000 (ratio ${s.ratio.toFixed(2)})`);
   assert.ok(s.ratio < s.maxRatio, `hook path work ratio ${s.ratio.toFixed(2)} (${s.small} at 500 tickets, ${s.large} at 2000; linear ~4, quadratic ~16)`);
+});
+
+test('prompt_hook is opt-in: the registered hook, run as declared with the option off or unset, is a silent fast exit 0 even in a repo with a plan; on, it answers', () => {
+  const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
+  const p = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.UserPromptSubmit[0].hooks[0];
+  const input = JSON.stringify({ session_id: 's', prompt: 'look at ABC-1 T-1' });
+  const go = (extra: Record<string, string>) => { const t = performance.now(); const r = spawnSync(p.command, p.args.map(sub), { cwd: w.repo, env: { ...w.env, ...extra }, input, encoding: 'utf8' }); return { r, ms: performance.now() - t }; };
+  for (const extra of [{}, { CLAUDE_PLUGIN_OPTION_PROMPT_HOOK: 'off' }, { PLANGRAPH_PROMPT_HOOK: 'off' }]) {
+    const { r, ms } = go(extra); assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], JSON.stringify(extra)); assert.ok(ms < 300, `${ms} ms`);
+  }
+  assert.equal(go({ CLAUDE_PLUGIN_OPTION_PROMPT_HOOK: 'on' }).r.status, 0);
 });

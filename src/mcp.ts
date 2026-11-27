@@ -1,5 +1,5 @@
 // The read-only MCP adapter: seven tools (ready, whatif, ticket, graph, map, context, flow_next) and two resource templates (read only, decision D25) over the stdio transport, hand-written JSON-RPC 2.0, no SDK.
-// The plugin bundles it in .mcp.json (an entry that the userConfig option `mcp` switches off; whether it is on by default awaits the benchmark ruling, task 32).
+// The plugin bundles it in .mcp.json (an entry that the userConfig option `mcp` switches on or off; the default is off, per the benchmark ruling).
 // ready, whatif, ticket and graph run the SAME command through src/cli.ts main() with a collecting io, so the text is byte for byte
 // what `plangraph ready|ticket|whatif|graph` prints (fences, sanitization, the 40-line bound, the STALE warning, error lines), stdout then stderr.
 // map, context and flow_next call the libraries (lib/digest.ts, lib/flow/*, lib/extras.ts) on the model read from the plan files; they never open a writer.

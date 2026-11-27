@@ -1,7 +1,7 @@
 // plangraph hook-prompt: the UserPromptSubmit hook. Reads the hook JSON on stdin ({ session_id, prompt, ... }). When the prompt names a ticket key
 // or a pg: URI that exists in the graph it prints ONE JSON object, { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext } },
 // of at most 200 estimated tokens: facts from the plan graph only (owner, sprint, status, open blockers), never ticket free text, never any text
-// of the prompt. A node is injected once per session (cache/prompt-seen, keyed by session_id). Anything else: no output. Exit 0 always.
+// of the prompt. Opt-in (plugin option prompt_hook): silent exit 0 unless on. A node is injected once per session (cache/prompt-seen, keyed by session_id). Anything else: no output. Exit 0 always.
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Ctx, Args } from '../context.ts';
@@ -38,8 +38,12 @@ async function factsOf(ctx: Ctx, h: import('../db.ts').IndexHandle, id: string, 
   return `${await word(id, 60)}: ${await word(n.type, 16)} node in the plan graph with ${c} links.`;
 }
 
+/** The prompt hook is opt-in: plugin option prompt_hook = on (CLAUDE_PLUGIN_OPTION_PROMPT_HOOK) or PLANGRAPH_PROMPT_HOOK=on. Anything else, or unset, is off. */
+const promptHookOn = (env: Record<string, string | undefined>): boolean => [env.CLAUDE_PLUGIN_OPTION_PROMPT_HOOK, env.PLANGRAPH_PROMPT_HOOK].some((v) => String(v ?? '').trim().toLowerCase() === 'on');
+
 async function hookPrompt(ctx: Ctx, _args: Args): Promise<number> {
   try {
+    if (!promptHookOn(ctx.env)) return 0;
     if (!fs.existsSync(ctx.dir) || ctx.stdin.isTTY) return 0;
     let input: { prompt?: unknown; session_id?: unknown };
     try { input = JSON.parse(ctx.stdin.read(MAX_STDIN)); } catch { return 0; }

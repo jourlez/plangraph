@@ -16,7 +16,7 @@ import type { Repo } from './helpers/gitrepo.ts';
 const keep: string[] = [], repos: Repo[] = [];
 after(() => { cleanup(); for (const r of repos) r.cleanup(); for (const d of keep) fs.rmSync(d, { recursive: true, force: true }); });
 const tmpdir = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rf-'))); keep.push(d); return d; };
-const env = { PLANGRAPH_STRICT_OUT: '1' };
+const env = { PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on' };
 const seed = (): Repo => { const r = makeRepo(); repos.push(r); r.commit({ files: { 'src/a.ts': 'one\n' }, who: ANA }); r.commit({ files: { 'src/a.ts': 'one\ntwo\n', 'src/b.ts': 'b\n' }, who: BEN }); r.commit({ files: { 'src/a.ts': 'one\ntwo\nthree\n' }, who: ANA }); return r; };
 const withPlan = async (dir: string): Promise<void> => { assert.equal((await run(dir, ['init'], { env })).code, 0); };
 

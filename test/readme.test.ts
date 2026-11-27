@@ -134,7 +134,8 @@ test('every skill has a row in the Skills table, and the card option is document
   for (const n of skills) assert.match(sec, new RegExp(`^\\| \`${n}\` \\|`, 'm'), `no Skills row for ${n}`);
   const opt = plugin.userConfig.card;
   for (const v of opt.options) assert.ok(readme.includes(`\`${v}\``), `card value ${v} not documented`);
-  assert.ok(readme.includes('--config card=off') && readme.includes('PLANGRAPH_CARD=off'));
+  assert.ok(readme.includes('--config card=auto') && readme.includes('PLANGRAPH_CARD=off') && readme.includes('prompt_hook') && readme.includes('PLANGRAPH_PROMPT_HOOK=on'));
+  assert.ok(readme.includes('no token or accuracy benefit has been measured; the default injections were measured and found not to help on a small plan'.replace(/^n/, 'N')), 'the plain statement of the ruling');
 });
 
 test('the network hosts named in the README are exactly the ones plugin.json declares', () => {

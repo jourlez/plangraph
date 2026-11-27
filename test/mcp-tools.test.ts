@@ -204,5 +204,5 @@ test('plugin bundling: .mcp.json starts the server with node, passes the mcp opt
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
   assert.deepEqual(man.userConfig.mcp.options, ['on', 'off']);
   assert.equal(man.userConfig.card.type, 'string'); // the existing option is untouched
-  assert.ok(['on', 'off'].includes(man.userConfig.mcp.default));
+  assert.equal(man.userConfig.mcp.default, 'off', 'the bundled server is opt-in (benchmark ruling)');
 });

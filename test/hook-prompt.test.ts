@@ -94,3 +94,11 @@ test('a node whose type does not match a pg: URI is not injected as another type
   const w = await built();
   assert.deepEqual((await run(w.root, ['hook-prompt'], { stdin: prompt('see pg:person/ABC-1', 's7') })).out, []);
 });
+
+test('opt-in: with the prompt_hook option off, unset or anything but on, the hook is a silent exit 0 even for a ticket key', async () => {
+  const w = await built();
+  for (const env of [{ PLANGRAPH_PROMPT_HOOK: 'off' }, { CLAUDE_PLUGIN_OPTION_PROMPT_HOOK: 'off', PLANGRAPH_PROMPT_HOOK: '' }, { PLANGRAPH_PROMPT_HOOK: '' }, { PLANGRAPH_PROMPT_HOOK: 'auto' }]) {
+    assert.deepEqual(await run(w.root, ['hook-prompt'], { stdin: prompt('look at ABC-3'), env }), { code: 0, out: [], err: [] }, JSON.stringify(env));
+  }
+  assert.equal(ctxOf((await run(w.root, ['hook-prompt'], { stdin: prompt('look at ABC-3'), env: { PLANGRAPH_PROMPT_HOOK: '', CLAUDE_PLUGIN_OPTION_PROMPT_HOOK: 'ON ' } })).out).includes('ABC-3'), true, 'the plugin option on works');
+});

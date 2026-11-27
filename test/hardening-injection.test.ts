@@ -50,7 +50,7 @@ const jsonProblems = (v: unknown, where: string): string[] => typeof v === 'stri
 let W: { root: string; dir: string };
 const tmpDirs: string[] = [];
 const KEYS = ['ABC-1', 'ABC-2', 'ABC-3'];
-const env = { PLANGRAPH_STRICT_OUT: '1' };
+const env = { PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on' };
 const sh = (cwd: string, args: string[], input?: string): string => execFileSync('git', args, { cwd, input, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' }, stdio: ['pipe', 'pipe', 'pipe'] });
 const put = (root: string, rel: string, text: string): string => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const must = async (cwd: string, argv: string[]): Promise<void> => { const r = await run(cwd, argv, { env }); assert.equal(r.code, 0, `${argv.join(' ')} -> ${r.code} ${r.err.join('|')} ${r.out.join('|').slice(0, 300)}`); };

@@ -23,7 +23,7 @@ const fx = (rel: string) => fs.readFileSync(path.join(FX, rel), 'utf8');
 
 let PATHDIR: string, BASE: string, TEMPLATE: string, HOME: string, DATA: string, SPREPO: string, EMPTY: string;
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 'tester', GIT_AUTHOR_EMAIL: 'tester@example.invalid', GIT_COMMITTER_NAME: 'tester', GIT_COMMITTER_EMAIL: 'tester@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-const env = () => ({ PATH: PATHDIR, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', PLANGRAPH_STRICT_OUT: '1', ...GIT_ENV }); // strict: a multi-line ctx.io.out fails here
+const env = () => ({ PATH: PATHDIR, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on', ...GIT_ENV }); // strict: a multi-line ctx.io.out fails here
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: ['ignore', 'pipe', 'pipe'] });
 const run = (cwd: string, args: string[], input?: string) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, env: env(), encoding: 'utf8', input, timeout: 60000 });
 

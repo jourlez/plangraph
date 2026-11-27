@@ -3,6 +3,7 @@
   "entry": [
     "bin/plangraph",
     "src/cli.ts",
+    "src/entry.js",
     "mcp/plangraph-mcp.ts",
     "scripts/*.ts",
     "evals/*.ts",
