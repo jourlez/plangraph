@@ -22,7 +22,6 @@ import { fetchConfluence } from '../../lib/fetch/confluence.ts';
 import { sysOk } from '../../lib/graph/files.ts';
 import { defaultFetchDeps } from '../fetch-runners.ts';
 import { dataError, needBrain, precheckTargets, refuseWrite, usage } from './shared.ts';
-import { ignoreCache } from './import.ts';
 import type { FetchDeps } from '../fetch-runners.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
@@ -52,7 +51,7 @@ async function mergeCache(ctx: Ctx, file: string, fresh: readonly Observation[],
   for (const o of fresh) merged.set(rowKey(o as unknown as Obj), { ...o, seen: day } as unknown as Obj);
   if (merged.size > MAX_OBSERVATIONS) throw dataError(`the cache would hold more than ${MAX_OBSERVATIONS} observations`, 'delete the cache file and fetch again');
   const body = canonFile([...merged.values()], { order: [...OBS_COLUMNS], id: rowKey });
-  ignoreCache(ctx); // the ignore line first: the cache never exists while git would pick it up
+  // no ignoreCache here: a hook reaches this code and never writes a tracked file; `init` and `import` write the cache/ ignore line
   precheckTargets(ctx, [f]);
   try { const st = fs.lstatSync(cache); if (!st.isDirectory()) throw new Error('not a directory'); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw dataError('the cache path is not a directory'); fs.mkdirSync(cache, { mode: 0o700 }); }
   try { writeAtomicSafe(f, body, { root: ctx.root, mode: 0o600 }); } catch (e) { refuseWrite(e); }
@@ -76,11 +75,12 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
   const day = isoDay(ctx.now()), at = ctx.now().toISOString();
   const alias = typeof jiraCfg.tenant === 'string' && sysOk(`jira:${jiraCfg.tenant}`) ? jiraCfg.tenant : '';
   let failed = 0, capped = false, did = 0;
+  const tracked = (f: string): boolean => { try { ctx.git('--literal-pathspecs', 'ls-files', '--error-unmatch', '--', path.relative(ctx.root, f)); return true; } catch { return false; } }; // a committed cursor is repository-controlled
   const say = (l: string): void => ctx.io.out(l);
   const fail = (l: string): void => { failed++; say(l); };
 
   const gate = (target: string): boolean => {
-    if (isTrusted(ctx.dir, target)) return true;
+    if (isTrusted(ctx.root, target, ctx.env)) return true;
     failed++;
     say(`refused ${oneLine(target, 120)}: not trusted yet; to allow it run:`);
     say(trustLine(oneLine(target, 200)));
@@ -101,14 +101,14 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
       did++;
       const target = `github:${repo}`;
       if (!gate(target)) continue;
-      const cur = full ? null : readCursor(ctx.dir, target);
+      const cur = full ? null : readCursor(ctx.dir, target, tracked);
       const res = await fetchGithub(deps.github(), { repo, ...(cur?.watermark ? { since: cur.watermark } : {}), ...(cur?.etag ? { etag: cur.etag } : {}), ...(cur?.page ? { page: cur.page } : {}), ...(full ? { full: true } : {}), maxItems, maxBytes });
       if (res.status === 'soft') { fail(`${target}: ${res.notes.map(note).join('; ')}`); continue; }
       if (res.status === 'not-modified') { report(target, 'not modified', 0, res.notes); continue; }
       if (res.status === 'retry-after') failed++;
       const obs = await normalize('github', { repo, prs: res.rows }, alias, day);
       if (obs.length) await mergeCache(ctx, 'github', obs, day);
-      writeCursor(ctx.dir, { sys: target, watermark: res.next.watermark, etag: res.next.etag, page: res.next.page, at });
+      writeCursor(ctx.dir, { sys: target, watermark: res.next.watermark, etag: res.next.etag, page: res.next.page, at }, tracked);
       report(target, res.status, obs.length, res.notes);
     }
   }
@@ -119,7 +119,7 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
     const tenant = !alias || !jql ? null : tenantOf('jira');
     if (!alias || !jql) fail('jira: set jira.tenant (an alias) and jira.jql in config.json to fetch');
     else if (tenant !== null && gate(`jira:${tenant}`)) {
-      const target = `jira:${tenant}`, sysName = `jira:${alias}`, cur = full ? null : readCursor(ctx.dir, sysName);
+      const target = `jira:${tenant}`, sysName = `jira:${alias}`, cur = full ? null : readCursor(ctx.dir, sysName, tracked);
       const changelog = isObj(fetchCfg.jira) && fetchCfg.jira.changelog === true
         ? openStore(ctx).readKind('ticket', { defaults: false }).map((t) => String(t.key)).filter((k) => KEY_RE.test(k)).sort().slice(0, MAX_CHANGELOG_KEYS) : undefined;
       const res = await fetchJira(await deps.atlassian.runner(), { jql, ...(cur?.watermark ? { watermark: cur.watermark } : {}), tenant: alias, ...(changelog ? { changelog } : {}), maxItems, maxBytes });
@@ -130,7 +130,7 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
         if (obs.length) await mergeCache(ctx, 'jira', obs, day);
         const tr = res.transitions?.observations.length ? await normalize('generic', res.transitions, alias, day) : [];
         if (tr.length) await mergeCache(ctx, 'generic', tr, day);
-        writeCursor(ctx.dir, { sys: sysName, watermark: res.nextWatermark, etag: '', page: '', at });
+        writeCursor(ctx.dir, { sys: sysName, watermark: res.nextWatermark, etag: '', page: '', at }, tracked);
         report(target, res.status, obs.length, res.notes);
       }
     }
@@ -144,7 +144,7 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
     else {
       const tenant = tenantOf('confluence');
       if (tenant !== null && gate(`confluence:${tenant}/${space}`)) {
-        const target = `confluence:${tenant}/${space}`, sysName = `confluence:${alias}/${space}`, cur = full ? null : readCursor(ctx.dir, sysName);
+        const target = `confluence:${tenant}/${space}`, sysName = `confluence:${alias}/${space}`, cur = full ? null : readCursor(ctx.dir, sysName, tracked);
         const labels = Array.isArray(conf?.labels) ? (conf.labels as unknown[]).filter((l): l is string => typeof l === 'string') : [];
         const res = await fetchConfluence(await deps.atlassian.runner(), { space, labels, ...(cur?.page ? { cursor: cur.page } : {}), ...(full ? { full: true } : {}), maxItems, maxBytes });
         if (res.status === 'soft') fail(`${target}: ${res.notes.map(note).join('; ')}`);
@@ -152,7 +152,7 @@ async function syncFetch(ctx: Ctx, args: Args<Opts>): Promise<number> {
           if (res.status === 'retry-after') failed++;
           const obs = res.rows.length ? await normalize('confluence', { space, pages: res.rows }, alias, day) : [];
           if (obs.length) await mergeCache(ctx, 'confluence', obs, day);
-          writeCursor(ctx.dir, { sys: sysName, watermark: '', etag: '', page: res.next, at });
+          writeCursor(ctx.dir, { sys: sysName, watermark: '', etag: '', page: res.next, at }, tracked);
           report(target, res.status, obs.length, res.notes);
         }
       }

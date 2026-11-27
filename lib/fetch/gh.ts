@@ -17,7 +17,7 @@ export type Reply =
 
 /** One GET through the runner: `api --include --method GET [-H h]... <path>`. A path never starts with a dash (no flag can be smuggled in). */
 export async function httpGet(run: Runner, p: string, headers: string[] = []): Promise<Reply> {
-  if (!/^[A-Za-z0-9/][A-Za-z0-9/._~%?&=:,@+*!$'()#-]*$/.test(p)) return { kind: 'soft', note: 'refused a request path with odd characters' };
+  if (p.includes('://') || !/^[A-Za-z0-9/][A-Za-z0-9/._~%?&=:,@+*!$'()#-]*$/.test(p)) return { kind: 'soft', note: 'refused a request path with odd characters' };
   let r: { code: number; out: string; err: string };
   try { r = await run(['api', '--include', '--method', 'GET', ...headers.flatMap((h) => ['-H', h]), p]); } catch (e) { return { kind: 'soft', note: `request failed: ${note((e as Error)?.message)}` }; }
   const out = typeof r?.out === 'string' ? r.out : '';
@@ -53,8 +53,10 @@ export async function fetchGithub(run: Runner, o: GhOpts): Promise<GhResult> {
   const soft = (n: string): GhResult => ({ status: 'soft', rows: [], etag: orig.etag, next: orig, notes: [n] });
   if (typeof o.repo !== 'string' || !REPO_RE.test(o.repo) || o.repo.includes('..')) return soft('fetch github: the repository is not owner/name');
   const maxItems = o.maxItems ?? DEFAULT_MAX_ITEMS, maxBytes = o.maxBytes ?? DEFAULT_MAX_BYTES;
-  const since = o.full ? '' : orig.watermark, resume = o.full ? '' : orig.page;
   const start = `repos/${o.repo}/pulls?per_page=100&sort=updated&direction=asc&state=all`;
+  // a stored page comes from a file a repository may control: only this repository's own pulls path is resumed, never a URL
+  const own = (pg: string): boolean => lead(pg).startsWith(`repos/${o.repo}/pulls?`) && !pg.includes('://');
+  const since = o.full ? '' : orig.watermark, resume = o.full || !own(orig.page) ? '' : orig.page;
   let p = resume ? lead(resume) : start, first = !resume, bytes = 0, mark = since, firstEtag = '';
   const rows: GhRow[] = [], seen = new Set<string>(), notes: string[] = [];
   const done = (status: GhResult['status'], page: string, extra: Partial<GhResult> = {}): GhResult => {
@@ -86,7 +88,8 @@ export async function fetchGithub(run: Runner, o: GhOpts): Promise<GhResult> {
       rows.push({ number: x.number, title: typeof x.title === 'string' ? x.title : '', headRefName: typeof head?.ref === 'string' ? head.ref : '', state: x.merged_at ? 'merged' : typeof x.state === 'string' ? x.state : 'unknown', updated });
       if (updated > mark) mark = updated;
     }
-    const nx = nextPath(r.headers.get('link'));
+    const raw = nextPath(r.headers.get('link')), q = raw.indexOf('?');
+    const nx = q < 0 ? '' : `repos/${o.repo}/pulls${raw.slice(q)}`; // the server names a page; only its query is kept, under this repository's path
     if (!nx) return done('ok', '');
     if (rows.length >= maxItems) { notes.push(`fetch.max_items ${maxItems} reached: ${rows.length} rows kept, stopped`); return done('capped', lead(nx)); }
     p = lead(nx);

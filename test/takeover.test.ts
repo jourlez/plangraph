@@ -53,11 +53,12 @@ function project({ runner = jiraPages(), config = {}, shallow = false }: Opts = 
   }
   const dir = path.join(root, '.plangraph'); fs.mkdirSync(dir);
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ jira: { tenant: 'acme', jql: 'project = ABC' }, ...config }));
-  trust(dir, 'jira:cloud-1234');
+  const cfgHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-tk-cfg-')), env = { ...process.env, XDG_CONFIG_HOME: cfgHome };
+  trust(root, 'jira:cloud-1234', env);
   const out: string[] = [], err: string[] = [], data: unknown[] = [];
   const hooks: { afterStep?: (s: string) => void } = {};
   const fetchDeps = { github: () => offline, atlassian: { tenant: () => 'cloud-1234', runner: async () => runner } };
-  const ctx = { ...makeContext({ cwd: root, env: process.env, now: () => NOW, io: { out: (l) => out.push(l), err: (l) => err.push(l), data: (d) => data.push(d) } }), fetchDeps, takeoverHooks: hooks } as never;
+  const ctx = { ...makeContext({ cwd: root, env, now: () => NOW, io: { out: (l) => out.push(l), err: (l) => err.push(l), data: (d) => data.push(d) } }), fetchDeps, takeoverHooks: hooks } as never;
   const go = (values: object = {}) => (commands.takeover as { run: (c: never, a: never) => Promise<number> }).run(ctx, { values, positionals: [] } as never);
   const state = () => JSON.parse(fs.readFileSync(path.join(dir, 'cache', 'takeover.json'), 'utf8')) as { done: string[]; failed: { step: string; reason: string }[]; questions: { id: string; text: string }[]; skipped?: { step: string; reason: string }[]; capped?: boolean };
   return { root, dir, ctx, out, err, data, hooks, go, state, repo };
