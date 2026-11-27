@@ -3,7 +3,7 @@
 // gives the input back, so there is exactly one spelling per node (no `%2e%2e`, no lowercase hex, no needless escapes).
 // Deliberate extra rule: an id that itself contains `%` followed by two hex digits is refused (it would read as a double encoding,
 // `%252f`); a bare `%` (`100%`) is fine.
-const CORE_TYPES: readonly string[] = ['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo'];
+const CORE_TYPES: readonly string[] = ['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo', 'requirement', 'decision', 'team'];
 const EXT_TYPE = /^x-[a-z][a-z0-9-]{0,23}\.[a-z][a-z0-9-]{0,23}$/;
 const MAX_ID = 200;
 // C0, DEL, C1, then bidi marks and embeddings/isolates, and line separators (NEL is in C1).

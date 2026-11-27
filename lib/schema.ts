@@ -36,7 +36,28 @@ const optPaths: FieldCheck = (r, k) => (has(r, k) && !(Array.isArray(r[k]) && (r
 const withVersion = (...checks: Array<(r: Rec) => string | null>) => (r: Rec): string | null => first(r, [...checks, (x: Rec) => optSchemaVersion(x, 'schema_version')]);
 const REPO_ROLES = ['service', 'lib', 'app', 'infra', 'docs', 'monorepo'], REPO_SRC = ['scan', 'manual', 'catalog'];
 
+// ---- requirement, decision and team nodes (docs/FORMAT.md): field shapes; the node check (lib/store2/check.ts) applies the same rules as BAD_SCHEMA ----
+export const REQ_KINDS = ['ears', 'gherkin', 'free'], REQ_STATUS = ['proposed', 'accepted', 'dropped'], DEC_STATUS = ['proposed', 'accepted', 'deprecated', 'superseded', 'rejected'];
+const EXT_SYS = /^[a-z][a-z0-9-]{0,23}$/, EXT_XID = /^[A-Za-z0-9._:/#@ -]{1,200}$/, PATH_BAD = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\\]/;
+/** Why a requirement `source` is refused, or null: a repo-relative path with an optional `#anchor`, or an external reference `<sys>:<xid>`; never a URL. */
+export function sourceProblem(v: unknown): string | null {
+  if (typeof v !== 'string' || v === '') return '"source" must be a non-empty string';
+  if (v.length > 300) return '"source" is longer than 300 characters';
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(v) || v.includes('://') || v.startsWith('//')) return '"source" must be a repo path or <sys>:<xid>, never a URL';
+  const colon = v.indexOf(':'), slash = v.indexOf('/');
+  if (colon > 0 && (slash < 0 || colon < slash) && EXT_SYS.test(v.slice(0, colon))) { // an external reference
+    const xid = v.slice(colon + 1);
+    return EXT_XID.test(xid) && !xid.includes('..') && !xid.startsWith('/') && !/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(xid) ? null : '"source" must be <sys>:<xid> (no URL, no email address)';
+  }
+  const file = v.split('#')[0] as string;
+  return file === '' || file.startsWith('/') || file.split('/').some((x) => x === '..') || PATH_BAD.test(v) ? '"source" must be a repo-relative path (no "..", no absolute path) with an optional #anchor, or <sys>:<xid>' : null;
+}
+const optSource: FieldCheck = (r, k) => (has(r, k) ? sourceProblem(r[k]) : null);
+
 export const validators: Record<string, (r: Rec) => string | null> = {
+  'requirements.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'text'), (x) => optEnum(...REQ_KINDS)(x, 'kind'), (x) => optEnum(...REQ_STATUS)(x, 'status'), (x) => optSource(x, 'source'), (x) => optStrings(x, 'acceptance'), (x) => optStr(x, 'priority')),
+  'decisions.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'title'), (x) => optEnum(...DEC_STATUS)(x, 'status'), (x) => optDate(x, 'date'), (x) => optStrings(x, 'affects'), (x) => optStr(x, 'source'), (x) => optStr(x, 'derivation')),
+  'teams.jsonl': withVersion((x) => nonEmpty(x, 'id'), (x) => optStr(x, 'name'), (x) => optStrings(x, 'members'), (x) => optStrings(x, 'owns')),
   'tickets.jsonl': (r: Rec) => first(r, [need('key'), (x: Rec) => optNonNeg(x, 'sp'), (x: Rec) => optNum(x, 'v2_sprint'), (x: Rec) => optStr(x, 'v2_owner'), (x: Rec) => (has(x, 'impl_status') && !(IMPL_STATUSES as readonly unknown[]).includes(x.impl_status) /* includes accepts any value; the cast only widens the list type */ ? '"impl_status" must be one of todo, in_progress, done, blocked' : null)]),
   'edges.jsonl': need('consumer', 'producer'),
   'schedule.jsonl': (r: Rec) => first(r, [need('key'), (x: Rec) => optStr(x, 'owner'), (x: Rec) => optInt(x, 'sprint'), (x: Rec) => optStr(x, 'version')]),

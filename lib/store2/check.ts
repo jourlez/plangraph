@@ -4,6 +4,7 @@ import path from 'node:path';
 import { assertInside, writeAtomicSafe } from '../fsafe.ts';
 import { readDataCapped } from '../jsonl.ts';
 import { parseNodeUri } from '../graph/uri.ts';
+import { sourceProblem, REQ_KINDS } from '../schema.ts';
 import { FIX, listBatchFiles, listKinds, listNodeFiles, loadRaw } from './nodes.ts';
 import { nodePath } from './layout.ts';
 import { canon, formatPg } from './pg.ts';
@@ -44,6 +45,13 @@ function schemaProblem(kind: string, n: Node): [string, string] | null {
   if (n.derivation !== undefined && !DERIVATION.includes(n.derivation as string)) return ['derivation', `derivation must be one of ${DERIVATION.join(', ')}`];
   const st = STATUS[kind];
   if (st && n.status !== undefined && !st.includes(n.status as string)) return ['status', `status must be one of ${st.join(', ')}`];
+  if (kind === 'requirement') {
+    if (n.kind !== undefined && !REQ_KINDS.includes(n.kind as string)) return ['kind', `kind must be one of ${REQ_KINDS.join(', ')}`];
+    if (n.source !== undefined) { const m = sourceProblem(n.source); if (m) return ['source', m.replace(/^"source" /, 'source ')]; }
+    for (const f of ['text', 'priority']) if (n[f] !== undefined && typeof n[f] !== 'string') return [f, `${f} must be a string`];
+  }
+  if (kind === 'decision') for (const f of ['title', 'date']) if (n[f] !== undefined && typeof n[f] !== 'string') return [f, `${f} must be a string`];
+  if (kind === 'team' && n.name !== undefined && typeof n.name !== 'string') return ['name', 'name must be a string'];
   for (const l of (n.links ?? []) as unknown[]) if (!isObj(l) || !str(l.rel) || !str(l.to) || (l.attrs !== undefined && !isObj(l.attrs)) || !optStr(l, 'until')) return ['links', 'a link is {rel, to, attrs?, until?} with string rel and to'];
   for (const x of (n.xrefs ?? []) as unknown[]) if (!isObj(x) || !str(x.sys) || !str(x.xid) || !optStr(x, 'src') || !optStr(x, 'seen') || !optStr(x, 'note')) return ['xrefs', 'an xref is {sys, xid, src?, seen?, note?} with string sys and xid'];
   for (const f of ['acceptance', 'members', 'owns', 'affects']) if (((n[f] ?? []) as unknown[]).some((e) => typeof e !== 'string')) return [f, `every ${f} element must be a string`];

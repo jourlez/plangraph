@@ -32,12 +32,12 @@ type Fields = Record<string, unknown>;
 interface Parts { primary: Fields | null; ref: Fields | null; needs: Fields[]; links: Fields[]; xrefs: Fields[]; capacity: Fields[] }
 interface Entry { dir: string; id: string; parts: Parts; text: string | null }
 
-const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'ext', 'openitem'] as const;
-const LINK_SOURCES: ReadonlySet<string> = new Set(['ticket', 'person', 'sprint', 'epic', 'repo']);
+const NODE_DIRS = ['ticket', 'person', 'sprint', 'epic', 'repo', 'requirement', 'decision', 'team', 'ext', 'openitem'] as const;
+const LINK_SOURCES: ReadonlySet<string> = new Set(['ticket', 'person', 'sprint', 'epic', 'repo', 'requirement', 'decision', 'team']);
 const RUN_NAMES: Readonly<Partial<Record<Kind, string>>> = { evidence: 'evidence', finding: 'findings', learning: 'learnings' };
 // the node directories each kind reads and writes
 const DIRS: Readonly<Partial<Record<Kind, readonly string[]>>> = {
-  ticket: ['ticket'], edge: ['ticket'], ref: ['ticket', 'epic'], epic: ['epic'], person: ['person'], capacity: ['person'], sprint: ['sprint'], repo: ['repo'],
+  ticket: ['ticket'], edge: ['ticket'], ref: ['ticket', 'epic'], epic: ['epic'], person: ['person'], capacity: ['person'], sprint: ['sprint'], repo: ['repo'], requirement: ['requirement'], decision: ['decision'], team: ['team'],
   openitem: ['openitem'], link: NODE_DIRS.filter((d) => d !== 'openitem'), xref: NODE_DIRS.filter((d) => d !== 'openitem'),
 };
 const RESERVED: ReadonlySet<string> = new Set(['id', 'links', 'xrefs', 'capacity', 'primary', 'refcols', 'refmap']);
@@ -52,6 +52,9 @@ const PRIMARY: Readonly<Record<string, { dir: string; idCols: readonly string[];
   person: { dir: 'person', idCols: ['id'], id: (r) => text1(r.id, 'a person id'), row: (id, f) => ({ id, ...f }) },
   epic: { dir: 'epic', idCols: ['id'], id: (r) => text1(r.id, 'an epic id'), row: (id, f) => ({ id, ...f }) },
   repo: { dir: 'repo', idCols: ['id'], id: (r) => text1(r.id, 'a repo id'), row: (id, f) => ({ id, ...f }) },
+  requirement: { dir: 'requirement', idCols: ['id'], id: (r) => text1(r.id, 'a requirement id'), row: (id, f) => ({ id, ...f }) },
+  decision: { dir: 'decision', idCols: ['id'], id: (r) => text1(r.id, 'a decision id'), row: (id, f) => ({ id, ...f }) },
+  team: { dir: 'team', idCols: ['id'], id: (r) => text1(r.id, 'a team id'), row: (id, f) => ({ id, ...f }) },
   sprint: { dir: 'sprint', idCols: ['n'], id: (r) => { if (typeof r.n === 'number' && Number.isFinite(r.n)) return String(r.n); return text1(r.n, 'a sprint n'); }, row: (id, f) => ({ n: /^-?\d+$/.test(id) ? Number(id) : id, ...f }) },
   openitem: { dir: 'openitem', idCols: ['key', 'kind'], id: (r) => `${text1(r.key, 'an open item key')}|${text1(r.kind, 'an open item kind')}`, row: (id, f) => { const i = id.lastIndexOf('|'); return { key: id.slice(0, i), kind: id.slice(i + 1), ...f }; } },
 };

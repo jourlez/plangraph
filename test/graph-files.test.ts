@@ -99,13 +99,13 @@ test('sprint numbers may be 0 or negative (the rule of schedule.jsonl), dates ar
   assert.equal(msg(() => parse('sprints.jsonl', [{ n: 1, start: '2026-01-01' }])), null, 'a lone start or end is fine');
 });
 
-test('links: only relates_to, depends_on and touches are hand-authored; LINK_UNKNOWN_REL only for a non-x- unknown relation', () => {
-  assert.deepEqual([...RELATIONS], ['relates_to', 'depends_on', 'touches']);
+test('links: only the stored relations (relates_to, depends_on, touches, satisfies, affects, supersedes, member_of, alias_of) are hand-authored; LINK_UNKNOWN_REL only for a non-x- unknown relation', () => {
+  assert.deepEqual([...RELATIONS], ['relates_to', 'depends_on', 'touches', 'satisfies', 'affects', 'supersedes', 'member_of', 'alias_of']);
   for (const rel of RELATIONS) assert.equal(parse('links.jsonl', [{ ...ROW['links.jsonl'], rel }]).length, 1, rel);
   const codes: GraphDataErrorCode[] = ['LINK_UNKNOWN_REL', 'LINK_DERIVED_REL', 'DUPLICATE_NODE', 'XREF_BAD_ID'];
   assert.equal(codes.length, 4, 'every code a graph reader throws');
   const e = msg(() => parse('links.jsonl', [{ ...ROW['links.jsonl'], rel: 'blocks' }])) as string;
-  assert.equal(e, 'LINK_UNKNOWN_REL links.jsonl:1: "rel" blocks is not a relation of links.jsonl (relates_to, depends_on, touches or x-<sys>/<rel>)');
+  assert.equal(e, 'LINK_UNKNOWN_REL links.jsonl:1: "rel" blocks is not a relation of links.jsonl (relates_to, depends_on, touches, satisfies, affects, supersedes, member_of, alias_of or x-<sys>/<rel>)');
   assert.match(msg(() => parse('links.jsonl', [{ ...ROW['links.jsonl'], rel: 'constructor' }])) as string, /^LINK_UNKNOWN_REL /);
   assert.match(msg(() => parse('links.jsonl', [{ ...ROW['links.jsonl'], rel: 'Relates_To' }])) as string, /^LINK_UNKNOWN_REL /);
   // an x- relation is accepted and counted; one that breaks the grammar is a shape error, not an unknown relation
@@ -129,12 +129,12 @@ test('links: every derived relation is LINK_DERIVED_REL naming its home file, on
   assert.equal(REL_SEMANTICS.touches, 'trace'); assert.equal(REL_SEMANTICS.depends_on, 'info'); assert.equal(REL_SEMANTICS.owned_by, 'info'); assert.equal(REL_SEMANTICS.tracked_by, 'identity');
 });
 
-test('node type grammar: nine core types, extension types x-<sys>.<kind>, nothing else', () => {
-  assert.deepEqual([...CORE_NODE_TYPES], ['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo']);
+test('node type grammar: twelve core types, extension types x-<sys>.<kind>, nothing else', () => {
+  assert.deepEqual([...CORE_NODE_TYPES], ['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo', 'requirement', 'decision', 'team']);
   for (const t of [...CORE_NODE_TYPES, 'x-github.pr', 'x-a.b', 'x-linear.issue', `x-${'a'.repeat(24)}.${'b'.repeat(24)}`]) assert.ok(isNodeType(t), t);
   for (const t of ['Ticket', 'x-github', 'x-.pr', 'x-github.', 'x-GitHub.pr', 'github.pr', 'x-a.b.c', `x-${'a'.repeat(25)}.b`, '', 3, null, 'x-1a.b']) assert.ok(!isNodeType(t), String(t));
   assert.ok(EXT_TYPE_RE.test('x-github.pr') && EXT_REL_RE.test('x-github/closes'));
-  assert.match(msg(() => parse('links.jsonl', [{ ...ROW['links.jsonl'], to_type: 'task' }])) as string, /^links\.jsonl:1: "to_type" must be a node type \(ticket, person, .*, repo or x-<sys>\.<kind>\)$/);
+  assert.match(msg(() => parse('links.jsonl', [{ ...ROW['links.jsonl'], to_type: 'task' }])) as string, /^links\.jsonl:1: "to_type" must be a node type \(ticket, person, .*, team or x-<sys>\.<kind>\)$/);
   assert.match(msg(() => parse('xrefs.jsonl', [{ ...ROW['xrefs.jsonl'], type: 'x-github' }])) as string, /^xrefs\.jsonl:1: "type" must be a node type/);
 });
 
@@ -305,7 +305,7 @@ test('card line of a v1-only directory: a present graph file changes only its di
 });
 
 test('REL_SEMANTICS is exactly the frozen table; every known sys is a known sys; keys never run together; lines are counted after a BOM', () => {
-  assert.deepEqual({ ...REL_SEMANTICS }, { needs: 'order', assigned_to: 'load', scheduled_in: 'slot', held_by: 'gate', belongs_to: 'group', implements: 'trace', part_of: 'trace', specified_by: 'trace', touches: 'trace', tracked_by: 'identity', relates_to: 'info', depends_on: 'info', owned_by: 'info' });
+  assert.deepEqual({ ...REL_SEMANTICS }, { needs: 'order', assigned_to: 'load', scheduled_in: 'slot', held_by: 'gate', belongs_to: 'group', implements: 'trace', part_of: 'trace', specified_by: 'trace', touches: 'trace', tracked_by: 'identity', relates_to: 'info', depends_on: 'info', owned_by: 'info', satisfies: 'trace', affects: 'info', supersedes: 'info', member_of: 'info', alias_of: 'info' });
   for (const sys of ['jira:a', 'github:o/r', 'gitlab:g/p', 'bitbucket:w/r', 'linear:a', 'confluence:a', 'ci:a', 'local:a', 'sp']) {
     const notes: GraphNotes = { warnings: [], ext: 0 };
     parseGraphFile('xrefs.jsonl', jl([{ ...(ROW['xrefs.jsonl'] as object), sys }]), notes);

@@ -16,7 +16,7 @@ export const GRAPH_FILES = Object.freeze(['people', 'sprints', 'epics', 'repos',
 
 // ---------- node types and relations (open grammars) ----------
 /** Core node types. `plan` and `doc` are derived (no file); `plantask` and `openitem` have no node file either. */
-export const CORE_NODE_TYPES = Object.freeze(['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo'] as const);
+export const CORE_NODE_TYPES = Object.freeze(['ticket', 'person', 'sprint', 'epic', 'plantask', 'openitem', 'plan', 'doc', 'repo', 'requirement', 'decision', 'team'] as const);
 type CoreNodeType = (typeof CORE_NODE_TYPES)[number];
 /** An extension node type: `x-<sys>.<kind>`, each part `[a-z][a-z0-9-]{0,23}`. Opaque: no rule reads it. */
 export const EXT_TYPE_RE = /^x-[a-z][a-z0-9-]{0,23}\.[a-z][a-z0-9-]{0,23}$/;
@@ -25,7 +25,7 @@ export const isNodeType = (s: unknown): s is NodeType => typeof s === 'string' &
 const isExtType = (s: unknown): boolean => typeof s === 'string' && EXT_TYPE_RE.test(s);
 
 /** Relations a person may write in links.jsonl. Informational or trace: no blocker, capacity, solver or verify rule reads them. */
-export const RELATIONS = Object.freeze(['relates_to', 'depends_on', 'touches'] as const);
+export const RELATIONS = Object.freeze(['relates_to', 'depends_on', 'touches', 'satisfies', 'affects', 'supersedes', 'member_of', 'alias_of'] as const);
 /** Relations that exist only as views over another file; a links.jsonl row with one of them is a data error. */
 export const DERIVED_RELATIONS = Object.freeze(['needs', 'assigned_to', 'scheduled_in', 'belongs_to', 'implements', 'held_by', 'part_of', 'specified_by', 'tracked_by', 'owned_by'] as const);
 export type DerivedRel = (typeof DERIVED_RELATIONS)[number];
@@ -42,6 +42,7 @@ export const REL_SEMANTICS: Readonly<Record<DerivedRel | (typeof RELATIONS)[numb
   needs: 'order', assigned_to: 'load', scheduled_in: 'slot', held_by: 'gate', belongs_to: 'group',
   implements: 'trace', part_of: 'trace', specified_by: 'trace', touches: 'trace', tracked_by: 'identity',
   relates_to: 'info', depends_on: 'info', owned_by: 'info',
+  satisfies: 'trace', affects: 'info', supersedes: 'info', member_of: 'info', alias_of: 'info',
 });
 
 // ---------- the id rule ----------
@@ -75,6 +76,8 @@ export type Link = { from: string; from_type: NodeType; rel: string; to: string;
 export type Xref = { type: NodeType; id: string; sys: string; xid: string; src?: string; seen?: string; note?: string; schema_version?: number; [k: string]: unknown };
 export type GraphFiles = {
   people: readonly Person[]; sprints: readonly Sprint[]; epics: readonly Epic[]; repos: readonly Repo[]; capacity: readonly CapacityRow[]; links: readonly Link[]; xrefs: readonly Xref[];
+  /** requirement, decision and team node rows (unvalidated: `check` reports a bad one as BAD_SCHEMA); absent in a hand-built value */
+  requirements?: readonly Rec[]; decisions?: readonly Rec[]; teams?: readonly Rec[];
   /** rows that hold an extension type, relation or sys: accepted, never read (`plangraph doctor` prints `ext ignored N`) */
   ext: number;
   /** ids outside the id rule in rows that were already there (a warning, never an error) */
@@ -172,5 +175,6 @@ export function readGraphFiles(dir: string): GraphFiles {
     got[f] = text === null ? [] : parseGraphFile(f, text, notes);
   }
   const of = <T>(f: string): readonly T[] => got[f] as unknown as readonly T[]; // parseGraphFile returned rows of that file, shape-checked
-  return { people: of('people.jsonl'), sprints: of('sprints.jsonl'), epics: of('epics.jsonl'), repos: of('repos.jsonl'), capacity: of('capacity.jsonl'), links: of('links.jsonl'), xrefs: of('xrefs.jsonl'), ext: notes.ext, warnings: notes.warnings };
+  const node = (k: Kind): readonly Rec[] => st.readKind(k, { defaults: false });
+  return { requirements: node('requirement'), decisions: node('decision'), teams: node('team'), people: of('people.jsonl'), sprints: of('sprints.jsonl'), epics: of('epics.jsonl'), repos: of('repos.jsonl'), capacity: of('capacity.jsonl'), links: of('links.jsonl'), xrefs: of('xrefs.jsonl'), ext: notes.ext, warnings: notes.warnings };
 }

@@ -14,13 +14,16 @@ export type Row = Rec;
 /** The v1 kinds, then the graph kinds: every plan data file there is (the card digest and the index fingerprint depend on this order). */
 export const SRC_KINDS = Object.freeze(['ticket', 'edge', 'schedule', 'evidence', 'finding', 'meta', 'learning', 'ref', 'openitem'] as const);
 export const GRAPH_KINDS = Object.freeze(['person', 'sprint', 'epic', 'repo', 'capacity', 'link', 'xref'] as const);
-export const KINDS = Object.freeze([...SRC_KINDS, ...GRAPH_KINDS] as const);
+/** The node kinds of task 12 (docs/FORMAT.md section 4): stored by EntityStore under nodes/<kind>/; not in GRAPH_KINDS, so the card digest and the seven graph files stay as they were. */
+export const NODE_KINDS = Object.freeze(['requirement', 'decision', 'team'] as const);
+export const KINDS = Object.freeze([...SRC_KINDS, ...GRAPH_KINDS, ...NODE_KINDS] as const);
 export type Kind = (typeof KINDS)[number];
 
 const FILES: Readonly<Record<Kind, string>> = Object.freeze({
   ticket: 'tickets.jsonl', edge: 'edges.jsonl', schedule: 'schedule.jsonl', evidence: 'evidence.jsonl', finding: 'findings.jsonl', meta: 'meta.jsonl',
   learning: 'learnings.jsonl', ref: 'refs.jsonl', openitem: 'open-items.jsonl', person: 'people.jsonl', sprint: 'sprints.jsonl', epic: 'epics.jsonl',
   repo: 'repos.jsonl', capacity: 'capacity.jsonl', link: 'links.jsonl', xref: 'xrefs.jsonl',
+  requirement: 'requirements.jsonl', decision: 'decisions.jsonl', team: 'teams.jsonl',
 });
 const BY_FILE: ReadonlyMap<string, Kind> = new Map(KINDS.map((k) => [FILES[k], k]));
 /** The name of a kind's canonical text file (messages, the index sources and the solver input call a kind by it). */

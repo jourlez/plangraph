@@ -54,9 +54,12 @@ const ROWS: Record<Kind, Row[]> = {
     { type: 'ticket', id: 'T-1', sys: 'github', xid: 'o/r#1' },
     { type: 'plan', id: 'plans/a.md', sys: 'local', xid: 'x' }, // file-less source
   ],
+  requirement: [{ id: 'R-b', text: 'later', status: 'accepted' }, { id: 'R-a', text: 'first', kind: 'ears', source: 'docs/spec.md#a', acceptance: ['b', 'a'], priority: 'high' }],
+  decision: [{ id: 'D-1', title: 'use x', status: 'proposed', date: '2026-01-02', affects: ['src/**', 'api'] }],
+  team: [{ id: 'TEAM-1', name: 'core', members: ['Ben', 'Ana'], owns: ['api'] }],
 };
 // the order tests write in: a node that holds parts of several kinds is built up kind by kind
-const ORDER: Kind[] = ['ticket', 'edge', 'ref', 'person', 'capacity', 'sprint', 'epic', 'repo', 'openitem', 'link', 'xref', 'schedule', 'evidence', 'finding', 'learning', 'meta'];
+const ORDER: Kind[] = ['ticket', 'edge', 'ref', 'person', 'capacity', 'sprint', 'epic', 'repo', 'requirement', 'decision', 'team', 'openitem', 'link', 'xref', 'schedule', 'evidence', 'finding', 'learning', 'meta'];
 const writeAll = (s: { writeKind(k: Kind, r: readonly Row[]): unknown }, rows: Partial<Record<Kind, Row[]>> = ROWS): void => { for (const k of ORDER) if (rows[k]) s.writeKind(k, rows[k] as Row[]); };
 const snapshot = (dir: string): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -106,11 +109,13 @@ test('every column survives: capacity review_h, xref src and seen, a plan row of
   assert.deepEqual(s.readKind('openitem').find((r) => r.kind === 'decision'), ROWS.openitem[1]);
 });
 
+const node0 = (e: string, kind: string, id: string): Record<string, unknown> => readNodes(e, kind).nodes.find((n) => n.id === id) as Record<string, unknown>;
 test('the mapping: where each kind lives on disk', () => {
   const e = entityDir(), s = openStore({ dir: e, root: e });
   writeAll(s);
   const kinds = listKinds(e);
-  assert.deepEqual(kinds, ['epic', 'ext', 'openitem', 'person', 'repo', 'sprint', 'ticket']);
+  assert.deepEqual(kinds, ['decision', 'epic', 'ext', 'openitem', 'person', 'repo', 'requirement', 'sprint', 'team', 'ticket']);
+  assert.deepEqual(node0(e, 'team', 'TEAM-1').members, ['Ana', 'Ben'], 'repeated member lines, sorted');
   const node = (kind: string, id: string) => readNodes(e, kind).nodes.find((n) => n.id === id) as Record<string, unknown>;
   // edges are `needs` lines of the consumer, with kind and note in attrs
   assert.deepEqual((node('ticket', 'T-2').links as Array<Record<string, unknown>>).filter((l) => l.to === 'sp:plan-a/1'), [{ rel: 'needs', to: 'sp:plan-a/1', attrs: { kind: 'jira_link', note: 'why', conf: 3 } }]);

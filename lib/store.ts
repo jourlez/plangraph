@@ -55,6 +55,10 @@ export const SCHEMAS: Record<string, Schema> = {
   'sprints.jsonl': mk('sprints.jsonl', ['n'], ['n', 'name', 'start', 'end', 'state']),
   'epics.jsonl': mk('epics.jsonl', ['id'], ['id', 'name']),
   'repos.jsonl': mk('repos.jsonl', ['id'], ['id', 'name', 'role', 'langs', 'pm', 'runtime', 'frameworks', 'cmds', 'entry', 'deploy', 'owners', 'paths', 'src', 'fp', 'scanned_at', 'scanner'], { sets: ['langs', 'frameworks', 'entry', 'owners', 'paths'] }),
+  // requirement, decision and team nodes (docs/FORMAT.md): their list fields are sets (the `.pg` file repeats the field name once per element)
+  'requirements.jsonl': mk('requirements.jsonl', ['id'], ['id', 'text', 'kind', 'status', 'source', 'acceptance', 'priority'], { sets: ['acceptance'] }),
+  'decisions.jsonl': mk('decisions.jsonl', ['id'], ['id', 'title', 'status', 'date', 'affects', 'source', 'derivation'], { sets: ['affects'] }),
+  'teams.jsonl': mk('teams.jsonl', ['id'], ['id', 'name', 'members', 'owns'], { sets: ['members', 'owns'] }),
   'capacity.jsonl': mk('capacity.jsonl', ['person', 'sprint'], ['person', 'sprint', 'sp', 'review_h']),
   'links.jsonl': mk('links.jsonl', [], ['from', 'from_type', 'rel', 'to', 'to_type', 'attrs'], { id: wholeRecord, sort: wholeRecord }),
   // an xref is one fact about one node: the key is the whole reference (one node may have many)
