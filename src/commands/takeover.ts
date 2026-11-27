@@ -47,7 +47,7 @@ type Hooks = { afterStep?: (step: string) => void };
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const one = (e: unknown): string => oneLine(String((e as { message?: unknown } | null)?.message ?? e).split('\n')[0], 200);
-const call = (cmds: CommandMap, name: string, ctx: Ctx, positionals: string[] = [], values: object = {}): Promise<number> => Promise.resolve((cmds[name]?.run as unknown as (c: Ctx, a: Args) => number | Promise<number>)(ctx, { values: values as Record<string, unknown>, positionals }));
+const call = (cmds: CommandMap, name: string, ctx: Ctx, positionals: string[] = [], values: object = {}): Promise<number> => Promise.resolve((cmds[name] as unknown as { run: (c: Ctx, a: Args) => number | Promise<number> }).run(ctx, { values: values as Record<string, unknown>, positionals }));
 
 function readState(dir: string): Checkpoint {
   const empty: Checkpoint = { version: 1, done: [], failed: [], questions: [] };

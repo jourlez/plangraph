@@ -40,7 +40,7 @@ export const architecture = defineGenerator({
     const out: string[] = ['## Unknowns', ''];
     const unk = secs.map((s, i) => [i + 1, s.unknown] as const).filter((x): x is readonly [number, string] => x[1] !== null);
     out.push(...(unk.length ? unk.map(([i, w]) => `- ${i} ${SECTIONS[i - 1]}: ${w}`) : ['None.']), '');
-    secs.forEach((s, i) => out.push(`## ${i + 1}. ${SECTIONS[i]}`, '', ...s.lines, ''));
+    secs.forEach((s, i) => { out.push(`## ${i + 1}. ${SECTIONS[i]}`, '', ...s.lines, ''); });
     return out.slice(0, -1);
   },
 });

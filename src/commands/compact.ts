@@ -8,7 +8,7 @@ import type { CommandMap } from '../registry.ts';
 
 async function run(ctx: Ctx, args: Args<{ ci?: boolean }>): Promise<number> {
   needBrain(ctx);
-  let r;
+  let r: ReturnType<typeof compact>;
   try { r = compact(ctx.dir, { ci: Boolean(args.values.ci) || ctx.env.CI === 'true' }); }
   catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'REFUSED') throw new PlangraphError('REFUSED', 'compact runs only in CI on the default branch', { hint: 'set CI=true or pass --ci', cause: e });
