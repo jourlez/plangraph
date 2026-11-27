@@ -215,7 +215,7 @@ test('no plan directory or switched off: initialize succeeds with no tools and o
 test('plugin bundling: mcp/servers.json starts the server with node, passes the mcp option, and plugin.json declares it as a userConfig option', () => {
   const mcp = JSON.parse(fs.readFileSync(path.join(ROOT, 'mcp/servers.json'), 'utf8'));
   const s = mcp.mcpServers.plangraph;
-  assert.equal(s.command, 'node'); assert.deepEqual(s.args, ['${CLAUDE_PLUGIN_ROOT}/mcp/plangraph-mcp.ts']);
+  assert.equal(s.command, 'node'); assert.deepEqual(s.args, ['${CLAUDE_PLUGIN_ROOT}/mcp/entry.js']);
   assert.deepEqual(s.env, { PLANGRAPH_MCP_OPTION: '${user_config.mcp}' }, 'the option goes under its own name, so a PLANGRAPH_MCP variable of the shell is not overridden');
   const man = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'), 'utf8'));
   assert.equal(man.mcpServers, './mcp/servers.json'); assert.equal(fs.existsSync(path.join(ROOT, '.mcp.json')), false, 'a root .mcp.json would load as a broken project server');

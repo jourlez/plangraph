@@ -26,7 +26,7 @@ export interface RunIO { out(line: string): void; err(line: string): void }
 export type Runner = (argv: string[], io: RunIO, opts: { env: Record<string, string | undefined>; cwd: string }) => Promise<number>;
 type Id = string | number;
 
-export const SERVER_VERSION = '1.1.0';
+export const SERVER_VERSION = '1.1.1';
 /** Newest first. A requested version in this list is echoed; any other gets the first (the spec: answer the latest one we support). */
 export const PROTOCOL_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']);
 export const LATEST_PROTOCOL = PROTOCOL_VERSIONS[0];

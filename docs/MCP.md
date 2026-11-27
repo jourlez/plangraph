@@ -4,6 +4,7 @@
 `context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `mcp/servers.json` (declared in `plugin.json` as `mcpServers`; there is no `.mcp.json` at the repository root, which Claude Code would load as a broken project server), and it is opt-in:
 the plugin option `mcp` defaults to `off` (the benchmark ruling in docs/BENCHMARK.md: no benefit measured, +25 percent cost in the coding arm).
 Turn it on with `/plugin configure plangraph@plangraph-marketplace` (`mcp` = `on`).
+Start it through `mcp/entry.js`, which is plain JavaScript: on a Node below the floor (26.0) it answers the handshake with no tools and an `instructions` line that says to install Node 26, instead of exiting, because Claude Code reports a server that exits at once as a failed connection in every session. On a supported Node it loads `mcp/plangraph-mcp.ts`.
 
 Known gaps for 1.0: the server implements the legacy `initialize` flow and not `server/discover` (section Protocol); the seven-tool version was exercised by its test suite and a test client, not in a live Claude Code session (the three-tool version of 0.5.0 was).
 
@@ -24,7 +25,7 @@ shell, or a locked-down session where you would rather grant seven read-only too
   `PLANGRAPH_DIR`, `.plangraphrc` or `.plangraph`):
 
   ```
-  claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
+  claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/entry.js
   ```
 
   or a project `.mcp.json` you commit in YOUR repository (Claude Code asks each person to approve it once):
@@ -35,7 +36,7 @@ shell, or a locked-down session where you would rather grant seven read-only too
       "plangraph": {
         "type": "stdio",
         "command": "node",
-        "args": ["/absolute/path/to/plangraph/mcp/plangraph-mcp.ts"]
+        "args": ["/absolute/path/to/plangraph/mcp/entry.js"]
       }
     }
   }

@@ -38,6 +38,7 @@ test('hooks manifest paths exist', () => assert.deepEqual(checkManifest(readJson
 
 test('the MCP entry exists, the documented registration command names it, and mcp/servers.json paths exist', () => {
   assert.ok(exists('mcp/plangraph-mcp.ts'));
+  assert.ok(exists('mcp/entry.js') && exists('mcp/below-floor.js'));
   const doc = fs.readFileSync(path.join(ROOT, 'docs/MCP.md'), 'utf8');
   const documented = [...doc.matchAll(/\bclaude mcp add plangraph -- node [^\n]*/g)].map((m) => m[0]);
   assert.ok(documented.length > 0, 'docs/MCP.md documents no `claude mcp add` command');

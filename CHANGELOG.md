@@ -4,6 +4,13 @@ Entries below `[Unreleased]` are history: they name the tool and its files as th
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-27
+
+### Fixed
+- The bundled MCP server is started through `mcp/entry.js`, plain JavaScript. On a Node below the floor (26.0) it answers the handshake with no tools and says to install Node 26, and exits 0 when stdin ends. Before, it exited at once on an older Node (and could not even parse its TypeScript entry on Node 18 to 20), which Claude Code shows as a failed connection (`CONNECTION_CLOSED`) in every session. CI now checks the handshake on Node 18, 20.9.0 and 24.22.3.
+- `.github/actionlint.yaml` declares the `ubuntu-26.04` runner label, which actionlint 1.7.12 does not list yet.
+- The pre-commit hook runs the related tests without git's environment variables (`GIT_DIR` and others), so a commit made from a git worktree can no longer let a test re-initialize the real repository.
+
 ## [1.1.0] - 2026-11-27
 
 ### Changed

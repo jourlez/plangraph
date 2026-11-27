@@ -3,7 +3,7 @@
     "plangraph": {
       "type": "stdio",
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/plangraph-mcp.ts"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/entry.js"],
       "env": { "PLANGRAPH_MCP_OPTION": "${user_config.mcp}" }
     }
   }

@@ -232,6 +232,19 @@ jobs:
           test "$(grep -c '' "$out")" = 1
           grep -Eq '^plangraph: needs Node >= 26\.0, found v' "$out"
           test -z "$(git status --porcelain)"
+      # The bundled MCP server starts in every session. A server that exits at once is shown as a failed connection, so below the floor it must answer the handshake with no tools.
+      - name: MCP server answers the handshake with no tools and exits 0
+        run: |
+          out="$RUNNER_TEMP/mcp.out"; err="$RUNNER_TEMP/mcp.err"
+          rc=0
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}' '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | node mcp/entry.js >"$out" 2>"$err" || rc=$?
+          echo "exit $rc"; echo "--- stdout"; cat "$out"; echo "--- stderr"; cat "$err"
+          test "$rc" = 0
+          test ! -s "$err"
+          test "$(grep -c '' "$out")" = 2
+          grep -Eq '"instructions":"plangraph needs Node >= 26\.0 \(found v' "$out"
+          grep -Fq '"tools":[]' "$out"
+          test -z "$(git status --porcelain)"
   mutation:
     name: mutation
     runs-on: ubuntu-26.04

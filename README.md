@@ -347,7 +347,7 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 | HTTPS requests from `lib/jira.ts` | `plangraph jira-pull`, `plangraph jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `PLANGRAPH_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/plangraph-solve`, or a Python venv with `pip install --require-hashes` | `plangraph-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
 | `gh api --method GET ...` | `plangraph sync-fetch` (also in `takeover` without `--no-fetch`, and in `refresh` without `--fast`) | only for a GitHub target you named in `config.json` and trusted with `plangraph trust`; your own `gh` token | whatever `gh` contacts (`github.com`); plangraph opens no socket itself |
-| `node mcp/plangraph-mcp.ts` | Claude Code, from the plugin's `mcp/servers.json`; or your MCP client | only while the plugin option `mcp` is `on` (default `off`, see [docs/MCP.md](docs/MCP.md)) | none |
+| `node mcp/entry.js` | Claude Code, from the plugin's `mcp/servers.json`; or your MCP client | only while the plugin option `mcp` is `on` (default `off`, see [docs/MCP.md](docs/MCP.md)) | none |
 
 What the session hook does when `card` is `auto`: if the project has a plangraph index, it prints the plan card; otherwise it prints nothing. It exits 0 and prints nothing on any failure, so it never breaks a session. With `card` off (the default) it prints nothing.
 
@@ -534,7 +534,7 @@ The credential is never written to a file, logged, or accepted as a command-line
 `mcp/plangraph-mcp.ts` is a read-only MCP server (stdio, no dependencies) with seven tools, `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`, `context` and `flow_next`, returning the same text as the CLI (the last three call the libraries and write nothing). The plugin bundles it in `mcp/servers.json` (declared in `plugin.json`) behind the option `mcp` (`on` or `off`, default `off`). To turn it on: `/plugin configure plangraph@plangraph-marketplace`. Without the plugin:
 
 ```bash
-claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
+claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/entry.js
 ```
 
 The server runs only when the plugin option `mcp` is `on` or `PLANGRAPH_MCP=on` is in its environment (add `--env PLANGRAPH_MCP=on` to that command); unset or anything else, it answers with one "disabled" error and exits 0. It implements the legacy `initialize` flow and not `server/discover`. It was connected and called in an owner-run Claude Code 2.1.329 session when it had three tools; the seven-tool version was tested through its own test suite, not in a live session. It duplicates the CLI, so keep it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
