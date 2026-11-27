@@ -69,3 +69,24 @@ Estimate of the full final pass (sonnet and haiku, three repeats; opus once adds
 - Graph questions: 200 questions x 2 arms x 3 repeats x 2 models = 2,400 runs. Sonnet: 200 x 3 x $0.057 = about $34; haiku about $11; total about $45 (about $65 with opus once). Time: 13 s per question for both arms, so 2.2 hours of sonnet plus about 2 hours of haiku run one after another, about 1 hour with 4 runs in parallel.
 - Coding: 24 tasks x 2 arms x 3 repeats x 2 models = 288 runs. Pilot mean $0.051 per sonnet run: 144 x $0.051 = about $7 plus haiku about $2.5; real tasks are harder than the two fastest, so plan for 3 times that: $10 to $30. Time per run about 16 s agent plus 20 to 30 s setup (or about 5 s with a cached clone) plus the hidden tests: 3 to 5 hours sequentially, about 1 hour with 4 in parallel.
 - Total: about $55 to $100 and 7 to 9 hours sequential, 2 to 3 hours with 4 runs in parallel, on the owner's login (list-price cost as the binary reports it).
+
+## Prefix overhead
+
+The pilot's "26,000-token fixed prefix" is not one prefix. Median tokens in sums input, cache creation and cache reads over every API call of a run, so the per-call prefix is counted once per turn (a graph run is 3 to 6 calls, a coding run 5 or more). Measured on one call, the plugin adds far less, and most of that is Claude Code's own Skill tool, which only the plugin arms were given.
+
+Method: native binary 2.1.332, model haiku, prompt `say ok`, `--output-format json`, the pilot's flags (`--setting-sources project --strict-mcp-config --no-session-persistence --permission-mode dontAsk`, `--tools Read,Grep,Bash[,Skill]`), run in a clean temp project holding only a committed `.plangraph/` (the synthetic 30-ticket plan; no CLAUDE.md, AGENTS.md or docs). The repository has no root CLAUDE.md or AGENTS.md. Tokens in = input + cache creation + cache reads of the single call. Components were isolated by copying the plugin and emptying `hooks/hooks.json`, `.mcp.json` or deleting `skills/`.
+
+| component | tokens in, one call | note |
+|---|---|---|
+| no plugin, tools Read,Grep,Bash | 7,858 | the baseline arm |
+| no plugin, plus the Skill tool | 11,202 | Claude Code itself: the Skill tool definition costs 3,344 with no plugin loaded |
+| empty plugin (manifest only) | 11,256 | +54 |
+| skills (listed descriptions of 5 model-invocable skills) | +613 | 1,793 characters of descriptions; skill bodies are not loaded until invoked |
+| SessionStart card + prompt hook | about +60 to +120 | card 243 characters, prompt facts about 212 characters, cached after the first call |
+| MCP bundle, strict MCP config (the pilot) | 0 | `--strict-mcp-config` drops plugin servers: the pilot never loaded the MCP server |
+| MCP bundle, default config | +196 | server instructions (707 characters); the 7 tool definitions (3,363 characters, about 840 tokens) are deferred by tool search |
+| full plugin vs no plugin plus Skill tool (before) | +799 to +2,173 | strict to default MCP config |
+
+Where the 26k comes from, per call about 4,100 (Skill tool 3,344 plus plugin about 800) times 4 to 6 calls per run, plus the longer prompts of tool turns. The plugin's own share is about 800 tokens per call; the Skill tool is Claude Code's and any plugin that ships skills pays it. A fair control gives the plugin-off arm the Skill tool too.
+
+After the fix (descriptions of the model-invocable skills cut from 1,793 to 1,464 characters, MCP instructions from 707 to about 440 characters): full plugin 11,928 (strict) and 13,143 (default config) against 11,202 for no plugin plus the Skill tool, so plugin-on minus plugin-off is about 730 tokens strict and 1,940 default (one run each, noise a few tokens), both under the 3,000 target. The limiting factor is the Skill tool definition (3,344) and the 7 deferred MCP tools, not our text. No `alwaysLoad` is set: it would only add the tool definitions to every prompt.

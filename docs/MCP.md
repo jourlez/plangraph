@@ -198,7 +198,7 @@ Tokenizer: est tok = ceil(chars/4) x 1 (test/token-calibration.json, unverified)
 | - context | 448 | 112 |
 | - flow_next | 509 | 128 |
 | tools/list reply line | 3407 | 852 |
-| initialize reply line | 942 | 236 |
+| initialize reply line | 609 | 153 |
 
 | # | call | cli bytes | mcp text bytes | same text | reply line bytes | wrapper bytes | cli est tok | reply est tok |
 |--:|---|--:|--:|:-:|--:|--:|--:|--:|

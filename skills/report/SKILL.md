@@ -1,6 +1,6 @@
 ---
 name: report
-description: Prepare a status report from plangraph (current line, blockers, sprint load, delivery forecast, open decisions) and propose how to publish it. Use when the owner asks for a status report, a progress summary, a sprint review page, or a per-owner update to send.
+description: Prepare a status report from plangraph (current line, blockers, sprint load, forecast, open decisions) and propose how to publish it. Use when the owner asks for a status report, a progress summary, a sprint review page, or a per-owner update.
 allowed-tools: Bash(plangraph integrations:*), Bash(plangraph sprint:*), Bash(plangraph person:*), Bash(plangraph blockers), Bash(plangraph forecast), Bash(plangraph check), Bash(plangraph card --line), Bash(plangraph open-items)
 ---
 
