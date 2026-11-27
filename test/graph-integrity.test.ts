@@ -60,7 +60,7 @@ test('build prints violations on stderr and exits 0; check exits 1 on an error a
   assert.ok(b.err.includes('error: LINK_MISSING_NODE links.jsonl: person Zed is not a node (link T-1 relates_to Zed)'), b.err.join('\n'));
   const base = (await run(copy(), ['check'])).code;
   const c = await run(d, ['check']); assert.equal(c.code, 1);
-  assert.ok(c.err.concat(c.out).some((l) => l.startsWith('error: LINK_MISSING_NODE ')));
+  assert.ok(c.err.concat(flat(c)).some((l) => l.startsWith('error: LINK_MISSING_NODE '))); // the output holds the lines as one text: split it
   const w = copy();
   put(w, 'sprints.jsonl', sprints);
   const wb = await run(w, ['build']);

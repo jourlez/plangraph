@@ -33,7 +33,7 @@ const IN_KEYS = '(? IS NULL OR s.key IN (SELECT value FROM json_each(?)))';
 
 // Short data fields (status, verdict, owner, kind) are printed as one sanitized capped line each; free text (summary, finding text,
 // evidence resolution) only inside one <untrusted> fence, one record per line, with the number of records bounded.
-const w = (x: unknown, n = 40) => oneLine(x, n);
+const w = (x: unknown, n = 40) => ident(x, n);
 function ticket(ctx: Ctx, args: Args): number {
   const d = ctx.db(), [key] = args.positionals, out = ctx.io.out, v = verbose(args);
   const t = d.get('SELECT * FROM ticket WHERE key=?', key) as Record<string, unknown> | undefined; // one row or none
@@ -217,6 +217,9 @@ async function check(ctx: Ctx, args: Args<{ quiet?: boolean }>): Promise<number>
   return code;
 }
 async function checkBody(ctx: Ctx): Promise<number> {
+  // the damaged files first: a file the model cannot load is named here before the load stops the check
+  const { storeProblems, renderStoreProblem } = await import('../../lib/store2/check.ts'), sv = storeProblems(ctx.dir); // node and batch files: one line each, file and line
+  for (const x of sv) ctx.io.out(oneLine(renderStoreProblem(x), 500));
   const F = await import('../../lib/frozen.ts');
   const d = ctx.db(), cfg = ctx.config(), skip = new Set<unknown>(cfg.ignore_link_kinds || []), model = modelFromDb(ctx), frozen = F.frozenTest(model);
   const sched = new Map((d.all(`SELECT key,owner,sprint FROM schedule WHERE ${CUR}`) as PlaceRow[]).map((r) => [r.key, r])); // the columns this SELECT names
@@ -236,8 +239,6 @@ async function checkBody(ctx: Ctx): Promise<number> {
   const unplaced = (await import('../../lib/verify.ts')).verifyPlan(model).filter((x) => x.code === 'UNPLACED').length;
   const { integrityOf, renderViolation } = await import('../../lib/graph/integrity.ts'), gv = integrityOf(ctx.dir, cfg, (await readItems(ctx)).items).violations;
   for (const x of gv) ctx.io.out(renderViolation(x));
-  const { storeProblems, renderStoreProblem } = await import('../../lib/store2/check.ts'), sv = storeProblems(ctx.dir); // node and batch files: one line each, file and line
-  for (const x of sv) ctx.io.out(oneLine(renderStoreProblem(x), 500));
   const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree || gv.some((x) => !x.warning) || sv.some((x) => !x.warning) ? 1 : 0;
   ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (plangraph verify lists them)` : ''}`);
   ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced, ...(gv.length ? { integrity: gv.map(renderViolation) } : {}), ...(sv.length ? { store: sv.map(renderStoreProblem) } : {}) }, { next: unplaced ? ['plangraph verify'] : [] });

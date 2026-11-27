@@ -41,6 +41,14 @@ export function checkBatches(root: string): StoreViolation[] {
     }
   }
   const versions = scheduleVersions(root);
+  for (const v of versions) { // an immutable version file: every line one JSON object
+    const rel = `schedules/${v}.jsonl`;
+    let text = ''; try { text = readDataCapped(path.join(root, rel), 64 << 20); } catch { out.push({ code: 'BAD_LINE', path: rel, line: 1, fix: 'the file is not a readable regular file: replace it with the version from git' }); continue; }
+    const src = text.split('\n'), mark = src.findIndex((l) => MARK.test(l));
+    const bad = src.findIndex((l) => { if (l.trim() === '') return false; try { const o = JSON.parse(l); return o === null || typeof o !== 'object' || Array.isArray(o); } catch { return true; } });
+    if (mark >= 0) out.push({ code: 'CONFLICT_MARKERS', path: rel, line: mark + 1, fix: 'resolve the merge conflict by hand: keep every line of both sides, then run plangraph check' });
+    else if (bad >= 0) out.push({ code: 'BAD_LINE', path: rel, line: bad + 1, fix: 'delete or repair the line: every line of a schedule version is one JSON object' });
+  }
   const cur = 'schedules/CURRENT';
   let text: string | null = null;
   try { text = readDataCapped(path.join(root, cur), 4096); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') text = ''; } // whatever was thrown: read its code

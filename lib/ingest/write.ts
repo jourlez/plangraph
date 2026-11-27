@@ -2,13 +2,14 @@
 // The PlanStore has no such kinds until task 12, so they go straight to the entity files (nodes/<kind>/<h2>/<slug>~<h8>.pg) of lib/store2;
 // when the store learns the kinds, only these two functions change.
 import { readNodes, writeNode } from '../store2/nodes.ts';
+import { refuseWrite } from '../planstore.ts';
 import type { Node } from '../store2/pg.ts';
 
 export type DocKind = 'decision' | 'requirement';
 
 /** Write one node of a document kind; says whether the file was created, changed or already identical. */
 export function writeNodeKind(ctx: { dir: string }, kind: DocKind, node: Node): 'created' | 'changed' | 'same' {
-  return writeNode(ctx.dir, kind, node);
+  try { return writeNode(ctx.dir, kind, node); } catch (e) { refuseWrite(e); } // a node directory that leaves the plan or is a symlink is refused (exit 4), never an internal error
 }
 
 /** The readable nodes of a document kind, sorted by id (a damaged file is left out; `plangraph check` reports it). */
