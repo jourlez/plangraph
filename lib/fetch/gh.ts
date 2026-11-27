@@ -40,8 +40,8 @@ export function nextPath(link: string | undefined): string {
   try { const u = new URL(m[1] as string, 'https://x.invalid'); return `${u.pathname}${u.search}`; } catch { return ''; }
 }
 
-export interface GhRow { number: number; title: string; headRefName: string; state: string; updated: string }
-export interface GhNext { watermark: string; etag: string; page: string }
+interface GhRow { number: number; title: string; headRefName: string; state: string; updated: string }
+interface GhNext { watermark: string; etag: string; page: string }
 export interface GhResult { status: 'ok' | 'not-modified' | 'retry-after' | 'capped' | 'soft'; rows: GhRow[]; etag: string; next: GhNext; retryAfter?: number; notes: string[] }
 export interface GhOpts { repo: string; since?: string; etag?: string; page?: string; full?: boolean; maxItems?: number; maxBytes?: number }
 const REPO_RE = /^[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/;

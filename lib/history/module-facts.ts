@@ -7,7 +7,7 @@ export const MODULE_FILE = 'cache/git.jsonl';
 const INTS = ['commits', 'churn', 'window', 'min_cochange', 'hot_percentile'] as const;
 
 /** The first problem of a module row (names the field, never the value), or null. */
-export function moduleProblem(r: Record<string, unknown>): string | null {
+function moduleProblem(r: Record<string, unknown>): string | null {
   for (const f of ['repo', 'path', 'last'] as const) if (typeof r[f] !== 'string') return `"${f}" must be a string`;
   for (const f of INTS) if (!(typeof r[f] === 'number' && Number.isSafeInteger(r[f]) && (r[f] as number) >= 0)) return `"${f}" must be a whole number`;
   for (const f of ['hotspot', 'bus1'] as const) if (typeof r[f] !== 'boolean') return `"${f}" must be true or false`;

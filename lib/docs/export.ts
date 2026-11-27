@@ -5,13 +5,13 @@ import { planDocs, policyOf, knownOf } from './registry.ts';
 import { scanDocs } from './policy.ts';
 import type { Extras } from './types.ts';
 
-export type Block = { type: 'heading' | 'paragraph' | 'table' | 'code'; text: string };
+type Block = { type: 'heading' | 'paragraph' | 'table' | 'code'; text: string };
 export type ExportedDoc = { id: string; title: string; blocks: Block[]; fp: string; source: string };
-export type ExportError = Error & { code: 'UNKNOWN_DOC' | 'D24_VIOLATION' | 'DATA_CLASS_VIOLATION' };
+type ExportError = Error & { code: 'UNKNOWN_DOC' | 'D24_VIOLATION' | 'DATA_CLASS_VIOLATION' };
 const fail = (code: ExportError['code'], message: string): ExportError => Object.assign(new Error(message), { code });
 
 /** Markdown body of a generator to blocks: headings, pipe tables, <untrusted> fences (code), and paragraphs of consecutive lines. */
-export function toBlocks(body: string): Block[] {
+function toBlocks(body: string): Block[] {
   const out: Block[] = [];
   const lines = body.split('\n');
   let para: string[] = [];

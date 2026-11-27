@@ -15,7 +15,7 @@ const TARGET_RE = /^[a-z][a-z0-9-]{0,23}:[A-Za-z0-9._#@/-][A-Za-z0-9._#@/ -]{0,1
 const targetOk = (t: unknown): t is string => typeof t === 'string' && TARGET_RE.test(t) && !t.includes('..') && !t.includes('://') && t === t.trim();
 
 /** The directory that holds the trust lists: CLAUDE_PLUGIN_DATA (absolute), else the user config directory. */
-export function trustDir(env: Env = process.env): string {
+function trustDir(env: Env = process.env): string {
   const data = env.CLAUDE_PLUGIN_DATA;
   if (data && path.isAbsolute(data)) return path.join(data, 'trust');
   const base = env.PLANGRAPH_CONFIG_DIR ? path.resolve(env.PLANGRAPH_CONFIG_DIR) : path.join(env.XDG_CONFIG_HOME ? env.XDG_CONFIG_HOME : path.join(env.HOME || os.homedir(), '.config'), 'plangraph');

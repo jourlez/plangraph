@@ -13,8 +13,8 @@ type Obj = Record<string, unknown>;
 const isObj = (x: unknown): x is Obj => x !== null && typeof x === 'object' && !Array.isArray(x);
 const ms = (s: unknown): number => (typeof s === 'string' ? Date.parse(s) : NaN);
 
-export interface JiraIssueRow { key: string; fields: Obj }
-export interface TransitionObservation { xid: string; type: 'x-jira.transition'; fields: { from: string; to: string; at: string }; links: Array<{ rel: string; sys: string; xid: string }> }
+interface JiraIssueRow { key: string; fields: Obj }
+interface TransitionObservation { xid: string; type: 'x-jira.transition'; fields: { from: string; to: string; at: string }; links: Array<{ rel: string; sys: string; xid: string }> }
 export interface JiraOpts { jql: string; watermark?: string; changelog?: readonly string[]; tenant?: string; maxItems?: number; maxBytes?: number }
 export interface JiraResult {
   status: 'ok' | 'retry-after' | 'capped' | 'aborted' | 'soft';

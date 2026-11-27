@@ -5,7 +5,7 @@
 import crypto from 'node:crypto';
 
 export const LOG_FORMAT = '%x01%H%x09%at%x09%aE';
-export interface FileFact { path: string; added: number; deleted: number; renamedFrom?: string }
+interface FileFact { path: string; added: number; deleted: number; renamedFrom?: string }
 export interface CommitFact { sha: string; at: string; author: string; files: FileFact[] }
 
 /** `git:` plus 16 hex of the sha256 of the lowercased, trimmed email. The email is hashed here and never stored. */
@@ -16,7 +16,7 @@ const NUMSTAT = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/;
 const CONTROL = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]');
 const MAX_PATH = 500;
 const okPath = (p: string): boolean => p.length > 0 && p.length <= MAX_PATH && !CONTROL.test(p);
-export const isoSeconds = (epoch: number): string => new Date(epoch * 1000).toISOString().replace('.000Z', 'Z');
+const isoSeconds = (epoch: number): string => new Date(epoch * 1000).toISOString().replace('.000Z', 'Z');
 
 /** Incremental reader: push() one NUL-delimited token at a time (a streaming log), finish() for the commits in input order. */
 export class LogParser {

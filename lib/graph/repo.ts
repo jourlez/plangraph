@@ -3,7 +3,6 @@
 // already in people.jsonl) reach the row; nothing else from a file is copied.
 import { createHash } from 'node:crypto';
 import { parseCatalogInfo } from './catalog.ts';
-export { MAX_GLOB_WILDCARDS, wildcardsOf } from '../schema.ts';
 
 export const MAX_FILE = 256 * 1024;
 const SCANNER = 'plangraph-scan/1';
@@ -80,7 +79,7 @@ export function subUnits(workspaces: unknown, paths: readonly string[]): Array<{
 const GLOB_ENTRY = /^\.?\/?([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)(\/\*{1,2})?\/?$/;
 const MANIFEST_OF = ['package.json', 'Cargo.toml', 'go.mod'];
 /** Workspace package directories: each entry is a literal directory or `dir/*` (`dir/**`); a glob keeps the child directories holding a manifest, a literal any directory with a tracked file. */
-export function pkgDirs(entries: readonly string[], paths: readonly string[]): string[] {
+function pkgDirs(entries: readonly string[], paths: readonly string[]): string[] {
   const out = new Set<string>(), skip = new Set(entries.filter((e) => e.startsWith('!')).map((e) => e.slice(1).replace(/^\.?\//, '').replace(/\/$/, '')));
   for (const raw of entries.slice(0, 50)) {
     const m = GLOB_ENTRY.exec(raw.trim()); if (!m || raw.includes('..') || raw.startsWith('!')) continue;
@@ -104,7 +103,7 @@ function workspaceEntries(texts: ReadonlyMap<string, string>): string[] {
 }
 const ENV_NAME = /^[A-Z_][A-Z0-9_]{0,63}$/;
 /** Environment variable NAMES from `.env.example` and Dockerfile `ENV`; a value is never read into the result. */
-export function envNames(example: string | undefined, dockerfile: string | undefined): string[] {
+function envNames(example: string | undefined, dockerfile: string | undefined): string[] {
   const out = new Set<string>();
   for (const l of (example ?? '').split('\n').slice(0, 2000)) { const m = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/.exec(l); if (m && ENV_NAME.test(m[1] as string)) out.add(m[1] as string); }
   for (const l of (dockerfile ?? '').split('\n').slice(0, 2000)) {
@@ -116,7 +115,7 @@ export function envNames(example: string | undefined, dockerfile: string | undef
   return [...out].sort().slice(0, 100);
 }
 /** Team ids from CODEOWNERS group handles (`@org/platform` gives `platform`): the handle only, never the organisation. */
-export function teamIds(rules: readonly Rule[]): string[] {
+function teamIds(rules: readonly Rule[]): string[] {
   const out = new Set<string>();
   for (const r of rules) for (const o of r.owners) { const m = /^@[A-Za-z0-9][A-Za-z0-9-]{0,38}\/([A-Za-z0-9][A-Za-z0-9_.-]{0,59})$/.exec(o); if (m) out.add((m[1] as string).toLowerCase()); }
   return [...out].sort().slice(0, 20);

@@ -61,7 +61,7 @@ export function blockersOf(src: BlockerSource, key: string, { statuses = null, c
 const str = (v: unknown): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v));
 type SourceOpts = { items?: readonly PlanRecord[]; findingsOf?: Map<string, PlanRecord[]> | undefined };
 /** The seam under modelSource: a test swaps `build` to count how often readiness builds a source. */
-export const sourceFactory: { build: (model: Model, o?: SourceOpts) => BlockerSource } = { build: (model, o) => buildModelSource(model, o) };
+const sourceFactory: { build: (model: Model, o?: SourceOpts) => BlockerSource } = { build: (model, o) => buildModelSource(model, o) };
 /** A BlockerSource over the loaded model (model.prods already leaves ignored link kinds out). items: open-items rows; findingsOf: the findings by key. */
 export const modelSource = (model: Model, o: SourceOpts = {}): BlockerSource => sourceFactory.build(model, o);
 function buildModelSource(model: Model, { items = [], findingsOf }: SourceOpts = {}): BlockerSource {

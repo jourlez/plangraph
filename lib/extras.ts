@@ -17,14 +17,14 @@ import type { ModuleFact } from './history/git.ts';
 import type { Extras as DocsExtras } from './docs/types.ts';
 
 type Row = Record<string, unknown>;
-export interface ExtraRequirement { id: string; text?: string; status?: string; kind?: string; priority?: string; source?: string; acceptance: string[]; /** ticket keys that satisfy it, from `satisfies` links */ satisfiedBy: string[]; /** the traceability state: orphan, proposed, implemented or verified */ state: string ; [k: string]: unknown }
-export interface ExtraDecision { id: string; title?: string; status?: string; date?: string; source?: string; derivation?: string; affects: string[]; supersedes: string[] ; [k: string]: unknown }
-export interface ExtraRepo { id: string; name?: string; pm?: string; cmds?: Record<string, string>; commands?: Record<string, string>; owners: string[]; stack: string[]; /** tickets with a `touches` link to the repo */ tickets: string[]; /** ticket key to the paths (ticket refs files) inside this repo */ touched: Record<string, string[]> ; [k: string]: unknown }
-export interface ExtraTeam { id: string; name?: string; members: string[]; owns: string[] ; [k: string]: unknown }
-export interface ExtraEvent { at: string; seq: number; actor: string; task: string; to: string; by: string; evidence: string[]; note?: string; bh8?: string }
-export interface ExtraLink { from: string; from_type: string; rel: string; to: string; to_type: string; [k: string]: unknown }
+interface ExtraRequirement { id: string; text?: string; status?: string; kind?: string; priority?: string; source?: string; acceptance: string[]; /** ticket keys that satisfy it, from `satisfies` links */ satisfiedBy: string[]; /** the traceability state: orphan, proposed, implemented or verified */ state: string ; [k: string]: unknown }
+interface ExtraDecision { id: string; title?: string; status?: string; date?: string; source?: string; derivation?: string; affects: string[]; supersedes: string[] ; [k: string]: unknown }
+interface ExtraRepo { id: string; name?: string; pm?: string; cmds?: Record<string, string>; commands?: Record<string, string>; owners: string[]; stack: string[]; /** tickets with a `touches` link to the repo */ tickets: string[]; /** ticket key to the paths (ticket refs files) inside this repo */ touched: Record<string, string[]> ; [k: string]: unknown }
+interface ExtraTeam { id: string; name?: string; members: string[]; owns: string[] ; [k: string]: unknown }
+interface ExtraEvent { at: string; seq: number; actor: string; task: string; to: string; by: string; evidence: string[]; note?: string; bh8?: string }
+interface ExtraLink { from: string; from_type: string; rel: string; to: string; to_type: string; [k: string]: unknown }
 /** A module fact with an index signature, the form ModuleX of lib/digest.ts takes. */
-export type ExtraModule = ModuleFact & Record<string, unknown>;
+type ExtraModule = ModuleFact & Record<string, unknown>;
 export interface Extras { requirements: ExtraRequirement[]; decisions: ExtraDecision[]; repos: ExtraRepo[]; teams: ExtraTeam[]; events: ExtraEvent[]; modules: ExtraModule[]; links: ExtraLink[]; xrefs: Row[] }
 
 const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);

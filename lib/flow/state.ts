@@ -3,7 +3,7 @@
 // An event `to: 'blocked'` is always BAD_TRANSITION. Order is (at, seq, actor, bh8), then the event's own content, so file order never matters.
 
 export type TaskState = 'proposed' | 'ready' | 'claimed' | 'in_progress' | 'in_review' | 'done' | 'blocked' | 'needs_input' | 'failed' | 'skipped' | 'removed';
-export type TaskEvent = { at: string; seq: number; actor: string; task: string; to: TaskState; by: string; evidence: string[]; note?: string; force?: boolean };
+type TaskEvent = { at: string; seq: number; actor: string; task: string; to: TaskState; by: string; evidence: string[]; note?: string; force?: boolean };
 export type FlowFinding = { code: 'UNVERIFIED_DONE' | 'DONE_WITHOUT_EVIDENCE' | 'STALE_CLAIM' | 'DOUBLE_CLAIM' | 'BAD_TRANSITION'; key: string; detail: string };
 
 /** What an event file row looks like on input: `to` is unchecked, `evidence` may be missing, `bh8` is the branch hash from lib/store2/batches.ts. */
@@ -41,7 +41,7 @@ const T: Record<TaskState, readonly TaskState[]> = {
 export const canTransition = (from: TaskState, to: TaskState): boolean => isState(from) && isState(to) && T[from].includes(to);
 
 /** Tracker status to state, default map of `flow.status_map`. A disagreement with the plan is the caller's drift finding, never an overwrite. */
-export const DEFAULT_STATUS_MAP: Readonly<Record<string, TaskState>> = { 'To Do': 'ready', 'In Progress': 'in_progress', 'In Review': 'in_review', Done: 'done' };
+const DEFAULT_STATUS_MAP: Readonly<Record<string, TaskState>> = { 'To Do': 'ready', 'In Progress': 'in_progress', 'In Review': 'in_review', Done: 'done' };
 export function mapTrackerStatus(status: string, map: Readonly<Record<string, string>> = DEFAULT_STATUS_MAP): TaskState | null {
   const v = Object.hasOwn(map, status) ? map[status] : Object.hasOwn(DEFAULT_STATUS_MAP, status) ? DEFAULT_STATUS_MAP[status] : undefined;
   return isState(v) ? v : null;

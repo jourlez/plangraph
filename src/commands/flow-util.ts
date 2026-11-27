@@ -22,7 +22,7 @@ export function loadFlow(ctx: Ctx): Loaded {
 }
 
 /** `--by`, else the git user name hashed to `u` + 8 hex. Never an email, never the name itself. */
-export function actorOf(ctx: Ctx, by: unknown): string {
+function actorOf(ctx: Ctx, by: unknown): string {
   if (typeof by === 'string' && by.trim()) {
     const a = by.trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(a)) throw usage('--by must be 1 to 40 characters of a-z 0-9 _ - (a person id, not a name or an email)');
@@ -45,7 +45,7 @@ export function needTask(model: Model, key: string): void {
 }
 
 /** Throws exit 2 when the event would be an illegal transition or a double claim; returns the state before it. The probe sits where appendEvent would put the event (`now` is the clock it will use). */
-export function checkEvent(model: Model, extras: Extras, key: string, e: { to: string; by: string; evidence: string[]; force?: boolean }, now: Date): string {
+function checkEvent(model: Model, extras: Extras, key: string, e: { to: string; by: string; evidence: string[]; force?: boolean }, now: Date): string {
   const deps = depsFromModel(model);
   const before = deriveState(key, extras.events, deps).state;
   const pos = nextPosition(extras.events, now), where = `${pos.at}#${pos.seq}`;

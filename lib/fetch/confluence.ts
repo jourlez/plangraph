@@ -22,7 +22,7 @@ export function toPlainText(markup: string, max: number): string {
   return sanitizeText(t, { max });
 }
 
-export interface ConfRow { id: string; title: string; status: string; version: number; updated: string; labels: string[]; text: string }
+interface ConfRow { id: string; title: string; status: string; version: number; updated: string; labels: string[]; text: string }
 export interface ConfResult { status: 'ok' | 'retry-after' | 'capped' | 'soft'; rows: ConfRow[]; /** The path to resume at, or '' when every page was read. */ next: string; retryAfter?: number; notes: string[] }
 export interface ConfOpts { space: string; labels?: readonly string[]; cursor?: string; full?: boolean; bodyMax?: number; maxItems?: number; maxBytes?: number }
 const isObj = (x: unknown): x is Record<string, unknown> => x !== null && typeof x === 'object' && !Array.isArray(x);

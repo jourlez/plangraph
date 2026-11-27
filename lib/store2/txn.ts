@@ -21,7 +21,7 @@ export interface Txn {
   remove(rel: string): void;
 }
 /** Failure injection for tests: a throw from a hook leaves the transaction on disk exactly as a kill at that point would. */
-export interface TxnHooks { beforeJournal?: () => void; beforeApply?: () => void; afterOp?: (index: number) => void }
+interface TxnHooks { beforeJournal?: () => void; beforeApply?: () => void; afterOp?: (index: number) => void }
 /** durable: false skips the fsync of every staged file (a bulk conversion of fixtures, where a crash means starting again); the journal commit point is still written the same way. */
 export interface TxnOptions { hooks?: TxnHooks; lock?: { retries?: number; waitMs?: number }; durable?: boolean }
 const NO_FSYNC = { ...fs, fsyncSync: (): void => {} } as unknown as typeof fs;

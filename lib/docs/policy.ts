@@ -1,6 +1,6 @@
 // D24 and data-class scan for generated documents. Pure string functions. A finding never repeats the offending value (it could be a token):
 // it names the kind and the line only.
-export type DataClass = 'names' | 'tracker_text' | 'authors';
+type DataClass = 'names' | 'tracker_text' | 'authors';
 export type DataPolicy = { include: ReadonlySet<DataClass> };
 export type Violation = { code: 'D24_VIOLATION' | 'DATA_CLASS_VIOLATION'; kind: string; line: number };
 /** Values a document must not print unless the policy lists their class. */

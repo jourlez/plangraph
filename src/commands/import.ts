@@ -21,7 +21,7 @@ const rowKey = (r: Record<string, unknown>): string => `${String(r.sys)}\0${Stri
 const oneError = (e: unknown): string => oneLine(String((e as { message?: unknown } | null)?.message ?? e).split('\n')[0], 300);
 
 /** Append the cache line to the plan dir's .gitignore (created when missing); every user line stays byte for byte. */
-export function ignoreCache(ctx: Ctx): void {
+function ignoreCache(ctx: Ctx): void {
   const gi = path.join(ctx.dir, '.gitignore');
   precheckTargets(ctx, [gi]);
   let old: string | null = null; try { old = readCapped(gi, 1024 * 1024); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw dataError('cannot read the plan directory .gitignore'); }

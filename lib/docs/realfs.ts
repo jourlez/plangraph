@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { FsLike } from './registry.ts';
 
-export type RealFsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
+type RealFsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
 const outsideRoot = (): RealFsError => Object.assign(new Error('docs.out must be a plain directory inside the repository (no symlink)'), { code: 'OUT_OUTSIDE_ROOT' as const });
 
 /** Throws OUT_OUTSIDE_ROOT when a component of rel (under root) is a symlink or a non-directory parent. A missing component is fine. */

@@ -14,7 +14,7 @@ import { formatPg, parsePg } from './pg.ts';
 import type { Node, PgProblem } from './pg.ts';
 
 export const MAX_NODE_BYTES = 256 * 1024;
-export type ProblemCode = PgProblem | 'SYMLINK' | 'OVERSIZE';
+type ProblemCode = PgProblem | 'SYMLINK' | 'OVERSIZE';
 export interface Problem { code: ProblemCode; path: string; line: number; fix: string }
 export interface ErasePlan { id: string; files: string[]; links: Array<{ path: string; rel: string }>; events: Array<{ path: string; line: number }> }
 
@@ -25,7 +25,7 @@ export const FIX: Readonly<Record<string, string>> = {
   SYMLINK: 'replace the symlink with a regular file',
   OVERSIZE: 'node files are at most 256 KiB: split the content',
 };
-export const problem = (root: string, abs: string, code: ProblemCode, line: number): Problem => ({ code, path: path.relative(root, abs), line, fix: FIX[code] as string }); // FIX has every code
+const problem = (root: string, abs: string, code: ProblemCode, line: number): Problem => ({ code, path: path.relative(root, abs), line, fix: FIX[code] as string }); // FIX has every code
 
 const sortById = (a: Node, b: Node) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const sortByPath = (a: Problem, b: Problem) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line);
@@ -77,7 +77,7 @@ export function refuseOccupied(root: string, abs: string, why: string): never {
 
 /** Throws when the file at `abs` exists and is not a readable node with this id: a damaged file (conflict markers, a bad line, oversize) or a file that
  * holds a different id (a crafted id with the same name) is never overwritten. A symlink is left to the transaction, which refuses it. */
-export function assertOwned(root: string, abs: string, id: string): Node | null {
+function assertOwned(root: string, abs: string, id: string): Node | null {
   let present = true;
   try { fs.lstatSync(abs); } catch { present = false; }
   if (!present) return null;

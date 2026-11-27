@@ -6,7 +6,7 @@ import { deriveAll } from './state.ts';
 import type { EventIn, TaskState } from './state.ts';
 import { depsFromModel } from './deps.ts';
 
-export type RtmStatus = 'proposed' | 'implemented' | 'verified' | 'orphan';
+type RtmStatus = 'proposed' | 'implemented' | 'verified' | 'orphan';
 export interface RtmRow { requirement: string; tasks: { key: string; state: TaskState }[]; status: RtmStatus }
 export interface RtmExtras { requirements?: readonly { id: string }[]; links?: readonly FlowLink[]; merged?: (ref: string) => boolean }
 

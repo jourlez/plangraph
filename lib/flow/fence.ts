@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import { fence } from '../sanitize.ts';
 
-export function fenceLines(src: string, lines: readonly string[]): string {
+function fenceLines(src: string, lines: readonly string[]): string {
   const body = lines.join('\n');
   return fence(src, body, { src, nonce: crypto.createHash('sha256').update(body).digest('hex').slice(0, 8), max: body.length + 16 });
 }

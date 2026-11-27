@@ -5,14 +5,14 @@
 // at print time in the command layer, not here.
 import type { CommitFact } from './parse.ts';
 
-export type Source = 'branch' | 'title' | 'commit' | 'body';
+type Source = 'branch' | 'title' | 'commit' | 'body';
 export interface Evidence { key: string; source: Source; conf: number }
 export interface TicketLink { key: string; repo: string; sources: Source[]; conf: number; prs: number[] }
 /** One row of `cache/github.jsonl`, the fields the linker reads (same names lib/graph/github.ts writes). */
 export interface PrObservation { number: number; repo?: string; branch?: string; title?: string; body?: string; merged?: boolean; base?: string }
 export type LinkCommit = CommitFact & { message?: string; branch?: string; repo?: string };
 
-export const CONF: Record<Source, number> = { branch: 0.95, title: 0.9, commit: 0.75, body: 0.5 };
+const CONF: Record<Source, number> = { branch: 0.95, title: 0.9, commit: 0.75, body: 0.5 };
 const CLOSING_FULL = 0.9, CLOSING_OFF_DEFAULT = 0.4, MIN_CONF = 0.5, MAX_TEXT = 20000;
 const PREFIX = /^[A-Z][A-Z0-9_]{0,19}$/;
 const CLOSING = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)[:\s]+$/i;

@@ -28,9 +28,9 @@ import { commands as integrationCmds } from './integrations.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 
-export const STEPS = ['detect', 'scan', 'history', 'docs', 'plans', 'fetch', 'links', 'identities', 'build', 'check', 'map', 'docs-build', 'report'] as const;
+const STEPS = ['detect', 'scan', 'history', 'docs', 'plans', 'fetch', 'links', 'identities', 'build', 'check', 'map', 'docs-build', 'report'] as const;
 type Step = (typeof STEPS)[number];
-export interface Checkpoint {
+interface Checkpoint {
   version: 1; done: string[]; failed: { step: string; reason: string }[]; questions: { id: string; text: string }[];
   /** steps that ran without their input (no network, a shallow clone, --no-fetch): done, but listed so the report can say why */
   skipped?: { step: string; reason: string }[];
@@ -175,7 +175,7 @@ const BODIES: Record<Step, Body> = {
 };
 
 /** Every unknown, one line each, sorted: nothing here is guessed. */
-export function gapReport(ctx: Ctx, state: Checkpoint): string[] {
+function gapReport(ctx: Ctx, state: Checkpoint): string[] {
   const gaps: string[] = [];
   if (!hasCodeowners(ctx)) gaps.push('no CODEOWNERS');
   const sk = (s: string): string | undefined => state.skipped?.find((x) => x.step === s)?.reason;

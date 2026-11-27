@@ -23,7 +23,6 @@ import type { IdentityMap } from '../../lib/identity.ts';
 export type Dense<K, V> = Omit<Map<K, V>, 'get'> & { get(key: K): V };
 
 export { capOf } from '../../lib/model.ts';
-export const BIN = path.join(import.meta.dirname, '../../bin');
 export const SEED = path.join(import.meta.dirname, '../../seed/learnings.seed.jsonl');
 export const CUR = "version='current'";
 export const KEY_RE = /^[A-Z][A-Z0-9]*-\d+$/;

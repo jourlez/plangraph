@@ -11,11 +11,11 @@ import { makeGit } from '../gitsafe.ts';
 import { readDataCapped } from '../jsonl.ts';
 import { withTxn } from './txn.ts';
 
-export const sha8 = (s: string): string => crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
+const sha8 = (s: string): string => crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
 const MAX_FILE = 64 << 20, MAX_LINE = 1 << 20;
 
 /** Canonical JSON: keys sorted at every level, undefined members dropped. */
-export function canon(v: unknown): string {
+function canon(v: unknown): string {
   if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
   if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
   const o = v as Record<string, unknown>;
@@ -57,8 +57,8 @@ function readRows(abs: string): { rows: { row: Row; line: number; raw: string }[
   return { rows, bad, unreadable: false };
 }
 /** `at` is exactly `yyyy-mm-ddThh:mm:ssZ`: it names the month directory and the day of the file an event is appended to, and sorts as text. */
-export const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
-export const validEvent = (r: Row): boolean => typeof r.at === 'string' && AT.test(r.at) && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
+const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+const validEvent = (r: Row): boolean => typeof r.at === 'string' && AT.test(r.at) && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
 
 /** A row that counts as an event of its file: well formed, and in a plain file (named for its actor) written by that actor. A compact file's rows carry their own actor. */
 export const eventOk = (f: BatchFile, r: Row): boolean => validEvent(r) && (f.kind !== 'plain' || r.by === f.actor);

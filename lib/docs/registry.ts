@@ -20,7 +20,6 @@ export type { Generator, Extras } from './types.ts';
 
 /** The file operations a build needs. read is only called for a path that exists. */
 export type FsLike = { read(path: string): string; write(path: string, text: string): void; exists(path: string): boolean; mkdirp(dir: string): void };
-export type DocsError = Error & { code: 'OUT_OUTSIDE_ROOT' };
 
 export const GENERATORS: readonly Generator[] = [roadmap, rtm, adrIndex, status, architecture, repoPage, onboarding, releaseNotes];
 

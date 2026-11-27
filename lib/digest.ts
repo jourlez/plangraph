@@ -10,14 +10,14 @@ import { nodeUri } from './graph/uri.ts';
 import type { Model } from './model.ts';
 
 // ---- inputs the controller feeds from the new node kinds and the history cache ----
-export interface ReqX { id: string; text?: string; status?: string; /** derived: implemented, verified, orphan */ state?: string; /** ticket keys that satisfy it */ satisfiedBy?: string[] }
-export interface DecX { id: string; title?: string; status?: string; date?: string; affects?: string[] }
+interface ReqX { id: string; text?: string; status?: string; /** derived: implemented, verified, orphan */ state?: string; /** ticket keys that satisfy it */ satisfiedBy?: string[] }
+interface DecX { id: string; title?: string; status?: string; date?: string; affects?: string[] }
 export interface RepoX { id: string; name?: string; pm?: string; cmds?: Record<string, string>; owners?: string[]; /** tickets that work in this repo */ tickets?: string[]; /** ticket key to the paths its work touches */ touched?: Record<string, string[]> }
-export interface TeamX { id: string; name?: string; members?: string[]; owns?: string[] }
+interface TeamX { id: string; name?: string; members?: string[]; owns?: string[] }
 export interface ModuleX { repo: string; path: string; commits?: number; churn?: number; authors?: Array<{ person: string; share: number }>; hotspot?: boolean; bus1?: boolean; [extra: string]: unknown }
 export interface Extras { requirements?: readonly ReqX[]; decisions?: readonly DecX[]; repos?: readonly RepoX[]; teams?: readonly TeamX[]; modules?: readonly ModuleX[] }
 /** fp: the index fingerprint; ageDays: age of the fetch cache in days (null or absent: unknown). */
-export interface Fresh { fp?: string; ageDays?: number | null }
+interface Fresh { fp?: string; ageDays?: number | null }
 
 interface Line { p: number; text: string }
 /** A digest: the lines in fixed section order with a priority each (lower is kept longer), the JSON data, and its default bound. */
@@ -35,7 +35,7 @@ const idTxt = (s: unknown): string => { const v = String(s ?? ''); return /^[\w.
 const hex8 = (fp: unknown): string => String(fp ?? '').replace(/[^0-9a-f]/g, '').slice(0, 8) || 'unbuilt';
 const more = (items: string[], limit: number): string => (items.length > limit ? items.slice(0, limit).concat(`+${items.length - limit} more`) : items).join(', ');
 /** `pg:<type>/<id>`; requirement, decision and team are not in the core URI grammar yet, so those take the ticket encoding of the id. */
-export function uri(type: string, id: string): string | null {
+function uri(type: string, id: string): string | null {
   try { return nodeUri(type, id); } catch { /* type outside the grammar, or a bad id */ }
   try { return `pg:${type}/${nodeUri('ticket', id).slice('pg:ticket/'.length)}`; } catch { return null; }
 }

@@ -33,16 +33,17 @@ const optDate: FieldCheck = (r, k) => (has(r, k) && !isDate(r[k]) ? `"${k}" must
 const optSchemaVersion: FieldCheck = (r, k) => optInt(r, k) ?? (has(r, k) && (r[k] as number) < 1 ? `"${k}" must be at least 1` : null); // optInt returned null: absent or a whole number
 const optCmds: FieldCheck = (r, k) => optObject(r, k) ?? (has(r, k) && !Object.values(r[k] as object).every((x) => typeof x === 'string') ? `"${k}" values must be strings` : null); // optObject returned null: absent or an object
 /** Most wildcards (runs of `*`, and each `?`) a glob may hold; the schema refuses more (BAD_SCHEMA). */
-export const MAX_GLOB_WILDCARDS = 8;
+const MAX_GLOB_WILDCARDS = 8;
 /** The number of wildcards of a glob: each run of `*` counts one, each `?` one. */
-export const wildcardsOf = (g: string): number => (g.match(/\*+|\?/g) ?? []).length;
+const wildcardsOf = (g: string): number => (g.match(/\*+|\?/g) ?? []).length;
 const optPaths: FieldCheck = (r, k) => (has(r, k) && !(Array.isArray(r[k]) && (r[k] as unknown[]).every((x) => isObject(x) && typeof (x as Rec).glob === 'string' && typeof (x as Rec).sub === 'string')) ? `"${k}" must be an array of {glob, sub} objects` : (has(r, k) && (r[k] as Array<{ glob: string }>).some((x) => wildcardsOf(x.glob) > MAX_GLOB_WILDCARDS) ? `"${k}" globs may hold at most ${MAX_GLOB_WILDCARDS} wildcards` : null));
 const optGlobs: FieldCheck = (r, k) => optStrings(r, k) ?? (has(r, k) && (r[k] as string[]).some((g) => wildcardsOf(g) > MAX_GLOB_WILDCARDS) ? `"${k}" globs may hold at most ${MAX_GLOB_WILDCARDS} wildcards` : null);
 const withVersion = (...checks: Array<(r: Rec) => string | null>) => (r: Rec): string | null => first(r, [...checks, (x: Rec) => optSchemaVersion(x, 'schema_version')]);
 const REPO_ROLES = ['service', 'lib', 'app', 'infra', 'docs', 'monorepo'], REPO_SRC = ['scan', 'manual', 'catalog'];
 
 // ---- requirement, decision and team nodes (docs/FORMAT.md): field shapes; the node check (lib/store2/check.ts) applies the same rules as BAD_SCHEMA ----
-export const REQ_KINDS = ['ears', 'gherkin', 'free'], REQ_STATUS = ['proposed', 'accepted', 'dropped'], DEC_STATUS = ['proposed', 'accepted', 'deprecated', 'superseded', 'rejected'];
+export const REQ_KINDS = ['ears', 'gherkin', 'free'];
+const REQ_STATUS = ['proposed', 'accepted', 'dropped'], DEC_STATUS = ['proposed', 'accepted', 'deprecated', 'superseded', 'rejected'];
 const EXT_SYS = /^[a-z][a-z0-9-]{0,23}$/, EXT_XID = /^[A-Za-z0-9._:/#@ -]{1,200}$/, PATH_BAD = /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069\\]/;
 /** Why a requirement `source` is refused, or null: a repo-relative path with an optional `#anchor`, or an external reference `<sys>:<xid>`; never a URL. */
 export function sourceProblem(v: unknown): string | null {
