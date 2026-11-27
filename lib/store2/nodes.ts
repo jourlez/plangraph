@@ -1,10 +1,11 @@
 // Entity files on disk: read, write, delete, rename and erase of nodes/<kind>/<h2>/<slug>~<h8>.pg (spec 4.0). A damaged file is a
-// Problem, never an exception: readers skip it and say why. Writes go through writeAtomicSafe (confined to the store root, no symlink
+// Problem, never an exception: readers skip it and say why. Writes go through withTxn (the store lock, confined to the store root, no symlink
 // written through); reads go through readDataCapped (regular files only, capped). A multi-file operation (rename) is not one transaction
 // here: batches/txn wrap it when a command needs that.
 import fs from 'node:fs';
 import path from 'node:path';
-import { assertInside, writeAtomicSafe } from '../fsafe.ts';
+import { assertInside } from '../fsafe.ts';
+import { withTxn } from './txn.ts';
 import { readDataCapped } from '../jsonl.ts';
 import { assertKind, nodePath } from './layout.ts';
 import { formatPg, parsePg } from './pg.ts';
@@ -70,12 +71,12 @@ export function readNodes(root: string, kind: string): { nodes: Node[]; problems
 export function writeNode(root: string, kind: string, n: Node): 'created' | 'changed' | 'same' {
   if (typeof n.id !== 'string' || n.id === '') throw new TypeError('a node needs a non-empty string id');
   const file = nodePath(root, kind, n.id), text = formatPg(n);
-  let state: 'created' | 'changed' = 'created';
-  try { fs.lstatSync(file); state = 'changed'; } catch { /* new file */ }
-  if (state === 'changed') { try { if (readDataCapped(file, MAX_NODE_BYTES) === text) return 'same'; } catch { /* unreadable: rewritten below */ } }
-  assertInside(root, path.dirname(file));
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  writeAtomicSafe(file, text, { root });
+  let state: 'created' | 'changed' | 'same' = 'created';
+  withTxn(root, (tx) => { // under the store lock: two processes writing the same node, or a node and a kind rewrite, never interleave
+    try { fs.lstatSync(file); state = 'changed'; } catch { /* new file */ }
+    if (state === 'changed') { try { if (readDataCapped(file, MAX_NODE_BYTES) === text) { state = 'same'; return; } } catch { /* unreadable: rewritten below */ } }
+    tx.write(path.relative(root, file).split(path.sep).join('/'), text);
+  });
   return state;
 }
 
