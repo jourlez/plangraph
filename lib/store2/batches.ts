@@ -56,7 +56,9 @@ function readRows(abs: string): { rows: { row: Row; line: number; raw: string }[
   });
   return { rows, bad, unreadable: false };
 }
-const validEvent = (r: Row): boolean => typeof r.at === 'string' && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
+/** `at` is exactly `yyyy-mm-ddThh:mm:ssZ`: it names the month directory and the day of the file an event is appended to, and sorts as text. */
+export const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
+export const validEvent = (r: Row): boolean => typeof r.at === 'string' && AT.test(r.at) && Number.isInteger(r.seq) && typeof r.task === 'string' && typeof r.to === 'string' && typeof r.by === 'string';
 
 /** Every event batch file under events/, in name order. Symlinks and odd names are ignored here (check reports them). */
 export function eventFiles(root: string): BatchFile[] {
@@ -97,22 +99,31 @@ export function readEvents(root: string, opts: { fileOrder?: (files: string[]) =
 
 const actorName = (a: string): string => String(a).toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 40) || '_';
 
-/** Append one event. `at` = max(wall clock to the second, latest `at` already on disk); `seq` = 1 + the highest `seq` seen at that same `at`
- *  (0 if none), so an event written after reading another always sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
+const SKEW_MS = 24 * 3600 * 1000;
+/** Where the next event goes: `at` = max(wall clock to the second, latest valid `at` already read), `seq` = 1 + the highest `seq` at that `at` (0 if none).
+ *  A `latest` more than 24 hours ahead of the wall clock is ignored: one row (or one clock set to 2099) must not pin every later event to its month. */
+export function nextPosition(seen: readonly { at: string; seq: number }[], now: Date): { at: string; seq: number } {
+  const wall = iso(now), limit = iso(new Date(now.getTime() + SKEW_MS));
+  let latest = '';
+  for (const s of seen) if (AT.test(s.at) && s.at > latest && s.at <= limit) latest = s.at;
+  const at = wall > latest ? wall : latest;
+  let seq = -1;
+  for (const s of seen) if (s.at === at && s.seq > seq) seq = s.seq;
+  return { at, seq: seq + 1 };
+}
+
+/** Append one event at nextPosition: an event written after reading another sorts after it, whatever the actors' names. `now` and `branch` are test seams. */
 export function appendEvent(root: string, actor: string, e: EventInput, opts: { now?: Date; branch?: string; guard?: (seen: readonly Event[]) => void } = {}): Event {
   const bh8 = branchHash(root, opts.branch), name = actorName(actor);
   let result: Event | undefined;
   withTxn(root, (tx) => {
     const seen = readEvents(root);
     opts.guard?.(seen); // the caller's rule runs on the events as they are under the lock, so two processes cannot both pass it
-    const wall = iso(opts.now ?? new Date());
-    const latest = seen.length ? (seen[seen.length - 1] as Event).at : '';
-    const at = wall > latest ? wall : latest;
-    let seq = -1;
-    for (const s of seen) if (s.at === at && s.seq > seq) seq = s.seq;
+    const { at, seq } = nextPosition(seen, opts.now ?? new Date());
     const { at: _a, seq: _s, actor: _c, bh8: _b, ...rest } = e as Event;
-    const row = { ...rest, at, seq: seq + 1 };
+    const row = { ...rest, at, seq };
     const rel = `events/${at.slice(0, 7)}/${name}.${bh8}.${at.slice(8, 10)}.jsonl`;
+    if (!AT.test(at) || !MONTH.test(at.slice(0, 7)) || !PLAIN.test(rel.split('/')[2] as string)) throw Object.assign(new Error('the event time does not give an events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl path'), { code: 'BAD_PATH' }); // nothing is written
     let old = '';
     try { old = readDataCapped(path.join(root, rel), MAX_FILE); } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; } // whatever was thrown: read its code
     if (old && !old.endsWith('\n')) old += '\n';

@@ -242,3 +242,61 @@ test('m2: different keys are still unioned, and the write goes through withTxn (
   assert.match(fs.readFileSync(f, 'utf8'), /capacity \{"sp":5,"sprint":3\}\ncapacity \{"sp":8,"sprint":4\}\n/);
   assert.deepEqual(fs.readdirSync(path.join(dir, '.txn')).filter((n) => n !== 'lock'), []);
 });
+
+// ---------- M1: one hostile or odd `at` must not move every later event ----------
+import { appendEvent, readEvents } from '../lib/store2/batches.ts';
+import { checkBatches } from '../lib/store2/check-batches.ts';
+import { commands as claimCmd } from '../src/commands/flow-claim.ts';
+import { flowFixture, run as runCmd, cleanup as cleanupFlow } from './helpers/flow-ctx.ts';
+
+after(cleanupFlow);
+const putEvents = (root: string, rel: string, rows: object[]): void => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), rows.map((r) => `${JSON.stringify(r)}\n`).join('')); };
+const NOW = new Date('2026-11-27T10:00:00Z');
+
+test('M1: a row with at "Z" is not an event, is reported by check, and later appends land in the month directory', () => {
+  const root = tmp();
+  putEvents(root, 'events/2026-11/mallory.00000000.01.jsonl', [{ at: 'Z', by: 'x', seq: 0, task: 'T-1', to: 'done' }]);
+  const e = appendEvent(root, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
+  assert.equal(e.at, '2026-11-27T10:00:00Z');
+  assert.ok(fs.existsSync(path.join(root, 'events', '2026-11')) && fs.readdirSync(path.join(root, 'events', '2026-11')).some((n) => n.startsWith('alice.')));
+  assert.equal(fs.existsSync(path.join(root, 'events', 'Z')), false);
+  assert.deepEqual(readEvents(root).map((x) => x.task), ['T-2'], 'the odd row is not an event, the real one is read back');
+  const v = checkBatches(root);
+  assert.equal(v.some((x) => x.path === 'events/2026-11/mallory.00000000.01.jsonl' && x.code === 'BAD_LINE' && x.line === 1), true);
+});
+
+for (const at of ['2026-11-27', '2026-11-27T10:00:00.5Z', '2026-11-27T10:00:00+01:00', '2026-11-27 10:00:00Z', '20261127T100000Z', 'x'.repeat(30)]) {
+  test(`M1: at ${JSON.stringify(at)} is not an event`, () => {
+    const root = tmp();
+    putEvents(root, 'events/2026-11/m.00000000.01.jsonl', [{ at, by: 'x', seq: 0, task: 'T-1', to: 'done' }]);
+    assert.deepEqual(readEvents(root), []);
+  });
+}
+
+test('M1: a latest at more than 24 hours ahead of the wall clock is ignored; one inside the skew still wins', () => {
+  const root = tmp();
+  putEvents(root, 'events/2099-01/m.00000000.01.jsonl', [{ at: '2099-01-01T00:00:00Z', by: 'x', seq: 0, task: 'T-1', to: 'claimed' }]);
+  const e = appendEvent(root, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
+  assert.equal(e.at, '2026-11-27T10:00:00Z', 'a laptop set to 2099 does not pin everyone to that month');
+  assert.equal(e.seq, 0);
+  const root2 = tmp();
+  putEvents(root2, 'events/2026-11/m.00000000.01.jsonl', [{ at: '2026-11-28T09:00:00Z', by: 'x', seq: 3, task: 'T-1', to: 'claimed' }]); // 23 hours ahead
+  const e2 = appendEvent(root2, 'alice', { task: 'T-2', to: 'claimed', by: 'alice' }, { now: NOW, branch: 'main' });
+  assert.deepEqual([e2.at, e2.seq], ['2026-11-28T09:00:00Z', 4]);
+});
+
+test('M1: an actor or time that would build a path outside events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl is refused before anything is written', () => {
+  const root = tmp();
+  assert.throws(() => appendEvent(root, 'alice', { task: 'T-1', to: 'claimed', by: 'a' }, { now: new Date('+010000-01-01T00:00:00Z'), branch: 'main' }), /BAD_PATH|path/);
+  assert.equal(fs.existsSync(path.join(root, 'events')), false);
+});
+
+test('M1: the guard probes at the real append position, not at the end of time (a future-dated event is replayed after the new one)', async () => {
+  const f = flowFixture({ n: 3 });
+  putEvents(f.dir, 'events/2099-01/bo.00000000.01.jsonl', [{ at: '2099-01-01T00:00:00Z', by: 'bo', seq: 0, task: 'T-1', to: 'claimed' }]);
+  const code = await runCmd(f, claimCmd, 'flow-claim', ['T-1'], { by: 'ana' });
+  assert.equal(code, 0, f.err.join('\n'));
+  const mine = readEvents(f.dir).filter((e) => e.by === 'ana');
+  assert.equal(mine.length, 1);
+  assert.match(mine[0]?.at as string, /^2026-11-26T/);
+});

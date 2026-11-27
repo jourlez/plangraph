@@ -3,7 +3,7 @@
 // to the one there. `path` is relative to the plan directory.
 import path from 'node:path';
 import { readDataCapped } from '../jsonl.ts';
-import { eventFiles, runFiles, runKinds, scheduleVersions, type BatchFile } from './batches.ts';
+import { eventFiles, runFiles, runKinds, scheduleVersions, validEvent, type BatchFile } from './batches.ts';
 
 export interface StoreViolation { code: string; path: string; line: number | null; fix: string }
 
@@ -26,6 +26,8 @@ export function checkBatches(root: string): StoreViolation[] {
   const out: StoreViolation[] = [];
   for (const f of eventFiles(root)) {
     lineProblems(f, root, out);
+    const odd = f.rows.find((r) => !validEvent(r.row)); // valid JSON, but not an event: never read, so never silently dropped
+    if (odd) out.push({ code: 'BAD_LINE', path: f.rel, line: odd.line, fix: 'the row is not an event: it needs at (yyyy-mm-ddThh:mm:ssZ), an integer seq, task, to and by; delete or repair it' });
     let prev: [string, number] | null = null;
     for (const { row, line } of f.rows) {
       if (typeof row.at !== 'string' || !Number.isInteger(row.seq)) continue;
