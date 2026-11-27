@@ -2,7 +2,7 @@
 name: docs-publish
 description: Publish a generated plangraph document as a remote mirror in Confluence, Google Docs, Notion, Claude Docs or an Artifact. Mirrors are read-only copies of a repository file; the source stays in the repository. Use when the owner asks to publish, share or mirror the roadmap, requirements matrix, decisions, status, architecture, onboarding or release notes, or to refresh a mirror after the plan changed. Not for editing the plan.
 disable-model-invocation: true
-allowed-tools: Bash(plangraph docs list), Bash(plangraph docs check), Bash(plangraph docs export:*)
+allowed-tools: Bash(plangraph docs:*)
 ---
 
 # Publish a generated document as a mirror

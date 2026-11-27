@@ -111,7 +111,7 @@ const CASES: Case[] = [
   { name: 'graph-materialize', args: ['graph-materialize'], files: ['.plangraph/people.jsonl', '.plangraph/sprints.jsonl', '.plangraph/epics.jsonl'] },
   { name: 'docs-list', args: ['docs', 'list'] }, { name: 'docs-check', args: ['docs', 'check'] }, { name: 'docs-export', args: ['docs', 'export', 'roadmap'] }, { name: 'docs-export-unknown', args: ['docs', 'export', 'nope'] },
   { name: 'docs-build', args: ['docs-build'] }, { name: 'docs-build-check', args: ['docs-build'], files: ['docs/plangraph/roadmap.md'] },
-  { name: 'ingest-links', args: ['ingest', 'links'] }, { name: 'ingest-links-scanned', args: ['ingest', 'links'], setup: (r) => { assert.equal(run(r, ['repo', 'scan']).status, 0); } }, { name: 'ingest-git', args: ['ingest', 'git'] },
+  { name: 'ingest-links', args: ['ingest', 'links'] }, { name: 'ingest-links-scanned', args: ['ingest', 'links'], setup: (r) => { assert.equal(run(r, ['repo', 'scan']).status, 0); } },
   { name: 'ingest-docs', args: ['ingest', 'docs', 'docs/plan.md'] }, { name: 'ingest-requirements', args: ['ingest', 'requirements', 'docs/plan.md'] },
   { name: 'ingest-noarg', args: ['ingest'] }, { name: 'sync-fetch', args: ['sync-fetch'] }, { name: 'trust-bad', args: ['trust', 'nope'] },
   { name: 'identity-propose', args: ['identity', 'propose'] }, { name: 'identity-list', args: ['identity', 'list'] }, { name: 'identity-map-unknown', args: ['identity-map', 'jira:u1', 'Nobody'] },

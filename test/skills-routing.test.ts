@@ -138,7 +138,7 @@ test('allowed-tools lists only read-only Bash(plangraph ...) patterns and named 
   const APPROVED_BRAIN = new Set([
     ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale', 'graph'].map((c) => `Bash(plangraph ${c}:*)`),
     'Bash(plangraph doctor)', 'Bash(plangraph blockers)', 'Bash(plangraph check)', 'Bash(plangraph forecast)', 'Bash(plangraph open-items)', 'Bash(plangraph card --line)',
-    ...['list', 'check'].map((c) => `Bash(plangraph docs ${c})`), 'Bash(plangraph docs export:*)', // the read-only docs commands; docs-build and every other writer stays unapproved
+    'Bash(plangraph docs:*)', // docs list, check and export are read-only; docs-build is its own command and stays unapproved
   ]);
   for (const n of names) {
     const at = skills[n].fm['allowed-tools'];

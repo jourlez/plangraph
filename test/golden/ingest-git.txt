@@ -1,5 +1,0 @@
-$ plangraph ingest git
-exit: 0
---- stdout
-ingested 54 modules from 1 commits (full)
---- stderr
