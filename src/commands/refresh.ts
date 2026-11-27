@@ -9,6 +9,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { Ctx, Args } from '../context.ts';
+import { PlangraphError } from '../errors.ts';
 import type { CommandMap } from '../registry.ts';
 
 type Values = { fast?: boolean; budget?: number; quiet?: boolean };
@@ -57,6 +58,7 @@ async function rebuildIndex(ctx: Ctx, ms: number, command?: readonly string[]): 
     const prefix = `${INDEX_FILE}.tmp-${child.pid}`;
     try { for (const f of fs.readdirSync(ctx.dir)) if (f === prefix || f.startsWith(`${prefix}-`)) fs.rmSync(path.join(ctx.dir, f), { force: true }); } catch { /* best effort: removeStaleTemps takes a dead pid's leftovers at the next build */ }
   }
+  if (!late && code === 2) throw new PlangraphError('DATA', 'the index build failed: the plan holds damaged data', { hint: '`plangraph check` names the file' }); // the child refused the data: exit 2 as `build` does
   if (!late && code !== 0) throw new Error('the index build failed');
 }
 
