@@ -53,6 +53,7 @@ export function normalizeGolden(text: string): string {
 /** Test files that mention old-layout names only as text or in memory, or that test the raw JSONL readers and canonical-text functions that remain
  * (lib/jsonl.ts, lib/store.ts), or that author the solver's own v1-shaped input directory: no plan directory is authored, so there is nothing to adopt. */
 export const TEXT_ONLY: readonly string[] = [
+  'glob-linear.test.ts', // in-memory validators['repos.jsonl'] calls, no plan files
   'assure-regressions.test.ts', // canonical-text functions of lib/store.ts, in memory
   'mutation-kills-jsonl.test.ts', // the raw JSONL reader and parser of lib/jsonl.ts
   'mutation-kills-openitems-ids.test.ts',
