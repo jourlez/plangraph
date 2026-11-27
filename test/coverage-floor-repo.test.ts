@@ -227,7 +227,7 @@ test('repo scan --all scans every child repository in name order and ignores the
 test('repo scan refuses an unreadable --all path, no child repository, a plain directory, an empty id, two repositories with one id and a broken repository', async () => {
   const parent = scratch(), f = plan();
   const fail = async (pos: string[], values: object, re: RegExp) => { f.err.length = 0; assert.equal(await run(f, repoCmds, 'repo', pos, values), 2, pos.join(' ')); assert.match(f.err.join('\n'), re); };
-  await fail(['scan', path.join(parent, 'missing')], { all: true }, /cannot read .*missing/);
+  await fail(['scan', path.join(parent, 'missing')], { all: true }, /^cannot read /);
   await fail(['scan'], { all: true }, /--all found no git repository|cannot read/); // the context root is a plain directory here
   fs.mkdirSync(path.join(parent, 'plain'));
   await fail(['scan', path.join(parent, 'plain')], {}, /the path is not a git repository/);
