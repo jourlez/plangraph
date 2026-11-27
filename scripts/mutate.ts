@@ -126,6 +126,23 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/store2/txn.ts", "if (!fs.existsSync(staged)) return;", "", ["test/store2-txn.test.ts"]],
   ["lib/store2/txn.ts", "parts[0] === TXN) throw", "false) throw", ["test/store2-txn.test.ts"]],
   ["lib/store2/txn.ts", "catch (e) { fs.rmSync(dir, { recursive: true, force: true }); throw e; }", "catch (e) { throw e; }", ["test/store2-txn.test.ts"]],
+  // 1.0 history: git mining, parse, ticket linking
+  ["lib/history/git.ts", "if (isShallow(git)) throw new PlangraphError", "if (false) throw new PlangraphError", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/git.ts", "return git('rev-parse', '--is-shallow-repository').trim() === 'true'; } catch { return false; }", "return git('rev-parse', '--is-shallow-repository').trim() !== 'true'; } catch { return false; }", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/git.ts", "try { git('merge-base', '--is-ancestor', cur.sha, 'HEAD'); anc = true; } catch { anc = false; }", "anc = true;", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/git.ts", "const keep = (c: CommitFact): boolean => !ignore.has(c.sha) && Date.parse(c.at) >= cutoffMs;", "const keep = (c: CommitFact): boolean => Date.parse(c.at) >= cutoffMs;", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/git.ts", "if (f.renamedFrom !== undefined) alias.set(f.renamedFrom, p);", "", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/git.ts", "if (n < o.minCochange) continue;", "if (n <= o.minCochange) continue;", ["test/history-git.test.ts","test/ingest-git-command.test.ts"]],
+  ["lib/history/link.ts", "const CLOSING_FULL = 0.9, CLOSING_OFF_DEFAULT = 0.4, MIN_CONF = 0.5", "const CLOSING_FULL = 0.9, CLOSING_OFF_DEFAULT = 0.5, MIN_CONF = 0.5", ["test/history-link.test.ts"]],
+  ["lib/history/link.ts", "{ closing: p.base !== undefined && p.base === opts.defaultBranch }", "{ closing: true }", ["test/history-link.test.ts"]],
+  ["lib/history/link.ts", "export const CONF: Record<Source, number> = { branch: 0.95, title: 0.9, commit: 0.75, body: 0.5 };", "export const CONF: Record<Source, number> = { branch: 0.95, title: 0.9, commit: 0.95, body: 0.5 };", ["test/history-link.test.ts"]],
+  ["lib/history/link.ts", "const PREFIX = /^[A-Z][A-Z0-9_]{0,19}$/;", "const PREFIX = /^[A-Za-z][A-Za-z0-9_]{0,19}$/;", ["test/history-link.test.ts"]],
+  ["lib/history/link.ts", "(?<![A-Za-z0-9_])${k}-(\\\\d{1,9})(?![A-Za-z0-9_])", "${k}-(\\\\d{1,9})", ["test/history-link.test.ts"]],
+  ["lib/history/parse.ts", "if (this.cur && okPath(r.from) && okPath(tok)) this.cur.files.push", "if (this.cur) this.cur.files.push", ["test/history-git.test.ts","test/history-link.test.ts"]],
+  ["lib/history/parse.ts", "if (p === '') { this.renameOf = { a, d }; return; }", "", ["test/history-git.test.ts","test/history-link.test.ts"]],
+  ["lib/history/parse.ts", "p.length > 0 && p.length <= MAX_PATH && !CONTROL.test(p)", "p.length > 0 && p.length <= MAX_PATH", ["test/history-git.test.ts","test/history-link.test.ts"]],
+  ["lib/history/parse.ts", ".update(email.trim().toLowerCase())", ".update(email.trim())", ["test/history-git.test.ts","test/history-link.test.ts"]],
+  ["lib/history/parse.ts", "if (r.from === undefined) { r.from = tok; return; }", "", ["test/history-git.test.ts","test/history-link.test.ts"]],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }
