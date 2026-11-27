@@ -1,18 +1,19 @@
 // lib/ingest/write.ts: the one door through which `ingest docs` and `ingest requirements` store and read decision and requirement nodes.
-// The PlanStore has no such kinds until task 12, so they go straight to the entity files (nodes/<kind>/<h2>/<slug>~<h8>.pg) of lib/store2;
+// The PlanStore has no such kinds until task 12, so they go straight to the entity files (nodes/<kind>/<h2>/<slug>~<h12>.pg) of lib/store2;
 // when the store learns the kinds, only these two functions change.
-import { readNodes, writeNode } from '../store2/nodes.ts';
+import { readNodes, withNodes } from '../store2/nodes.ts';
+import type { NodeTx } from '../store2/nodes.ts';
 import { refuseWrite } from '../planstore.ts';
 import type { Node } from '../store2/pg.ts';
 
 export type DocKind = 'decision' | 'requirement';
 
-/** Write one node of a document kind; says whether the file was created, changed or already identical. */
-export function writeNodeKind(ctx: { dir: string }, kind: DocKind, node: Node): 'created' | 'changed' | 'same' {
-  try { return writeNode(ctx.dir, kind, node); } catch (e) { refuseWrite(e); } // a node directory that leaves the plan or is a symlink is refused (exit 4), never an internal error
-}
-
 /** The readable nodes of a document kind, sorted by id (a damaged file is left out; `plangraph check` reports it). */
 export function readNodeKind(ctx: { dir: string }, kind: DocKind): Node[] {
   return readNodes(ctx.dir, kind).nodes;
+}
+
+/** Read and write document nodes in one transaction under the store lock: a node another writer changed between the read and the write is never overwritten with stale content. */
+export function updateNodes<T>(ctx: { dir: string }, fn: (t: NodeTx) => T): T {
+  try { return withNodes(ctx.dir, fn); } catch (e) { refuseWrite(e); }
 }

@@ -98,3 +98,115 @@ test('m6: a symlinked directory creates nothing outside the root', () => {
   assert.throws(() => withTxn(root, () => {}));
   assert.deepEqual(fs.readdirSync(out), []);
 });
+
+// ---------- B2: a node file that could not be parsed is never overwritten ----------
+import { EntityStore } from '../lib/store2/entitystore.ts';
+import { nodePath } from '../lib/store2/layout.ts';
+import { writeNode, readNodes } from '../lib/store2/nodes.ts';
+import { spawn } from 'node:child_process';
+
+const entityDir = (): string => { const d = tmp(); fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":2,"min_reader":2,"storage":"entity"}\n'); return d; };
+const store = (dir: string): EntityStore => new EntityStore({ dir, root: dir });
+const CONFLICT = 'id "T-1"\n<<<<<<< ours\nsummary "mine"\n=======\nsummary "theirs"\n>>>>>>> theirs\n';
+function plantNode(dir: string, id: string, text: string): string {
+  const f = nodePath(dir, 'ticket', id);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, text);
+  return f;
+}
+
+for (const [name, text] of [['conflict markers', CONFLICT], ['a bad line', 'id "T-1"\nthis is not a field\n'], ['an oversize file', `id "T-1"\nnote "${'x'.repeat(300 * 1024)}"\n`]] as const) {
+  test(`B2: writeKind xref on a node with ${name} refuses with a DATA error and writes nothing`, () => {
+    const dir = entityDir(), f = plantNode(dir, 'T-1', text);
+    assert.throws(() => store(dir).writeKind('xref', [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-1' }]), (e: { code?: string; message?: string }) => e.code === 'DATA' && /run plangraph resolve or check/.test(e.message ?? ''));
+    assert.equal(fs.readFileSync(f, 'utf8'), text, 'both sides of the conflict are still on disk');
+    assert.deepEqual(fs.readdirSync(dir).filter((n) => n !== 'format.json' && n !== 'nodes' && n !== '.txn'), []);
+  });
+}
+
+test('B2: addRows and a primary kind write also refuse, and a write that does not touch the file still works', () => {
+  const dir = entityDir(), f = plantNode(dir, 'T-1', CONFLICT);
+  assert.throws(() => store(dir).addRows('xref', [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-1' }]), /run plangraph resolve or check/);
+  assert.throws(() => store(dir).writeKind('ticket', [{ key: 'T-1', summary: 's' }]), /run plangraph resolve or check/);
+  assert.throws(() => writeNode(dir, 'ticket', { id: 'T-1', summary: 's' }), /run plangraph resolve or check/);
+  store(dir).writeKind('ticket', [{ key: 'T-2', summary: 'other' }]);
+  assert.equal(fs.readFileSync(f, 'utf8'), CONFLICT);
+  assert.deepEqual(store(dir).readKind('ticket', { defaults: false }).map((r) => r.key), ['T-2']);
+});
+
+// ---------- m1: a file that holds another id is never replaced ----------
+test('m1: a file at the computed path that holds a different id is refused by writeNode and by the store', () => {
+  const dir = entityDir(), f = plantNode(dir, 'A', 'id "B"\nsummary "victim"\n'); // what a crafted colliding id would leave at A\'s path
+  assert.throws(() => writeNode(dir, 'ticket', { id: 'A', summary: 'new' }), /run plangraph resolve or check|different id/);
+  assert.throws(() => store(dir).writeKind('ticket', [{ key: 'A', summary: 'new' }]), /run plangraph resolve or check|different id/);
+  assert.equal(fs.readFileSync(f, 'utf8'), 'id "B"\nsummary "victim"\n');
+});
+
+// ---------- M2: no lost update between processes ----------
+const SCRIPT = (op: string): string => `
+import { EntityStore } from ${JSON.stringify(path.resolve(import.meta.dirname, '../lib/store2/entitystore.ts'))};
+import { withNodes, renameNode } from ${JSON.stringify(path.resolve(import.meta.dirname, '../lib/store2/nodes.ts'))};
+const [dir, n] = process.argv.slice(1);
+const s = new EntityStore({ dir, root: dir });
+${op}
+`;
+const spawnNode = (script: string, ...args: string[]): Promise<{ code: number | null; err: string }> => new Promise((resolve) => {
+  const c = spawn(process.execPath, ['--input-type=module', '-e', script, ...args], { env: { PATH: process.env.PATH ?? '' } });
+  let err = ''; c.stderr.on('data', (d) => { err += d; });
+  c.on('close', (code) => resolve({ code, err }));
+});
+const N = 10;
+
+test('M2: concurrent addRows of xref and link rows from separate processes lose nothing', async () => {
+  const dir = entityDir();
+  store(dir).writeKind('ticket', Array.from({ length: N }, (_, i) => ({ key: `T-${i}`, summary: 's' })));
+  const op = "s.addRows('xref', [{ type: 'ticket', id: 'T-' + n, sys: 'jira', xid: 'X-' + n }]); s.addRows('link', [{ from: 'T-' + n, from_type: 'ticket', rel: 'touches', to: 'repo:r', to_type: 'repo' }]);";
+  const rs = await Promise.all(Array.from({ length: N }, (_, i) => spawnNode(SCRIPT(op), dir, String(i))));
+  for (const r of rs) assert.equal(r.code, 0, r.err);
+  assert.equal(store(dir).readKind('xref', { defaults: false }).length, N);
+  assert.equal(store(dir).readKind('link', { defaults: false }).length, N);
+  assert.equal(store(dir).readKind('ticket', { defaults: false }).length, N, 'no ticket was lost');
+});
+
+test('M2: addRows is idempotent and removeRows removes only the named rows', () => {
+  const dir = entityDir(), s = store(dir);
+  s.writeKind('ticket', [{ key: 'T-1', summary: 'a' }, { key: 'T-2', summary: 'b' }]);
+  const x = { type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-1' }, y = { type: 'ticket', id: 'T-2', sys: 'jira', xid: 'X-2' };
+  assert.equal(s.addRows('xref', [x, y]), 2);
+  assert.equal(s.addRows('xref', [x]), 0, 'the same row again changes no file');
+  assert.equal(s.removeRows('xref', [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'X-1' }]), 1);
+  assert.deepEqual(s.readKind('xref', { defaults: false }).map((r) => r.xid), ['X-2']);
+  assert.equal(s.removeRows('ticket', [{ key: 'T-2' }]), 1);
+  assert.deepEqual(s.readKind('ticket', { defaults: false }).map((r) => r.key), ['T-1']);
+  assert.throws(() => s.addRows('meta', [{ k: 'a', v: 'b' }]), TypeError);
+});
+
+test('M2: removeRows does not touch a ticket another writer created in between', async () => {
+  const dir = entityDir(), s = store(dir);
+  s.writeKind('ticket', [{ key: 'T-1', summary: 'a' }]);
+  // removeRows is the delta: it cannot touch T-9, which another process created
+  const make = await spawnNode(SCRIPT("s.addRows('ticket', [{ key: 'T-9', summary: 'new' }]);"), dir, '0');
+  assert.equal(make.code, 0, make.err);
+  s.removeRows('ticket', [{ key: 'T-1' }]);
+  assert.deepEqual(s.readKind('ticket', { defaults: false }).map((r) => r.key), ['T-9']);
+});
+
+test('M2: withNodes runs a read-modify-write under the lock: concurrent increments of one node all count', async () => {
+  const dir = entityDir();
+  writeNode(dir, 'decision', { id: 'D-1', count: 0 });
+  const op = "withNodes(dir, (t) => { const d = t.read('decision').find((x) => x.id === 'D-1'); t.write('decision', { ...d, count: d.count + 1 }); });";
+  const rs = await Promise.all(Array.from({ length: N }, (_, i) => spawnNode(SCRIPT(op), dir, String(i))));
+  for (const r of rs) assert.equal(r.code, 0, r.err);
+  assert.equal(readNodes(dir, 'decision').nodes[0]?.count, N);
+});
+
+test('M2: renameNode checks the target under the lock, in one transaction', async () => {
+  const dir = entityDir();
+  writeNode(dir, 'decision', { id: 'D-1' });
+  writeNode(dir, 'decision', { id: 'D-2' });
+  const rs = await Promise.all([spawnNode(SCRIPT("renameNode(dir, 'decision', 'D-1', 'D-9');"), dir, '0'), spawnNode(SCRIPT("renameNode(dir, 'decision', 'D-2', 'D-9');"), dir, '1')]);
+  assert.equal(rs.filter((r) => r.code === 0).length, 1, 'exactly one rename wins');
+  const ids = readNodes(dir, 'decision').nodes.map((n) => n.id).sort();
+  assert.equal(ids.length, 2, 'the loser is still there under its own id');
+  assert.ok(ids.includes('D-9'));
+});

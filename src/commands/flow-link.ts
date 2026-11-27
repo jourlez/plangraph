@@ -14,16 +14,11 @@ function link(ctx: Ctx, args: Args): number {
   if (!XID.test(xid) || xid.includes('..')) throw usage('XID must be 1 to 200 characters of A-Z a-z 0-9 . _ : / # @ space -');
   const { model } = loadFlow(ctx);
   needTask(model, task);
-  const store = openStore(ctx), rows = store.readKind('xref', { defaults: false });
+  // one delta under the store lock: the row is added to whatever is on disk at that moment, so two concurrent links never lose each other
   const shown = `${oneLine(task, 80)} ${oneLine(sys, 60)} ${oneLine(xid, 120)}`;
-  if (rows.some((r) => r.type === 'ticket' && r.id === task && r.sys === sys && r.xid === xid)) {
-    ctx.io.data?.({ task, sys, xid, written: false }, { next: [] });
-    ctx.io.out(`unchanged ${shown}`);
-    return 0;
-  }
-  store.writeKind('xref', [...rows, { type: 'ticket', id: task, sys, xid }], { precheck: true });
-  ctx.io.data?.({ task, sys, xid, written: true }, { next: [] });
-  ctx.io.out(`linked ${shown}`);
+  const written = openStore(ctx).addRows('xref', [{ type: 'ticket', id: task, sys, xid }], { precheck: true }) > 0;
+  ctx.io.data?.({ task, sys, xid, written }, { next: [] });
+  ctx.io.out(`${written ? 'linked' : 'unchanged'} ${shown}`);
   return 0;
 }
 export const commands: CommandMap = {

@@ -48,6 +48,10 @@ export interface PlanStore {
   /** The text of a kind's file for the index build and its fingerprint (null when absent). JSONL only. */
   readSource(kind: Kind, maxBytes: number): string | null;
   writeKind(kind: Kind, rows: readonly Row[], opts?: WriteOpts): WriteResult;
+  /** Adds or replaces the given rows of a node kind by identity and leaves every other row alone: one read-modify-write under the store lock, so two writers never lose each other's rows. Returns the number of files changed. */
+  addRows(kind: Kind, rows: readonly Row[], opts?: WriteOpts): number;
+  /** Removes the rows named by `keys` (rows holding the identity columns) of a node kind, under the store lock. Returns the number of files changed. */
+  removeRows(kind: Kind, keys: readonly Row[], opts?: WriteOpts): number;
   /** Writes text as given: for a kind that has its own serializer (open-items) and for seed text. JSONL only. */
   writeText(kind: Kind, text: string, opts?: WriteOpts): WriteResult;
   /** Validates (optionally) and writes only the kinds whose canonical rows differ from `old`, after one precheck of every target; returns how many were written. */

@@ -81,7 +81,7 @@ async function links(ctx: Ctx, args: Args<Opts>): Promise<number> {
     const why = oneLine([...l.sources, ...l.prs.map((n) => `pr ${n}`)].join('+'), 60);
     add.push({ from: l.key, from_type: 'ticket', rel: 'touches', to: l.repo, to_type: 'repo', attrs: { conf: Math.round(l.conf * 100) / 100, why } });
   }
-  if (add.length) store.writeKind('link', [...old, ...add], { precheck: true });
+  if (add.length) store.addRows('link', add, { precheck: true }); // a delta under the store lock: a link another writer added meanwhile is kept
   const lows = res.low.filter((l) => tickets.has(l.key));
   unknown += res.low.length - lows.length;
   ctx.io.out(`linked ${add.length} ticket(s) to ${oneLine(target, 80)} from ${commits.length} commits and ${prs.length} pull requests`);
@@ -122,30 +122,32 @@ async function docs(ctx: Ctx, args: Args<Opts>): Promise<number> {
   if (args.values.prune) throw usage('--prune goes with `ingest requirements DOC`');
   needBrain(ctx);
   const { parseAdrDoc } = await import('../../lib/ingest/adr.ts');
-  const { readNodeKind, writeNodeKind } = await import('../../lib/ingest/write.ts');
-  const existing = new Map(readNodeKind(ctx, 'decision').map((n) => [n.id, n] as const));
-  const next = new Map<string, Node>(), say: string[] = [], supers: Array<{ adr: string; link: { rel: string; to: string } }> = [];
-  for (const arg of args.positionals.slice(1).length ? args.positionals.slice(1) : []) void arg;
+  const { updateNodes } = await import('../../lib/ingest/write.ts');
+  const say: string[] = [], parsed: Array<{ node: Node; supersededBy?: { adr: string; link: { rel: string; to: string } } | undefined }> = [];
   for (const file of docFiles(ctx, args.positionals.slice(1))) {
     const { rel, text } = readDoc(ctx, file);
     const r = parseAdrDoc(text, rel);
     for (const p of r.problems) say.push(`${p.code} ${oneLine(rel, 100)}`);
-    if (!r.node) continue;
-    const old = existing.get(r.node.id);
-    next.set(r.node.id, old?.links ? { ...r.node, links: old.links } : r.node);
-    if (r.supersededBy) supers.push(r.supersededBy);
+    if (r.node) parsed.push({ node: r.node, supersededBy: r.supersededBy });
   }
-  const all = [...existing.values(), ...next.values()];
-  const missing = new Set<string>();
-  for (const s of supers) {
-    const n = Number(/(\d+)$/.exec(s.adr)?.[1]);
-    const tgt = all.map((x) => next.get(x.id) ?? x).find((x) => adrNumber(x.source) === n && x.id !== s.link.to);
-    if (!tgt) { missing.add(s.adr); continue; }
-    const cur = (next.get(tgt.id) ?? tgt) as Node, ls = Array.isArray(cur.links) ? cur.links as unknown[] : [];
-    if (!ls.some((l) => linkKey(l) === linkKey(s.link))) next.set(tgt.id, { ...cur, links: [...ls, s.link] });
-  }
-  const c = { created: 0, changed: 0, same: 0 };
-  for (const n of [...next.values()].sort((a, b) => sorted(a.id, b.id))) c[writeNodeKind(ctx, 'decision', n)]++;
+  const next = new Map<string, Node>(), missing = new Set<string>(), c = { created: 0, changed: 0, same: 0 };
+  updateNodes(ctx, (t) => { // the decisions on disk are read and rewritten under the store lock
+    const existing = new Map(t.read('decision').map((n) => [n.id, n] as const)), supers: Array<{ adr: string; link: { rel: string; to: string } }> = [];
+    for (const { node, supersededBy } of parsed) {
+      const old = existing.get(node.id);
+      next.set(node.id, old?.links ? { ...node, links: old.links } : node);
+      if (supersededBy) supers.push(supersededBy);
+    }
+    const all = [...existing.values(), ...next.values()];
+    for (const s of supers) {
+      const n = Number(/(\d+)$/.exec(s.adr)?.[1]);
+      const tgt = all.map((x) => next.get(x.id) ?? x).find((x) => adrNumber(x.source) === n && x.id !== s.link.to);
+      if (!tgt) { missing.add(s.adr); continue; }
+      const cur = (next.get(tgt.id) ?? tgt) as Node, ls = Array.isArray(cur.links) ? cur.links as unknown[] : [];
+      if (!ls.some((l) => linkKey(l) === linkKey(s.link))) next.set(tgt.id, { ...cur, links: [...ls, s.link] });
+    }
+    for (const n of [...next.values()].sort((a, b) => sorted(a.id, b.id))) c[t.write('decision', n)]++;
+  });
   ctx.io.out(`ingested ${next.size} decision(s) (created ${c.created}, changed ${c.changed}, same ${c.same})`);
   for (const l of say.slice(0, MAX_LINES)) ctx.io.out(l);
   for (const a of [...missing].sort()) ctx.io.out(`SUPERSEDER_MISSING ${oneLine(a, 20)}`);
@@ -156,23 +158,27 @@ async function requirements(ctx: Ctx, args: Args<Opts>): Promise<number> {
   if (args.positionals.length !== 2) throw usage('usage: plangraph ingest requirements DOC [--prune]');
   needBrain(ctx);
   const { parseRequirementsDoc } = await import('../../lib/ingest/requirements.ts');
-  const { readNodeKind, writeNodeKind } = await import('../../lib/ingest/write.ts');
+  const { updateNodes } = await import('../../lib/ingest/write.ts');
   const { rel, text } = readDoc(ctx, args.positionals[1] as string);
   const r = parseRequirementsDoc(text, rel);
-  const existing = new Map(readNodeKind(ctx, 'requirement').map((n) => [n.id, n] as const));
   const c = { created: 0, changed: 0, same: 0 }, ids = new Set<string>();
-  for (const n of r.nodes) {
-    ids.add(n.id);
-    const old = existing.get(n.id);
-    const merged: Node = old ? { ...old, ...n, status: old.status === 'dropped' || old.status === undefined ? 'proposed' : old.status } : n;
-    if (old && n.acceptance === undefined) delete merged.acceptance;
-    c[writeNodeKind(ctx, 'requirement', merged)]++;
-  }
   const mine = (n: Node): boolean => typeof n.source === 'string' && (n.source === rel || n.source.startsWith(`${rel}#`));
-  const gone = [...existing.values()].filter((n) => mine(n) && !ids.has(n.id) && n.status !== 'dropped');
+  let gone: Node[] = [];
+  updateNodes(ctx, (t) => { // the requirements on disk are read and rewritten under the store lock
+    const existing = new Map(t.read('requirement').map((n) => [n.id, n] as const));
+    for (const n of r.nodes) {
+      ids.add(n.id);
+      const old = existing.get(n.id);
+      const merged: Node = old ? { ...old, ...n, status: old.status === 'dropped' || old.status === undefined ? 'proposed' : old.status } : n;
+      if (old && n.acceptance === undefined) delete merged.acceptance;
+      c[t.write('requirement', merged)]++;
+    }
+    gone = [...existing.values()].filter((n) => mine(n) && !ids.has(n.id) && n.status !== 'dropped');
+    if (args.values.prune) for (const n of gone) t.write('requirement', { ...n, status: 'dropped' });
+  });
   ctx.io.out(`ingested ${r.nodes.length} requirement(s) (created ${c.created}, changed ${c.changed}, same ${c.same})`);
   for (const p of r.problems) ctx.io.out(`${p.code} ${oneLine(rel, 100)}`);
-  if (args.values.prune) { for (const n of gone) writeNodeKind(ctx, 'requirement', { ...n, status: 'dropped' }); if (gone.length) ctx.io.out(`dropped ${gone.length}`); } else if (gone.length) ctx.io.out(`${gone.length} requirement(s) missing from the document, kept (run with --prune to drop them)`);
+  if (args.values.prune) { if (gone.length) ctx.io.out(`dropped ${gone.length}`); } else if (gone.length) ctx.io.out(`${gone.length} requirement(s) missing from the document, kept (run with --prune to drop them)`);
   return 0;
 }
 

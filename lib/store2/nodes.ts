@@ -5,7 +5,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { assertInside } from '../fsafe.ts';
+import { PlangraphError } from '../../src/errors.ts';
 import { withTxn } from './txn.ts';
+import type { Txn } from './txn.ts';
 import { readDataCapped } from '../jsonl.ts';
 import { assertKind, nodePath } from './layout.ts';
 import { formatPg, parsePg } from './pg.ts';
@@ -68,16 +70,60 @@ export function readNodes(root: string, kind: string): { nodes: Node[]; problems
   return { nodes: nodes.sort(sortById), problems: problems.sort(sortByPath) };
 }
 
-export function writeNode(root: string, kind: string, n: Node): 'created' | 'changed' | 'same' {
-  if (typeof n.id !== 'string' || n.id === '') throw new TypeError('a node needs a non-empty string id');
-  const file = nodePath(root, kind, n.id), text = formatPg(n);
-  let state: 'created' | 'changed' | 'same' = 'created';
-  withTxn(root, (tx) => { // under the store lock: two processes writing the same node, or a node and a kind rewrite, never interleave
-    try { fs.lstatSync(file); state = 'changed'; } catch { /* new file */ }
-    if (state === 'changed') { try { if (readDataCapped(file, MAX_NODE_BYTES) === text) { state = 'same'; return; } } catch { /* unreadable: rewritten below */ } }
-    tx.write(path.relative(root, file).split(path.sep).join('/'), text);
+/** The refusal for a node file that cannot be replaced safely: it did not parse, or it holds another id. Nothing is written. */
+export function refuseOccupied(root: string, abs: string, why: string): never {
+  throw new PlangraphError('DATA', `${path.relative(root, abs)} cannot be replaced (${why}): run plangraph resolve or check`);
+}
+
+/** Throws when the file at `abs` exists and is not a readable node with this id: a damaged file (conflict markers, a bad line, oversize) or a file that
+ * holds a different id (a crafted id with the same name) is never overwritten. A symlink is left to the transaction, which refuses it. */
+export function assertOwned(root: string, abs: string, id: string): Node | null {
+  let present = true;
+  try { fs.lstatSync(abs); } catch { present = false; }
+  if (!present) return null;
+  const r = loadRaw(root, abs);
+  if ('node' in r) { if (r.node.id !== id) refuseOccupied(root, abs, 'it holds a different id'); return r.node; }
+  if (r.problem.code === 'SYMLINK') return null;
+  return refuseOccupied(root, abs, r.problem.code);
+}
+
+/** The node files of a transaction: reads see the files as they are plus this transaction's own writes. */
+export interface NodeTx {
+  read(kind: string): Node[];
+  write(kind: string, n: Node): 'created' | 'changed' | 'same';
+  remove(kind: string, id: string): void;
+}
+const rel = (root: string, file: string): string => path.relative(root, file).split(path.sep).join('/');
+
+/** Run `fn` under the store lock, in one transaction: a read-modify-write of node files cannot lose another writer's update, and a throw writes nothing. */
+export function withNodes<T>(root: string, fn: (t: NodeTx) => T): T {
+  let out: T | undefined;
+  withTxn(root, (tx: Txn) => {
+    const staged = new Map<string, Node | null>(); // `<kind>\0<id>`: a staged node, or null for a staged removal
+    const key = (kind: string, id: string): string => `${kind}\0${id}`;
+    out = fn({
+      read(kind) {
+        const m = new Map(readNodes(root, kind).nodes.map((n) => [n.id, n] as const));
+        for (const [k, v] of staged) { const [kk, id] = k.split('\0') as [string, string]; if (kk !== kind) continue; if (v) m.set(id, v); else m.delete(id); }
+        return [...m.values()].sort(sortById);
+      },
+      write(kind, n) {
+        if (typeof n.id !== 'string' || n.id === '') throw new TypeError('a node needs a non-empty string id');
+        const file = nodePath(root, kind, n.id), text = formatPg(n);
+        const before = staged.has(key(kind, n.id)) ? staged.get(key(kind, n.id)) ?? null : assertOwned(root, file, n.id);
+        staged.set(key(kind, n.id), n);
+        if (before && formatPg(before) === text) return 'same'; // under the lock: what is on disk is what is compared
+        tx.write(rel(root, file), text);
+        return before ? 'changed' : 'created';
+      },
+      remove(kind, id) { staged.set(key(kind, id), null); tx.remove(rel(root, nodePath(root, kind, id))); },
+    });
   });
-  return state;
+  return out as T;
+}
+
+export function writeNode(root: string, kind: string, n: Node): 'created' | 'changed' | 'same' {
+  return withNodes(root, (t) => t.write(kind, n)); // under the store lock: two processes writing the same node, or a node and a kind rewrite, never interleave
 }
 
 export function deleteNode(root: string, kind: string, id: string): void {
@@ -94,21 +140,23 @@ const rewrite = (n: Node, from: string, to: string): Node | null => {
 };
 
 /** Move a node to a new id: the new file first, then every link and xref that named the old id (in any kind), then the old file is
- * removed, or kept as `{ id: from, alias_of: to }` with keepAlias. */
+ * removed, or kept as `{ id: from, alias_of: to }` with keepAlias. One transaction under the store lock: the target is checked there. */
 export function renameNode(root: string, kind: string, from: string, to: string, opts: { keepAlias?: boolean } = {}): void {
-  const src = loadRaw(root, nodePath(root, kind, from));
-  if ('problem' in src) throw new Error(`node not found or unreadable: ${from.slice(0, 80)}`);
-  if (fs.existsSync(nodePath(root, kind, to))) throw new Error(`target id exists: ${to.slice(0, 80)}`);
-  writeNode(root, kind, rewrite({ ...src.node, id: to }, from, to) ?? { ...src.node, id: to });
-  for (const k of listKinds(root)) {
-    for (const abs of listNodeFiles(root, k)) {
-      const r = loadRaw(root, abs);
-      if ('problem' in r || (k === kind && r.node.id === from)) continue;
-      const n = rewrite(r.node, from, to);
-      if (n) writeNode(root, k, n);
+  withNodes(root, (t) => {
+    const src = loadRaw(root, nodePath(root, kind, from));
+    if ('problem' in src) throw new Error(`node not found or unreadable: ${from.slice(0, 80)}`);
+    if (fs.existsSync(nodePath(root, kind, to))) throw new Error(`target id exists: ${to.slice(0, 80)}`);
+    t.write(kind, rewrite({ ...src.node, id: to }, from, to) ?? { ...src.node, id: to });
+    for (const k of listKinds(root)) {
+      for (const abs of listNodeFiles(root, k)) {
+        const r = loadRaw(root, abs);
+        if ('problem' in r || (k === kind && (r.node.id === from || r.node.id === to))) continue;
+        const n = rewrite(r.node, from, to);
+        if (n) t.write(k, n);
+      }
     }
-  }
-  if (opts.keepAlias) writeNode(root, kind, { id: from, alias_of: to }); else deleteNode(root, kind, from);
+    if (opts.keepAlias) t.write(kind, { id: from, alias_of: to }); else t.remove(kind, from);
+  });
 }
 
 /** Everything that names the id: its node file, the nodes whose links or xrefs point at it, and the lines of events/, runs/ and
