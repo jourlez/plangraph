@@ -103,7 +103,7 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/store2/check.ts", "if (keeper.abs !== nodePath(root, keeper.kind, keeper.node.id)) add('ID_MISMATCH', keeper.abs, 1);", "", ["test/store2-check.test.ts"]],
   ["lib/store2/check.ts", "if (canonical !== e.text) {", "if (false) {", ["test/store2-check.test.ts"]],
   ["lib/store2/check.ts", "if (m >= 0) { add('CONFLICT_MARKERS', f, m + 1); return; }", "", ["test/store2-check.test.ts"]],
-  ["lib/store2/layout.ts", "export const idHash = (id: string): string => sha(id).slice(0, 8);", "export const idHash = (id: string): string => sha(id.toLowerCase()).slice(0, 8);", ["test/store2-layout.test.ts"]],
+  ["lib/store2/layout.ts", "export const idHash = (id: string): string => sha(id).slice(0, 12);", "export const idHash = (id: string): string => sha(id.toLowerCase()).slice(0, 12);", ["test/store2-layout.test.ts"]],
   ["lib/store2/layout.ts", "const SLUG_MAX = 60;", "const SLUG_MAX = 61;", ["test/store2-layout.test.ts"]],
   ["lib/store2/layout.ts", "const KIND_RE = /^[a-z][a-z0-9-]{0,39}$/;", "const KIND_RE = /^[a-z][a-z0-9-]{0,39}/;", ["test/store2-layout.test.ts"]],
   ["lib/store2/layout.ts", "if (!exists(id)) return id; }", "return id; }", ["test/store2-layout.test.ts"]],

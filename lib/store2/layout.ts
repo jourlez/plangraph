@@ -1,5 +1,5 @@
-// File layout of the entity store (spec 4.0 rule 1): nodes/<kind>/<h2>/<slug>~<h8>.pg. Pure string work, no file system access.
-// h8 is the first 8 hex of sha256(exact id): ids that differ only in case differ in the hash, so their file names differ even on a
+// File layout of the entity store (spec 4.0 rule 1): nodes/<kind>/<h2>/<slug>~<h12>.pg. Pure string work, no file system access.
+// h12 is the first 12 hex of sha256(exact id) (48 bits: a crafted second id for one file name is out of reach): ids that differ only in case differ in the hash, so their file names differ even on a
 // case-insensitive file system. The slug only makes the name readable; it is never parsed back.
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -8,8 +8,8 @@ const KIND_RE = /^[a-z][a-z0-9-]{0,39}$/;
 const SLUG_MAX = 60;
 const sha = (s: string): string => crypto.createHash('sha256').update(s).digest('hex');
 
-/** The first 8 hex of sha256(exact id). */
-export const idHash = (id: string): string => sha(id).slice(0, 8);
+/** The first 12 hex of sha256(exact id). */
+export const idHash = (id: string): string => sha(id).slice(0, 12);
 
 /** The id lower-cased, every character outside [a-z0-9._-] replaced by `_`, at most 60 characters. */
 export const slug = (id: string): string => [...id.toLowerCase()].map((c) => (/[a-z0-9._-]/.test(c) ? c : '_')).slice(0, SLUG_MAX).join('');
@@ -19,7 +19,7 @@ export function assertKind(kind: string): string {
   return kind;
 }
 
-/** `<root>/nodes/<kind>/<h2>/<slug>~<h8>.pg`. */
+/** `<root>/nodes/<kind>/<h2>/<slug>~<h12>.pg`. */
 export function nodePath(root: string, kind: string, id: string): string {
   const h = idHash(id);
   return path.join(root, 'nodes', assertKind(kind), h.slice(0, 2), `${slug(id)}~${h}.pg`);

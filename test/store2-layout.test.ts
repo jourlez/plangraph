@@ -7,10 +7,10 @@ import { nodePath, slug, idHash, newId } from '../lib/store2/layout.ts';
 
 const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
-test('nodePath is nodes/<kind>/<h2>/<slug>~<h8>.pg with h8 the first 8 hex of sha256(exact id)', () => {
+test('nodePath is nodes/<kind>/<h2>/<slug>~<h12>.pg with h12 the first 12 hex of sha256(exact id)', () => {
   const p = nodePath('/r', 'ticket', 'ABC-12'), h = sha('ABC-12');
-  assert.equal(p, path.join('/r', 'nodes', 'ticket', h.slice(0, 2), `abc-12~${h.slice(0, 8)}.pg`));
-  assert.equal(idHash('ABC-12'), h.slice(0, 8));
+  assert.equal(p, path.join('/r', 'nodes', 'ticket', h.slice(0, 2), `abc-12~${h.slice(0, 12)}.pg`));
+  assert.equal(idHash('ABC-12'), h.slice(0, 12));
 });
 
 test('ids that differ only in case get different file names, also when compared ignoring case', () => {

@@ -9,7 +9,7 @@ The plan is a directory of small text files in the repository (`.plangraph/` by 
   format.json                   {"format_version":2,"min_reader":2,"storage":"entity"}
   config.json                   constraints (caps, stage order, ...); one file, not an entity
   meta.jsonl                    key/value rows; the one plan file that stays a single JSONL file
-  nodes/<kind>/<h2>/<slug>~<h8>.pg      one file per node: ticket, person, sprint, epic, repo, openitem, ext
+  nodes/<kind>/<h2>/<slug>~<h12>.pg      one file per node: ticket, person, sprint, epic, repo, openitem, ext
   events/<yyyy-mm>/<actor>.<bh8>.<dd>.jsonl   append-only task events, one writer per file
   runs/<kind>/<yyyy-mm>/<h8>.jsonl      sealed audit output: evidence, findings, learnings
   schedules/<version>.jsonl     immutable schedule versions
@@ -24,7 +24,7 @@ The plan is a directory of small text files in the repository (`.plangraph/` by 
 
 ## 2. Node files (`.pg`)
 
-Path: `nodes/<kind>/<h2>/<slug>~<h8>.pg`. `h8` is the first 8 hex of the sha256 of the exact id, `h2` its first two characters (256 directories), `slug` the id lower-cased with every character outside `[a-z0-9._-]` replaced by `_`, at most 60 characters. Two ids that differ only in case get different names, so a case-insensitive file system cannot merge them. The slug is for people; it is never parsed back.
+Path: `nodes/<kind>/<h2>/<slug>~<h12>.pg`. `h12` is the first 12 hex of the sha256 of the exact id, `h2` its first two characters (256 directories), `slug` the id lower-cased with every character outside `[a-z0-9._-]` replaced by `_`, at most 60 characters. Two ids that differ only in case get different names, so a case-insensitive file system cannot merge them. The slug is for people; it is never parsed back.
 
 Content: line 1 is `id <json string>`; then one line per field, `<name> <json value>`, sorted by name. A collection field (`links`, `xrefs`, `acceptance`, `members`, `owns`, `affects`, `capacity`) repeats its name once per element, elements sorted by their canonical JSON. Rules, all checked by `plangraph check`:
 

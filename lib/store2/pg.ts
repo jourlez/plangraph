@@ -38,7 +38,7 @@ export function formatPg(n: Node): string {
 
 const bad = (line: number): ParseResult => ({ problem: 'BAD_LINE', line });
 
-/** Parse one .pg file. `file` is the path the text came from: its name must end in `~<h8>.pg` with h8 the hash of the id inside. */
+/** Parse one .pg file. `file` is the path the text came from: its name must end in `~<h12>.pg` with h12 the hash of the id inside. */
 export function parsePg(text: string, file: string): ParseResult {
   const rows = text.split('\n');
   if (rows[rows.length - 1] === '') rows.pop();
@@ -66,7 +66,7 @@ export function parsePg(text: string, file: string): ParseResult {
     seen.add(name);
   }
   if (id === undefined) return bad(1);
-  const m = /~([0-9a-f]{8})\.pg$/.exec(file);
+  const m = /~([0-9a-f]{12})\.pg$/.exec(file);
   if (!m || m[1] !== idHash(id)) return { problem: 'ID_MISMATCH', line: 1 };
   return { node: { id, ...node } };
 }
