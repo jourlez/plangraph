@@ -3,8 +3,8 @@
 Contribute through issues and pull requests on the project's GitHub repository (jourlez/plangraph): open an issue first for anything larger than a small fix, then send a pull request that passes the checks below.
 
 ## Setup
-- Node 24.15 or newer (see the README for nvm and fnm). There are no runtime dependencies and nothing to install to run the tests.
-- Dev-only tooling (never needed at run time, never shipped: `node_modules/` is git-ignored): `npm ci` installs the exact-pinned `typescript`, `@types/node`, `@biomejs/biome`, `knip` and `lefthook` from `package-lock.json`. `.ts` files run directly on Node 24 (type stripping, no build step).
+- Node 26.0 or newer (see the README for nvm and fnm). There are no runtime dependencies and nothing to install to run the tests.
+- Dev-only tooling (never needed at run time, never shipped: `node_modules/` is git-ignored): `npm ci` installs the exact-pinned `typescript`, `@types/node`, `@biomejs/biome`, `knip` and `lefthook` from `package-lock.json`. `.ts` files run directly on Node 26 (type stripping, no build step).
 - The plan is stored as entity files (`docs/FORMAT.md`). There is no merge driver and no `.gitattributes` entry; do not add one. Test fixtures write a plan through `test/helpers/plan-dir.ts`.
 - Native ES modules only (`import`, `import.meta.dirname`); no `require`.
 

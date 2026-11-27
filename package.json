@@ -1,6 +1,6 @@
 {
   "name": "plangraph",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Planning memory for AI coding agents: a dependency graph in git text, safe reassignment, provable schedules, token-minimal answers.",
   "type": "module",
   "private": true,
@@ -9,7 +9,7 @@
   "keywords": ["planning", "jira", "knowledge-graph", "memory", "scheduling"],
   "packageManager": "npm@12.2.3",
   "engines": {
-    "node": ">=24.15"
+    "node": ">=26.0"
   },
   "bin": {
     "plangraph": "bin/plangraph"

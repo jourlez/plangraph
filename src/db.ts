@@ -163,7 +163,7 @@ const DDL = [...TABLES.values()].map((t) => `CREATE TABLE ${t.name}(${t.ddl});`)
 
 // ---------- node:sqlite, lazily ----------
 let sqlite: typeof import('node:sqlite') | undefined;
-/** Load node:sqlite once (the one import line; node:sqlite prints no warning on Node 24.15+). Throws PlangraphError ENV (exit 3) on Node < 24.15. */
+/** Load node:sqlite once (the one import line; node:sqlite prints no warning on Node 26). Throws PlangraphError ENV (exit 3) on Node < 26.0. */
 export function loadSqlite({ version = process.versions.node }: { version?: string } = {}): typeof import('node:sqlite') {
   if (!nodeSupported(version)) throw new PlangraphError('ENV', floorMessage(version));
   if (sqlite) return sqlite;

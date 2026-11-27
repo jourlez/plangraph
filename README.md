@@ -58,17 +58,17 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 
 **Supported platforms: macOS and Linux.** Windows is not supported (there is no `O_NOFOLLOW` there, and nothing was run on it). Use WSL at your own risk; it is untested. The Claude Code hooks of the plugin run `node` directly, not a shell script. The optional git hook scripts that `plangraph githooks-install` writes are three-line POSIX `sh` wrappers.
 
-> **Which Node, how to get it.** Node.js 24.15 or newer (the floor; the index uses the built-in `node:sqlite`). Check with `node --version`. If it is older, install a current one with nvm (`nvm install 24`) or fnm (`fnm install 24`). The repository's `.node-version` file holds the Node major that development and CI use; `fnm use` reads it, and with nvm you pass the number yourself (`nvm use 24`).
+> **Which Node, how to get it.** Node.js 26.0 or newer (the floor; the index uses the built-in `node:sqlite`). Check with `node --version`. If it is older, install a current one with nvm (`nvm install 26`) or fnm (`fnm install 26`). The repository's `.node-version` file holds the Node major that development and CI use; `fnm use` reads it, and with nvm you pass the number yourself (`nvm use 26`).
 
 | Requirement | Version | Needed for |
 |---|---|---|
-| Node.js | 24.15 or newer (the index uses the built-in `node:sqlite`) | everything |
+| Node.js | 26.0 or newer (the index uses the built-in `node:sqlite`) | everything |
 | git | any recent version | the data, history, stale detection |
 | Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hooks, skills, `plangraph` on the Bash PATH |
 | Python 3 with OR-Tools, installed through uv (recommended: uv installs pinned, hash-verified packages on the first run), or a Python 3.10 to 3.14 | OR-Tools has no wheel for Python 3.15 yet | the scheduling solver only (`plangraph-solve-run`); everything else works without it |
 | `gh`, signed in | any recent version | optional: `plangraph sync-fetch` reads GitHub with your own token |
 
-In short: Node 24.15 or newer, git, and Claude Code 2.1.329 or newer. (`engines.node` is `>=24.15` in `package.json`.) The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
+In short: Node 26.0 or newer, git, and Claude Code 2.1.329 or newer. (`engines.node` is `>=26.0` in `package.json`.) The plugin was installed and run on Claude Code 2.1.329; releases after 2.1.329 have not been tested. There are no runtime npm dependencies.
 
 **Telemetry: none.** plangraph collects and sends nothing about you or your project. This was checked by searching the code (`src/`, `lib/`, `bin/`, `mcp/`, `hooks/`) for network access: the only HTTP client is `lib/jira/client.ts` (read-only Atlassian requests, run only by `jira-pull`, `jira-text` and `sync-fetch` for a Jira target you named in `config.json` and trusted with `plangraph trust`), GitHub is read through your own `gh` by `sync-fetch` the same way, and the solver's first run downloads pinned packages through uv. Nothing else opens a socket. The check is a search of the source, not a network capture; see [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md).
 
@@ -497,7 +497,7 @@ As printed by `plangraph explain`: `exit: 0 ok, 1 negative answer, 2 usage or da
 | 0 | ok |
 | 1 | negative answer: `check`, `verify`, `ready`, `whatif` or `doctor` found a problem |
 | 2 | usage or data error: unknown command or option, bad argument, unreadable or invalid input, no index, corrupt index, `export` over a stale index |
-| 3 | environment missing: Node older than 24.15, Jira credentials or configuration missing or rejected |
+| 3 | environment missing: Node older than 26.0, Jira credentials or configuration missing or rejected |
 | 4 | refused: a plan directory outside the repository, a write target that is a symlink or not a regular file, a `whatif --write` that would add violations, a schedule that moves a frozen ticket |
 | 5 | internal error |
 
@@ -689,7 +689,7 @@ What was verified, and how, is in [docs/audit/1.0-audit.md](docs/audit/1.0-audit
 
 ## Development
 
-Node 24.15 or newer runs the TypeScript and JavaScript sources directly (type stripping, no build step). The plugin has no runtime dependencies; `npm ci` installs only the dev tools.
+Node 26.0 or newer runs the TypeScript and JavaScript sources directly (type stripping, no build step). The plugin has no runtime dependencies; `npm ci` installs only the dev tools.
 
 | Script | What it does |
 | --- | --- |

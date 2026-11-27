@@ -30,7 +30,7 @@ test('package.json: private, ESM, node floor, packageManager, license', () => {
   const p = JSON.parse(read('package.json'));
   assert.equal(p.private, true);
   assert.equal(p.type, 'module');
-  assert.equal(p.engines.node, '>=24.15');
+  assert.equal(p.engines.node, '>=26.0');
   assert.match(p.packageManager, /^npm@\d+\.\d+\.\d+$/);
   assert.equal(p.license, 'MIT');
 });

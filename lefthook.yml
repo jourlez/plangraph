@@ -7,4 +7,5 @@ pre-commit:
     typecheck:
       run: npm run typecheck
     related-tests:
-      run: node scripts/related-tests.ts {staged_files} | xargs node --test
+      # git exports GIT_DIR (in a worktree) and GIT_INDEX_FILE to hooks; a test that runs `git init` in a temp directory would then re-initialize the real repository
+      run: node scripts/related-tests.ts {staged_files} | env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_PREFIX -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES xargs node --test

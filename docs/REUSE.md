@@ -16,7 +16,7 @@ Decision record, 2026-11-22. Rule: use what is proven and already installed; bui
 | Persistent shared plan graph, strict handoff checks, safe reassignment, solver, incremental stale audit, calibrated forecast, compaction, token-minimal contract | Nothing found in 70+ tools surveyed (see docs/research) | **Build. This is the product.** | |
 | Claude Code Tasks (session todo with blocked-by) | Native | **Complement, not compete.** Tasks are per session; the plan graph is persistent and shared. | |
 | Output style (terse) | caveman plugin | **No overlap**: our outputs are terse by construction. | |
-| Test runner, arg parsing, SQLite, crypto, fetch | Node 24 built-ins | **Reuse. Zero runtime dependencies.** | |
+| Test runner, arg parsing, SQLite, crypto, fetch | Node 26 built-ins | **Reuse. Zero runtime dependencies.** | |
 
 Check before adding any feature: is it in this table? If a proven tool does it, integrate instead.
 

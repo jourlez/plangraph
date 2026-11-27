@@ -72,6 +72,6 @@ test('too-old Node via an --import stub: exit 3 with the floor message; exit 0 a
   assert.equal(r.stderr, `${floorMessage('v22.0.0')}\n${floorTry}\n`);
   r = run(['card', '--if-present'], pre);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout, 'plangraph: needs Node >= 24.15, found v22.0.0; install Node 24\n');
+  assert.equal(r.stdout, 'plangraph: needs Node >= 26.0, found v22.0.0; install Node 26\n');
   assert.equal(r.stderr, '');
 });

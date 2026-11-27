@@ -49,7 +49,7 @@ test('README: Windows unsupported and the Node box are in Requirements, before t
   const req = t.slice(t.indexOf('\n## Requirements'), t.indexOf('\n## Installation'));
   assert.ok(req.indexOf('Windows is not supported') > 0 && req.indexOf('Windows is not supported') < req.indexOf('| Requirement |'));
   assert.match(req, /Which Node, how to get it/);
-  for (const w of ['nvm', 'fnm', '.node-version', '24.15']) assert.ok(req.includes(w), `Requirements lacks ${w}`);
+  for (const w of ['nvm', 'fnm', '.node-version', '26.0']) assert.ok(req.includes(w), `Requirements lacks ${w}`);
 });
 
 test('SECURITY.md carries one honest response line and no timeline table', () => {

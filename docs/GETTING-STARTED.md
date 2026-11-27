@@ -5,7 +5,7 @@ This walks one small project from nothing to a plan graph: take over an existing
 ## Before you start
 
 - macOS or Linux. Windows is not supported (the file layer needs `O_NOFOLLOW`); use WSL. The Claude Code hooks of the plugin run `node` directly (no shell script). The optional git hook scripts in `.githooks/` are three-line POSIX `sh` wrappers, which every macOS and Linux has.
-- Node 24.15 or newer (`node --version`) and git.
+- Node 26.0 or newer (`node --version`) and git.
 - Python 3 and OR-Tools, only for the scheduling solver (`plangraph-solve-run`). The easiest way is uv: `uv` reads the pinned requirements and installs OR-Tools into its own cache. Everything in this guide works without the solver.
 - Optional: `gh`, signed in, if you want `plangraph sync-fetch` to read GitHub issues and pull requests. This guide does not use it.
 - plangraph itself: `claude plugin marketplace add jourlez/plangraph` then `claude plugin install plangraph@plangraph-marketplace` (see the [README](../README.md#installation)). Inside a Claude Code session with the plugin, `plangraph` is on the Bash PATH. In a terminal outside Claude Code, run `node /path/to/plangraph/bin/plangraph ...` instead.

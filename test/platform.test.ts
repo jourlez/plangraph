@@ -1,4 +1,4 @@
-// Task 13: native Node 24 platform. Docs say Node 24 (never the old 22.13 floor); no CommonJS shims, no warning hack in bin/ src/ lib/.
+// Task 13: native Node platform. Docs say Node 26 (never the old 22.13 floor); no CommonJS shims, no warning hack in bin/ src/ lib/.
 // Plus four hardening checks carried from review: `rules TOPIC` fencing, symlinked/non-regular source files, bounded config.json read,
 // bounded MINLOAD loop.
 import test from 'node:test';
@@ -19,9 +19,9 @@ const walk = (d: string): string[] => fs.readdirSync(path.join(root, d), { withF
   return e.isDirectory() ? walk(rel) : (e.isFile() && /\.(ts|js)$|^plangraph[\w-]*$/.test(e.name) ? [rel] : []);
 });
 
-test('README and CONTRACT say Node 24 and never the old 22.13 floor', () => {
+test('README and CONTRACT say Node 26 and never the old 22.13 floor', () => {
   for (const f of ['README.md', 'docs/CONTRACT.md']) {
-    assert.match(read(f), /Node 24|Node >= 24/, f);
+    assert.match(read(f), /Node 26|Node >= 26/, f);
     assert.doesNotMatch(read(f), /22\.13/, f);
   }
 });

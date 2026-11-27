@@ -30,7 +30,7 @@ test('nodeSupported compares major and minor against the floor and refuses anyth
   assert.equal(nodeSupported(`${major}.${minor - 1}.9`), false);
   assert.equal(nodeSupported(`${major + 1}.0.0`), true);
   assert.equal(nodeSupported(`${major - 1}.99.0`), false);
-  for (const bad of ['', 'abc', undefined, null, 24]) assert.equal(nodeSupported(bad), false);
+  for (const bad of ['', 'abc', undefined, null, 26]) assert.equal(nodeSupported(bad), false);
   assert.match(floorMessage('1.2.3'), /needs Node >= .* \(found 1\.2\.3\)/);
   assert.ok(floorMessage('9'.repeat(50)).includes(`found ${'9'.repeat(20)})`));
   assert.ok(floorHookLine('v1'.repeat(30)).includes(`found ${'v1'.repeat(10)};`));

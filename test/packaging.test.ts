@@ -59,7 +59,7 @@ test('package.json stays private and carries the same repository, homepage and b
   assert.deepEqual(p.repository, { type: 'git', url: `git+${REPO}.git` });
   assert.equal(p.homepage, REPO);
   assert.deepEqual(p.bugs, { url: `${REPO}/issues` });
-  assert.deepEqual(p.engines, { node: '>=24.15' });
+  assert.deepEqual(p.engines, { node: '>=26.0' });
 });
 
 test('the marketplace entry has no version of its own', () => {
@@ -97,9 +97,9 @@ test('README has the required headings', () => {
   }
 });
 
-test('README says Node 24, never the old floor', () => {
+test('README says Node 26, never the old floor', () => {
   const t = read('README.md');
-  assert.match(t, /Node 24/);
+  assert.match(t, /Node 26/);
   assert.equal(/22\.13/.test(t), false);
 });
 
@@ -202,7 +202,7 @@ test('CONTRIBUTING.md exists, names the real checks, points at the issue and pul
   assert.ok(fs.existsSync(path.join(root, 'CONTRIBUTING.md')), 'CONTRIBUTING.md is missing');
   const c = read('CONTRIBUTING.md');
   assert.ok(c.length > 300);
-  for (const w of [/Node 24/, /node --test/, /test\/smoke\.sh/, /test\/validate-plugin\.ts/, /docs\/REUSE\.md/, /failing test/i]) {
+  for (const w of [/Node 26/, /node --test/, /test\/smoke\.sh/, /test\/validate-plugin\.ts/, /docs\/REUSE\.md/, /failing test/i]) {
     assert.match(c, w, `CONTRIBUTING lacks ${w}`);
   }
   assert.match(c, /issue/i);

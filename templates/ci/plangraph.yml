@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '26'
       # Install plangraph however your project does (a pinned checkout of the plugin, or a package); `plangraph` must be on PATH after this step.
       - name: Install plangraph
         run: echo "install plangraph here and put it on PATH"

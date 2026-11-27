@@ -488,7 +488,7 @@ test('fingerprint: content, not mtime; a missing file differs from an empty one;
 test('openIndex without an index is a fixed NO_INDEX error (exit 2); an old Node is ENV (exit 3)', () => {
   const d = tmp();
   assert.throws(() => openIndex(path.join(d, INDEX_FILE), { dir: d }), (e) => e instanceof PlangraphError && e.code === 'NO_INDEX' && e.exitCode === 2 && e.message === 'no index: run `plangraph build`');
-  assert.throws(() => loadSqlite({ version: '22.12.0' }), (e: PlangraphError) => e instanceof PlangraphError && e.code === 'ENV' && e.exitCode === 3 && e.message === 'plangraph needs Node >= 24.15 (found 22.12.0); it uses node:sqlite and current ES features');
+  assert.throws(() => loadSqlite({ version: '22.12.0' }), (e: PlangraphError) => e instanceof PlangraphError && e.code === 'ENV' && e.exitCode === 3 && e.message === 'plangraph needs Node >= 26.0 (found 22.12.0); it uses node:sqlite and current ES features');
   assert.throws(() => loadSqlite({ version: '24.1.9' }), (e: PlangraphError) => e.code === 'ENV' && e.exitCode === 3);
   assert.throws(() => loadSqlite({ version: 'garbage' }), (e: PlangraphError) => e.code === 'ENV');
   assert.equal(typeof loadSqlite().DatabaseSync, 'function');

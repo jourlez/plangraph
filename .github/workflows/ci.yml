@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['24'] # the floor major (engines.node is >=24.15); add a newer major here to test it too
+        node: ['26'] # the floor major (engines.node is >=26.0); add a newer major here to test it too
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '26'
       # the solver tests and the solver part of the smoke test need uv; they run here only (they skip cleanly without uv)
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
@@ -104,7 +104,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '26'
           cache: npm
       - name: install shellcheck 0.11.0 and actionlint 1.7.12 (release tarballs, SHA-256 checked, first on PATH, so the runner image decides nothing)
         run: |
@@ -146,7 +146,7 @@ jobs:
       - name: claude plugin validate (pinned Claude Code, no login)
         run: npx --yes @anthropic-ai/claude-code@2.1.329 plugin validate . --strict
   macos:
-    name: macos tests (shard ${{ matrix.shard }}/2, node 24)
+    name: macos tests (shard ${{ matrix.shard }}/2, node 26)
     runs-on: macos-latest
     timeout-minutes: 15 # estimated about 2 minutes per shard
     strategy:
@@ -160,7 +160,7 @@ jobs:
           fetch-depth: 0 # the portable group runs test/public-clean.test.ts, whose commit-author check needs history
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '26'
           cache: npm
       # test/types.test.ts runs tsc from node_modules
       - name: install dev-only tools (typescript, @types/node, biome, lefthook, knip; exact versions from package-lock.json)
@@ -181,7 +181,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['24.15.0', '26'] # the floor and the newest major
+        node: ['26.0.0', '26'] # the exact floor and the latest 26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -205,13 +205,13 @@ jobs:
           node --test $files
           if [ -s "$RUNNER_TEMP/w.log" ]; then echo "Node runtime warnings:"; cat "$RUNNER_TEMP/w.log"; exit 1; fi
   floor:
-    name: session hook on node ${{ matrix.node }} (ubuntu, below or at the floor)
+    name: session hook on node ${{ matrix.node }} (ubuntu, below the floor)
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
-        node: ['18', '20.9.0', '24.14.0']
+        node: ['18', '20.9.0', '24.22.3']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -230,7 +230,7 @@ jobs:
           test "$rc" = 0
           test ! -s "$err"
           test "$(grep -c '' "$out")" = 1
-          grep -Eq '^plangraph: needs Node >= 24\.15, found v' "$out"
+          grep -Eq '^plangraph: needs Node >= 26\.0, found v' "$out"
           test -z "$(git status --porcelain)"
   mutation:
     name: mutation
@@ -242,7 +242,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '26'
       # the mutants run the solver tests, which need uv
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
@@ -278,7 +278,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version: '26'
       - name: reproducible source tarball and checksum
         run: |
           git archive --format=tar --prefix="plangraph-dry/" "$GITHUB_SHA" | gzip -n > "$RUNNER_TEMP/plangraph-dry.tar.gz"

@@ -15,10 +15,10 @@ const root = path.join(import.meta.dirname, '..');
 const read = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
 const esc = NODE_FLOOR.replace('.', '\\.');
 
-test('the floor is 24.15 (no runtime warning from node:sqlite or type stripping on the floor) and nodeSupported compares major.minor numerically', () => {
-  assert.equal(NODE_FLOOR, '24.15');
-  for (const v of ['24.15.0', 'v24.15.0', '24.18.0', '25.0.0', '100.1.1']) assert.equal(nodeSupported(v), true, v);
-  for (const v of ['24.14.9', '24.2.0', '24.1.9', '24.0.0', '22.13.0', 'v18.0.0', '', 'garbage', '24', '2.40.0']) assert.equal(nodeSupported(v), false, v);
+test('the floor is 26.0 (Node 26 is the Active LTS) and nodeSupported compares major.minor numerically', () => {
+  assert.equal(NODE_FLOOR, '26.0');
+  for (const v of ['26.0.0', 'v26.0.0', '26.13.1', '27.0.0', '100.1.1']) assert.equal(nodeSupported(v), true, v);
+  for (const v of ['24.22.3', '25.9.0', '22.12.0', '25.99.99', '24.15.0', 'v18.0.0', '', 'garbage', '26', '2.60.0']) assert.equal(nodeSupported(v), false, v);
   assert.equal(nodeSupported(process.versions.node), true, 'the test host itself must meet the floor');
 });
 
@@ -40,7 +40,7 @@ test('doctor, the index loader and the entry point take the floor from src/floor
   assert.match(read('src/db.ts'), /nodeSupported\(version\)/);
   assert.throws(() => loadSqlite({ version: '24.1.0' }), (e: PlangraphError) => e.code === 'ENV' && e.exitCode === 3 && e.message === floorMessage('24.1.0'));
   assert.equal(floorMessage('22.12.0'), `plangraph needs Node >= ${NODE_FLOOR} (found 22.12.0); it uses node:sqlite and current ES features`);
-  for (const f of ['src/cli.ts', 'src/db.ts', 'src/commands/plan.ts', 'src/entry.js']) assert.ok(!/>=\s*24(?!\.15)\b|Node 24(?!\.15)\b/.test(read(f)), `${f} states another floor`);
+  for (const f of ['src/cli.ts', 'src/db.ts', 'src/commands/plan.ts', 'src/entry.js']) assert.ok(!/>=\s*2[0-5]\b|Node 2[0-5]\b/.test(read(f)), `${f} states another floor`);
 });
 
 test('floorTry is a plain-text try line naming the floor', () => {
@@ -58,7 +58,7 @@ test('src/entry.js on a pretended old Node: exit 3 with one line; with --if-pres
     // 50: the floor guard plus the private compile-cache setup, which must stay inline (plain JavaScript) so no .ts file loads before the cache
     assert.ok(read('src/entry.js').split('\n').length <= 50, 'src/entry.js stays a thin entry');
     r = run('card', '--if-present', '--heal');
-    assert.equal(r.status, 0); assert.equal(r.stdout, 'plangraph: needs Node >= 24.15, found v24.1.0; install Node 24\n'); assert.equal(r.stderr, '');
+    assert.equal(r.status, 0); assert.equal(r.stdout, 'plangraph: needs Node >= 26.0, found v24.1.0; install Node 26\n'); assert.equal(r.stderr, '');
     assert.equal(r.stdout, `${floorHookLine('v24.1.0')}\n`);
     r = run('ticket', 'T-1', '--if-present');
     assert.equal(r.status, 0); assert.equal(r.stdout, ''); assert.equal(r.stderr, '', 'only the hook command prints the floor line');

@@ -43,7 +43,7 @@ shell, or a locked-down session where you would rather grant seven read-only too
 
   The server is strictly opt-in: it runs only when the value `on` reaches it through the plugin option `mcp` (`PLANGRAPH_MCP_OPTION`, or `CLAUDE_PLUGIN_OPTION_MCP`) or a `PLANGRAPH_MCP=on` variable (when you start it by hand, add `--env PLANGRAPH_MCP=on` to `claude mcp add`, or `"env": { "PLANGRAPH_MCP": "on" }` to the JSON above). Unset, empty or any other value gives the one "disabled" error and exit 0.
 
-  Node 24.15 or newer is needed.
+  Node 26.0 or newer is needed.
 
 For evals, `claude --strict-mcp-config --mcp-config <file>` runs a session with only the servers in that file (condition C of the
 eval plan), so other servers do not skew the token counts.

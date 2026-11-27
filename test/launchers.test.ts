@@ -66,7 +66,7 @@ test('biome and tsc cover src/entry.js, and keep the workflow out', () => {
 test('src/entry.js card --if-present --refresh on a pretended Node 20 exits 0, prints the one floor line and writes nothing', () => {
   const cwd = tmp('plangraph-hook20-');
   const r = spawnSync(process.execPath, ['--import', pretend('20.11.0'), path.join(root, 'src/entry.js'), 'card', '--if-present', '--refresh'], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '' } });
-  assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'plangraph: needs Node >= 24.15, found v20.11.0; install Node 24\n', '']);
+  assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'plangraph: needs Node >= 26.0, found v20.11.0; install Node 26\n', '']);
   assert.deepEqual(fs.readdirSync(cwd), []);
 });
 
