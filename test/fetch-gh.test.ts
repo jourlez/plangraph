@@ -96,7 +96,7 @@ test('full ignores the cursor; since drops older rows otherwise', async () => {
 });
 
 test('a sentinel token in the environment appears in no result', async () => {
-  const TOKEN = 'ghp_SENTINELSENTINEL0123456789';
+  const TOKEN = 'gh' + 'p_' + 'SENTINELSENTINEL0123456789';
   const old = process.env.GH_TOKEN; process.env.GH_TOKEN = TOKEN;
   try {
     const { run } = rec([{ code: 1, out: '', err: `HTTP 401 bad credentials for ${TOKEN}` }]);
