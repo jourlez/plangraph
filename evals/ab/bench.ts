@@ -110,7 +110,7 @@ async function main(): Promise<void> {
   const pluginDirOf = (arm: string): string | undefined => (arm.endsWith('pull-only') ? preparePullOnlyPlugin(pullOnly) : undefined);
   const run = path.join(o.cache, 'runs');
   if (o.family === 'graph') {
-    const all = graphQuestions().slice(0, o.questions), byId = new Map<string, GraphQuestion>(all.map((q) => [q.id, q]));
+    const all = graphQuestions().slice(0, o.questions).filter((q) => !o.tasks.length || o.tasks.includes(q.id)), byId = new Map<string, GraphQuestion>(all.map((q) => [q.id, q]));
     buildBaselineProject(path.join(o.cache, 'graph-baseline'));
     if (!fs.existsSync(path.join(o.cache, 'graph-graph', '.plangraph'))) buildGraphProject(path.join(o.cache, 'graph-graph'));
     const units = planUnits('graph', all.map((q) => q.id), { arms: o.arms, models: o.models, repeats: o.repeats }, done);
