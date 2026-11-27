@@ -1350,7 +1350,6 @@ def main(argv=None):
     ap.add_argument('--repair-earlier', action='store_true', help='repair mode: the freed tickets may move to an earlier sprint (default: never earlier)')
     ap.add_argument('--verbose', action='store_true', help='print stage records and every anytime write to stderr')
     a = ap.parse_args(argv)
-    t_start = time.time()
     watch_parent()
     try:
         from ortools.sat.python import cp_model as cp
@@ -1358,6 +1357,7 @@ def main(argv=None):
     except ImportError:
         print(f'plangraph-solve: OR-Tools is not installed. Run bin/plangraph-solve-run (needs uv), or: uv run --python 3.14 --with {PIN} python bin/plangraph-solve ...', file=sys.stderr)
         return EXIT['no_solver']
+    t_start = time.time()  # the budget starts after the import: the first import of OR-Tools after an install can take longer than the budget
     try:
         check_out(a.out)
         if a.meta != 'none': check_out(a.meta or a.out + '.meta.json')
