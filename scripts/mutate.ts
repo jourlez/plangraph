@@ -213,6 +213,11 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/fetch/trust.ts", "&& !t.includes('://') && t === t.trim();", "&& !t.includes('..') && t === t.trim();", ["test/fetch-trust.test.ts"]],
   ["lib/fetch/trust.ts", "[...new Set([...load(dir), target])].sort()", "[...load(dir), target].sort()", ["test/fetch-trust.test.ts"]],
   ["lib/fetch/trust.ts", "writeAtomicSafe(f, `${JSON.stringify({ targets: list })}\\n`, { mode: 0o600 });", "writeAtomicSafe(f, `${JSON.stringify({ targets: list })}\\n`);", ["test/fetch-trust.test.ts"]],
+  // 1.0 gitsafe spawnLines: the byte cap and the exit handling
+  ["lib/gitsafe.ts", "if (total > maxBytes) { fail(", "if (total >= maxBytes) { fail(", ["test/gitsafe-spawn.test.ts"]],
+  ["lib/gitsafe.ts", "if (code !== 0) { reject(Object.assign(new Error(`git exited", "if (false) { reject(Object.assign(new Error(`git exited", ["test/gitsafe-spawn.test.ts"]],
+  ["lib/gitsafe.ts", "try { if (rest.length) onLine(rest.toString('utf8')); }", "try { }", ["test/gitsafe-spawn.test.ts"]],
+  ["lib/gitsafe.ts", "rest = from < buf.length ? Buffer.from(buf.subarray(from)) : Buffer.alloc(0);", "rest = Buffer.alloc(0);", ["test/gitsafe-spawn.test.ts"]],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }

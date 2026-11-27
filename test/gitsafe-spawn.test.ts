@@ -38,3 +38,25 @@ test('spawnLines runs no shell: metacharacters in argv stay data', async () => {
 test('spawnLines: an onLine that throws rejects and stops', async () => {
   await assert.rejects(spawnLines(node, ['-e', "console.log('a\\nb')"], () => { throw new Error('stop'); }), /stop/);
 });
+test('spawnLines: output of exactly maxBytes passes, one byte more is TOO_LARGE', async () => {
+  const got: string[] = [];
+  await spawnLines(node, ['-e', "process.stdout.write('x'.repeat(99)+'\\n')"], (l) => got.push(l), { maxBytes: 100 });
+  assert.equal(got.length, 1);
+  await assert.rejects(spawnLines(node, ['-e', "process.stdout.write('x'.repeat(100)+'\\n')"], () => {}, { maxBytes: 100 }), (e: NodeJS.ErrnoException) => e.code === 'TOO_LARGE');
+});
+test('spawnLines: the cap counts bytes across chunks, not one chunk', async () => {
+  await assert.rejects(spawnLines(node, ['-e', "process.stdout.write('a'.repeat(60)+'\\n');setTimeout(()=>process.stdout.write('b'.repeat(60)+'\\n'),40)"], () => {}, { maxBytes: 100 }), (e: NodeJS.ErrnoException) => e.code === 'TOO_LARGE');
+});
+test('spawnLines: a non-zero exit rejects with GIT_FAILED after the lines it printed, and the last unterminated line is not delivered', async () => {
+  const got: string[] = [];
+  await assert.rejects(spawnLines(node, ['-e', "process.stdout.write('a\\nb');process.exit(5)"], (l) => got.push(l)), (e: NodeJS.ErrnoException) => e.code === 'GIT_FAILED' && /exited 5/.test(e.message));
+  assert.deepEqual(got, ['a']);
+});
+test('spawnLines: a line split across chunks is delivered once and whole', async () => {
+  const got: string[] = [];
+  await spawnLines(node, ['-e', "process.stdout.write('ab');setTimeout(()=>{process.stdout.write('cd\\nef');setTimeout(()=>process.stdout.write('gh\\n'),30)},30)"], (l) => got.push(l));
+  assert.deepEqual(got, ['abcd', 'efgh']);
+});
+test('spawnLines: only the first 400 bytes of stderr reach the message', async () => {
+  await assert.rejects(spawnLines(node, ['-e', "console.error('E'.repeat(5000));process.exit(1)"], () => {}), (e: Error) => !e.message.includes('E'.repeat(201)) && e.message.includes('E'.repeat(150)));
+});
