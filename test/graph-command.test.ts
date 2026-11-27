@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
@@ -134,12 +134,12 @@ test('output cap: a wide fan-out is cut with the narrowing line; -v lifts the ca
 
 test('a stale index warns once, as every query does', () => {
   const p = plan();
-  fs.appendFileSync(path.join(p, '.plangraph/findings.jsonl'), JSON.stringify({ key: 'T-1', kind: 'note', text: 'later' }) + '\n');
+  writePlanFile(path.join(p, '.plangraph'), 'findings.jsonl', readPlanFile(path.join(p, '.plangraph'), 'findings.jsonl') + JSON.stringify({ key: 'T-1', kind: 'note', text: 'later' }) + '\n');
   const r = run(p, ['graph', 'T-1']);
   assert.match(r.stderr, /^STALE: /); assert.equal(r.status, 0);
 });
 
-const read = (d: string, f: string) => { try { return fs.readFileSync(path.join(d, '.plangraph', f), 'utf8'); } catch { return ''; } };
+const read = (d: string, f: string) => { try { return f.endsWith('.jsonl') ? readPlanFile(path.join(d, '.plangraph'), f) : fs.readFileSync(path.join(d, '.plangraph', f), 'utf8'); } catch { return ''; } };
 const col = (d: string, f: string, k: string) => read(d, f).split('\n').filter(Boolean).map((l) => JSON.parse(l)[k]);
 const V1 = ['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl', 'refs.jsonl', 'open-items.jsonl', 'format.json'];
 

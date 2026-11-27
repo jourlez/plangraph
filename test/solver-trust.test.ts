@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 import { genPlan, rng } from './fixtures/gen.ts';
 import { buildModel } from '../lib/model.ts';
 import { verifyPlan } from '../lib/verify.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
@@ -88,7 +87,6 @@ function writePlan(plan: Plan) {
   const dir = path.join(tmpRoot, `p${counter++}`); fs.mkdirSync(dir, { recursive: true });
   wjl(path.join(dir, 'tickets.jsonl'), plan.tickets); wjl(path.join(dir, 'edges.jsonl'), plan.edges); wjl(path.join(dir, 'schedule.jsonl'), plan.schedule);
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(plan.config));
-  adoptPlanDir(dir);
   return dir;
 }
 /** Run the driver in `mode` through the real launcher; the solver's own flags follow. */
@@ -227,7 +225,6 @@ test('trust: the solver verify() flags SPRINT_CLOSED rows exactly as plangraph v
   const p = genPlan({ n: 4, people: 2, density: 0, seed: 3, cap: 99 }), dir = writePlan(p);
   const [t1, t2, t3, t4] = p.tickets.map((t) => t.key as string), owner = p.schedule[0].owner;
   wjl(path.join(dir, 'sprints.jsonl'), [{ n: 2, state: 'closed' }]);
-  adoptPlanDir(dir);
   const rows = new Map<string, [string, number]>([[t1, [owner, 1]], [t2, [owner, 2]], [t3, [owner, 3]], [t4, [owner, 1]]]);
   const r = drive('verify', [dir, JSON.stringify(Object.fromEntries(rows))]);
   assert.equal(r.status, 0, r.stderr);
@@ -239,7 +236,6 @@ test('trust: with an open item on a ticket and a closed sprint, the solver sched
   const item = { key: 'T-1', kind: 'decision', owner: p.schedule[0].owner, due_sprint: 1, status: 'open', text: 'x' };
   wjl(path.join(dir, 'open-items.jsonl'), [item]);
   wjl(path.join(dir, 'sprints.jsonl'), [{ n: 1, state: 'active' }, { n: 2, state: 'closed' }]);
-  adoptPlanDir(dir);
   const r = solve('nohint', dir);
   assert.equal(r.code, 0, `${r.stdout}${r.stderr}`);
   assert.ok(r.schedule.length === p.tickets.length && r.schedule.every((x) => x.sprint !== 2), `a row sits in the closed sprint: ${r.raw}`);

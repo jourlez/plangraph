@@ -31,8 +31,8 @@ function repo() {
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const p = genPlan({ n: 12, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges));
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  writePlanFile(b, 'tickets.jsonl', jl(p.tickets)); writePlanFile(b, 'edges.jsonl', jl(p.edges));
+  writePlanFile(b, 'schedule.jsonl', jl(p.schedule));
   adoptPlanDir(b);
   const r = run(d, ['build']); assert.equal(r.status, 0, r.stderr);
   return d;
@@ -125,31 +125,32 @@ test('`plangraph build` without a plan dir exits 2 with the `plangraph init` hin
 // ---------- export leaves the index current ----------
 test('after `plangraph export` rewrites the text (canonical order), the next query is not stale', () => {
   const d = repo(), b = path.join(d, '.plangraph');
-  // non-canonical text: reversed lines, so export changes the bytes
-  for (const f of ['tickets.jsonl', 'edges.jsonl']) fs.writeFileSync(path.join(b, f), fs.readFileSync(path.join(b, f), 'utf8').trim().split('\n').reverse().join('\n') + '\n');
-  adoptPlanDir(b);
+  // a non-canonical node file (its field lines reversed, as a hand edit leaves them): export rewrites it canonically
+  const node = nodePath(b, 'ticket', 'T-1'), lines = fs.readFileSync(node, 'utf8').trim().split('\n');
+  fs.writeFileSync(node, [lines[0], ...lines.slice(1).reverse()].join('\n') + '\n');
+  const before = fs.readFileSync(node, 'utf8');
   assert.equal(run(d, ['build']).status, 0);
-  const before = fs.readFileSync(path.join(b, 'tickets.jsonl'), 'utf8');
   let r = run(d, ['export']); assert.equal(r.status, 0, r.stderr);
-  assert.notEqual(fs.readFileSync(path.join(b, 'tickets.jsonl'), 'utf8'), before, 'export rewrote the text');
+  assert.notEqual(fs.readFileSync(node, 'utf8'), before, 'export rewrote the node file in canonical form');
   r = run(d, ['ticket', 'T-1']); assert.equal(r.status, 0); assert.equal(r.stderr, '');
   // schedule-load changes the index only; export saves it and the index stays current
   fs.writeFileSync(path.join(d, 's.json'), JSON.stringify(genPlan({ n: 12, people: 2, seed: 3 }).schedule.map((s) => ({ item: s.key, owner: s.owner, sprint: s.sprint }))));
   r = run(d, ['schedule-load', 's.json', 'old']); assert.equal(r.status, 0, r.stderr);
   r = run(d, ['export']); assert.equal(r.status, 0, r.stderr);
   r = run(d, ['check']); assert.equal(r.stderr, '');
-  assert.match(fs.readFileSync(path.join(b, 'schedule.jsonl'), 'utf8'), /"version":"old"/);
+  assert.match(readPlanFile(b, 'schedule.jsonl'), /"version":"old"/);
 });
 
 test('export refuses a symlinked target before writing anything (exit 4); every file keeps its bytes', () => {
   const d = repo(), b = path.join(d, '.plangraph'), victim = path.join(tmp(), 'victim.txt');
   fs.writeFileSync(victim, 'keep me\n');
-  fs.rmSync(path.join(b, 'findings.jsonl')); fs.symlinkSync(victim, path.join(b, 'findings.jsonl'));
-  const snap = () => Object.fromEntries(fs.readdirSync(b).filter((f) => f.endsWith('.jsonl') && f !== 'findings.jsonl').map((f) => [f, fs.readFileSync(path.join(b, f), 'utf8')]));
+  const runs = path.join(b, 'runs'); fs.mkdirSync(runs, { recursive: true }); fs.rmSync(path.join(runs, 'findings'), { recursive: true, force: true });
+  fs.symlinkSync(path.dirname(victim), path.join(runs, 'findings')); // the findings directory is a symlink
+  const snap = () => Object.fromEntries(fs.readdirSync(path.join(b, 'nodes/ticket'), { recursive: true }).map(String).filter((f) => f.endsWith('.pg')).map((f) => [f, fs.readFileSync(path.join(b, 'nodes/ticket', f), 'utf8')]));
   const before = snap();
   const r = run(d, ['export']);
   assert.equal(r.status, 4);
-  assert.equal(r.stderr, 'error: refusing to write findings.jsonl: it is a symlink (nothing was written)\ntry: plangraph explain export\n');
+  assert.match(r.stderr, /^error: refusing to write: path is outside the repository: .*\(nothing was written\)\ntry: plangraph explain export\n$/);
   assert.equal(fs.readFileSync(victim, 'utf8'), 'keep me\n');
   assert.deepEqual(snap(), before);
 });
@@ -176,13 +177,12 @@ test('audit and open-items argument errors: fixed messages, exit 2, nothing writ
 });
 
 // ---------- forecast freshness: open-items.jsonl counts, as in bin/plangraph's forecast ----------
-test('forecast warns STALE when open-items.jsonl is newer than the index (open-items is not in the fingerprint); one warning only', () => {
+test('forecast warns STALE when an open-item node is newer than the index (open-items is not in the fingerprint); one warning only', () => {
   const d = repo(), b = path.join(d, '.plangraph');
   let r = run(d, ['forecast']); assert.equal(r.status, 0); assert.equal(r.stderr, '');
-  fs.writeFileSync(path.join(b, 'open-items.jsonl'), '');
-  adoptPlanDir(b);
+  writePlanFile(b, 'open-items.jsonl', jl([{ key: 'T-1', kind: 'followup', status: 'open' }]));
   const later = new Date(fs.statSync(path.join(b, INDEX_FILE)).mtimeMs + 5000);
-  fs.utimesSync(path.join(b, 'open-items.jsonl'), later, later);
+  fs.utimesSync(nodePath(b, 'openitem', 'T-1|followup'), later, later);
   r = run(d, ['forecast']); assert.equal(r.status, 0); assert.equal(r.stderr, `${STALE_WARNING}\n`);
   r = run(d, ['forecast', '--if-present']); assert.equal(r.stderr, '');
   r = run(d, ['ticket', 'T-1']); assert.equal(r.stderr, '', 'other queries follow the fingerprint only');
@@ -200,7 +200,7 @@ test('simulate bounds its run count and noise: out-of-range values are usage err
 
 test('ready refuses an open-items.jsonl owner that is not a string (it printed "owner [object Object]") as a data error, exit 2', () => {
   const d = repo(), b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'open-items.jsonl'), jl([{ key: 'T-1', kind: 'decision', owner: { x: 1 }, status: 'open', text: 'a' }]));
+  writePlanFile(b, 'open-items.jsonl', jl([{ key: 'T-1', kind: 'decision', owner: { x: 1 }, status: 'open', text: 'a' }]));
   const r = run(d, ['ready', 'T-1']);
   assert.equal(r.status, 2, r.stdout); assert.doesNotMatch(r.stdout, /object Object/);
   assert.match(r.stderr, /open-items\.jsonl:1: "owner" must be a string/);
@@ -209,14 +209,14 @@ test('ready refuses an open-items.jsonl owner that is not a string (it printed "
 test('simulate skips a schedule row whose ticket does not exist, with one warning line, instead of letting it move the plan end', () => {
   const d = repo(), b = path.join(d, '.plangraph');
   const t = (key: string) => ({ key, summary: key, epic: 'E0', sp: 30, jira_status: 'To Do' });
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([t('T-1'), t('T-2')])); fs.writeFileSync(path.join(b, 'edges.jsonl'), '');
+  writePlanFile(b, 'tickets.jsonl', jl([t('T-1'), t('T-2')])); writePlanFile(b, 'edges.jsonl', '');
   const rows = [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 1 }];
   // two 30-point tickets in one 40-point slot: the exact-size baseline must push one to sprint 2
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(rows)); assert.equal(run(d, ['build']).status, 0);
+  writePlanFile(b, 'schedule.jsonl', jl(rows)); assert.equal(run(d, ['build']).status, 0);
   const without = run(d, ['simulate', '--runs', '50', '--sigma', '0']);
   assert.equal(without.stderr, ''); assert.match(without.stdout, /^baseline with exact sizes: ends sprint 2 /);
   // a ghost row gave an undefined size (a NaN slot load that `|| 0` hid), yet its sprint still set the planned and simulated end
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([...rows, { version: 'current', key: 'GHOST-1', owner: 'Ana', sprint: 5 }])); assert.equal(run(d, ['build']).status, 0);
+  writePlanFile(b, 'schedule.jsonl', jl([...rows, { version: 'current', key: 'GHOST-1', owner: 'Ana', sprint: 5 }])); assert.equal(run(d, ['build']).status, 0);
   const r = run(d, ['simulate', '--runs', '50', '--sigma', '0']);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout, without.stdout);
@@ -266,13 +266,14 @@ test('the repository root is found without git (nearest .git, real path), matchi
 
 // ---------- review fixes (Task 11 review round) ----------
 import { main } from '../src/cli.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
+import { nodePath } from '../lib/store2/layout.ts';
 
-// The SessionStart hook runs `card --if-present [--heal]`: it must never print and never exit non-zero, whatever fails.
-test('card --if-present [--heal] is silent with exit 0 on every failure: bad .plangraphrc, refused dir, corrupt index, bad option', () => {
+// The SessionStart hook runs `card --if-present --refresh`: it must never print and never exit non-zero, whatever fails.
+test('card --if-present [--refresh] is silent with exit 0 on every failure: bad .plangraphrc, refused dir, corrupt index, bad option', () => {
   const d = repo(), b = path.join(d, '.plangraph');
   const quiet = (args: string[], env: Record<string, string>, why: string) => {
-    for (const extra of [[], ['--heal']]) {
+    for (const extra of [[], ['--refresh']]) {
       const r = run(d, [...args, ...extra], env);
       assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], `${why} ${extra.join(' ')}`);
     }
@@ -295,7 +296,7 @@ test('card --if-present [--heal] is silent with exit 0 on every failure: bad .pl
   r = run(d, ['card']); assert.equal(r.status, 2); assert.match(r.stderr, /^error: the index is not a readable SQLite database/);
   fs.rmSync(path.join(b, INDEX_FILE));
   // no index: plan data is there, so the hook prints ONE first-use line (test/first-use.test.ts covers it and every silent shape)
-  for (const extra of [[], ['--heal']]) {
+  for (const extra of [[], ['--refresh']]) {
     r = run(d, ['card', '--if-present', ...extra]);
     assert.deepEqual([r.status, r.stdout, r.stderr], [0, 'plangraph: plan data found in .plangraph but no index: run plangraph build\n', ''], `no index ${extra.join(' ')}`);
   }
@@ -306,7 +307,7 @@ test('main(): card --if-present swallows any thrown error (command or context) a
   const reg = new Map(Object.entries(boom)) as unknown as Map<string, Command>; // a partial registry: main reads run, options and positionals
   const io = silentIo();
   assert.equal(await main(['card', '--if-present'], { registry: reg, makeContext: () => ({ dir: '' }) as Ctx, io: io.io }), 0); // a partial context
-  assert.equal(await main(['card', '--if-present', '--heal'], { registry: reg, makeContext: () => { throw new Error('ctx'); }, io: io.io }), 0);
+  assert.equal(await main(['card', '--if-present', '--refresh'], { registry: reg, makeContext: () => { throw new Error('ctx'); }, io: io.io }), 0);
   const outing = new Map([['card', Object.freeze({ name: 'card', run: (ctx: Ctx) => { ctx.io.out('partial'); throw new Error('late'); }, options: {}, positionals: [0, 0] })]]) as unknown as Map<string, Command>; // a partial registry
   assert.equal(await main(['card', '--if-present'], { registry: outing, makeContext: ({ io }) => ({ dir: '', io }) as Ctx, io: io.io }), 0); // a partial context
   const failing = new Map([['card', Object.freeze({ name: 'card', run: (ctx: Ctx) => { ctx.io.out('partial'); return 3; }, options: {}, positionals: [0, 0] })]]) as unknown as Map<string, Command>; // a partial registry
@@ -333,11 +334,11 @@ test('refused write targets exit 4 with nothing written: card --write, sp-link, 
   refused(['card', '--write'], 'CARD.md', 'card --write');
   fs.rmSync(path.join(b, 'CARD.md'));
   fs.mkdirSync(path.join(d, 'docs')); fs.writeFileSync(path.join(d, 'docs/p.md'), '# Plan\n\n### Task 1: first\nbuild a\n\n### Task 2: second\nbuild b using a\n');
-  fs.rmSync(path.join(b, 'refs.jsonl'), { force: true }); fs.symlinkSync(empty, path.join(b, 'refs.jsonl'));
-  refused(['sp-link', 'T-1', 'docs/p.md'], 'refs.jsonl', 'sp-link');
-  fs.rmSync(path.join(b, 'refs.jsonl'));
-  fs.rmSync(path.join(b, 'tickets.jsonl')); fs.symlinkSync(empty, path.join(b, 'tickets.jsonl'));
-  refused(['sp-ingest', 'docs/p.md', '--ledger', 'none'], 'tickets.jsonl', 'sp-ingest');
+  const nodes = path.join(b, 'nodes'), real = path.join(nodes, 'ticket'), moved = path.join(d, 'moved-ticket-nodes'); // the ticket directory (tickets and their refs) is a symlink
+  fs.renameSync(real, moved); fs.symlinkSync(moved, real);
+  refused(['sp-link', 'T-1', 'docs/p.md'], 'ticket', 'sp-link');
+  refused(['sp-ingest', 'docs/p.md', '--ledger', 'none'], 'ticket', 'sp-ingest');
+  fs.rmSync(real); fs.renameSync(moved, real);
   // init: a symlinked format.json (dangling or not) is refused before anything is written
   const e = tmp(); execFileSync('git', ['init', '-q'], { cwd: e }); fs.mkdirSync(path.join(e, '.plangraph'));
   for (const target of [victim, path.join(out, 'nowhere.json')]) {
@@ -383,8 +384,8 @@ test('neighbors depth is a whole number from 0 to 50; schedule-load refuses "cur
 
 test('export refuses a stale index (text edited after the build) with a data error and the build hint; the text keeps its bytes', () => {
   const d = repo(), b = path.join(d, '.plangraph');
-  fs.appendFileSync(path.join(b, 'findings.jsonl'), JSON.stringify({ key: 'T-1', kind: 'note', text: 'hand edit' }) + '\n');
-  const snap = () => Object.fromEntries(fs.readdirSync(b).filter((f) => f.endsWith('.jsonl')).map((f) => [f, fs.readFileSync(path.join(b, f), 'utf8')]));
+  writePlanFile(b, 'findings.jsonl', JSON.stringify({ key: 'T-1', kind: 'note', text: 'hand edit' }) + '\n');
+  const snap = () => Object.fromEntries(fs.readdirSync(b, { recursive: true }).map(String).filter((f) => /\.(pg|jsonl)$/.test(f)).map((f) => [f, fs.readFileSync(path.join(b, f), 'utf8')]));
   const before = snap();
   let r = run(d, ['export']);
   assert.equal(r.status, 2);
@@ -392,7 +393,7 @@ test('export refuses a stale index (text edited after the build) with a data err
   assert.deepEqual(snap(), before);
   assert.equal(run(d, ['build']).status, 0);
   r = run(d, ['export']); assert.equal(r.status, 0, r.stderr);
-  assert.match(fs.readFileSync(path.join(b, 'findings.jsonl'), 'utf8'), /hand edit/);
+  assert.match(readPlanFile(b, 'findings.jsonl'), /hand edit/);
 });
 
 test('schedule-load then export still works (the index changed, the text did not: not stale)', () => {
@@ -401,7 +402,7 @@ test('schedule-load then export still works (the index changed, the text did not
   fs.writeFileSync(path.join(d, 's.json'), JSON.stringify(rows));
   let r = run(d, ['schedule-load', 's.json', 'prev']); assert.equal(r.status, 0, r.stderr);
   r = run(d, ['export']); assert.equal(r.status, 0, r.stderr); assert.equal(r.stderr, '');
-  const text = fs.readFileSync(path.join(b, 'schedule.jsonl'), 'utf8');
+  const text = readPlanFile(b, 'schedule.jsonl');
   assert.match(text, /"version":"prev"/);
   assert.equal(run(d, ['check']).stderr, '');
 });
@@ -431,21 +432,21 @@ test('plangraph sprint with an empty schedule says the plan has no scheduled tic
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d }); assert.equal(run(d, ['init']).status, 0); assert.equal(run(d, ['build']).status, 0);
   assert.equal(run(d, ['sprint', '2']).stdout, 'sprint 2: no tickets; the plan has no scheduled tickets\n');
 });
-const snap = (dir: string) => Object.fromEntries(fs.readdirSync(dir).filter((f) => f !== '.gitignore').map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
+const snap = (dir: string) => Object.fromEntries(fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile() && e.name !== '.gitignore').map((e) => path.join(e.parentPath, e.name)).map((f) => [path.relative(dir, f), fs.readFileSync(f, 'utf8')]));
 test('init on an existing plangraph keeps every .gitignore line, reports already initialised, and a second run changes nothing', () => {
   const d = repo(), b = path.join(d, '.plangraph'), gi = path.join(b, '.gitignore');
-  fs.writeFileSync(gi, '*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\nCARD.md\n'); const before = snap(b);
+  fs.writeFileSync(gi, 'cache/\nplangraph.sqlite*\n.txn/\nCARD.md\n'); const before = snap(b);
   const r1 = run(d, ['init']); assert.equal(r1.status, 0, r1.stderr);
   assert.equal(r1.stdout.split('\n')[0], 'already initialised: .plangraph (no changes)'); // then the CLAUDE.md snippet (test/steer.test.ts)
-  assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\nCARD.md\n'); assert.deepEqual(snap(b), before);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'cache/\nplangraph.sqlite*\n.txn/\nCARD.md\n'); assert.deepEqual(snap(b), before);
   const m = fs.statSync(gi).mtimeMs; assert.equal(run(d, ['init']).stdout, r1.stdout); assert.equal(fs.statSync(gi).mtimeMs, m); // nothing missing: no write
 });
-test('init on an existing plangraph only appends the missing *.sqlite and sidecar lines, preserving user lines, order and a missing final newline', () => {
+test('init on an existing plangraph only appends the missing cache, index and staging lines, preserving user lines, order and a missing final newline', () => {
   const d = repo(), b = path.join(d, '.plangraph'), gi = path.join(b, '.gitignore');
   fs.writeFileSync(gi, '# mine\nCARD.md\n\nout/'); const before = snap(b);
   const r = run(d, ['init']); assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.split('\n')[0], 'already initialised: .plangraph (added *.sqlite, *.sqlite-journal, *.sqlite-wal, *.sqlite-shm to .gitignore)');
-  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\nCARD.md\n\nout/\n*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\n'); assert.deepEqual(snap(b), before);
+  assert.equal(r.stdout.split('\n')[0], 'already initialised: .plangraph (added cache/, plangraph.sqlite*, .txn/ to .gitignore)');
+  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\nCARD.md\n\nout/\ncache/\nplangraph.sqlite*\n.txn/\n'); assert.deepEqual(snap(b), before);
   assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .plangraph (no changes)');
 });
 test('a fresh init still says initialised and tells what to do next', () => {
@@ -459,9 +460,9 @@ test('whatif --apply-plan --write never shifts a Done ticket on a fresh plangrap
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'a', sp: 3, jira_status: 'To Do' }, { key: 'T-2', summary: 'b', sp: 2, jira_status: 'Done' }]));
-  fs.writeFileSync(path.join(b, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
+  writePlanFile(b, 'tickets.jsonl', jl([{ key: 'T-1', summary: 'a', sp: 3, jira_status: 'To Do' }, { key: 'T-2', summary: 'b', sp: 2, jira_status: 'Done' }]));
+  writePlanFile(b, 'edges.jsonl', jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
+  writePlanFile(b, 'schedule.jsonl', jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
   assert.equal(run(d, ['build']).status, 0);
   const before = fs.readFileSync(path.join(b, INDEX_FILE));
   const r = run(d, ['whatif', 'T-1', '--sprint', '3', '--apply-plan', '--write']);
@@ -482,7 +483,7 @@ test('whatif: executing the printed next command reproduces the suggestion (200+
     const g = genPlan({ n: 8 + (seed % 10), people: 2 + (seed % 2), density: 0.3, seed: seed + 1700, maxSp: 4 });
     const ld = new Map<string, number>(); for (const s of g.schedule) ld.set(`${s.owner}|${s.sprint}`, (ld.get(`${s.owner}|${s.sprint}`) || 0) + (g.tickets.find((t) => t.key === s.key) as { sp: number }).sp); // genPlan schedules its own tickets
     fs.writeFileSync(path.join(b, 'config.json'), JSON.stringify({ ...g.config, caps: { default: Math.max(...ld.values()) } }));
-    fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(g.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(g.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(g.schedule));
+    writePlanFile(b, 'tickets.jsonl', jl(g.tickets)); writePlanFile(b, 'edges.jsonl', jl(g.edges)); writePlanFile(b, 'schedule.jsonl', jl(g.schedule));
     assert.equal((await call(['build'])).code, 0);
     const r = rng(seed), ppl = [...new Set(g.schedule.map((s) => s.owner))].sort();
     for (let j = 0; j < 3; j++) {
@@ -507,12 +508,12 @@ test('whatif: executing the printed next command reproduces the suggestion (200+
 test('a fractional sprint: build exits 2 naming schedule.jsonl and the line; whatif on an older index with one is a data error (exit 2)', async () => {
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d }); assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'a', sp: 3 }, { key: 'T-2', summary: 'b', sp: 2 }]));
-  fs.writeFileSync(path.join(b, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2.5 }]));
+  writePlanFile(b, 'tickets.jsonl', jl([{ key: 'T-1', summary: 'a', sp: 3 }, { key: 'T-2', summary: 'b', sp: 2 }]));
+  writePlanFile(b, 'edges.jsonl', jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }]));
+  writePlanFile(b, 'schedule.jsonl', jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2.5 }]));
   let r = run(d, ['build']);
   assert.equal(r.status, 2); assert.equal(r.stderr.split('\n')[0], 'error: schedule.jsonl:2: "sprint" must be a whole number');
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 3 }]));
+  writePlanFile(b, 'schedule.jsonl', jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 3 }]));
   assert.equal(run(d, ['build']).status, 0);
   const { DatabaseSync } = await import('node:sqlite');
   { const db = new DatabaseSync(path.join(b, INDEX_FILE)); db.exec("UPDATE schedule SET sprint=2.5 WHERE key='T-2'; DELETE FROM index_meta WHERE k='content_digest'"); db.close(); } // an older build: no digest
@@ -524,7 +525,7 @@ test('a fractional sprint: build exits 2 naming schedule.jsonl and the line; wha
   // M2: a negative sp (it made a vacated cell look roomier than it is) is the same data error
   { const db = new DatabaseSync(path.join(b, INDEX_FILE)); db.exec("UPDATE schedule SET sprint=3 WHERE key='T-2'; UPDATE ticket SET sp=-2 WHERE key='T-2'"); db.close(); }
   r = run(d, ['whatif', 'T-1', '--sprint', '3']); assert.equal(r.status, 2, r.stdout); assert.match(r.stderr, /^STALE: the text files changed since the index was built; run `plangraph build`\nerror: the index holds a sprint that is not a whole number or a negative sp/);
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'a', sp: 3 }, { key: 'T-2', summary: 'b', sp: -2 }]));
+  writePlanFile(b, 'tickets.jsonl', jl([{ key: 'T-1', summary: 'a', sp: 3 }, { key: 'T-2', summary: 'b', sp: -2 }]));
   r = run(d, ['build']); assert.equal(r.status, 2); assert.equal(r.stderr.split('\n')[0], 'error: tickets.jsonl:2: "sp" must not be negative');
 });
 
@@ -533,9 +534,9 @@ test('chain honours ignore_link_kinds like check: a loop closed only by an ignor
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d }); assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph'), cfg = JSON.parse(fs.readFileSync(path.join(b, 'config.json'), 'utf8'));
   fs.writeFileSync(path.join(b, 'config.json'), JSON.stringify({ ...cfg, ignore_link_kinds: ['soft'] }));
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'a', sp: 1 }, { key: 'T-2', summary: 'b', sp: 1 }]));
-  fs.writeFileSync(path.join(b, 'edges.jsonl'), jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }, { consumer: 'T-1', producer: 'T-2', kind: 'soft' }]));
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
+  writePlanFile(b, 'tickets.jsonl', jl([{ key: 'T-1', summary: 'a', sp: 1 }, { key: 'T-2', summary: 'b', sp: 1 }]));
+  writePlanFile(b, 'edges.jsonl', jl([{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need' }, { consumer: 'T-1', producer: 'T-2', kind: 'soft' }]));
+  writePlanFile(b, 'schedule.jsonl', jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
   assert.equal(run(d, ['build']).status, 0);
   const r = run(d, ['chain', 'T-2']);
   assert.equal(r.status, 0, r.stderr); assert.equal(r.stdout.split('\n')[0], 'longest chain behind T-2: 1 hops, 0 handoffs, 1 critical path');

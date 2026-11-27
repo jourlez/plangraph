@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readTree, writePlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph');
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
@@ -16,7 +16,7 @@ let BASE = '', REPO = '';
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, ...GIT });
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
+const digest = () => { const h = crypto.createHash('sha256'); for (const [f, text] of Object.entries(readTree(path.join(REPO, '.plangraph')))) h.update(`${f}\0`).update(text); return h.digest('hex'); };
 const T = (key: string, jira_status: string) => ({ key, sp: 1, jira_status, verdict: 'READY' });
 // D-1 Done (closed), P-1 In Progress (frozen_statuses), O-1 in sprint 1 (below frozen_before_sprint 2), F-1 free.
 const CUR: Record<string, [string, number]> = { 'D-1': ['Ana', 2], 'P-1': ['Ben', 3], 'O-1': ['Ana', 1], 'F-1': ['Ben', 2] };
@@ -32,9 +32,9 @@ before(() => {
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
   const B = path.join(REPO, '.plangraph');
-  fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl([T('D-1', 'Done'), T('P-1', 'In Progress'), T('O-1', 'To Do'), T('F-1', 'To Do')]));
-  fs.writeFileSync(path.join(B, 'edges.jsonl'), '');
-  fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(Object.entries(CUR).map(([key, [owner, sprint]]) => ({ version: 'current', key, owner, sprint }))));
+  writePlanFile(B, 'tickets.jsonl', jl([T('D-1', 'Done'), T('P-1', 'In Progress'), T('O-1', 'To Do'), T('F-1', 'To Do')]));
+  writePlanFile(B, 'edges.jsonl', '');
+  writePlanFile(B, 'schedule.jsonl', jl(Object.entries(CUR).map(([key, [owner, sprint]]) => ({ version: 'current', key, owner, sprint }))));
   adoptPlanDir(B);
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), first_sprint: 1, caps: { default: 10 }, frozen_statuses: ['In Progress'], frozen_before_sprint: 2 }));
   const b = run('build'); assert.equal(b.status, 0, b.stderr);

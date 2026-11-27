@@ -42,9 +42,8 @@ Run `plangraph explain` for the full command list.
   }
 }
 --- file .plangraph/.gitignore
-*.sqlite
-*.sqlite-journal
-*.sqlite-wal
-*.sqlite-shm
+cache/
+plangraph.sqlite*
+.txn/
 --- file .plangraph/format.json
-{"format_version":1,"min_reader":1}
+{"format_version":2,"min_reader":2,"storage":"entity"}

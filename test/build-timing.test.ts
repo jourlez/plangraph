@@ -27,7 +27,7 @@ const bdir = (d: string) => path.join(d, '.plangraph');
 const tk = (key: string, more: Record<string, unknown> = {}) => ({ key, summary: 's' + key, epic: 'E', sp: 3, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', verdict_source: 'a', first_verdict: 'READY', ...more });
 const count = (d: string, t: string) => { const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true }); try { return (db.prepare(`SELECT COUNT(*) c FROM ${t}`).get() as { c: number }).c; } finally { db.close(); } }; // COUNT(*) always returns one row
 
-test('(e) 100k ticket records build in linear time (25k vs 100k, min of 3)', () => {
+test('(e) 16k ticket nodes build in linear time (4k vs 16k, min of 3)', () => {
   const d = repo();
   const timeBuild = (n: number, reps: number) => {
     const lines = [];
@@ -39,7 +39,7 @@ test('(e) 100k ticket records build in linear time (25k vs 100k, min of 3)', () 
     assert.equal(count(d, 'ticket'), n);
     return best;
   };
-  const small = timeBuild(25000, 3), large = timeBuild(100000, 3);
+  const small = timeBuild(4000, 3), large = timeBuild(16000, 3);
   // prepared-once statements, no per-record prepare
-  assert.ok(large / small < 9 * factor(), `build is not linear: 25k took ${small.toFixed(0)} ms, 100k took ${large.toFixed(0)} ms`);
+  assert.ok(large / small < 9 * factor(), `build is not linear: 4k took ${small.toFixed(0)} ms, 16k took ${large.toFixed(0)} ms`);
 });

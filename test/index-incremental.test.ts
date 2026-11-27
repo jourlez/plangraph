@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
-import { openStore, JsonlStore, kindFile } from '../lib/planstore.ts';
+import { openStore } from '../lib/planstore.ts';
 import type { Kind, Row } from '../lib/planstore.ts';
 import { buildIndex, openIndex, builders, stampContent, TABLES, INDEX_FILE, ADVISORY_TABLES } from '../src/db.ts';
 import { DatabaseSync } from 'node:sqlite';
@@ -26,11 +26,11 @@ const ROWS: Partial<Record<Kind, Row[]>> = {
 };
 const ORDER: Kind[] = ['ticket', 'edge', 'ref', 'person', 'capacity', 'sprint', 'epic', 'repo', 'link', 'xref', 'schedule', 'evidence', 'finding', 'learning', 'meta'];
 
-function planDir(backend: 'entity' | 'jsonl', { git = false, old = true }: { git?: boolean; old?: boolean } = {}): string {
+function planDir(_layout: 'entity', { git = false, old = true }: { git?: boolean; old?: boolean } = {}): string {
   const d = tmp(), dir = path.join(d, '.plangraph');
   fs.mkdirSync(dir);
   if (git) execFileSync('git', ['init', '-q'], { cwd: d });
-  if (backend === 'entity') fs.writeFileSync(path.join(dir, 'format.json'), '{"format_version":1,"min_reader":1,"storage":"entity"}\n');
+  fs.writeFileSync(path.join(dir, 'format.json'), '{"format_version":2,"min_reader":2,"storage":"entity"}\n');
   const s = openStore({ dir, root: d });
   for (const k of ORDER) if (ROWS[k]) s.writeKind(k, ROWS[k] as Row[]);
   if (old) ageFiles(dir);
@@ -149,16 +149,6 @@ test('freshness: openIndex is stale after an edit and fresh after the build (ent
   { using h = openIndex(path.join(dir, INDEX_FILE), { dir }); assert.equal(h.stale, false); }
 });
 
-test('the JSONL layout is incremental too: an edit of tickets.jsonl rebuilds the ticket table only', () => {
-  const dir = planDir('jsonl'); buildIndex({ dir });
-  const s = new JsonlStore({ dir, root: path.dirname(dir) });
-  s.writeKind('ticket', s.readKind('ticket', { defaults: false }).map((x) => (x.key === 'T-3' ? { ...x, summary: 'edited' } : x)));
-  const rows = spyRows();
-  try { buildIndex({ dir }); } finally { rows.mock.restore(); }
-  assert.deepEqual(built(rows), ['ticket']);
-  sameAsFull(dir);
-});
-
 test('an index changed without the text (a writer re-stamped it) is rebuilt in full on the next build', () => {
   const dir = planDir('entity'); buildIndex({ dir });
   { using h = openIndex(path.join(dir, INDEX_FILE), { readOnly: false }); h.exec('BEGIN'); h.exec("UPDATE schedule SET sprint = 7 WHERE key = 'T-1'"); stampContent(h); h.exec('COMMIT'); }
@@ -173,17 +163,6 @@ test('a tampered or missing index is rebuilt in full', () => {
   assert.deepEqual(buildIndex({ dir }).rebuilt, [...TABLES.keys()]);
   fs.rmSync(path.join(dir, INDEX_FILE));
   assert.deepEqual(buildIndex({ dir }).rebuilt, [...TABLES.keys()]);
-  sameAsFull(dir);
-});
-
-test('switching the layout rebuilds what the old files and the new files feed, and still equals a full rebuild', () => {
-  const dir = planDir('jsonl'); buildIndex({ dir });
-  const s = openStore({ dir, root: path.dirname(dir) });
-  const all = new Map<Kind, Row[]>(ORDER.filter((k) => k !== 'meta').map((k) => [k, s.readKind(k, { defaults: false })]));
-  fs.writeFileSync(path.join(dir, 'format.json'), '{"format_version":1,"min_reader":1,"storage":"entity"}\n');
-  const es = openStore({ dir, root: path.dirname(dir) });
-  for (const [k, rows] of all) { es.writeKind(k, rows); fs.rmSync(path.join(dir, kindFile(k)), { force: true }); }
-  buildIndex({ dir });
   sameAsFull(dir);
 });
 

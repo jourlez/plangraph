@@ -14,7 +14,7 @@ import { findSlots, renderFind, whatif, applyMoves } from '../lib/whatif.ts';
 import type { FindResult, Slot } from '../lib/whatif.ts';
 import { verifyPlan } from '../lib/verify.ts';
 import { genPlan, rng } from './fixtures/gen.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readTree, writePlanFile } from './helpers/plan-dir.ts';
 
 const T = (key: string, sp: number, o = {}) => ({ key, sp, jira_status: 'To Do', verdict: 'READY', ...o });
 // A-1 (2 SP) Ana S2; its consumer C-1 sits in Ben S5; Ana S3 is full (B-1 3/3), Ben S3 has 1/3; P-1 (Done) in Ana S1 feeds A-1.
@@ -87,7 +87,7 @@ const BRAIN = path.join(import.meta.dirname, '..', 'bin', 'plangraph'), GIT = { 
 let BASE = '', REPO = '';
 const env = () => ({ PATH: process.env.PATH, HOME: path.join(BASE, 'home'), CLAUDE_PLUGIN_DATA: path.join(BASE, 'data'), LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, ...GIT });
 const run = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
-const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
+const digest = () => { const h = crypto.createHash('sha256'); for (const [f, text] of Object.entries(readTree(path.join(REPO, '.plangraph')))) h.update(`${f}\0`).update(text); return h.digest('hex'); };
 before(() => {
   BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-find-')));
   for (const d of ['home', 'data', 'repo']) fs.mkdirSync(path.join(BASE, d));
@@ -95,7 +95,7 @@ before(() => {
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
   const B = path.join(REPO, '.plangraph'), jl = (rows: readonly unknown[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-  fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES)); fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE));
+  writePlanFile(B, 'tickets.jsonl', jl(TICKETS)); writePlanFile(B, 'edges.jsonl', jl(EDGES)); writePlanFile(B, 'schedule.jsonl', jl(SCHEDULE));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));
   adoptPlanDir(B);
   assert.equal(run('build').status, 0);

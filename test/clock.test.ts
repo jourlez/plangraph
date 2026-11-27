@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { sourceNow, isoDay } from '../lib/clock.ts';
+import { readPlanFile } from './helpers/plan-dir.ts';
 
 // a nested `node --test` must not inherit the parent run's context, or Node warns that run() is called recursively
 const { NODE_TEST_CONTEXT: _ctx, ...CLEAN_ENV } = process.env;
@@ -27,7 +28,7 @@ function repo(epoch: number) {
   plangraph(root, epoch, 'build');
   return root;
 }
-const observe = (epoch: number) => { const root = repo(epoch); return { items: fs.readFileSync(path.join(root, '.plangraph/open-items.jsonl'), 'utf8'), line: plangraph(root, epoch, 'card', '--line') }; };
+const observe = (epoch: number) => { const root = repo(epoch); return { items: readPlanFile(path.join(root, '.plangraph'), 'open-items.jsonl'), line: plangraph(root, epoch, 'card', '--line') }; };
 
 test('sourceNow: honors a valid SOURCE_DATE_EPOCH, ignores everything else', () => {
   const clock = () => new Date(5000);

@@ -12,6 +12,7 @@ import path from 'node:path';
 import { registry } from '../src/registry.ts';
 import { golden } from './helpers/golden-json.ts';
 import { made, run, state, fixture, copy, snapshot } from './helpers/cli-fixture.ts';
+import { readPlanFile } from './helpers/plan-dir.ts';
 
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 before(async () => { state.FIX = await fixture(); });
@@ -47,7 +48,7 @@ test('usage errors for every command: unknown option, missing and extra position
 });
 
 const WRITES = ([
-  ['card', '--write'], ['card', '--heal'], ['export'], ['build'], ['doctor', '--fix'], ['refs-update'], ['refs-update', '--full'],
+  ['card', '--write'], ['card', '--refresh'], ['export'], ['build'], ['doctor', '--fix'], ['refs-update'], ['refs-update', '--full'],
   ['units', '--keys', 'T-1,T-2', '--out', 'units'], ['units', '--stale', '--out', 'units2'], ['units', '--keys', 'T-1', '--size', '1', '--out', 'u3', '--tokens-per-unit', '100'],
   ['open-items', '--write'], ['open-items', '--register', 'T-1', 'manual', '--text', 'call them', '--owner', 'Ana', '--due', '3'], ['open-items', '--close', 'T-2', 'risk', '--by', 'Ana', '--note', 'decided'],
   ['open-items', '--reopen', 'T-2', 'risk'], ['whatif', 'T-3', '--sprint', '4', '--write'], ['whatif', 'T-3', '--sprint', '4', '--apply-plan', '--write'], ['schedule-load', 'sched.json', 'v3'], ['schedule-load', 'bad-sched.json', 'v3'], ['schedule-load', 'frozen-sched.json', 'v4'],
@@ -60,7 +61,7 @@ test('writing commands: output and the files they change, each on a fresh copy',
   for (const argv of WRITES) {
     const d = copy();
     // a valid schedule keeps every other ticket where it is (a Done ticket T-3 may not move or vanish: schedule-load refuses that, see frozen-sched.json)
-    const current = fs.readFileSync(path.join(d, '.plangraph/schedule.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((r) => !r.version || r.version === 'current');
+    const current = readPlanFile(path.join(d, '.plangraph'), 'schedule.jsonl').trim().split('\n').map((l) => JSON.parse(l)).filter((r) => !r.version || r.version === 'current');
     const keep = current.filter((r) => r.key !== 'T-1' && r.key !== 'T-2').map((r) => ({ item: r.key, owner: r.owner, sprint: r.sprint }));
     fs.writeFileSync(path.join(d, 'sched.json'), JSON.stringify([...keep, { item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));
     fs.writeFileSync(path.join(d, 'frozen-sched.json'), JSON.stringify([{ item: 'T-1', owner: 'Ben', sprint: 2 }, { item: 'T-2', owner: 'Ana', sprint: 1 }]));

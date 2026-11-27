@@ -1,0 +1,6 @@
+$ plangraph init
+exit: 2
+--- stdout
+--- stderr
+error: unsupported pre-1.0 directory: recreate it with plangraph takeover
+try: plangraph doctor

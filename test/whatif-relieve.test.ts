@@ -15,7 +15,7 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { buildModel } from '../lib/model.ts';
 import { relieve, renderRelieve } from '../lib/whatif.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readTree, writePlanFile } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..'), BRAIN = path.join(ROOT, 'bin/plangraph');
 let BASE = '', REPO = '';
@@ -38,7 +38,7 @@ const model = () => buildModel({ tickets: TICKETS, edges: EDGES, schedule: SCHED
 const DRY = '(dry run, nothing changed: to apply, the owner runs each command above in this order with --apply-plan --write, then plangraph export)';
 
 /** sha256 of every file under the plan directory (the index included). */
-const digest = () => { const h = crypto.createHash('sha256'), dir = path.join(REPO, '.plangraph'); for (const f of fs.readdirSync(dir).sort()) h.update(`${f}\0`).update(fs.readFileSync(path.join(dir, f))); return h.digest('hex'); };
+const digest = () => { const h = crypto.createHash('sha256'); for (const [f, text] of Object.entries(readTree(path.join(REPO, '.plangraph')))) h.update(`${f}\0`).update(text); return h.digest('hex'); };
 
 before(() => {
   BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-relieve-')));
@@ -47,8 +47,8 @@ before(() => {
   execFileSync('git', ['init', '-q'], { cwd: REPO, env: env() });
   assert.equal(run('init').status, 0);
   const B = path.join(REPO, '.plangraph');
-  fs.writeFileSync(path.join(B, 'tickets.jsonl'), jl(TICKETS)); fs.writeFileSync(path.join(B, 'edges.jsonl'), jl(EDGES));
-  fs.writeFileSync(path.join(B, 'schedule.jsonl'), jl(SCHEDULE));
+  writePlanFile(B, 'tickets.jsonl', jl(TICKETS)); writePlanFile(B, 'edges.jsonl', jl(EDGES));
+  writePlanFile(B, 'schedule.jsonl', jl(SCHEDULE));
   fs.writeFileSync(path.join(B, 'config.json'), JSON.stringify({ ...JSON.parse(fs.readFileSync(path.join(B, 'config.json'), 'utf8')), ...CONFIG }));
   adoptPlanDir(B);
   const b = run('build'); assert.equal(b.status, 0, b.stderr);

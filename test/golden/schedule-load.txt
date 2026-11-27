@@ -5,14 +5,6 @@ loaded as current; previous plan kept as archive-a; run `plangraph export` to sa
 --- stderr
 --- file .plangraph/<FILE>
 {"version":"current","key":"T-1","owner":"Ana","sprint":1}
-{"version":"current","key":"T-2","owner":"Cleo","sprint":1}
-{"version":"current","key":"T-3","owner":"Ben","sprint":1}
-{"version":"current","key":"T-4","owner":"Cleo","sprint":1}
-{"version":"current","key":"T-5","owner":"Ana","sprint":1}
-{"version":"current","key":"T-6","owner":"Ana","sprint":1}
-{"version":"current","key":"T-7","owner":"Cleo","sprint":2}
-{"version":"current","key":"T-8","owner":"Cleo","sprint":2}
-{"version":"current","key":"T-9","owner":"Ben","sprint":1}
 {"version":"current","key":"T-10","owner":"Cleo","sprint":2}
 {"version":"current","key":"T-11","owner":"Cleo","sprint":1}
 {"version":"current","key":"T-12","owner":"Ana","sprint":1}
@@ -23,6 +15,7 @@ loaded as current; previous plan kept as archive-a; run `plangraph export` to sa
 {"version":"current","key":"T-17","owner":"Cleo","sprint":2}
 {"version":"current","key":"T-18","owner":"Ben","sprint":1}
 {"version":"current","key":"T-19","owner":"Ana","sprint":3}
+{"version":"current","key":"T-2","owner":"Cleo","sprint":1}
 {"version":"current","key":"T-20","owner":"Cleo","sprint":1}
 {"version":"current","key":"T-21","owner":"Ana","sprint":3}
 {"version":"current","key":"T-22","owner":"Cleo","sprint":2}
@@ -33,6 +26,7 @@ loaded as current; previous plan kept as archive-a; run `plangraph export` to sa
 {"version":"current","key":"T-27","owner":"Ana","sprint":1}
 {"version":"current","key":"T-28","owner":"Cleo","sprint":4}
 {"version":"current","key":"T-29","owner":"Ana","sprint":4}
+{"version":"current","key":"T-3","owner":"Ben","sprint":1}
 {"version":"current","key":"T-30","owner":"Ana","sprint":3}
 {"version":"current","key":"T-31","owner":"Cleo","sprint":4}
 {"version":"current","key":"T-32","owner":"Ana","sprint":2}
@@ -43,4 +37,10 @@ loaded as current; previous plan kept as archive-a; run `plangraph export` to sa
 {"version":"current","key":"T-37","owner":"Ana","sprint":5}
 {"version":"current","key":"T-38","owner":"Ben","sprint":5}
 {"version":"current","key":"T-39","owner":"Cleo","sprint":4}
+{"version":"current","key":"T-4","owner":"Cleo","sprint":1}
 {"version":"current","key":"T-40","owner":"Cleo","sprint":4}
+{"version":"current","key":"T-5","owner":"Ana","sprint":1}
+{"version":"current","key":"T-6","owner":"Ana","sprint":1}
+{"version":"current","key":"T-7","owner":"Cleo","sprint":2}
+{"version":"current","key":"T-8","owner":"Cleo","sprint":2}
+{"version":"current","key":"T-9","owner":"Ben","sprint":1}

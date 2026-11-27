@@ -1,0 +1,7 @@
+$ plangraph check
+exit: 1
+--- stdout
+error: CONFLICT_MARKERS nodes/ticket/ab/x~00000000.pg:2: run plangraph resolve, then settle any scalar conflict by hand and run plangraph check
+tickets 40 | links 76 | strict-rule violations 0 | person-sprints over cap 0 | loop-free true | last sprint 5
+--- stderr
+STALE: the text files changed since the index was built; run `plangraph build`

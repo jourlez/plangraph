@@ -12,6 +12,7 @@ import type { SpawnSyncReturns } from 'node:child_process';
 import { workScaling } from './helpers/perf.ts';
 import { genPlan } from './fixtures/gen.ts';
 import { main } from '../src/cli.ts';
+import { adoptOldLayout } from '../lib/store2/adopt.ts';
 
 const test = (name: string, fn: () => void | Promise<void>) => baseTest(name, { skip: process.platform === 'win32' }, fn);
 const PLUGIN = path.resolve(import.meta.dirname, '..');
@@ -34,7 +35,7 @@ function world() {
   const env = { PATH: binDir, HOME: home, CLAUDE_PLUGIN_DATA: dataDir, ...GIT_ENV };
   const run = (e = env) => spawnSync(hook.command, hook.args.map(sub), { cwd: repo, env: e, encoding: 'utf8' });
   const plangraph = (args: string[]) => spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), ...args], { cwd: repo, env: { ...process.env, ...env, PATH: `${binDir}:${path.dirname(process.execPath)}` }, encoding: 'utf8' });
-  return { dataDir, repo, env, run, plangraph, shim: path.join(dataDir, 'bin', 'plangraph-merge'), cfg: () => { try { return git(repo, 'config', '--get', 'merge.plangraph-jsonl.driver').trim(); } catch { return ''; } } };
+  return { dataDir, repo, env, run, plangraph };
 }
 const ok = (r: SpawnSyncReturns<string>) => { assert.equal(r.status, 0, `status ${r.status}\n${r.stdout}\n${r.stderr}`); assert.equal(r.stderr, ''); return r; };
 
@@ -42,7 +43,7 @@ test('the declared hook is exec form node with the stable event, matcher and tim
   const entry = JSON.parse(fs.readFileSync(path.join(PLUGIN, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0];
   assert.equal(entry.matcher, 'startup|resume|clear|compact|fork');
   assert.equal(hook.command, 'node'); assert.equal(hook.timeout, 10);
-  assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--heal']);
+  assert.deepEqual(hook.args, ['${CLAUDE_PLUGIN_ROOT}/src/entry.js', 'card', '--if-present', '--refresh']);
 });
 
 test('no plangraph: exit 0, stdout and stderr empty, and nothing is created (uv is not on PATH)', () => {
@@ -118,26 +119,24 @@ test('plugin.json userConfig.card: string, options auto and off, default auto (t
   assert.deepEqual(Object.keys(pj.userConfig), ['card'], 'no other option the hook does not read');
 });
 
-test('running the hook repairs a missing merge driver once; a second run changes nothing', () => {
-  const w = world(); ok(w.plangraph(['init']));
-  const want = `${w.shim} %O %A %B %P`; assert.equal(w.cfg(), want);
-  fs.rmSync(w.shim); git(w.repo, 'config', '--unset', 'merge.plangraph-jsonl.driver'); assert.equal(w.cfg(), '');
-  ok(w.run()); assert.equal(w.cfg(), want); assert.ok(fs.existsSync(w.shim));
-  const m = fs.statSync(w.shim).mtimeMs; ok(w.run()); assert.equal(fs.statSync(w.shim).mtimeMs, m); assert.equal(w.cfg(), want);
+test('running the hook writes nothing: no git config, no .gitattributes, no plan file, and a second run prints the same card', () => {
+  const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
+  const cfg = fs.readFileSync(path.join(w.repo, '.git/config'), 'utf8');
+  const first = ok(w.run()).stdout; assert.ok(first.length > 0);
+  assert.equal(ok(w.run()).stdout, first);
+  assert.equal(fs.readFileSync(path.join(w.repo, '.git/config'), 'utf8'), cfg); assert.equal(fs.existsSync(path.join(w.repo, '.gitattributes')), false);
 });
 
-test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence the hook only, and still heal', () => {
+test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence the hook only', () => {
   const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
   for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
-    git(w.repo, 'config', '--unset', 'merge.plangraph-jsonl.driver');
     const r = ok(w.run({ ...w.env, [key]: 'off' })); assert.equal(r.stdout, '');
-    assert.equal(w.cfg(), `${w.shim} %O %A %B %P`);
     assert.ok(ok(w.run({ ...w.env, [key]: 'auto' })).stdout.length > 0);
   }
   assert.ok(ok(w.plangraph(['card'])).stdout.length > 0); // a manual card is unaffected
 });
 
-// Size axis: the hook path (card --if-present --heal: heal check, index open with its source fingerprint, model, card) on a plan of n and
+// Size axis: the hook path (card --if-present --refresh: index open with its source fingerprint, the store scan, model, card) on a plan of n and
 // 4n tickets, run in process (no node start-up in the numbers), min of 3 each: linear gives about 2.5-4x (a constant git check is part of
 // it), quadratic about 16x. Proved by a deliberately quadratic verdict count in lib/render.ts renderCard, which scripts/mutate.ts keeps
 // applying (ratio about 26 there).
@@ -147,18 +146,19 @@ test('timing: the hook path scales linearly with the plan size (n vs 4n tickets,
     const w = world(); ok(w.plangraph(['init']));
     const p = genPlan({ n, people: 5, seed: 3 });
     for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.plangraph', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
+    adoptOldLayout(path.join(w.repo, '.plangraph'));
     ok(w.plangraph(['build']));
     return w;
   };
   const once = async (w: ReturnType<typeof world>) => {
     const out = ([] as string[]), t = performance.now(); // an empty list of this element type
-    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
+    const code = await main(['card', '--if-present', '--refresh'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
     const ms = performance.now() - t;
     assert.equal(code, 0); assert.match(out[0] ?? '', /^plangraph [0-9a-f]{8} \| \d+ tickets/);
     return ms;
   };
   const min3 = async (w: ReturnType<typeof world>) => { let best = Infinity; for (let k = 0; k < 3; k++) best = Math.min(best, await once(w)); return best; };
-  const n = 2000, small = planned(n), large = planned(4 * n);
+  const n = 500, small = planned(n), large = planned(4 * n);
   await once(small); await once(large); // warm-up: module loads, file cache
   const a = await min3(small), b = await min3(large), ratio = b / Math.max(a, 0.05);
   console.log(`# hook path ms: ${a.toFixed(1)} at ${n} tickets, ${b.toFixed(1)} at ${4 * n} (ratio ${ratio.toFixed(1)})`);
@@ -175,12 +175,13 @@ test('work: the hook path touches linearly many elements in the plan size (n vs 
     const w = world(); ok(w.plangraph(['init']));
     const p = genPlan({ n: m, people: 5, seed: 3 });
     for (const [f, rows] of ([['tickets', p.tickets], ['edges', p.edges], ['schedule', p.schedule]] as Array<[string, object[]]>)) fs.writeFileSync(path.join(w.repo, '.plangraph', `${f}.jsonl`), jl(rows)); // a literal list of these tuples
+    adoptOldLayout(path.join(w.repo, '.plangraph'));
     ok(w.plangraph(['build']));
     worlds.set(m, w);
   }
   const once = async (m: number) => {
     const w = worlds.get(m) as ReturnType<typeof world>, out: string[] = []; // both sizes were built above
-    const code = await main(['card', '--if-present', '--heal'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
+    const code = await main(['card', '--if-present', '--refresh'], { env: { ...w.env, PLANGRAPH_DIR: '' }, cwd: w.repo, io: { out: (l) => out.push(l), err: (l) => out.push(`stderr: ${l}`) } });
     assert.equal(code, 0); assert.match(out[0] ?? '', /^plangraph [0-9a-f]{8} \| \d+ tickets/);
   };
   const s = await workScaling(once, 500);

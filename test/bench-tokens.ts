@@ -11,6 +11,7 @@
 // answer is wrong. The result table is written into docs/TOKENS.md between markers. Importing this file runs nothing (reportBlock is
 // exported for test/contract.test.ts).
 // Limits: synthetic data; the CLI as it is at run time (whatever bin/plangraph prints now); no MCP or competitor measured.
+import { adoptOldLayout } from '../lib/store2/adopt.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,13 +26,15 @@ const argv = process.argv.slice(2);
 const CALIBRATION = path.join(ROOT, 'test/token-calibration.json');
 const SCRATCH = path.resolve(argv.includes('--dir') ? argv[argv.indexOf('--dir') + 1] : path.join(os.tmpdir(), 'plangraph-bench'));
 const BRAIN = path.join(SCRATCH, 'plangraph');
+// what an agent would otherwise read: the plan as one JSONL file per kind (the plan directory itself holds entity files)
+const RAW = path.join(SCRATCH, 'raw');
 const lt = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 // ---------- 1. generate ----------
 const WORDS = 'the service must validate input before storing records and report failures to the caller while keeping an audit trail for every change made by an operator in the admin panel using the shared queue worker retry policy and idempotent handlers'.split(' ');
 function sentence(r: () => number, chars: number): string { let s = ''; while (s.length < chars) s += WORDS[Math.floor(r() * WORDS.length)] + ' '; return s.slice(0, chars - 1).trimEnd() + '.'; }
 function generate() {
-  fs.rmSync(SCRATCH, { recursive: true, force: true }); fs.mkdirSync(path.join(BRAIN), { recursive: true }); fs.mkdirSync(path.join(SCRATCH, 'plan'), { recursive: true });
+  fs.rmSync(SCRATCH, { recursive: true, force: true }); fs.mkdirSync(path.join(BRAIN), { recursive: true }); fs.mkdirSync(RAW, { recursive: true }); fs.mkdirSync(path.join(SCRATCH, 'plan'), { recursive: true });
   const p = genPlan({ n: 1400, people: 4, density: 0.181, seed: 7, cap: 1000, maxSp: 5 });
   const r = rng(99); const last = Math.max(...p.schedule.map((s) => s.sprint));
   const load = new Map<string, number>(); for (const s of p.schedule) { const t = p.tickets.find((x) => x.key === s.key); load.set(s.owner + '|' + s.sprint, (load.get(s.owner + '|' + s.sprint) || 0) + (t as { sp: number }).sp); } // every scheduled key is a ticket of the plan
@@ -51,6 +54,8 @@ function generate() {
   w('schedule.jsonl', p.schedule.slice().sort((a, b) => lt(a.key, b.key))); w('evidence.jsonl', evidence.sort((a, b) => lt(a.key, b.key) || lt(a.source, b.source)));
   w('findings.jsonl', findings.sort((a, b) => lt(a.key, b.key) || lt(a.kind, b.kind) || lt(a.text, b.text)));
   fs.writeFileSync(path.join(BRAIN, 'config.json'), JSON.stringify(p.config) + '\n'); fs.writeFileSync(path.join(SCRATCH, 'plan', 'plan.md'), plan.join('\n'));
+  for (const n of fs.readdirSync(BRAIN)) fs.copyFileSync(path.join(BRAIN, n), path.join(RAW, n)); // the raw baseline files
+  adoptOldLayout(BRAIN); // the files above are old-layout JSONL: entity files and the format stamp
 }
 // a private plugin data directory in the scratch dir: bin/plangraph's compile cache never goes to the real HOME
 const run = (args: string[]) => {
@@ -117,7 +122,7 @@ function main() {
   ];
 
   // ---------- 3. measure ----------
-  const lines: Record<string, string[]> = {}; for (const f of Object.values(FILE)) lines[f] = fs.readFileSync(path.join(BRAIN, f), 'utf8').split('\n').filter(Boolean);
+  const lines: Record<string, string[]> = {}; for (const f of Object.values(FILE)) lines[f] = fs.readFileSync(path.join(RAW, f), 'utf8').split('\n').filter(Boolean);
   const grepOut = (spec: string[][]) => spec.flatMap(([f, re]) => { const rx = new RegExp(re); return lines[f].map((l, i): [number, string] => [i, l]).filter(([, l]) => rx.test(l)).map(([i, l]) => `${f}:${i + 1}:${l}`); }).join('\n');
   const fileOut = (files: string[]) => [...new Set(files)].map((f) => lines[f].join('\n')).join('\n');
   const rows = Q.map((x) => { const r = run(x.args); return { ...x, out: r.out, grepOut: grepOut(x.grep), fileOut: fileOut(x.files), ok: !!x.check(r.out) }; });

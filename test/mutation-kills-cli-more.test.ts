@@ -8,20 +8,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { golden } from './helpers/golden-json.ts';
 import { made, tmp, jl, git, run, state, fixture, copy } from './helpers/cli-fixture.ts';
+import { writePlanFile, readPlanFile } from './helpers/plan-dir.ts';
+import { nodePath } from '../lib/store2/layout.ts';
 
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 before(async () => { state.FIX = await fixture(); });
 
 test('format gate, missing index and freshness: legacy data, an empty repository, open items newer than the index', async () => {
   const res: Record<string, unknown> = {};
-  const legacy = copy(); fs.rmSync(path.join(legacy, '.plangraph', 'format.json'));
+  const legacy = copy(); fs.rmSync(path.join(legacy, '.plangraph', 'format.json')); fs.writeFileSync(path.join(legacy, '.plangraph', 'tickets.jsonl'), '{"key":"T-1"}\n'); // a pre-1.0 directory: no stamp, an old-layout file
   for (const argv of [['export'], ['ticket', 'T-1'], ['doctor'], ['card']]) res[`legacy ${argv.join(' ')}`] = await run(legacy, argv);
   const newer = copy(); fs.writeFileSync(path.join(newer, '.plangraph', 'format.json'), '{"format_version":9,"min_reader":9}\n');
   for (const argv of [['export'], ['ticket', 'T-1']]) res[`newer ${argv.join(' ')}`] = await run(newer, argv);
   const empty = tmp(); git(empty, 'init', '-q');
   for (const argv of [['card'], ['card', '--if-present'], ['ticket', 'T-1'], ['forecast']]) res[`empty ${argv.join(' ')}`] = await run(empty, argv);
   const fresh = copy(); const later = new Date(Date.now() + 60000);
-  fs.writeFileSync(path.join(fresh, '.plangraph', 'open-items.jsonl'), ''); fs.utimesSync(path.join(fresh, '.plangraph', 'open-items.jsonl'), later, later);
+  writePlanFile(path.join(fresh, '.plangraph'), 'open-items.jsonl', '{"key":"T-1","kind":"gap","status":"open"}\n'); fs.utimesSync(nodePath(path.join(fresh, '.plangraph'), 'openitem', 'T-1|gap'), later, later);
   for (const argv of [['forecast'], ['forecast', '--if-present']]) res[`open-items newer ${argv.join(' ')}`] = await run(fresh, argv);
   golden('cli-more', 'gates', res);
 });
@@ -45,7 +47,7 @@ test('companion tools with real inputs: integrations over a populated home and .
   res['learn handle'] = await run(learnDir, ['learn', '--from-wolf', handleOf(rule)], env);
   res['learn handle again'] = await run(learnDir, ['learn', '--from-wolf', handleOf(rule)], env);
   res['learn bad handle'] = await run(learnDir, ['learn', '--from-wolf', 'x'], env);
-  res['learnings after'] = fs.readFileSync(path.join(learnDir, '.plangraph', 'learnings.jsonl'), 'utf8').split(learnDir).join('<repo>');
+  res['learnings after'] = readPlanFile(path.join(learnDir, '.plangraph'), 'learnings.jsonl').split(learnDir).join('<repo>');
   const sp = copy();
   put(path.join(sp, '.superpowers/sdd/progress.md'), '# Plan: docs/superpowers/plans/2026-01-01-widget.md\nTask 1: complete (abc123..def456)\nTask 2: in progress\n');
   res['sp-ingest with ledger'] = await run(sp, ['sp-ingest', 'docs/superpowers/plans/2026-01-01-widget.md']);
@@ -58,7 +60,7 @@ test('companion tools with real inputs: integrations over a populated home and .
   res['sp-link plan all'] = await run(sp, ['sp-link', 'T-6', 'docs/superpowers/plans/2026-01-01-widget.md']);
   res['sp-link bad task'] = await run(sp, ['sp-link', 'T-4', 'docs/superpowers/plans/2026-01-01-widget.md', '--tasks', '9']);
   res['sp-link bad'] = await run(sp, ['sp-link', 'NOPE-1', 'sp:2026-01-01-widget/9']);
-  res['sp files'] = Object.fromEntries(['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl'].map((f) => [f, fs.readFileSync(path.join(sp, '.plangraph', f), 'utf8').split('\n').filter((l) => l.includes('sp:'))]));
+  res['sp files'] = Object.fromEntries(['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl'].map((f) => [f, readPlanFile(path.join(sp, '.plangraph'), f).split('\n').filter((l) => l.includes('sp:'))]));
   golden('cli-more', 'companions', res);
 });
 
@@ -66,8 +68,8 @@ test('audit preparation: bundles with Jira text, many files and findings, a miss
   const res: Record<string, unknown> = {};
   const d = copy(), b = path.join(d, '.plangraph');
   const refs = [{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1' }, { plan: 'docs/plan.md', task: '9' }], files: Object.fromEntries(Array.from({ length: 55 }, (_, i) => [`src/f${String(i).padStart(2, '0')}.js`, 1])), fp_files: '', jira_updated: '', audited_at: '' }];
-  fs.writeFileSync(path.join(b, 'refs.jsonl'), jl(refs));
-  fs.writeFileSync(path.join(b, 'findings.jsonl'), jl(Array.from({ length: 55 }, (_, i) => ({ key: 'T-2', kind: `k${'x'.repeat(i % 3 ? 2 : 45)}${i}`, text: `finding ${i}` }))));
+  writePlanFile(b, 'refs.jsonl', jl(refs));
+  writePlanFile(b, 'findings.jsonl', jl(Array.from({ length: 55 }, (_, i) => ({ key: 'T-2', kind: `k${'x'.repeat(i % 3 ? 2 : 45)}${i}`, text: `finding ${i}` }))));
   assert.equal((await run(d, ['build'])).code, 0);
   fs.mkdirSync(path.join(d, 'jt')); fs.writeFileSync(path.join(d, 'jt', 'T-1.txt'), 'Jira text for T-1'); fs.mkdirSync(path.join(d, 'jt', 'T-2.txt'));
   for (const argv of [['bundle', 'T-1', '--text', 'jt'], ['bundle', 'T-2', '--text', 'jt'], ['bundle', 'T-3', 'T-99'], ['bundle', ...Array.from({ length: 101 }, (_, i) => `T-${i + 1}`)]]) {

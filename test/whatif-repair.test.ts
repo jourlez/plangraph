@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 import { buildModel } from '../lib/model.ts';
 import { whatif, repairCone, repairSpec, suggestionFromSchedule } from '../lib/whatif.ts';
 import type { SolverRow } from '../lib/whatif.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
@@ -94,7 +93,6 @@ test('solver repair mode: stability stages first, only the scope moves, the comp
     spawnSync('git', ['init', '-q'], { cwd: tmp });
     const wjl = (f: string, rows: readonly unknown[]) => fs.writeFileSync(path.join(tmp, f), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
     wjl('tickets.jsonl', TICKETS); wjl('edges.jsonl', EDGES); wjl('schedule.jsonl', SCHEDULE); fs.writeFileSync(path.join(tmp, 'config.json'), JSON.stringify(CONFIG));
-    adoptPlanDir(tmp);
     const sp = repairSpec(model(), { key: 'A', sprint: 2 }) as NonNullable<ReturnType<typeof repairSpec>>;
     const out = path.join(tmp, 'out.json');
     const r = spawnSync(RUN, ['--jsonl-dir', tmp, '--out', out, '--time', '30', '--deterministic', ...sp.args], { encoding: 'utf8', cwd: tmp, timeout: 300000 });

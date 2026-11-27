@@ -16,7 +16,7 @@ import { isSource } from '../scripts/mutate-all.ts';
 import { isSourceFile, sourceFilesIn } from './helpers/source-files.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
-const MIN = { lib: 21, 'lib/integrations': 3, src: 9, 'src/commands': 10, mcp: 1, scripts: 6, evals: 13, testTop: 121, assure: 25, helpers: 4, tscListed: 209 };
+const MIN = { lib: 21, 'lib/integrations': 3, src: 9, 'src/commands': 10, mcp: 1, scripts: 6, evals: 13, testTop: 121, assure: 23, helpers: 4, tscListed: 209 };
 // a nested `node --test` must not inherit the parent runner's reporter channel
 const { NODE_TEST_CONTEXT: _ctx, ...CLEAN_ENV } = process.env;
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-enum-'));
@@ -82,7 +82,7 @@ test('scripts/mutate-all finds at least the target files it found before (and sr
   const files = new Set(r.stdout.split('\n').map((l) => /^(\S+?):\d+ \[/.exec(l)?.[1]).filter(Boolean));
   assert.ok(files.size >= MIN.lib + MIN['lib/integrations'] + (MIN.src - 1) + MIN['src/commands'] + MIN.mcp - 1, `mutants found in ${files.size} files`);
   assert.ok(files.has('src/floor.js'), 'the plain-JS floor guard is still a mutation target');
-  for (const f of ['lib/x.mjs', 'lib/x.ts', 'src/floor.js', 'src/entry.js', 'src/merge-entry.js', 'test/a.test.ts']) assert.equal(isSource(f), true, f);
+  for (const f of ['lib/x.mjs', 'lib/x.ts', 'src/floor.js', 'src/entry.js', 'test/a.test.ts']) assert.equal(isSource(f), true, f);
   for (const f of ['lib/x.js', 'lib/x.json', 'src/other.js', 'lib/x.mts', 'README.md']) assert.equal(isSource(f), false, f);
 });
 

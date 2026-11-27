@@ -98,7 +98,7 @@ test('ci.yml: the parallel jobs, their commands and gates', () => {
     ['static', ['npm run validate:plugin', 'npm ci --ignore-scripts', 'npm run typecheck', 'npm run lint:check', 'npm run knip', 'npm run lint:sh', 'actionlint -shellcheck', 'node scripts/check-package.ts']],
     ['macos', ['node scripts/ci-tests.ts portable', 'npm run smoke']],
     ['compat', ['node scripts/ci-tests.ts portable', 'node --test $files']],
-    ['floor', ['node src/entry.js card --if-present --heal']],
+    ['floor', ['node src/entry.js card --if-present --refresh']],
     ['release-dry-run', ['git archive', 'sha256sum', 'node scripts/check-package.ts']],
     ['mutation', ['npm run mutate']],
     ['secrets', ['gitleaks/gitleaks-action@']],
@@ -324,10 +324,10 @@ test('floor: Node 18, 20.9.0 and 24.14.0 on ubuntu, no npm ci; the hook exits 0,
   assert.deepEqual(values(j, 'node'), ['18', '20.9.0', '24.14.0']);
   assert.match(j, /^ {4}runs-on: ubuntu-24\.04$/m);
   assert.ok(!/run: npm ci/.test(j));
-  assert.match(j, /node src\/entry\.js card --if-present --heal >"\$out" 2>"\$err" \|\| rc=\$\?/);
+  assert.match(j, /node src\/entry\.js card --if-present --refresh >"\$out" 2>"\$err" \|\| rc=\$\?/);
   for (const c of ['test "$rc" = 0', 'test ! -s "$err"', "grep -Eq '^plangraph: needs Node >= 24\\.15, found v'", 'test -z "$(git status --porcelain)"']) assert.ok(j.includes(c), `floor step lacks ${c}`);
   const hook = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks/hooks.json'), 'utf8')).hooks.SessionStart[0].hooks[0];
-  assert.deepEqual(hook.args.map((a: string) => a.replace('${CLAUDE_PLUGIN_ROOT}/', '')), ['src/entry.js', 'card', '--if-present', '--heal'], 'the floor job runs the command and arguments the hook runs');
+  assert.deepEqual(hook.args.map((a: string) => a.replace('${CLAUDE_PLUGIN_ROOT}/', '')), ['src/entry.js', 'card', '--if-present', '--refresh'], 'the floor job runs the command and arguments the hook runs');
 });
 
 test('slow: Python 3.10 and 3.14 with a pinned uv, the hostile working directory asserts both markers absent, the no-coverage group runs once', () => {

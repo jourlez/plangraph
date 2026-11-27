@@ -37,7 +37,6 @@ test('doctor, the index loader and the entry point take the floor from src/floor
   assert.match(doctor, /too old \(needs >= \$\{NODE_FLOOR\}\)/);
   assert.match(doctor, /nodeSupported\(process\.versions\.node\)/);
   assert.match(read('src/entry.js'), /import \{ nodeSupported, floorMessage, floorTry, floorHookLine \} from '\.\/floor\.js';/);
-  assert.match(read('src/merge-entry.js'), /import \{ nodeSupported, floorMessage, floorTry \} from '\.\/floor\.js';/);
   assert.match(read('src/db.ts'), /nodeSupported\(version\)/);
   assert.throws(() => loadSqlite({ version: '24.1.0' }), (e: PlangraphError) => e.code === 'ENV' && e.exitCode === 3 && e.message === floorMessage('24.1.0'));
   assert.equal(floorMessage('22.12.0'), `plangraph needs Node >= ${NODE_FLOOR} (found 22.12.0); it uses node:sqlite and current ES features`);

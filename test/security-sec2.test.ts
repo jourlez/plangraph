@@ -10,8 +10,6 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import { main } from '../src/cli.ts';
 import { makeContext } from '../src/context.ts';
 import { resolveTenant, loadRegistry, approveAlias } from '../src/jira-tenant.ts';
-import { ensureStableDriver } from '../lib/driver.ts';
-import * as S from '../lib/store.ts';
 import { steerLine, claudeSnippet } from '../lib/steer.ts';
 import type { Stdin } from '../src/context.ts';
 
@@ -115,27 +113,7 @@ test('I1: the documentation states the limit and the deny rule', () => {
     assert.ok(t.includes('pty-capable agent'), f); assert.ok(t.includes('Bash(plangraph doctor --fix*)'), f);
   }
   const sec = fs.readFileSync(path.join(dir, 'SECURITY.md'), 'utf8');
-  assert.match(sec, /Heal consent/); assert.match(sec, /keyed by the git common directory/); assert.match(sec, /D16/);
-});
-
-// ---- M2 ----
-test('M2: ensureStableDriver refuses a directory widened between the first check and the write; doctor reports a later widening', { skip: POSIX }, () => {
-  const root = tmp(), dataDir = path.join(root, 'd'), target = path.join(root, 't.mjs'); fs.writeFileSync(target, '');
-  const origMk = fs.mkdirSync;
-  mock.method(fs, 'mkdirSync', ((p: fs.PathLike, o?: fs.MakeDirectoryOptions) => { const r = (origMk as (...a: unknown[]) => unknown)(p, o); if (String(p).endsWith(path.join('d', 'bin'))) fs.chmodSync(dataDir, 0o777); return r; }) as typeof fs.mkdirSync);
-  try { assert.throws(() => ensureStableDriver({ dataDir, target }), /data directory is not private: directory is group or world writable/); } finally { mock.restoreAll(); }
-  assert.ok(!fs.existsSync(path.join(dataDir, 'driver.target')), 'nothing written');
-  // shimProblems
-  const dd = path.join(root, 'e'); fs.mkdirSync(dd);
-  const shim = ensureStableDriver({ dataDir: dd, target });
-  const g = tmp(); execFileSync('git', ['init', '-q'], { cwd: g }); S.installMergeDriver(g, { driverPath: shim });
-  const probs = () => S.doctorMergeDriver(g).problems.filter((p) => !/gitattributes/.test(p));
-  assert.deepEqual(probs(), []);
-  for (const rel of ['.', 'bin', 'driver.target', 'driver.node']) {
-    const p = path.join(dd, rel), m = fs.statSync(p).mode & 0o777; fs.chmodSync(p, m | 0o020);
-    assert.ok(probs().some((x) => x.includes('group or world writable')), rel); fs.chmodSync(p, m);
-  }
-  assert.deepEqual(probs(), []);
+  assert.match(sec, /Alias approval/); assert.match(sec, /keyed by the git common directory/); assert.match(sec, /D16/);
 });
 
 // ---- M4 ----

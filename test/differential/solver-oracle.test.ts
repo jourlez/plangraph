@@ -11,7 +11,6 @@ import { genPlan } from '../fixtures/gen.ts';
 import type { GenPlan } from '../fixtures/gen.ts';
 import { bestEnd, modelWith, oracleValid } from '../helpers/oracle.ts';
 import { verifyPlan } from '../../lib/verify.ts';
-import { adoptPlanDir } from '../helpers/plan-dir.ts';
 
 const RUN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'plangraph-solve-run');
 const has = (cmd: string, args: string[]) => { try { return spawnSync(cmd, args, { stdio: 'ignore', timeout: 120000 }).status === 0; } catch { return false; } };
@@ -27,7 +26,6 @@ function solve(plan: GenPlan, n: number): { end: number; rows: Array<{ item: str
   const dir = path.join(tmp, `p${n}`); fs.mkdirSync(dir);
   wjl(path.join(dir, 'tickets.jsonl'), plan.tickets); wjl(path.join(dir, 'edges.jsonl'), plan.edges); wjl(path.join(dir, 'schedule.jsonl'), plan.schedule);
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(plan.config));
-  adoptPlanDir(dir);
   const out = path.join(dir, 'out.json');
   const r = spawnSync(RUN, ['--jsonl-dir', dir, '--out', out, '--time', '30'], { encoding: 'utf8', timeout: 300000, cwd: tmp });
   assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);

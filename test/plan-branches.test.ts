@@ -9,12 +9,13 @@ import { main } from '../src/cli.ts';
 import { makeContext } from '../src/context.ts';
 import type { Stdin } from '../src/context.ts';
 import { fixture, run, copy, state, tmp, git, made } from './helpers/cli-fixture.ts';
+import { readPlanFile } from './helpers/plan-dir.ts';
 
 before(async () => { state.FIX = await fixture(); });
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 
 const plan = (d: string) => path.join(d, '.plangraph');
-const currentRows = (d: string) => fs.readFileSync(path.join(plan(d), 'schedule.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { key: string; owner: string; sprint: number });
+const currentRows = (d: string) => readPlanFile(plan(d), 'schedule.jsonl').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { key: string; owner: string; sprint: number });
 const L = (r: { out: string[] }): string[] => r.out.join('\n').split('\n'); // a command may print one multi-line entry
 const data = (r: { out: string[] }) => JSON.parse(r.out.join('\n')) as { ok: boolean; exit: number; data: Record<string, unknown> & { slots: Array<{ sprint: number; command: string }> }; next: string[] };
 
@@ -62,12 +63,12 @@ test('whatif --apply-plan names the refusal when no repair exists', async () => 
 
 test('whatif --apply-plan --write moves the tickets in the index only, then export saves them as text', async () => {
   const d = copy();
-  const before = fs.readFileSync(path.join(plan(d), 'schedule.jsonl'), 'utf8');
+  const before = readPlanFile(plan(d), 'schedule.jsonl');
   const r = await run(d, ['whatif', 'T-5', '--sprint', '3', '--apply-plan', '--write']);
   assert.equal(r.code, 0);
   assert.equal(L(r)[0], 'PLAN: 3 move(s), 2 others shifted, 0 owner changes');
   assert.equal(L(r).at(-1), 'written to the index; run `plangraph export` to save it as text');
-  assert.equal(fs.readFileSync(path.join(plan(d), 'schedule.jsonl'), 'utf8'), before);
+  assert.equal(readPlanFile(plan(d), 'schedule.jsonl'), before);
   assert.equal((await run(d, ['export'])).code, 0);
   assert.equal(currentRows(d).find((x) => x.key === 'T-5')?.sprint, 3);
 });
@@ -99,14 +100,14 @@ test('schedule-load refuses a name that is already an archive, owners that are n
 test('init adds only the missing ignore lines, keeping the file own line ending and a missing final newline', async () => {
   const d = copy(), gi = path.join(plan(d), '.gitignore');
   fs.writeFileSync(gi, 'keep.me');
-  assert.match(L(await run(d, ['init']))[0] as string, /^already initialised: \.plangraph \(added \*\.sqlite, \*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm to \.gitignore\)$/);
-  assert.equal(fs.readFileSync(gi, 'utf8'), 'keep.me\n*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\n');
-  fs.writeFileSync(gi, '*.sqlite\r\nother');
+  assert.match(L(await run(d, ['init']))[0] as string, /^already initialised: \.plangraph \(added cache\/, plangraph\.sqlite\*, \.txn\/ to \.gitignore\)$/);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'keep.me\ncache/\nplangraph.sqlite*\n.txn/\n');
+  fs.writeFileSync(gi, 'cache/\r\nother');
   await run(d, ['init']);
-  assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\r\nother\r\n*.sqlite-journal\r\n*.sqlite-wal\r\n*.sqlite-shm\r\n');
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'cache/\r\nother\r\nplangraph.sqlite*\r\n.txn/\r\n');
   fs.writeFileSync(gi, '');
   await run(d, ['init']);
-  assert.equal(fs.readFileSync(gi, 'utf8'), '*.sqlite\n*.sqlite-journal\n*.sqlite-wal\n*.sqlite-shm\n');
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'cache/\nplangraph.sqlite*\n.txn/\n');
   const none = await run(d, ['init']);
   assert.equal(L(none)[0], 'already initialised: .plangraph (no changes)');
 });
@@ -122,14 +123,14 @@ test('init refuses a symlinked format.json with exit 4 and writes nothing', asyn
   assert.equal(fs.existsSync(path.join(plan(d), 'config.json')), false);
 });
 
-test('doctor reports a committed index and journal, a stale ignore file, conflict markers, stray files and the companion tools', async () => {
+test('doctor reports a committed index and journal, a stale ignore file, problem node files, stray files and the companion tools', async () => {
   const d = copy(), P = plan(d), home = tmp();
   fs.mkdirSync(path.join(home, '.claude', 'plugins'), { recursive: true });
   fs.writeFileSync(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins: { 'superpowers@mk': [{ scope: 'user', version: '5.1.0' }], 'gitkraken-hooks@mk': [{ scope: 'user', version: '1.2.3' }] } }));
   fs.mkdirSync(path.join(d, '.wolf'));
   fs.writeFileSync(path.join(d, 'CLAUDE.md'), 'hello\n');
   fs.writeFileSync(path.join(d, 'a.original.md'), 'x');
-  fs.writeFileSync(path.join(P, 'x.jsonl'), '<<<<<<< a\n=======\n>>>>>>> b\n');
+  fs.mkdirSync(path.join(P, 'nodes/ticket/ab'), { recursive: true }); fs.writeFileSync(path.join(P, 'nodes/ticket/ab/x~00000000.pg'), 'id "x"\n<<<<<<< a\nowner "a"\n=======\nowner "b"\n>>>>>>> b\n');
   fs.writeFileSync(path.join(P, '.gitignore'), '*.sqlite');
   fs.writeFileSync(path.join(P, 'plangraph.sqlite-journal'), '');
   git(d, 'add', '-f', '.plangraph/plangraph.sqlite', '.plangraph/plangraph.sqlite-journal');
@@ -139,9 +140,8 @@ test('doctor reports a committed index and journal, a stale ignore file, conflic
   assert.match(t, /tracked index: \.plangraph\/plangraph\.sqlite is committed; untrack it with `git rm --cached \.plangraph\/plangraph\.sqlite`/);
   assert.match(t, /warning: \.plangraph\/plangraph\.sqlite-journal: a SQLite journal file beside the index/);
   assert.match(t, /warning: tracked journal: \.plangraph\/plangraph\.sqlite-journal is committed/);
-  assert.match(t, /warning: \.plangraph\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\)/);
-  assert.match(t, /warning: unresolved conflict marker x\.jsonl:1 /);
-  assert.match(t, /warning: unresolved conflict marker x\.jsonl:3 /);
+  assert.match(t, /warning: \.plangraph\/\.gitignore does not ignore the derived files \(cache\/, plangraph\.sqlite\*, \.txn\/\)/);
+  assert.match(t, /warning: store: 1 problem files \(run plangraph check\)/);
   assert.match(t, /warning: stray file a\.original\.md /);
   assert.match(t, /^superpowers: installed 5\.1\.0$/m);
   assert.match(t, /^gitkraken: installed 1\.2\.3: logs every prompt and tool result/m);
@@ -149,38 +149,12 @@ test('doctor reports a committed index and journal, a stale ignore file, conflic
   assert.match(t, /info: CLAUDE\.md does not steer plan questions to plangraph/);
 });
 
-test('doctor lists at most five conflict markers and stray files, and says how many .jsonl files it did not scan', async () => {
-  const d = copy(), P = plan(d);
-  fs.writeFileSync(path.join(P, 'm.jsonl'), Array.from({ length: 7 }, () => '=======').join('\n') + '\n');
-  for (let i = 0; i < 7; i++) fs.writeFileSync(path.join(d, `s${i}.original.md`), 'x');
-  for (let i = 0; i < 25; i++) fs.writeFileSync(path.join(P, `pad${String(i).padStart(2, '0')}.jsonl`), '{}\n');
-  const total = fs.readdirSync(P).filter((n) => n.endsWith('.jsonl')).length;
-  const t = (await run(d, ['doctor'])).out.join('\n');
-  assert.equal((t.match(/unresolved conflict marker/g) || []).length, 5);
-  assert.match(t, / {2}\.\.\. and 2 more\n/);
-  assert.equal((t.match(/warning: stray file/g) || []).length, 5);
-  assert.match(t, new RegExp(`  \\.\\.\\. and ${total - 20} more \\.jsonl files not scanned \\(the scan reads at most 20\\)`));
-});
-
-test('doctor --fix wires a missing merge driver', async () => {
+test('doctor lists at most five stray files', async () => {
   const d = copy();
-  git(d, 'config', '--unset-all', 'merge.plangraph-jsonl.driver');
-  const r = await run(d, ['doctor']);
-  assert.equal(r.code, 1);
-  assert.match(L(r)[0] as string, /^data format v1; tool supports v1$/);
-  assert.match(L(r)[1] as string, /^merge driver: /);
-  assert.doesNotMatch(L(r)[1] as string, /ok$/);
-  const fix = await run(d, ['doctor', '--fix']);
-  assert.match(fix.out.join('\n'), /merge driver: ok/);
-  assert.equal(fix.code, 0);
-});
-
-test('doctor says when the merge driver cannot be installed outside a git repository', async () => {
-  const d = tmp();
-  fs.mkdirSync(path.join(d, '.plangraph'));
-  const r = await run(d, ['doctor', '--fix']);
-  assert.equal(r.code, 1);
-  assert.match(r.out.join('\n'), /merge driver not installed: /);
+  for (let i = 0; i < 7; i++) fs.writeFileSync(path.join(d, `s${i}.original.md`), 'x');
+  const t = (await run(d, ['doctor'])).out.join('\n');
+  assert.match(t, / {2}\.\.\. and 2 more/);
+  assert.equal((t.match(/warning: stray file/g) || []).length, 5);
 });
 
 // ---- the jira line of doctor: one case per credential source ----

@@ -9,6 +9,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
+import { writePlanFile } from './helpers/plan-dir.ts';
+import { nodePath } from '../lib/store2/layout.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -20,9 +22,11 @@ function repo() {
   const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d);
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
+  writePlanFile(path.join(d, '.plangraph'), 'tickets.jsonl', `${JSON.stringify({ key: 'T-0', summary: 's' })}\n`); // plan data: one ticket node
   return d;
 }
-const HOOK = ['card', '--if-present'], HEAL = ['card', '--if-present', '--heal'];
+const ticketNode = (b: string): string => nodePath(b, 'ticket', 'T-0');
+const HOOK = ['card', '--if-present'], HEAL = ['card', '--if-present', '--refresh'];
 const NO_INDEX = 'plangraph: plan data found in .plangraph but no index: run plangraph build\n';
 const silent = (r: SpawnSyncReturns<string>, why: string) => assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], why);
 const snapshot = (d: string) => { const o: Record<string, string> = {}; const walk = (p: string): void => { for (const e of fs.readdirSync(p, { withFileTypes: true })) { const f = path.join(p, e.name); if (e.name === '.git') continue; if (e.isDirectory()) walk(f); else if (e.isFile()) o[path.relative(d, f)] = fs.readFileSync(f, 'utf8'); else o[path.relative(d, f)] = 'special'; } }; walk(d); return o; };
@@ -33,7 +37,7 @@ test('data in the current format and no index: one fixed line, exit 0, nothing w
     const r = run(d, args); assert.deepEqual([r.status, r.stdout, r.stderr], [0, NO_INDEX, ''], args.join(' '));
   }
   assert.ok(!fs.existsSync(path.join(d, '.plangraph', 'plangraph.sqlite')), 'no index was built');
-  const after_ = snapshot(d); delete after_['.data']; assert.deepEqual(Object.keys(after_).sort(), Object.keys(before).sort()); // --heal may wire the driver: no plangraph file changes
+  const after_ = snapshot(d); delete after_['.data']; assert.deepEqual(Object.keys(after_).sort(), Object.keys(before).sort()); // --refresh does nothing yet: no plangraph file changes
   for (const k of Object.keys(before)) if (k.startsWith('.plangraph/')) assert.equal(after_[k], before[k], k);
 });
 
@@ -45,14 +49,14 @@ test('no format.json and no index: the same build line, and the hook writes no f
 
 test('no plangraph at all, or a plan dir with no data files: silent', () => {
   const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-fu-'))); tmps.push(d); execFileSync('git', ['init', '-q'], { cwd: d });
-  silent(run(d, HOOK), 'no plangraph'); silent(run(d, HEAL), 'no plangraph heal');
+  silent(run(d, HOOK), 'no plangraph'); silent(run(d, HEAL), 'no plangraph refresh');
   fs.mkdirSync(path.join(d, '.plangraph')); silent(run(d, HOOK), 'empty plan dir');
   fs.writeFileSync(path.join(d, '.plangraph', 'notes.txt'), 'x'); silent(run(d, HOOK), 'unrelated file only');
 });
 
 test('a stale index keeps today\'s behavior: the card with its last STALE line, no nudge', () => {
   const d = repo(); assert.equal(run(d, ['build']).status, 0);
-  fs.appendFileSync(path.join(d, '.plangraph', 'tickets.jsonl'), JSON.stringify({ key: 'T-1', sp: 1 }) + '\n');
+  writePlanFile(path.join(d, '.plangraph'), 'tickets.jsonl', JSON.stringify({ key: 'T-1', sp: 1 }) + '\n');
   const r = run(d, HOOK); assert.equal(r.status, 0); assert.equal(r.stderr, '');
   assert.match(r.stdout, /^plangraph \S+ \| /); assert.match(r.stdout, /STALE: index older than text, run `plangraph build`\n$/); assert.doesNotMatch(r.stdout, /plan data found/);
 });
@@ -62,16 +66,18 @@ test('a manual `plangraph card` keeps the error (exit 2, no index)', () => {
   assert.deepEqual([r.status, r.stdout], [2, '']); assert.match(r.stderr, /^error: no index: run `plangraph build`\ntry: plangraph build\n$/);
 });
 
-test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --heal)', () => {
+test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --refresh)', () => {
   const cases: Record<string, (d: string, b: string) => void> = {
-    'tickets.jsonl is a symlink': (d: string, b: string) => { fs.rmSync(path.join(b, 'tickets.jsonl')); fs.symlinkSync('/etc/hosts', path.join(b, 'tickets.jsonl')); },
+    'a ticket node is a symlink': (d: string, b: string) => { const f = ticketNode(b); fs.rmSync(f); fs.symlinkSync('/etc/hosts', f); },
     'config.json is a symlink': (d: string, b: string) => { fs.rmSync(path.join(b, 'config.json')); fs.symlinkSync('/etc/hosts', path.join(b, 'config.json')); },
-    'tickets.jsonl is a dangling symlink': (d: string, b: string) => { fs.rmSync(path.join(b, 'tickets.jsonl')); fs.symlinkSync(path.join(d, 'nope'), path.join(b, 'tickets.jsonl')); },
-    'tickets.jsonl is a FIFO': (d: string, b: string) => { fs.rmSync(path.join(b, 'tickets.jsonl')); execFileSync('mkfifo', [path.join(b, 'tickets.jsonl')]); },
-    'tickets.jsonl is a directory': (d: string, b: string) => { fs.rmSync(path.join(b, 'tickets.jsonl')); fs.mkdirSync(path.join(b, 'tickets.jsonl')); },
-    'tickets.jsonl is huge': (d: string, b: string) => { fs.truncateSync(path.join(b, 'tickets.jsonl'), 64 * 1024 * 1024 + 1); },
+    'a ticket node is a dangling symlink': (d: string, b: string) => { const f = ticketNode(b); fs.rmSync(f); fs.symlinkSync(path.join(d, 'nope'), f); },
+    'a ticket node is a FIFO': (d: string, b: string) => { const f = ticketNode(b); fs.rmSync(f); execFileSync('mkfifo', [f]); },
+    'a ticket node is a directory': (d: string, b: string) => { const f = ticketNode(b); fs.rmSync(f); fs.mkdirSync(f); },
+    'a ticket node is huge': (d: string, b: string) => { fs.truncateSync(ticketNode(b), 64 * 1024 * 1024 + 1); },
+    'the ticket directory is a symlink': (d: string, b: string) => { fs.renameSync(path.join(b, 'nodes/ticket'), path.join(d, 'real-nodes')); fs.symlinkSync(path.join(d, 'real-nodes'), path.join(b, 'nodes/ticket')); },
+    'the nodes directory is a FIFO': (d: string, b: string) => { fs.rmSync(path.join(b, 'nodes'), { recursive: true }); execFileSync('mkfifo', [path.join(b, 'nodes')]); },
     'config.json is huge': (d: string, b: string) => { fs.truncateSync(path.join(b, 'config.json'), 64 * 1024 + 1); },
-    'edges.jsonl is a FIFO': (d: string, b: string) => { fs.rmSync(path.join(b, 'edges.jsonl')); execFileSync('mkfifo', [path.join(b, 'edges.jsonl')]); },
+    'schedules/CURRENT is a FIFO': (d: string, b: string) => { fs.mkdirSync(path.join(b, 'schedules'), { recursive: true }); execFileSync('mkfifo', [path.join(b, 'schedules/CURRENT')]); },
     'config.json is unreadable': (d: string, b: string) => { fs.chmodSync(path.join(b, 'config.json'), 0); },
     'format.json is a symlink': (d: string, b: string) => { fs.rmSync(path.join(b, 'format.json')); fs.symlinkSync('/etc/hosts', path.join(b, 'format.json')); },
     'format.json is not JSON': (d: string, b: string) => { fs.writeFileSync(path.join(b, 'format.json'), '{nope'); },

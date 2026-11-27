@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { MATRIX, PROBES, bench, captureAll, compareDirs, normalizeOutput, runMcpSession, runMergeDriver } from '../scripts/baseline.ts';
+import { MATRIX, PROBES, bench, captureAll, compareDirs, normalizeOutput, runMcpSession } from '../scripts/baseline.ts';
 import { fixture, made, tmp } from './helpers/cli-fixture.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -92,14 +92,6 @@ test('the MCP session returns an initialize result and a non-empty tools list', 
   const call = msgs.find((m) => m.id === 3);
   assert.ok(call.result && !call.error);
   assert.notEqual(call.result.isError, true);
-});
-
-test('the merge driver result is stable across two runs', () => {
-  for (const variant of (['clean', 'conflict'] as const)) {
-    const a = runMergeDriver(dir(), variant), b = runMergeDriver(dir(), variant);
-    assert.deepEqual(a, b);
-    assert.equal(a.code, variant === 'clean' ? 0 : 1);
-  }
 });
 
 test('compare refuses an empty directory, a missing one and a different number of entries', () => {
