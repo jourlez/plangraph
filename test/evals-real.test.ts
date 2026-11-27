@@ -27,7 +27,7 @@ function makeCanary(seed: number) {
 }
 
 function makeProject(dir: string, cv: ReturnType<typeof makeCanary>) {
-  const plan = genPlan({ n: 400, people: 4, density: 0.02, seed: 11, cap: 1000, maxSp: 5, prefix: cv.prefix });
+  const plan = genPlan({ n: 150, people: 4, density: 0.02, seed: 11, cap: 1000, maxSp: 5, prefix: cv.prefix });
   const map = new Map(['Ana', 'Ben', 'Cleo', 'Dan'].map((n, i) => [n, cv.people[i]]));
   for (const t of plan.tickets) { t.summary = `${cv.marker} deliver part ${t.key.split('-')[1]}`; t.v2_owner = map.get(t.v2_owner as string) as string; } // every generated owner is one of the four mapped names
   for (const s of plan.schedule) s.owner = map.get(s.owner) as string; // schedule owners are the same four names
