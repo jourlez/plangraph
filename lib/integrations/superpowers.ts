@@ -10,16 +10,21 @@ import { oneLine } from '../sanitize.ts';
 import { checkRepoPath } from '../gitsafe.ts';
 import type { Edge, ImplStatus, ScheduleRow, Ticket } from '../model.ts';
 import type { PlanRef, RefsRow } from '../stale.ts';
+import { touchesFor } from '../graph/touches.ts';
+import { RELATIONS } from '../graph/files.ts';
 
 /** One task of a parsed plan. */
 export interface SpTask {
   id: string; alias: string | null; title: string; level: number; line: number; files: string[]; consumes: string[]; produces: string[]; steps: number; ticked: number;
   refs: string[]; points: number | null;
+  assignee: string | null; sprint: number | null; ticket: string | null; repo: string | null; requirements: string[];
 }
 /** A plan's header fields (a type alias, so the header-field loop can write it by name). */
 export type PlanHeader = { title: string; goal: string; architecture: string; techStack: string; spec: string | null; banner: boolean };
+/** The optional plan-level link fields (`**Sprint:**`, `**Ticket:**`, `**Repo:**`, `**Requirements:**`; plan-level ones attach to the epic ticket). */
+export interface PlanLinks { sprint: number | null; ticket: string | null; repo: string | null; requirements: string[] }
 /** parsePlan's answer. */
-export interface ParsedPlan { slug: string; path: string; format: string; header: PlanHeader; globalConstraints: string[]; reviewFocus: string[]; tasks: SpTask[]; warnings: string[] }
+export interface ParsedPlan { slug: string; path: string; format: string; header: PlanHeader; links: PlanLinks; globalConstraints: string[]; reviewFocus: string[]; tasks: SpTask[]; warnings: string[] }
 /** One task status derived from a ledger. */
 export interface LedgerEntry { task: string; status: ImplStatus; commits?: string; notes: string[] }
 /** A ruling, parked or deferred line; task is null for a plan-level line. */
@@ -34,16 +39,20 @@ interface LedgerTaskState { task: string; status: ImplStatus | null; done: boole
 /** A finding record as sp-ingest writes it. */
 export interface SpFinding { key: string; kind: string; text: string; [extra: string]: unknown }
 /** The plan records sp-ingest reads and rewrites. */
-export interface SpRecords { tickets: readonly Ticket[]; edges: readonly Edge[]; findings: readonly SpFinding[]; refs: readonly RefsRow[]; schedule: readonly ScheduleRow[] }
+export interface SpRecords { tickets: readonly Ticket[]; edges: readonly Edge[]; findings: readonly SpFinding[]; refs: readonly RefsRow[]; schedule: readonly ScheduleRow[]; links: readonly GraphRow[]; xrefs: readonly GraphRow[]; repos?: readonly GraphRow[] }
+/** A links.jsonl, xrefs.jsonl or repos.jsonl row (plain object). */
+export type GraphRow = Record<string, unknown>;
 /** ingestPlan options. plan is required: plan.slug throws without it, as it always did. */
-export interface IngestOpts { plan: ParsedPlan; ledger?: ParsedLedger | null; existing?: Partial<SpRecords>; owner?: string; sprint?: number | null }
+export interface IngestOpts { plan: ParsedPlan; ledger?: ParsedLedger | null; existing?: Partial<SpRecords>; owner?: string; sprint?: number | null; reassign?: boolean; satisfies?: boolean }
+/** A reported (never stored) problem of the plan's link fields. */
+export interface SpProblem { code: 'UNPLACED_ASSIGNEE' | 'XREF_DUPLICATE'; key: string; detail: string }
 /** ingestPlan's summary. */
 export interface SpIngestReport {
   key: string; format: string; tasks: number; edges: number; findings: number; statuses: number; ledger: boolean; kept: number; unclassified: number; firstUnclassified: number;
-  removed: number; seeded: number; seededPoints: number; seededWithPoints: number; orphanSchedule: number; warnings: string[]; planWarnings: string[]; ledgerWarnings: string[];
+  removed: number; seeded: number; seededPoints: number; seededWithPoints: number; orphanSchedule: number; links: number; xrefs: number; problems: SpProblem[]; warnings: string[]; planWarnings: string[]; ledgerWarnings: string[];
 }
 /** ingestPlan's answer: the full desired content of each file, and a summary. */
-export interface IngestResult { tickets: Ticket[]; edges: Edge[]; findings: SpFinding[]; refs: RefsRow[]; schedule: ScheduleRow[]; report: SpIngestReport }
+export interface IngestResult { tickets: Ticket[]; edges: Edge[]; findings: SpFinding[]; refs: RefsRow[]; schedule: ScheduleRow[]; links: GraphRow[]; xrefs: GraphRow[]; report: SpIngestReport }
 /** One ledger found on disk. */
 export interface FoundLedger { path: string; layout: 'per-plan' | 'flat'; root: string }
 
@@ -129,6 +138,7 @@ const RX = {
   ifaceItem: /^\s*[-*]\s+(?:\*\*)?(Consumes|Produces)(?:\*\*)?:(?:\*\*)?\s*(.*)$/i,
   step: /^\s*[-*]\s+\[([ xX])\]\s+(?:\*\*)?Step\s+\d+/,
   points: /^\s*(?:[-*]\s+)?\*{0,2}Points:\*{0,2}\s*(\d+(?:\.\d+)?)\s*$/i,
+  meta: /^\s*(?:[-*]\s+)?\*\*(Assignee|Sprint|Ticket|Repo|Requirements):\*\*\s*(.*)$/i,
   label: /^\*\*[A-Za-z][\w ]{0,30}:\*\*/,
   taskRef: new RegExp(`\\bTask\\s+(${ID})\\b`, 'g'),
   taskShaped: /^#{2,4}\s+\S+\s+[A-Za-z]?\d/,
@@ -191,6 +201,22 @@ const producedSymbols = (texts: string[]): Set<string> => new Set(texts.flatMap(
 // Identifiers a task names in its Consumes text: an exact backticked identifier.
 const consumedSymbols = (texts: string[]): Set<string> => new Set(texts.flatMap((t) => [...t.matchAll(/`([A-Za-z_$][\w$.]*)`/g)].map((m) => m[1] as string))); // group 1 always matches
 
+// One optional link field (`**Assignee:**`, ...) of the plan header or a task, checked against its grammar; a bad value is a warning, never stored.
+const REQ_ID = /^R-[0-9a-f]{6}(?:[0-9a-f]{2}){0,29}$/;
+const JIRA_KEY = /^[A-Z][A-Z0-9_]{0,23}-\d{1,9}$/;
+const REPO_ID = /^(?:repo:)?[a-z0-9][a-z0-9._-]{0,59}$/;
+const PERSON_ID = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,79}$/;
+function setMeta(into: Partial<SpTask> & Partial<PlanLinks>, label: string, raw: string, where: string, warnings: string[]): void {
+  const k = label.toLowerCase(), v = raw.trim().replace(/^`(.*)`$/, '$1').trim();
+  const bad = () => warnings.push(`${where}: ${label} value not recorded (not a valid ${label.toLowerCase()})`);
+  if (!v) return;
+  if (k === 'assignee') { if (where === 'plan') warnings.push('plan: Assignee on the plan header is ignored (give it on a task)'); else if (PERSON_ID.test(v)) into.assignee = v; else bad(); }
+  else if (k === 'sprint') { if (/^\d{1,4}$/.test(v)) into.sprint = +v; else bad(); }
+  else if (k === 'ticket') { if (JIRA_KEY.test(v)) into.ticket = v; else bad(); }
+  else if (k === 'repo') { if (REPO_ID.test(v)) into.repo = v.startsWith('repo:') ? v : `repo:${v}`; else bad(); }
+  else { const ids = v.split(/[\s,]+/).filter(Boolean), good = ids.filter((x) => REQ_ID.test(x)); if (good.length !== ids.length) bad(); into.requirements = [...new Set([...(into.requirements ?? []), ...good])]; }
+}
+
 // parsePlan(text, name): name is the plan path (repo-relative; its basename gives the slug). Pure. Throws SpIngestError on an unclosed
 // fence, duplicate task ids, zero Task headings, too many tasks, or a file name that cannot be a key. Plan text is sanitized here.
 export function parsePlan(text: unknown, name: unknown): ParsedPlan {
@@ -204,6 +230,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
   if (unclosedComment) throw fail(`${oneLine(base, 80)}: unclosed HTML comment at line ${unclosedComment}`);
 
   const warnings: string[] = [], header: PlanHeader = { title: '', goal: '', architecture: '', techStack: '', spec: null, banner: false };
+  const links: PlanLinks = { sprint: null, ticket: null, repo: null, requirements: [] };
   const globalConstraints: string[] = [], reviewFocus: string[] = [], tasks: SpTask[] = [];
   for (const [start, at] of swallowed.slice(0, 20)) warnings.push(`HTML comment starting at line ${start} swallows a task heading (line ${at}): tasks inside comments are not ingested`);
   let section: string[] | null = null, task: SpTask | null = null, mode: string | null = null, item: number | [string[], number] | null = null, headerSeen = false;
@@ -220,7 +247,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
       if (id.length > LIMITS.idChars) throw fail(`${oneLine(base, 80)}: task ${tasks.length + (task ? 2 : 1)} (line ${i + 1}): id longer than ${LIMITS.idChars} characters`);
       closeTask(); section = null;
       const tm = taskTitle(t.rest);
-      task = { id, alias: tm.alias ? oneLine(tm.alias, 20) : null, title: oneLine(tm.title, LIMITS.summary), level, line: i + 1, files: [], consumes: [], produces: [], steps: 0, ticked: 0, refs: [], points: null };
+      task = { id, alias: tm.alias ? oneLine(tm.alias, 20) : null, title: oneLine(tm.title, LIMITS.summary), level, line: i + 1, files: [], consumes: [], produces: [], steps: 0, ticked: 0, refs: [], points: null, assignee: null, sprint: null, ticket: null, repo: null, requirements: [] };
       continue;
     }
     const h = RX.heading.exec(l);
@@ -240,6 +267,8 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
     }
     if (!task) {
       if (RX.banner.test(l)) header.banner = true;
+      const pm = RX.meta.exec(l);
+      if (pm) { setMeta(links, pm[1] as string, pm[2] as string, 'plan', warnings); continue; }
       const f = RX.field.exec(l);
       if (f) { const k = ({ goal: 'goal', architecture: 'architecture', 'tech stack': 'techStack', spec: 'spec' } as Record<string, string>)[(f[1] as string).toLowerCase()] as string; (header as Record<string, unknown>)[k] = k === 'spec' ? (f[2] as string).trim() || null : oneLine(f[2] as string, LIMITS.finding); } // RX.field matches only these four names; both of its groups are not optional
       continue;
@@ -248,6 +277,8 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
     const where = `task ${task.id}`;
     const st = RX.step.exec(l);
     if (st) { task.steps++; if (st[1] !== ' ') task.ticked++; mode = null; continue; }
+    const tm2 = RX.meta.exec(l);
+    if (tm2) { mode = null; setMeta(task, tm2[1] as string, tm2[2] as string, where, warnings); continue; }
     const pts = RX.points.exec(l); if (pts) { task.points = Number(pts[1]); continue; }
     const fh = RX.filesHdr.exec(l);
     if (fh) { mode = 'files'; for (const p of inlineFiles(fh[1])) { const c = cleanPath(p, where, warnings); if (c) task.files.push(c); } continue; }
@@ -287,7 +318,7 @@ export function parsePlan(text: unknown, name: unknown): ParsedPlan {
   if (header.spec) spec = cleanPath(header.spec.replace(/^`|`$/g, ''), 'spec', warnings);
   header.spec = spec;
   return {
-    slug, path: String(name), format: header.spec || reviewFocus.length ? '7' : '6.1', header,
+    slug, path: String(name), format: header.spec || reviewFocus.length ? '7' : '6.1', header, links,
     globalConstraints: globalConstraints.map((c) => oneLine(c, LIMITS.finding)), reviewFocus: reviewFocus.map((c) => oneLine(c, LIMITS.finding)),
     tasks, warnings,
   };
@@ -465,8 +496,8 @@ export function ledgerNamesPlan(identity: unknown, planPath: unknown): boolean {
 // of each file (records not owned by this plan are passed through unchanged). Pure. Throws SpIngestError (and so nothing may be written)
 // on a foreign ledger, a ledger line naming an unknown task, or task renumbering relative to the stored ingest.
 // existing = { tickets, edges, findings, refs, schedule } as plain record arrays. owner/sprint seed schedule rows only when owner is given.
-export function ingestPlan({ plan, ledger = null, existing = {}, owner, sprint }: IngestOpts = {} as IngestOpts): IngestResult { // every caller passes plan
-  const ex: SpRecords = { tickets: [], edges: [], findings: [], refs: [], schedule: [], ...existing };
+export function ingestPlan({ plan, ledger = null, existing = {}, owner, sprint, reassign = false, satisfies = (RELATIONS as readonly string[]).includes('satisfies') }: IngestOpts = {} as IngestOpts): IngestResult { // every caller passes plan
+  const ex: SpRecords = { tickets: [], edges: [], findings: [], refs: [], schedule: [], links: [], xrefs: [], ...existing };
   const epic = `sp:${plan.slug}`, keyOf = (id: string): string => `${epic}/${id}`;
   const owned = (k: unknown): boolean => k === epic || String(k).startsWith(epic + '/');
   const ids = new Set(plan.tasks.map((t) => t.id)), order = new Map(plan.tasks.map((t, i) => [t.id, i]));
@@ -559,21 +590,67 @@ export function ingestPlan({ plan, ledger = null, existing = {}, owner, sprint }
   const newRefs = [mkRef(epic, plan.header.spec ? [plan.header.spec] : [], null), ...plan.tasks.map((t) => mkRef(keyOf(t.id), t.files, { plan: plan.path, task: t.id }))];
   const refs = [...ex.refs.filter((r) => !owned(r.key)), ...newRefs];
 
-  // schedule: never changed, except new rows when an owner AND a sprint are given explicitly (rows that exist are never touched)
+  // schedule: existing rows are never changed, except a task's own Assignee under --reassign. New rows: --owner with a sprint (as before), and a
+  // task `Assignee` when a sprint is known (task Sprint, plan Sprint, --sprint); an Assignee without a sprint is UNPLACED_ASSIGNEE and no row.
   const schedule: ScheduleRow[] = [...ex.schedule];
   const scheduled = new Set(ex.schedule.filter((r) => (r.version ?? 'current') === 'current').map((r) => r.key));
+  const problems: SpProblem[] = [];
   let seeded = 0, seededPoints = 0, seededWithPoints = 0;
-  if (owner && sprint != null) for (const t of plan.tasks) {
-    if (scheduled.has(keyOf(t.id))) continue;
-    schedule.push({ version: 'current', key: keyOf(t.id), owner, sprint }); seeded++;
-    if (t.points != null) { seededPoints += t.points; seededWithPoints++; }
+  for (const t of plan.tasks) {
+    const key = keyOf(t.id), sp = t.sprint ?? plan.links?.sprint ?? sprint ?? null;
+    if (t.assignee) {
+      const at = schedule.findIndex((r) => (r.version ?? 'current') === 'current' && r.key === key);
+      if (at >= 0) {
+        const row = schedule[at] as ScheduleRow;
+        if (String(row.owner ?? '').toLowerCase() !== t.assignee.toLowerCase()) {
+          if (!reassign) errors.push(`${key}: the plan names ${oneLine(t.assignee, 80)} but the schedule has ${oneLine(String(row.owner ?? ''), 80)} (re-ingest refused; pass --reassign to move it)`);
+          else schedule[at] = { ...row, owner: t.assignee };
+        }
+      } else if (sp == null) problems.push({ code: 'UNPLACED_ASSIGNEE', key, detail: `${oneLine(t.assignee, 80)} has no sprint (give the task or the plan a **Sprint:**, or pass --sprint)` });
+      else { schedule.push({ version: 'current', key, owner: t.assignee, sprint: sp }); seeded++; if (t.points != null) { seededPoints += t.points; seededWithPoints++; } }
+    } else if (owner && sprint != null && !scheduled.has(key)) {
+      schedule.push({ version: 'current', key, owner, sprint: t.sprint ?? plan.links?.sprint ?? sprint }); seeded++;
+      if (t.points != null) { seededPoints += t.points; seededWithPoints++; }
+    }
+  }
+  if (errors.length) throw fail(errors);
+
+  // links and xrefs: tracked_by xref per Ticket (one to one), touches per Repo (conf 1, why plan), satisfies per Requirement, touches per Files line
+  // (as `repo link --auto`: conf 0.7, why files). Plan-level fields attach to the epic. No node is created for a Jira key or a requirement.
+  const planLink = (r: GraphRow): boolean => r.rel !== undefined && owned(r.from) && (r.attrs as { why?: unknown } | undefined)?.why === 'plan';
+  const links: GraphRow[] = ex.links.filter((l) => !(planLink(l) && (l.rel === 'touches' || l.rel === 'satisfies')));
+  const xrefs: GraphRow[] = [...ex.xrefs];
+  const hasLink = (from: string, rel: string, to: string): boolean => links.some((l) => l.from === from && l.rel === rel && l.to === to);
+  const addLink = (from: string, rel: string, to: string, to_type: string, attrs: Record<string, unknown>): void => { if (!hasLink(from, rel, to)) links.push({ from, from_type: 'ticket', rel, to, to_type, attrs }); };
+  const jiraX = (x: GraphRow): boolean => x.type === 'ticket' && String(x.sys).split(':')[0] === 'jira';
+  const subjects: Array<{ key: string; ticket: string | null; repo: string | null; requirements: readonly string[] }> = [
+    { key: epic, ticket: plan.links?.ticket ?? null, repo: plan.links?.repo ?? null, requirements: plan.links?.requirements ?? [] },
+    ...plan.tasks.map((t) => ({ key: keyOf(t.id), ticket: t.ticket, repo: t.repo, requirements: t.requirements })),
+  ];
+  for (const x of subjects) {
+    if (x.ticket) {
+      const mine = xrefs.find((r) => jiraX(r) && r.id === x.key), other = xrefs.find((r) => jiraX(r) && r.xid === x.ticket && r.id !== x.key);
+      if (other) problems.push({ code: 'XREF_DUPLICATE', key: x.key, detail: `${x.ticket} is already tracked by ${oneLine(String(other.id), 120)} (one Jira ticket is one work item; no xref written)` });
+      else if (mine && mine.xid !== x.ticket) problems.push({ code: 'XREF_DUPLICATE', key: x.key, detail: `already tracks ${oneLine(String(mine.xid), 60)}, not ${x.ticket} (one work item is one Jira ticket; no xref written)` });
+      else if (!mine) xrefs.push({ type: 'ticket', id: x.key, sys: 'jira', xid: x.ticket });
+    }
+    if (x.repo) addLink(x.key, 'touches', x.repo, 'repo', { conf: 1, why: 'plan' });
+    if (x.requirements.length && !satisfies) warnings.push(`${x.key}: Requirements not linked (this format has no satisfies relation yet)`);
+    else for (const r of x.requirements) addLink(x.key, 'satisfies', r, 'requirement', { why: 'plan' });
+  }
+  const repoIds = (ex.repos ?? []).map((r) => ({ id: String(r.id), paths: Array.isArray(r.paths) ? (r.paths as Array<{ glob: string; sub: string }>) : [] })).filter((r) => r.paths.length);
+  if (repoIds.length) for (const t of plan.tasks) {
+    if (!t.files.length) continue;
+    const hit = new Set<string>();
+    for (const h of touchesFor({ repos: repoIds, paths: t.files }).touches) if (h.possible !== true && h.sub !== undefined) hit.add(h.repo);
+    for (const to of [...hit].sort(lt)) addLink(keyOf(t.id), 'touches', to, 'repo', { conf: 0.7, why: 'files' });
   }
   const orphanSchedule = [...scheduled].filter((k) => owned(k) && !keys.has(k)).length;
 
   const prevOwned = ex.tickets.filter((t) => owned(t.key)).map((t) => t.key);
   const out: IngestResult = {
     tickets: [...ex.tickets.filter((t) => !owned(t.key)), ...tickets],
-    edges, findings, refs, schedule,
+    edges, findings, refs, schedule, links, xrefs,
     report: {
       key: epic, format: plan.format, tasks: plan.tasks.length, edges: newEdges.length,
       findings: findings.filter((x) => owned(x.key) && (PLAN_KINDS.includes(x.kind) || LEDGER_KINDS.includes(x.kind))).length,
@@ -581,6 +658,7 @@ export function ingestPlan({ plan, ledger = null, existing = {}, owner, sprint }
       kept: ledger ? 0 : tickets.filter((t) => t.key !== epic && t.impl_status !== undefined).length, // previous impl_status left in place
       unclassified: ledger?.unclassified || 0, firstUnclassified: ledger?.firstUnclassified || 0,
       removed: prevOwned.filter((k) => !keys.has(k)).length, seeded, seededPoints, seededWithPoints, orphanSchedule,
+      links: links.filter((l) => owned(l.from)).length, xrefs: xrefs.filter((x) => owned(x.id)).length, problems,
       warnings: [...warnings, ...(ledger?.warnings || [])], planWarnings: warnings, ledgerWarnings: ledger?.warnings || [],
     },
   };
