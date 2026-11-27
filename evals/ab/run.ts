@@ -126,7 +126,7 @@ export type Parsed = { reply: string; tokens: number; firstIn: number; tokensIn:
 const inputOf = (u: Usage): number => (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0);
 /** Parse the output of one run: one `--output-format json` object, or the `stream-json` lines (then tool calls are the tool_use blocks; with one object they are the turns minus one). */
 export function parseRun(stdout: string): Parsed {
-  const lines = stdout.split('\n').filter((l) => l.trim().startsWith('{')).map((l) => JSON.parse(l) as ClaudeJson);
+  const lines = stdout.split('\n').filter((l) => l.trim().startsWith('{')).flatMap((l) => { try { return [JSON.parse(l) as ClaudeJson]; } catch { return []; } }); // a torn or non-JSON line is skipped, not fatal
   const j = lines.find((l) => l.type === 'result') ?? lines.at(-1);
   if (!j) throw new Error('no result in the output');
   const u = j.usage ?? {}, tokensOut = u.output_tokens ?? 0, tokensIn = inputOf(u);
