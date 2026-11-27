@@ -172,6 +172,7 @@ test('import: an unwritable plan directory or cache directory fails with nothing
 // ---- sync --plan
 
 const row = (xid: string, fields: object, seen = '2026-11-22', sys = 'jira:acme') => ({ sys, xid, type: 'ticket', fields, links: [], fp: '0123456789abcdef', seen });
+const mapIds = (d: string, byRef: Record<string, string>) => put(d, '.plangraph/cache/identities.json', JSON.stringify({ version: 1, byRef }));
 function syncRepo(tickets: readonly object[], sched: readonly object[], obs: readonly object[], config?: object): string {
   const d = repo(tickets); const b = path.join(d, '.plangraph');
   put(d, '.plangraph/schedule.jsonl', jl(sched));
@@ -196,6 +197,7 @@ test('sync --plan: without --plan, with a positional, or without an index it ref
 test('sync --plan: findings without a plan value or a push (DRIFT_DONE, stale) print bare lines; a non-jira system gets no push line', () => {
   const d = syncRepo([{ key: 'T-1', sp: 1 }, { key: 'T-2', sp: 1 }], [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }],
     [row('T-2', { status: 'Done' }), row('T-1', { assignee: 'Eve' }, '2026-11-22', 'sp')]);
+  mapIds(d, { 'sp:Eve': 'Eve' });
   const r = run(d, ['sync', '--plan']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^DRIFT_DONE T-2 plan open$/m);
@@ -218,6 +220,7 @@ test('sync --plan: config graph.stale_days is honoured, a bad value falls back t
 test('sync --plan: long reports are capped at 40 lines and 20 push lines; -v lifts the line cap; JSON keeps every finding', () => {
   const keys = Array.from({ length: 60 }, (_, i) => `T-${i + 1}`);
   const d = syncRepo(keys.map((key) => ({ key, sp: 1 })), keys.map((key) => ({ version: 'current', key, owner: 'Ana', sprint: 2 })), keys.map((k) => row(k, { assignee: 'Ben' })));
+  mapIds(d, { 'jira:acme:Ben': 'Ben' });
   const r = run(d, ['sync', '--plan']);
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout.split('\n').filter((l) => l.startsWith('DRIFT_ASSIGNEE')).length, 40, 'the report stops at 40 finding lines');
@@ -270,4 +273,18 @@ test('import: an unreadable .gitignore file and a cache path that is a symlink a
   const s = run(e, ['import', '--sys', 'generic', 'b.json']);
   assert.notEqual(s.status, 0);
   assert.deepEqual(fs.readdirSync(path.join(e, '.plangraph/real')), []);
+});
+
+test('sync --plan reads the identity map: unmapped is UNMAPPED_ASSIGNEE (no push), a mapped other person is DRIFT_ASSIGNEE, the same person is no drift, a malformed map exits 2', () => {
+  const d = syncRepo([{ key: 'T-1', sp: 1 }], [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 2 }], [row('T-1', { assignee: 'acct-77' })]);
+  const out = () => run(d, ['sync', '--plan']);
+  assert.match(out().stdout, /^UNMAPPED_ASSIGNEE T-1 plan Ana$/m);
+  assert.doesNotMatch(out().stdout, /^push /m);
+  mapIds(d, { 'jira:acme:acct-77': 'Ben' });
+  assert.match(out().stdout, /^DRIFT_ASSIGNEE T-1 plan Ana$/m);
+  assert.match(out().stdout, /^push T-1 assignee Ana$/m);
+  mapIds(d, { 'jira:acme:acct-77': 'Ana' });
+  assert.equal(out().stdout, 'no drift\n');
+  put(d, '.plangraph/cache/identities.json', '{not json');
+  const bad = out(); assert.equal(bad.status, 2); assert.match(bad.stderr, /identities\.json/);
 });

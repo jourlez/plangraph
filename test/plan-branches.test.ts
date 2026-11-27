@@ -239,3 +239,27 @@ test('doctor --fix --alias reports a registry that cannot be written as a usage 
     assert.equal(JSON.parse(fs.readFileSync(path.join(cfg, 'jira-sites.json'), 'utf8')).aliases.work.repos, undefined);
   } finally { fs.chmodSync(cfg, 0o700); }
 });
+
+test('init ignores the live docs directory in the repository .gitignore unless docs.commit is true, keeping user lines and adding it once', async () => {
+  const d = copy(), gi = path.join(d, '.gitignore'), cfg = path.join(plan(d), 'config.json');
+  fs.rmSync(gi, { force: true });
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), '/docs/plangraph/\n', 'default docs.out');
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), '/docs/plangraph/\n', 'idempotent');
+  fs.writeFileSync(gi, 'node_modules\r\ndocs/plangraph');
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'node_modules\r\ndocs/plangraph', 'an equivalent line already there is left alone');
+  const c = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+  fs.writeFileSync(cfg, JSON.stringify({ ...c, docs: { out: 'site/pg/' } }));
+  fs.writeFileSync(gi, 'node_modules');
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'node_modules\n/site/pg/\n', 'a configured docs.out, the missing final newline kept as a separator');
+  fs.writeFileSync(cfg, JSON.stringify({ ...c, docs: { commit: true } }));
+  fs.writeFileSync(gi, 'node_modules\n');
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'node_modules\n', 'docs.commit true: nothing added');
+  fs.writeFileSync(cfg, JSON.stringify({ ...c, docs: { out: '../x' } }));
+  await run(d, ['init']);
+  assert.equal(fs.readFileSync(gi, 'utf8'), 'node_modules\n', 'an out path outside the repository is not ignored (docs-build refuses it)');
+});

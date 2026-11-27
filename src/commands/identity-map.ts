@@ -22,7 +22,7 @@ function identityMap(ctx: Ctx, args: Args): number {
 
 export const commands: CommandMap = {
   'identity-map': {
-    run: identityMap as never, positionals: [2, 2], writes: 'file', guard: 'soft',
+    run: identityMap as never, positionals: [2, 2], writes: 'text', guard: 'strict',
     summary: 'REF PERSON: map a tracker ref to a plan person in the local cache/identities.json (0600, never committed); PERSON must exist',
   },
 };

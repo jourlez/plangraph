@@ -90,6 +90,7 @@ test('sync --plan end to end: report, fenced tracker text, push list, JSON, no w
   fs.mkdirSync(path.join(b, 'cache'));
   const row = (xid: string, fields: object) => ({ sys: 'jira:acme', xid, type: 'ticket', fields, links: [], fp: '0123456789abcdef', seen: '2026-11-01' });
   fs.writeFileSync(path.join(b, 'cache/jira.jsonl'), jl([row('T-1', { assignee: HOSTILE, status: 'To Do' })]));
+  fs.writeFileSync(path.join(b, 'cache/identities.json'), JSON.stringify({ version: 1, byRef: { [`jira:acme:${HOSTILE}`]: 'Ben' } })); // mapped to someone else: a real drift
   adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   const before = fs.readdirSync(b).sort().map((f) => `${f}${fs.statSync(path.join(b, f)).isFile() ? fs.readFileSync(path.join(b, f), 'utf8').length : ''}`).join('|');
