@@ -175,3 +175,52 @@ test('openIndex accepts an advisory table of any shape and refuses an unknown on
   { const db = new DatabaseSync(file); db.exec('CREATE TABLE sneaky(a)'); db.close(); }
   assert.throws(() => openIndex(file), /unexpected schema/);
 });
+
+// m3: an edit that keeps the size and the modification time (touch -r, rsync -t, tar extraction, an editor that restores the mtime) changes the inode's
+// ctime, and a replaced file usually has another inode: both are recorded, and either change makes the build hash the file again.
+function sameSizeEdit(dir: string): string {
+  const file = fs.readdirSync(path.join(dir, 'nodes/ticket'), { withFileTypes: true }).filter((e) => e.isDirectory()).flatMap((e) => fs.readdirSync(path.join(dir, 'nodes/ticket', e.name)).map((n) => path.join(dir, 'nodes/ticket', e.name, n)))[0] as string;
+  const st = fs.statSync(file), text = fs.readFileSync(file, 'utf8');
+  const next = text.replace(/summary "(.)/, (_m, c: string) => `summary "${c === 'Z' ? 'Y' : 'Z'}`);
+  assert.notEqual(next, text);
+  assert.equal(Buffer.byteLength(next), st.size);
+  fs.writeFileSync(file, next);
+  fs.utimesSync(file, st.atime, st.mtime); // mtime restored to the millisecond
+  assert.equal(Math.trunc(fs.statSync(file).mtimeMs), Math.trunc(st.mtimeMs));
+  return path.basename(file);
+}
+
+test('m3: an edit that keeps size and mtime is seen: the freshness check is stale and the build re-reads the file', () => {
+  const dir = planDir('entity');
+  buildIndex({ dir });
+  const file = path.join(dir, INDEX_FILE);
+  { using h = openIndex(file, { dir }); assert.equal(h.stale, false); }
+  sameSizeEdit(dir);
+  { using h = openIndex(file, { dir }); assert.equal(h.stale, true, 'the fingerprint no longer matches the text'); }
+  const r = buildIndex({ dir });
+  assert.ok(r.rebuilt.includes('ticket'), 'the ticket table is rebuilt');
+  { using h = openIndex(file, { dir }); assert.equal(h.stale, false); }
+  sameAsFull(dir);
+});
+
+test('m3: source_file records the inode and the change time of every file', () => {
+  const dir = planDir('entity');
+  buildIndex({ dir });
+  const db = new DatabaseSync(path.join(dir, INDEX_FILE), { readOnly: true });
+  const rows = db.prepare('SELECT path, ino, ctime FROM source_file').all() as Array<{ path: string; ino: number; ctime: number }>;
+  db.close();
+  assert.ok(rows.length > 0);
+  for (const r of rows) { const st = fs.lstatSync(path.join(dir, r.path)); assert.equal(r.ino, st.ino, r.path); assert.equal(r.ctime, Math.trunc(st.ctimeMs), r.path); }
+});
+
+test('m3: a file replaced by another with the same size and mtime (new inode) is seen', () => {
+  const dir = planDir('entity');
+  buildIndex({ dir });
+  const file = path.join(dir, INDEX_FILE);
+  const dirT = path.join(dir, 'nodes/ticket'), sub = fs.readdirSync(dirT)[0] as string, name = fs.readdirSync(path.join(dirT, sub))[0] as string, f = path.join(dirT, sub, name);
+  const st = fs.statSync(f), text = fs.readFileSync(f, 'utf8'), next = text.replace(/summary "(.)/, (_m, c: string) => `summary "${c === 'Z' ? 'Y' : 'Z'}`);
+  fs.writeFileSync(`${f}.new`, next); fs.utimesSync(`${f}.new`, st.atime, st.mtime); fs.renameSync(`${f}.new`, f); // the rsync / editor way: a new inode under the old name
+  { using h = openIndex(file, { dir }); assert.equal(h.stale, true); }
+  buildIndex({ dir });
+  sameAsFull(dir);
+});

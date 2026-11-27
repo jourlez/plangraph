@@ -23,8 +23,8 @@
 // - Observations (0.5.0): the table `obs` holds the rows of the uncommitted cache <dir>/cache/<provider>.jsonl (lib/graph/obs.ts CACHE_FILES).
 //   A cache file adds bytes to the source fingerprint only when it is present, so a directory without a cache keeps its fingerprint. An index
 //   built before `obs` existed (0.4.0) is a known older schema like 0.3.0's (digest over the 0.4.0 table list, stale, query-only, handle.older). The table is advisory data, read by no solver.
-// - Incremental build (1.0): the advisory table source_file(path, size, mtime, hash) records every source file of the last build. buildIndex compares each
-//   file's (size, mtime) with it and re-hashes only the files that differ (a file whose mtime is within RACY_MS of the old index's own is always re-hashed,
+// - Incremental build (1.0): the advisory table source_file(path, size, mtime, hash, ino, ctime) records every source file of the last build. buildIndex compares each
+//   file's (size, mtime, ino, ctime) with it and re-hashes only the files that differ (a file whose mtime is within RACY_MS of the old index's own is always re-hashed,
 //   as git does for a racy entry); a file whose hash changed, a new file and a deleted one (seen from the directory walk) mark the tables built from it,
 //   and only those tables are rebuilt (the others are copied from the old index). The result equals a full rebuild. It reads the files, never git, so it
 //   works in and out of a repository and sees unstaged edits and untracked files. Any index writer that changes rows without the text (stampContent) clears
@@ -62,7 +62,7 @@ const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 /** Tables the solver does not read: the schema check and the content digest ignore them (bin/plangraph-solve has the same list). */
 export const ADVISORY_TABLES: ReadonlySet<string> = new Set(['source_file', 'identity', 'module', 'requirement', 'decision', 'team', 'event']);
-const SOURCE_FILE_DDL = 'CREATE TABLE source_file(path TEXT PRIMARY KEY, size INTEGER, mtime INTEGER, hash TEXT);';
+const SOURCE_FILE_DDL = 'CREATE TABLE source_file(path TEXT PRIMARY KEY, size INTEGER, mtime INTEGER, hash TEXT, ino INTEGER, ctime INTEGER);';
 const RACY_MS = 2000;
 
 const OBS_FILE = 'cache/obs'; // the name of the table's source in TABLES; the real files are CACHE_FILES
@@ -248,7 +248,7 @@ export const builders = {
 };
 
 // ---------- the source file table (advisory) ----------
-interface SrcRow { size: number; mtime: number; hash: string }
+interface SrcRow { size: number; mtime: number; hash: string; ino: number; ctime: number }
 type SrcMap = Map<string, SrcRow>;
 /** What the last build recorded: the rows of source_file and the index file's own modification time (the racy-entry bound). */
 interface Prior { rows: SrcMap; indexMtime: number }
@@ -290,15 +290,16 @@ function entityFiles(dir: string): string[] {
   for (const f of ['meta.jsonl', ...CACHE_FILES, ...ADVISORY_FILES]) { try { fs.lstatSync(path.join(dir, f)); out.push(f); } catch { /* absent */ } }
   return out.sort();
 }
-/** (size, mtime, hash) of every source file of an entity directory. A file whose (size, mtime) equal the prior row's, and whose mtime is older than racyBefore, keeps
- * the prior hash without being read; every other file is hashed. */
+/** (size, mtime, ino, ctime, hash) of every source file of an entity directory. A file whose (size, mtime, ino, ctime) equal the prior row's, and whose mtime is older
+ * than racyBefore, keeps the prior hash without being read; every other file is hashed. An edit that restores the mtime (touch -r, rsync -t, tar) still moves the ctime. */
 function scanEntity(dir: string, prior: SrcMap | null, racyBefore: number): SrcMap {
   const out: SrcMap = new Map();
   for (const rel of entityFiles(dir)) {
     const abs = path.join(dir, rel);
     let st: fs.Stats; try { st = fs.lstatSync(abs); } catch { continue; } // gone since the walk: a deleted file
-    const size = st.size, mtime = Math.trunc(st.mtimeMs), was = prior?.get(rel);
-    out.set(rel, { size, mtime, hash: was && was.size === size && was.mtime === mtime && mtime < racyBefore ? was.hash : builders.hash(abs) });
+    const size = st.size, mtime = Math.trunc(st.mtimeMs), ino = Number(st.ino), ctime = Math.trunc(st.ctimeMs), was = prior?.get(rel);
+    const same = was && was.size === size && was.mtime === mtime && was.ino === ino && was.ctime === ctime && mtime < racyBefore;
+    out.set(rel, { size, mtime, ino, ctime, hash: same ? was.hash : builders.hash(abs) });
   }
   return out;
 }
@@ -312,7 +313,7 @@ function priorOf(h: IndexHandle, file: string): Prior | null {
   try {
     if (!h.get("SELECT 1 x FROM sqlite_master WHERE type='table' AND name='source_file'")) return null;
     const rows: SrcMap = new Map();
-    for (const r of h.all('SELECT path, size, mtime, hash FROM source_file') as Array<{ path: string; size: number; mtime: number; hash: string }>) rows.set(r.path, { size: r.size, mtime: r.mtime, hash: r.hash }); // the columns this SELECT names
+    for (const r of h.all('SELECT path, size, mtime, hash, ino, ctime FROM source_file') as Array<{ path: string; size: number; mtime: number; hash: string; ino: number; ctime: number }>) rows.set(r.path, { size: r.size, mtime: r.mtime, hash: r.hash, ino: r.ino, ctime: r.ctime }); // the columns this SELECT names
     return rows.size ? { rows, indexMtime: fs.lstatSync(file).mtimeMs } : null;
   } catch { return null; }
 }
@@ -463,7 +464,7 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
   else {
     for (const [rel, r] of scan) if (prior.rows.get(rel)?.hash !== r.hash) { for (const n of tablesOf(rel)) dirty.add(n); if (isAdvisorySource(rel)) advChanged = true; }
     for (const rel of prior.rows.keys()) if (!scan.has(rel)) { for (const n of tablesOf(rel)) dirty.add(n); if (isAdvisorySource(rel)) advChanged = true; }
-    const unchanged = !dirty.size && !advChanged && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime);
+    const unchanged = !dirty.size && !advChanged && prior.rows.size === scan.size && [...scan].every(([rel, r]) => prior.rows.get(rel)?.size === r.size && prior.rows.get(rel)?.mtime === r.mtime && prior.rows.get(rel)?.ino === r.ino && prior.rows.get(rel)?.ctime === r.ctime);
     if (unchanged) { // nothing to do: the index stays as it is (leftovers at this build's own temp name are still cleared, or refused if a symlink)
       const own = `${file}.tmp-${process.pid}`;
       try { fs.lstatSync(own); throw new PlangraphError('REFUSED', 'refusing to build the index: its temp path already exists and was not created by this build'); } // removeStaleTemps took a leftover regular file: what is still here is a symlink or a late file
@@ -516,8 +517,8 @@ export function buildIndex(ctx: { dir: string }, { file = path.join(ctx.dir, IND
         });
       }
       h.prepare('INSERT INTO index_meta(k, v) VALUES(?, ?)').run(FINGERPRINT_KEY, fingerprint);
-      const rec = h.prepare('INSERT INTO source_file(path, size, mtime, hash) VALUES(?, ?, ?, ?)');
-      for (const rel of [...scan.keys()].sort()) { const r = scan.get(rel) as SrcRow; rec.run(rel, r.size, r.mtime, r.hash); }
+      const rec = h.prepare('INSERT INTO source_file(path, size, mtime, hash, ino, ctime) VALUES(?, ?, ?, ?, ?, ?)');
+      for (const rel of [...scan.keys()].sort()) { const r = scan.get(rel) as SrcRow; rec.run(rel, r.size, r.mtime, r.hash, r.ino, r.ctime); }
       digest = stampDigest(h);
       h.exec('COMMIT');
       if (prior) h.exec('DETACH DATABASE old');
