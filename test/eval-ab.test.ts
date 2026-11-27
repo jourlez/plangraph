@@ -191,6 +191,14 @@ test('setup runs in one shell session: an export persists into the hidden test c
   } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
 });
 
+test('a .venv made by the setup is on the PATH of the hidden test command without an export', () => {
+  const dir = tmp();
+  try {
+    assert.equal(runSetup(dir, ['mkdir -p .venv/bin', 'printf "#!/bin/sh\\necho venv-python\\n" > .venv/bin/python', 'chmod +x .venv/bin/python']).ok, true);
+    assert.equal(runWithSetupEnv(dir, 'python', 10).stdout.trim(), 'venv-python');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(dir + '.bench', { recursive: true, force: true }); }
+});
+
 test('timeoutSec bounds a command; a missing setup leaves the plain environment', () => {
   const dir = tmp();
   try {

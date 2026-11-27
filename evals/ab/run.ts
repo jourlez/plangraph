@@ -99,11 +99,12 @@ export function parseRun(stdout: string): Parsed {
   return { reply: j.result ?? '', tokens: tokensIn + tokensOut, tokensIn, tokensOut, calls: j.num_turns ?? 0, toolCalls, cost: j.total_cost_usd ?? 0, error: j.is_error ? (j.subtype ?? 'error') : null };
 }
 
+const withPrefix = (e: Record<string, string>, prefix: string): Record<string, string> => (prefix ? { ...e, PATH: `${prefix}${path.delimiter}${e.PATH ?? ''}` } : e);
 export type Detail = Parsed & { ms: number };
 /** LIVE. One headless `claude` run in `cwd`. A harness failure (spawn error, timeout, no result, is_error) comes back in `error`; nothing throws after the spawn. */
-export function runClaude(cell: Cell, prompt: string, cwd: string, timeoutSec = 900): Detail {
+export function runClaude(cell: Cell, prompt: string, cwd: string, timeoutSec = 900, pathPrefix = ''): Detail {
   requireLive();
-  const t0 = Date.now(), p = spawnSync(claudeBin(), argvFor(cell, prompt), { cwd, env: claudeEnv(), encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutSec * 1000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const t0 = Date.now(), p = spawnSync(claudeBin(), argvFor(cell, prompt), { cwd, env: withPrefix(claudeEnv(), pathPrefix), encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutSec * 1000, stdio: ['ignore', 'pipe', 'pipe'] });
   const ms = Date.now() - t0, none: Parsed = { reply: '', tokens: 0, tokensIn: 0, tokensOut: 0, calls: 0, toolCalls: 0, cost: 0, error: null };
   if (p.error) return { ...none, error: `spawn: ${(p.error as NodeJS.ErrnoException).code ?? 'error'}`, ms };
   try { const r = parseRun(p.stdout); return { ...r, error: r.error ?? (p.status === 0 ? null : `exit ${p.status}`), ms }; } catch { return { ...none, error: `no result (exit ${p.status})`, ms }; }
@@ -146,7 +147,9 @@ export function runSetup(dir: string, setup: string[], timeoutSec = SETUP_MIN_SE
   fs.mkdirSync(stateDir(dir), { recursive: true });
   const envFile = path.join(stateDir(dir), 'env.sh');
   fs.rmSync(envFile, { force: true });
-  const r = runStripped(dir, `set -e\n${setup.join('\n')}\nexport -p > ${sq(envFile)}`, timeoutSec);
+  // a virtual environment the setup created in the clone is activated for the later commands even when the descriptor does not export it (several only run `uv venv`)
+  const activate = 'if [ -d "$PWD/.venv/bin" ]; then export VIRTUAL_ENV="$PWD/.venv" PATH="$PWD/.venv/bin:$PATH"; fi';
+  const r = runStripped(dir, `set -e\n${setup.join('\n')}\n${activate}\nexport -p > ${sq(envFile)}`, timeoutSec);
   return { ok: r.status === 0, stderr: r.stderr.slice(-400) };
 }
 
@@ -180,7 +183,7 @@ export function runHiddenTests(t: CodingTask, dir: string): boolean {
 
 /** LIVE. One coding task in one cell: the agent works in `dir` (a prepared workspace), then the hidden tests decide. */
 export function runCodingCell(cell: Cell, t: CodingTask, dir: string): Detail & { correct: boolean } {
-  const d = runClaude(cell, `${t.task} Fix the bug in the code of this repository. Do not ask questions; stop when the fix is in place.`, dir);
+  const d = runClaude(cell, `${t.task} Fix the bug in the code of this repository. Do not ask questions; stop when the fix is in place.`, dir, 900, fs.existsSync(path.join(dir, '.venv', 'bin')) ? path.join(dir, '.venv', 'bin') : '');
   return { ...d, correct: d.error === null && runHiddenTests(t, dir) };
 }
 
