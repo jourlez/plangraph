@@ -58,6 +58,10 @@ export function fenceInline(text: unknown, max: number = 60): string {
 // Bound: two words of instruction text pass, and nothing else: no line break, no tag, no more than the cap.
 export function ident(s: unknown, max: number = 60): string {
   const t = oneLine(s, max);
+  if (t === '') return ''; // an empty or absent value prints nothing, never an empty fence
+  // a value that oneLine had to change (control characters, line breaks, angle brackets, a cut) is not an ordinary name: fenced
+  if (typeof s !== 'string' && typeof s !== 'number') return fenceInline(s, max);
+  if (String(s) !== t) return fenceInline(s, max);
   return /^\S+(?: \S+)?$/.test(t) && !MARKER.test(t) && t.length <= max ? t : fenceInline(s, max);
 }
 

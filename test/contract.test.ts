@@ -228,7 +228,9 @@ test('--json: untrusted strings in data are one sanitized line; a next command n
   adoptPlanDir(path.join(d, '.plangraph'));
   assert.equal(run(d, ['build']).status, 0);
   const env = JSON.parse(run(d, ['sprint', '1', '--json']).stdout);
-  assert.ok(env.data.rows.every((r: { owner: string }) => !/[\n<>]/.test(r.owner)), JSON.stringify(env.data.rows));
+  // a hostile owner is one inline fence whose body has no line break or angle bracket (it cannot close the fence or forge a line); an ordinary one is plain
+  const okOwner = (o: string) => /^[^\n<>]*$/.test(o) || /^<untrusted n="[0-9a-f]{8}">[^\n<>]*<\/untrusted>$/.test(o);
+  assert.ok(env.data.rows.every((r: { owner: string }) => okOwner(r.owner)), JSON.stringify(env.data.rows));
   assert.deepEqual(env.next, [], 'no follow-up for a name that is not shell-safe');
 });
 

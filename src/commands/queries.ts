@@ -42,10 +42,10 @@ function ticket(ctx: Ctx, args: Args): number {
   // Fragments with no value are omitted (an unplaced or freshly ingested sp: task has no points, Jira status, verdict or placement).
   const parts = [w(t.key, 120)], data: string[] = [];
   if (t.sp != null) parts.push(`${w(t.sp, 20)} SP`);
-  if (t.jira_status) data.push(`Jira ${w(t.jira_status)}`);
-  if (t.verdict) data.push(`verdict ${w(t.verdict)}${t.verdict_source ? ` (${w(t.verdict_source)})` : ''}`);
-  if (t.impl_status) data.push(`impl ${w(t.impl_status)}`);
-  if (isPlaced(s)) data.push(`plan S${s.sprint} ${w(s.owner, 60)}`);
+  if (t.jira_status) data.push(`Jira ${oneLine(t.jira_status, 40)}`);
+  if (t.verdict) data.push(`verdict ${oneLine(t.verdict, 40)}${t.verdict_source ? ` (${oneLine(t.verdict_source, 40)})` : ''}`);
+  if (t.impl_status) data.push(`impl ${oneLine(t.impl_status, 40)}`);
+  if (isPlaced(s)) data.push(`plan S${s.sprint} ${oneLine(s.owner, 60)}`);
   const me = { id: String(key), type: 'ticket' as const };
   const needs = d.all(`SELECT e.dst producer,e.kind,s.sprint,s.owner FROM (${needsRows(d)}) e LEFT JOIN schedule s ON s.key=e.dst AND s.${CUR} WHERE e.src=? ORDER BY s.sprint, e.dst`, key) as Array<{ producer: unknown; kind: unknown; sprint: unknown; owner: unknown }>; // the columns this SELECT names
   const neededBy = d.older ? (d.get('SELECT COUNT(*) c FROM edge WHERE producer=?', key) as { c: number }).c : reach(d, me, ['needs'], 1, true).length; // the consumers one step back, each once; COUNT(*) returns one row
@@ -257,11 +257,13 @@ async function verify(ctx: Ctx, args: Args<{ 'enforce-min'?: boolean; strict?: b
   // a schedule file is checked against the frozen tickets of the CURRENT schedule: one it moves or drops is FROZEN_MOVED
   const frozen = file === undefined ? undefined : (await import('../../lib/frozen.ts')).frozenSlots(model);
   const v = V.verifyPlan(model, sched, { enforceMin: Boolean(args.values['enforce-min']), strict: Boolean(args.values.strict), items, ...(frozen ? { frozen } : {}) }), limit = verbose(args) ? 200 : 20;
+  // a person-sprint cell key (`Ben Cole S1`, from CAPACITY and the like) is the owner, fenced only when it is not an ordinary name, plus ours `S<n>`
+  const vkey = (k: string): string => { const m = !model.tickets.has(k) ? /^(.+) S(\d{1,6})$/.exec(k) : null; return m ? `${w(m[1], 60)} S${m[2]}` : w(k, 120); };
   const errors = v.filter((x) => !x.warn).length; // a BLOCKED row is a warning (exit 0) unless --strict
-  ctx.io.data?.({ ok: !errors, warnings: v.length - errors, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: w(x.key, 120), detail: dataText(x.detail) })), total: v.length },
+  ctx.io.data?.({ ok: !errors, warnings: v.length - errors, tickets: model.tickets.size, violations: v.slice(0, limit).map((x) => ({ code: w(x.code), key: vkey(x.key), detail: dataText(x.detail) })), total: v.length },
     { next: v.length ? nextList([nextCommand(['ticket', [(v[0] as (typeof v)[number]).key], '-v']), file === undefined ? 'plangraph check' : null]) : [] }); // v.length was checked
   if (!v.length) { ctx.io.out(`OK plan valid (${model.tickets.size} tickets)`); return 0; } // every ticket (unplaced sp: tasks included)
-  for (const l of R.bound(v.map((x) => `${w(x.code)} ${w(x.key, 120)} ${dataText(x.detail, 1000)}`), { limit })) ctx.io.out(l);
+  for (const l of R.bound(v.map((x) => `${w(x.code)} ${vkey(x.key)} ${dataText(x.detail, 1000)}`), { limit })) ctx.io.out(l);
   if (!errors) ctx.io.out(`OK plan valid (${model.tickets.size} tickets, ${v.length} warnings)`);
   return errors ? 1 : 0;
 }
