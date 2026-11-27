@@ -39,6 +39,8 @@ export interface ReadTextOpts { maxBytes?: number; bare?: boolean }
 export interface PlanStore {
   /** Rows of a kind (no row for a missing file). defaults: fill the schema defaults (default true). Unvalidated, as readRecords. */
   readKind(kind: Kind, opts?: { defaults?: boolean }): Row[];
+  /** Several kinds in one call, sharing one parse of the node files they live in (the rows come back in the order of `kinds`). */
+  readKinds(kinds: readonly Kind[], opts?: { defaults?: boolean }): Row[][];
   /** Rows of a kind checked by the kind's validator (or `validate`), as readJsonl: a bad row is a data error naming file and line. */
   readValidated(kind: Kind, opts?: { maxBytes?: number; maxLine?: number; validate?: ((r: Rec) => string | null) | undefined }): Row[];
   /** The text of a kind's file, capped; null when absent, a symlink refused. Refusals name the file unless bare (the reader's own message). JSONL only. */
