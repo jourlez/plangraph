@@ -74,3 +74,13 @@ test('spawnLines accepts a line just under the cap split over many chunks, and h
   assert.deepEqual(got, [819200, 10]);
   await assert.rejects(spawnLines(node, ['-e', prog], () => {}, { lineMax: 100000 }), (e: NodeJS.ErrnoException) => e.code === 'LINE_TOO_LONG');
 });
+test('spawnLines: a delimited token longer than lineMax inside one chunk raises LINE_TOO_LONG; a token exactly at lineMax passes', async () => {
+  const at: string[] = [];
+  await spawnLines(node, ['-e', "process.stdout.write('y'.repeat(1000)+'\\nz\\n')"], (l) => at.push(l.length === 1 ? l : String(l.length)), { lineMax: 1000 });
+  assert.deepEqual(at, ['1000', 'z'], 'exactly lineMax is accepted');
+  const got: string[] = [];
+  await assert.rejects(
+    spawnLines(node, ['-e', "process.stdout.write('y'.repeat(1001)+'\\nz\\n')"], (l) => got.push(l), { lineMax: 1000 }),
+    (e: NodeJS.ErrnoException) => e.code === 'LINE_TOO_LONG' && /line over 1000 bytes/.test(e.message));
+  assert.deepEqual(got, [], 'the oversized line is never delivered');
+});

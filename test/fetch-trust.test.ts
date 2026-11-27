@@ -36,6 +36,13 @@ test('a corrupt or hostile file trusts nothing and does not throw', () => {
     fs.writeFileSync(f, body);
     assert.equal(isTrusted(d, 'jira:ABC', e), false, body);
   }
+  // a file for THIS root with one bad target among good ones reads as empty: the good target is not trusted either
+  for (const bad of [5, 'https://example.invalid/x', 'jira:../x', 'jira:a\nb', ' jira:ABC']) {
+    fs.writeFileSync(f, JSON.stringify({ root: fs.realpathSync(d), targets: ['jira:ABC', bad] }));
+    assert.equal(isTrusted(d, 'jira:ABC', e), false, `one bad target (${JSON.stringify(bad)}) untrusts the whole list`);
+  }
+  fs.writeFileSync(f, JSON.stringify({ root: fs.realpathSync(d), targets: ['jira:ABC'] }));
+  assert.equal(isTrusted(d, 'jira:ABC', e), true, 'the same file without the bad target is read');
   trust(d, 'jira:ZED', e);
   assert.equal(isTrusted(d, 'jira:ZED', e), true);
 });

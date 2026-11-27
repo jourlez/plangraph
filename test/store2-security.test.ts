@@ -312,3 +312,13 @@ test('m5: appendEvent refuses an event whose by is not its actor (a reader would
   assert.throws(() => appendEvent(root, 'alice', { task: 'T-1', to: 'claimed', by: 'bob' }, { now: NOW, branch: 'main' }), /own actor/);
   assert.equal(fs.existsSync(path.join(root, 'events')), false);
 });
+
+test('m1: a node read at the path of another id is refused with the different-id reason; the same id is returned; a symlink is left to the transaction', async () => {
+  const { ownedNode } = await import('../lib/store2/nodes.ts');
+  const dir = tmp(), f = path.join(dir, 'nodes/ticket/aa/a~000000000000.pg');
+  assert.throws(() => ownedNode(dir, f, 'A', { node: { id: 'B' }, text: '' } as never), /\(it holds a different id\)/);
+  const same = { id: 'A', summary: 's' };
+  assert.equal(ownedNode(dir, f, 'A', { node: same, text: '' } as never), same);
+  assert.equal(ownedNode(dir, f, 'A', { problem: { code: 'SYMLINK' } } as never), null);
+  assert.throws(() => ownedNode(dir, f, 'A', { problem: { code: 'BAD_LINE' } } as never), /\(BAD_LINE\)/);
+});

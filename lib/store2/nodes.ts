@@ -81,7 +81,12 @@ function assertOwned(root: string, abs: string, id: string): Node | null {
   let present = true;
   try { fs.lstatSync(abs); } catch { present = false; }
   if (!present) return null;
-  const r = loadRaw(root, abs);
+  return ownedNode(root, abs, id, loadRaw(root, abs));
+}
+
+/** The decision of assertOwned on what was read at `abs` (split out so a test can feed a node whose id differs from the requested one; on disk that needs a
+ * 48-bit name-hash collision, because the file name carries the hash of the id inside). */
+export function ownedNode(root: string, abs: string, id: string, r: Raw): Node | null {
   if ('node' in r) { if (r.node.id !== id) refuseOccupied(root, abs, 'it holds a different id'); return r.node; }
   if (r.problem.code === 'SYMLINK') return null;
   return refuseOccupied(root, abs, r.problem.code);
