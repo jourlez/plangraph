@@ -159,3 +159,20 @@ export async function ingestGit(ctx: Pick<Ctx, 'root' | 'dir' | 'git' | 'now' | 
   write(`${head}\n${meta}\n${commits.map((c) => `${encode(c)}\n`).join('')}`, cursorFile);
   return { written: modules.length, cursor: head, commits: commits.length, incremental };
 }
+
+/** Subjects and bodies of the recent commits for the ticket linker (`ingest links`): `git log -z`, streamed, newest first, capped in count and
+ *  bytes. Messages are untrusted data: they are matched by lib/history/link.ts and never printed. No author, e-mail or file is read. */
+export async function readLinkCommits(ctx: Pick<Ctx, 'root'>, opts: { since: Date; max?: number }): Promise<Array<CommitFact & { message: string }>> {
+  const out: Array<CommitFact & { message: string }> = [];
+  const argv = ['-C', ctx.root, 'log', '-z', `--since=${Math.floor(opts.since.getTime() / 1000)}`, `--max-count=${opts.max ?? 20000}`, '--format=%H%x1f%cI%x1f%B', '--'];
+  try {
+    await spawnLines('git', argv, (tok) => {
+      const [sha, at, ...rest] = tok.replace(/^\n+/, '').split('\x1f');
+      if (sha && /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(sha) && at) out.push({ sha, at, author: '', files: [], message: rest.join('\x1f').slice(0, 4000) });
+    }, { delimiter: '\0', maxBytes: MAX_LOG_BYTES });
+  } catch (e) {
+    if ((e as { code?: string }).code === 'TOO_LARGE') throw e;
+    return out; // no commits yet or not a repository: nothing to link
+  }
+  return out;
+}

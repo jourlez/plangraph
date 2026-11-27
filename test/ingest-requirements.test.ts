@@ -16,7 +16,7 @@ test('EARS patterns become kind ears with source path#anchor', () => {
   assert.equal(w.status, 'proposed');
   assert.equal(w.text, 'When the user submits the form, the system shall validate it.');
   assert.equal(w.source, `${D}#forms`);
-  assert.equal(w.id, newId('requirement', `${D}#forms` + 'When the user submits the form, the system shall validate it.'.slice(0, 40)));
+  assert.equal(w.id, newId('requirement', 'forms' + 'When the user submits the form, the system shall validate it.'.slice(0, 40)));
   for (const s of ['While the report', 'Where a search index', 'If the index is missing, then']) assert.equal(byText(ns, s).kind, 'ears', s);
   assert.equal(byText(ns, 'The export service shall').kind, 'ears');
 });
@@ -46,9 +46,12 @@ test('ids are stable when sections are reordered', () => {
   assert.deepEqual(ids(b), ids(a));
 });
 
-test('different documents give different ids; same document twice gives same ids', () => {
+test('the document path is not part of the id seed: a moved document keeps its ids, other text gives other ids', () => {
   const a = parseRequirements(fx('requirements.md'), 'a.md'), b = parseRequirements(fx('requirements.md'), 'b.md');
-  assert.equal(new Set([...a, ...b].map((n) => n.id)).size, a.length + b.length);
+  assert.deepEqual(b.map((n) => n.id), a.map((n) => n.id));
+  assert.notDeepEqual(b.map((n) => n.source), a.map((n) => n.source));
+  const c = parseRequirements(fx('requirements.md').replace('When the user submits', 'When the admin submits'), 'a.md');
+  assert.equal(new Set([...a, ...c].map((n) => n.id)).size, a.length + 1);
   assert.deepEqual(parseRequirements(fx('requirements.md'), 'a.md'), a);
 });
 
