@@ -99,7 +99,7 @@ test('Repo (conf 1, why plan) and Files lines (through the repos paths) give tou
 
 test('Requirements become satisfies links only for ids of the id grammar (no existence check)', () => {
   const text = parsePlan(plan('**Requirements:** R-a1b2c3, nope\n', '**Requirements:** R-0a0b0c0d\n'), REL);
-  assert.deepEqual(text.links.requirements, ['R-a1b2c3']); assert.deepEqual(text.tasks[1]?.requirements, ['R-0a0b0c0d']);
+  assert.deepEqual(text.links?.requirements, ['R-a1b2c3']); assert.deepEqual(text.tasks[1]?.requirements, ['R-0a0b0c0d']);
   assert.ok(text.warnings.some((w) => /Requirements value not recorded/.test(w)));
   const r = ingestPlan({ plan: text, satisfies: true });
   assert.deepEqual(r.links.map((l) => [l.from, l.rel, l.to, l.to_type]), [['sp:slug', 'satisfies', 'R-a1b2c3', 'requirement'], ['sp:slug/2', 'satisfies', 'R-0a0b0c0d', 'requirement']]);

@@ -2,5 +2,5 @@ $ plangraph sp-ingest
 exit: 2
 --- stdout
 --- stderr
-error: usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N]
+error: usage: plangraph sp-ingest PLAN [--ledger FILE|none] [--owner NAME --sprint N] [--reassign]
 try: plangraph explain sp-ingest
