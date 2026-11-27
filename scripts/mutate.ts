@@ -167,6 +167,22 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/flow/state.ts", "now - at > (opts.claimDays ?? 7) * DAY", "now - at >= (opts.claimDays ?? 7) * DAY", ["test/flow-state.test.ts"]],
   ["lib/flow/state.ts", "if (to !== 'done') verified = false;", "", ["test/flow-state.test.ts"]],
   ["lib/flow/state.ts", "if (to === 'ready') state = null; else state = to;", "state = to;", ["test/flow-state.test.ts"]],
+  // 1.0 docs: regions and the D24 and data-class policy
+  ["lib/docs/policy.ts", "{ kind: 'email', re: /[^\\s@<>()]+@[a-z0-9-]+(?:\\.[a-z0-9-]+)+/i },", "", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "{ kind: 'url', re: /\\b[a-z][a-z0-9+.-]*:\\/\\/\\S+/i },", "", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "{ kind: 'host', re: /\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b/ },", "", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "const names = policy.include.has('names') ? [] :", "const names = false ? [] :", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "if (!isWordChar(line[i - 1]) && !isWordChar(line[i + w.length])) return true;", "return true;", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "const authors = policy.include.has('authors') ? [] :", "const authors =", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "typeof x === 'string' && CLASSES.includes(x)", "typeof x === 'string'", ["test/docs-policy.test.ts"]],
+  ["lib/docs/policy.ts", "{ kind: 'account', re: /\\b[0-9a-f]{24}\\b/ },", "", ["test/docs-policy.test.ts"]],
+  ["lib/docs/regions.ts", "if (edited && !opts.force) { refused.push({ id: r.id, reason: 'REGION_EDITED' }); continue; }", "", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", "if (edited && !opts.force) {", "if (edited) {", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", ".replaceAll(TAG, ESCAPED_TAG)", "", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", "const ESCAPED_TAG = '<!-- plangraph&#58;';", "const ESCAPED_TAG = '<!-- plangraph:';", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", "if (!edited && block.begin.fp === r.fp && block.begin.v === r.v) continue;", "", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", "if (sc.blocks.filter((b) => b.id === id).length > 1) return 'MARKER_DUPLICATE';", "", ["test/docs-regions.test.ts"]],
+  ["lib/docs/regions.ts", "if (bodyHash(bodyOf(sc, block)) !== block.begin.bh) return { id: r.id, status: 'edited' as const };", "", ["test/docs-regions.test.ts"]],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }
