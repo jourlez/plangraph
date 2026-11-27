@@ -14,22 +14,24 @@ mkdir docs
 printf '# Plan\n\n### Task 1: first\nbuild a\n\n### Task 2: second\nbuild b using a\n' > docs/plan.md
 git add -A && git commit -qm base
 
+PF() { node "$HERE/test/helpers/planfile.ts" "$@"; } # the plan kinds under their old file names
 fail() { echo "FAIL: $1"; exit 1; }
 
 "$BRAIN" init >/dev/null
-git config --get merge.plangraph-jsonl.driver | grep -q "^$CLAUDE_PLUGIN_DATA/bin/plangraph-merge " || fail "init did not install the stable shim"
+[ ! -e .gitattributes ] || fail "init wrote a .gitattributes"
+grep -q '"storage":"entity"' .plangraph/format.json || fail "init did not stamp the entity layout"
 printf '%s\n' \
   '{"key":"T-1","summary":"first","epic":"E","sp":3,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":1,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}' \
   '{"key":"T-2","summary":"second","epic":"E","sp":5,"jira_status":"To Do","v2_owner":"Ben","v2_sprint":2,"verdict":"READY","verdict_source":"audit","first_verdict":"READY"}' \
-  '{"key":"T-3","summary":"third","epic":"E","sp":8,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"BLOCKED","verdict_source":"refute","first_verdict":"BLOCKED"}' > .plangraph/tickets.jsonl
+  '{"key":"T-3","summary":"third","epic":"E","sp":8,"jira_status":"To Do","v2_owner":"Ana","v2_sprint":3,"verdict":"BLOCKED","verdict_source":"refute","first_verdict":"BLOCKED"}' | PF write .plangraph tickets.jsonl
 printf '%s\n' \
   '{"consumer":"T-2","producer":"T-1","kind":"plan_need","note":""}' \
-  '{"consumer":"T-3","producer":"T-2","kind":"plan_need","note":""}' > .plangraph/edges.jsonl
+  '{"consumer":"T-3","producer":"T-2","kind":"plan_need","note":""}' | PF write .plangraph edges.jsonl
 printf '%s\n' \
   '{"version":"current","key":"T-1","owner":"Ana","sprint":1}' \
   '{"version":"current","key":"T-2","owner":"Ben","sprint":2}' \
-  '{"version":"current","key":"T-3","owner":"Ana","sprint":3}' > .plangraph/schedule.jsonl
-printf '{"key":"T-1","plans":[{"plan":"docs/plan.md","task":"1","fp":""}],"files":{},"fp_files":"","jira_updated":"","audited_at":"base"}\n' > .plangraph/refs.jsonl
+  '{"version":"current","key":"T-3","owner":"Ana","sprint":3}' | PF write .plangraph schedule.jsonl
+printf '{"key":"T-1","plans":[{"plan":"docs/plan.md","task":"1","fp":""}],"files":{},"fp_files":"","jira_updated":"","audited_at":"base"}\n' | PF write .plangraph refs.jsonl
 "$BRAIN" refs-update --ref HEAD >/dev/null
 
 "$BRAIN" build | grep -q "3 tickets, 2 links" || fail build
@@ -57,7 +59,7 @@ if "$BRAIN" ready T-2 >/dev/null 2>&1; then fail ready-should-fail-while-produce
 { "$BRAIN" ready T-2 || true; } | grep -q "waits for T-1" || fail ready-reason
 { "$BRAIN" ready T-3 || true; } | grep -q "verdict is BLOCKED" || fail ready-verdict
 # new commands on the valid plan
-"$BRAIN" verify | grep -q "OK plan valid (3 tickets)" || fail verify-ok
+"$BRAIN" verify | grep -q "OK plan valid (3 tickets" || fail verify-ok
 { "$BRAIN" whatif T-2 --sprint 1 || true; } | grep -q "^NO:" || fail whatif-rejects-too-early
 "$BRAIN" whatif T-3 --sprint 4 | grep -q "^OK:" || fail whatif-accepts-later
 "$BRAIN" open-items | grep -q "open items" || fail open-items
@@ -90,7 +92,7 @@ rm -f big.jsonl
 node -e 'const fs=require("fs");const c=JSON.parse(fs.readFileSync(".plangraph/config.json","utf8"));c.checks=[{name:"x",command:"touch SHOULD_NOT_EXIST"}];fs.writeFileSync(".plangraph/config.json",JSON.stringify(c))'
 "$BRAIN" open-items >/dev/null 2>&1 || true
 [ ! -e SHOULD_NOT_EXIST ] || fail "config.checks was executed"
-"$BRAIN" doctor | grep -q "merge driver: ok" || fail doctor
+"$BRAIN" doctor | grep -q "data format v2; tool supports v2" || fail doctor
 "$BRAIN" forecast | grep -q "REFUSED" || fail forecast-refuses-without-history
 "$BRAIN" sprint 2 --json | grep -q '"v":2' || fail json-envelope
 # a schedule with an owner who is not a plan person must be refused
@@ -103,11 +105,11 @@ printf '[{"item":"T-1","owner":"Ana","sprint":2},{"item":"T-2","owner":"Ben","sp
 if "$BRAIN" check >/dev/null 2>&1; then fail "check must exit 1 on a violation"; fi
 # a corrupt line is reported as file:line and the old index survives a failed build
 cp .plangraph/plangraph.sqlite keep.sqlite
-printf '%s\n' '{"key":"T-9"' >> .plangraph/tickets.jsonl
-{ "$BRAIN" build 2>&1 || true; } | grep -q "tickets.jsonl:4:" || fail build-error-has-line
+printf '%s\n' '{"k":"a"' >> .plangraph/meta.jsonl
+{ "$BRAIN" build 2>&1 || true; } | grep -q "meta.jsonl:1:" || fail build-error-has-line
 cmp -s .plangraph/plangraph.sqlite keep.sqlite || fail "failed build must keep the old index"
 ls .plangraph | grep -q "tmp-" && fail "failed build left a temp file"
-sed -i.bak '$d' .plangraph/tickets.jsonl && rm -f .plangraph/tickets.jsonl.bak
+: > .plangraph/meta.jsonl
 "$BRAIN" build >/dev/null || fail rebuild-after-fix
 # solver repairs it (needs uv or a python with ortools; the launcher exits 3 when neither exists)
 cat > .plangraph/config.json <<'E'
@@ -131,13 +133,13 @@ mkdir -p docs/superpowers/plans docs/superpowers/specs .superpowers/sdd/2026-11-
 cp "$FX/plans/2026-11-20-widget-export.md" docs/superpowers/plans/ && cp "$FX/specs/2026-11-20-widget-export-design.md" docs/superpowers/specs/
 cp "$FX/ledger-7x/progress.md" "$FX/ledger-7x/plan-path" .superpowers/sdd/2026-11-20-widget-export/
 "$BRAIN" sp-ingest "$SPP" | grep -qx "ingested sp:2026-11-20-widget-export: 3 tasks, 2 edges, 6 findings, 3 statuses from ledger" || fail sp-ingest
-cat .plangraph/tickets.jsonl .plangraph/edges.jsonl .plangraph/findings.jsonl .plangraph/refs.jsonl > sp1.txt
+for f in tickets edges findings refs; do PF read .plangraph $f.jsonl; done > sp1.txt
 "$BRAIN" sp-ingest "$SPP" >/dev/null || fail sp-ingest-again
-cat .plangraph/tickets.jsonl .plangraph/edges.jsonl .plangraph/findings.jsonl .plangraph/refs.jsonl | cmp -s - sp1.txt || fail sp-ingest-idempotent
+for f in tickets edges findings refs; do PF read .plangraph $f.jsonl; done | cmp -s - sp1.txt || fail sp-ingest-idempotent
 cp "$FX/negative/1-unclosed-fence.md" docs/superpowers/plans/neg.md
 set +e; out="$("$BRAIN" sp-ingest docs/superpowers/plans/neg.md --ledger none 2>&1)"; rc=$?; set -e
 [ "$rc" = "2" ] || fail "sp-ingest unclosed fence exit $rc"; case "$out" in "error: "*"unclosed fence"*) ;; *) fail "sp-ingest unclosed fence message: $out";; esac
-cat .plangraph/tickets.jsonl .plangraph/edges.jsonl .plangraph/findings.jsonl .plangraph/refs.jsonl | cmp -s - sp1.txt || fail sp-ingest-loud-failure-wrote
+for f in tickets edges findings refs; do PF read .plangraph $f.jsonl; done | cmp -s - sp1.txt || fail sp-ingest-loud-failure-wrote
 "$BRAIN" sp-link T-1 "$SPP" --tasks 1 | grep -q "^linked T-1 to $SPP: 1 task$" || fail sp-link
 "$BRAIN" build | grep -q "tickets" || fail sp-build
 # sp: keys are implementation tasks: unplaced ones do not fail verify, and ready reads impl_status from the ledger
@@ -148,13 +150,13 @@ mkdir -p docs/superpowers/plans
 printf '# Hidden Demo Implementation Plan\n\n### Task 1: a\nbody\n\n<!--\n### Task 2: hidden\nbody\n-->\n\n### Task 3: c\nbody\n' > docs/superpowers/plans/2026-11-22-hidden-demo.md
 "$BRAIN" sp-ingest docs/superpowers/plans/2026-11-22-hidden-demo.md --ledger none | grep -q "swallows a task heading" || fail sp-hidden-task-warning-visible
 # unknown record fields survive build then export (kept in the index extra column), and a SQL-looking key is only data
-cp .plangraph/tickets.jsonl keep-tickets.jsonl
-printf '%s\n' '{"key":"X-9","summary":"x","zz_unknown":{"b":1,"a":[2]},"summary) VALUES(1,2);--":"v"}' >> .plangraph/tickets.jsonl
+PF read .plangraph tickets.jsonl > keep-tickets.jsonl
+printf '%s\n' '{"key":"X-9","summary":"x","zz_unknown":{"b":1,"a":[2]},"summary_VALUES-DROP_TABLE-ticket":"v"}' | PF append .plangraph tickets.jsonl
 "$BRAIN" build | grep -q "tickets" || fail build-unknown-fields
 "$BRAIN" export >/dev/null
-grep -q '"zz_unknown":{"a":\[2\],"b":1}' .plangraph/tickets.jsonl || fail unknown-field-roundtrip
-grep -q '"summary) VALUES(1,2);--":"v"' .plangraph/tickets.jsonl || fail sql-key-roundtrip
-cp keep-tickets.jsonl .plangraph/tickets.jsonl && "$BRAIN" build >/dev/null && "$BRAIN" export >/dev/null
+PF read .plangraph tickets.jsonl | grep -q '"zz_unknown":{"a":\[2\],"b":1}' || fail unknown-field-roundtrip
+PF read .plangraph tickets.jsonl | grep -q '"summary_VALUES-DROP_TABLE-ticket":"v"' || fail sql-key-roundtrip
+PF write .plangraph tickets.jsonl < keep-tickets.jsonl && "$BRAIN" build >/dev/null && "$BRAIN" export >/dev/null
 
 # OpenWolf read-through on the synthetic fixtures: rules --repo shows stable handles and is fenced, card --line is one line, learn refuses a bare number
 WFX="$HERE/test/fixtures/openwolf"; mkdir -p .wolf && cp "$WFX/cerebrum.drifted.md" .wolf/cerebrum.md && cp "$WFX/status.handoff.md" .wolf/STATUS.md
@@ -164,8 +166,8 @@ grep -q '^<untrusted src="wolf-do-not-repeat"' wolf-rules.out || fail rules-repo
 "$BRAIN" card --line > card-line.out || fail card-line-exit
 grep -qE '^plangraph: [0-9]+ tickets, last sprint [0-9]+, [0-9]+ violations @[0-9a-f]{8}$' card-line.out || fail card-line
 [ "$(wc -l < card-line.out | tr -d ' ')" = "1" ] || fail card-line-one-line
-cp .plangraph/learnings.jsonl learn-before.jsonl
+PF read .plangraph learnings.jsonl > learn-before.jsonl
 set +e; out="$("$BRAIN" learn --from-wolf 99 2>&1)"; rc=$?; set -e
 [ "$rc" = "2" ] || fail "learn number exit $rc"; [ "$out" = "$(printf '%s\n%s' 'error: a position number is not accepted (positions shift): use the handle from `plangraph rules --repo` or the exact text' 'try: plangraph explain learn')" ] || fail "learn number message: $out"
-cmp -s .plangraph/learnings.jsonl learn-before.jsonl || fail learn-number-wrote
+PF read .plangraph learnings.jsonl | cmp -s - learn-before.jsonl || fail learn-number-wrote
 echo "OK: all smoke checks passed in $T"

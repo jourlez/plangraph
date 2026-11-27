@@ -160,8 +160,8 @@ function fixtureRepo(tests: Record<string, string>) {
 }
 const head = "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { f } from '../lib/a.ts';\n";
 
-test('isSource accepts src/entry.js, src/merge-entry.js and src/floor.js, still refuses lib/x.js', () => {
-  for (const f of ['src/entry.js', 'src/merge-entry.js', 'src/floor.js', 'lib/x.ts']) assert.equal(isSource(f), true, f);
+test('isSource accepts src/entry.js and src/floor.js, still refuses lib/x.js', () => {
+  for (const f of ['src/entry.js', 'src/floor.js', 'lib/x.ts']) assert.equal(isSource(f), true, f);
   for (const f of ['lib/x.js', 'src/other.js', 'src/sub/entry.js', 'entry.js']) assert.equal(isSource(f), false, f);
 });
 

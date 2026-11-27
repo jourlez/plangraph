@@ -14,7 +14,8 @@ import type { Ctx, ContextOptions } from '../src/context.ts';
 import type { Command } from '../src/registry.ts';
 import type { FetchLike, JiraError } from '../lib/jira.ts';
 import type { Rec } from '../lib/store.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
+import { nodePath } from '../lib/store2/layout.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -40,17 +41,16 @@ function repo({ build = true }: { build?: boolean } = {}): string {
   return d;
 }
 
-// ---------- I1: a plan dir name with a newline or a pattern character never reaches .gitattributes ----------
-const EVIL_DIR = 'b\n* working-tree-encoding=UTF-16 merge=plangraph-jsonl\n#';
-test('I1: a committed .plangraphrc dir with a newline is refused; card --if-present --heal writes no .gitattributes', () => {
+// ---------- I1: a plan dir name with a newline or a pattern character is refused (it would reach hook output and printed lines) ----------
+const EVIL_DIR = 'b\n* working-tree-encoding=UTF-16\n#';
+test('I1: a committed .plangraphrc dir with a newline is refused; card --if-present --refresh prints and writes nothing', () => {
   const d = tmp(); git(d, 'init', '-q');
   fs.mkdirSync(path.join(d, EVIL_DIR));
   put(d, '.plangraphrc', JSON.stringify({ dir: EVIL_DIR }));
   put(d, 'README.md', 'hello\n');
-  const r = run(d, ['card', '--if-present', '--heal']);
+  const r = run(d, ['card', '--if-present', '--refresh']);
   assert.equal(r.status, 0); assert.equal(r.stdout, ''); assert.equal(r.stderr, '');
-  assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, 'no .gitattributes written');
-  assert.equal(git(d, 'check-attr', '-a', 'README.md'), '');
+  assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, 'no .gitattributes written (init writes none)');
   // outside the hook the same dir is refused with exit 4 and a fixed message that does not echo the name
   const b = run(d, ['build']);
   assert.equal(b.status, 4, b.stderr);
@@ -65,44 +65,9 @@ test('I1: --dir with a pattern character, whitespace or control character is ref
     assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, JSON.stringify(bad));
   }
   ok(run(d, ['init', '--dir', 'plan/plangraph-1.x']), 'a normal nested name still works');
-  assert.match(fs.readFileSync(path.join(d, '.gitattributes'), 'utf8'), /^plan\/plangraph-1\.x\/\*\.jsonl merge=plangraph-jsonl$/m);
+  assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false, 'init writes no .gitattributes');
+  assert.ok(fs.existsSync(path.join(d, 'plan/plangraph-1.x/format.json')));
 });
-test('I1: installMergeDriver refuses a dir outside [A-Za-z0-9._/-]', async () => {
-  const { installMergeDriver } = await import('../lib/store.ts');
-  const d = tmp(); git(d, 'init', '-q');
-  for (const bad of [EVIL_DIR, 'a b', 'a*', 'é', '']) assert.throws(() => installMergeDriver(d, { dir: bad, driverPath: '/x/plangraph-merge' }), /plan directory name/, JSON.stringify(bad));
-  assert.equal(fs.existsSync(path.join(d, '.gitattributes')), false);
-});
-
-// ---------- I2a: .gitattributes is read bounded: a symlink, FIFO or oversized file is refused, never followed or read whole ----------
-function badAttrs(d: string, kind: 'symlink' | 'fifo' | 'big') {
-  const ga = path.join(d, '.gitattributes');
-  fs.rmSync(ga, { force: true });
-  if (kind === 'symlink') { const target = path.join(tmp(), 'outside'); fs.writeFileSync(target, '.plangraph/*.jsonl merge=plangraph-jsonl\n'); fs.symlinkSync(target, ga); }
-  if (kind === 'fifo') execFileSync('mkfifo', [ga]);
-  if (kind === 'big') fs.writeFileSync(ga, `${'# filler line\n'.repeat(30000)}.plangraph/*.jsonl merge=plangraph-jsonl\n`);
-  return ga;
-}
-for (const kind of (['symlink', 'fifo', 'big'] as const)) {
-  test(`I2a: a ${kind} .gitattributes is refused by heal (silent, exit 0), doctor (exit 1, refused problem) and init (refused note)`, () => {
-    const d = repo({ build: false });
-    git(d, 'config', '--unset', 'merge.plangraph-jsonl.driver'); // doctor sees a problem, so heal tries to repair
-    const ga = badAttrs(d, kind), before = fs.lstatSync(ga);
-    const h = run(d, ['card', '--if-present', '--heal'], {}, { timeout: 15000 });
-    assert.equal(h.status, 0, `heal must not hang: ${h.signal}`); assert.equal(h.stdout, 'plangraph: plan data found in .plangraph but no index: run plangraph build\n'); // the first-use line, no card without an index assert.equal(h.stderr, '');
-    const doc = run(d, ['doctor'], {}, { timeout: 15000 });
-    assert.equal(doc.status, 1, `doctor: ${doc.signal} ${doc.stderr}`);
-    assert.match(doc.stdout, /merge driver: \.gitattributes refused: (it is a symlink|not a regular file|larger than 262144 bytes)/);
-    const init = run(d, ['init'], {}, { timeout: 15000 });
-    assert.equal(init.status, 0, `init: ${init.signal} ${init.stderr}`);
-    assert.match(init.stderr, /merge driver not installed: refusing to read \.gitattributes: (it is a symlink|not a regular file|larger than 262144 bytes)/);
-    const after_ = fs.lstatSync(ga);
-    // ino alone could miss a delete-then-create on ext4 (a freed inode number is reused at once); the ctime of a recreated entry is new
-    assert.equal(after_.ino, before.ino, 'the .gitattributes entry was not replaced'); assert.equal(after_.mtimeMs, before.mtimeMs);
-    assert.equal(after_.ctimeMs, before.ctimeMs, 'the .gitattributes entry was not replaced or changed');
-  });
-}
-
 // ---------- I2b: an index whose schema is not exactly ours (view, trigger, extra object or column) is refused before any query ----------
 const TICKET_COLS = 'key, summary, epic, sp, jira_status, v2_owner, v2_sprint, verdict, verdict_source, first_verdict, impl_status, extra';
 const TAMPER = {
@@ -248,9 +213,9 @@ test('I5: check, verify, sprint, ticket, neighbors, chain, simulate and export a
   assert.match(run(bare, ['check']).stdout, /^tickets 6 \|/);
   assert.match(run(bare, ['verify']).stdout, /^OK plan valid \(6 tickets\)$/m);
   ok(run(bare, ['export']), 'export');
-  const sched = fs.readFileSync(path.join(bare, '.plangraph/schedule.jsonl'), 'utf8');
+  const sched = readPlanFile(path.join(bare, '.plangraph'), 'schedule.jsonl');
   assert.ok(!sched.includes('"version":null'), sched);
-  assert.equal(sched, fs.readFileSync(path.join(twin, '.plangraph/schedule.jsonl'), 'utf8'), 'export writes the default it applied');
+  assert.equal(sched, readPlanFile(path.join(twin, '.plangraph'), 'schedule.jsonl'), 'export writes the default it applied');
   ok(run(bare, ['check']), 'check after export');
 });
 
@@ -299,19 +264,6 @@ test('I6: capOf and the minimum load read own finite numbers only', async () => 
   assert.equal(capOf({}, 'toString'), 140);
 });
 
-// ---------- I7: the merge driver prints keys, names and details as one sanitized line each ----------
-test('I7: plangraph-merge stderr carries no terminal escape and no forged line from a key or path', () => {
-  const d = tmp(), K = '\u001b]0;pwned\u0007X-1\n\u001b[31mFORGED: key line\u001b[0m';
-  const f = (n: string, s: string) => put(d, n, jl([{ key: K, summary: s }]));
-  const O = f('o', 'a'), A = f('a', 'b'), B = f('b', 'c');
-  const P = 'x\u001b[2J\nFORGED: path line/tickets.jsonl';
-  const r = spawnSync(process.execPath, [path.join(import.meta.dirname, '../bin/plangraph-merge'), O, A, B, P], { encoding: 'utf8', env: ENV });
-  assert.equal(r.status, 1, r.stderr);
-  assert.doesNotMatch(r.stderr, /[\u001b\u0007]/);
-  for (const l of r.stderr.split('\n')) assert.doesNotMatch(l, /^\s*FORGED/, JSON.stringify(l));
-  assert.match(r.stderr, /^plangraph-merge: 1 conflict\(s\) in x FORGED: path line\/tickets\.jsonl; resolve/);
-});
-
 // ---------- I8: per-line parse errors are bounded: the first 10 and a counter, never one stderr line per bad input line ----------
 test('I8: open-items --findings with millions of bad lines prints at most 11 error lines; forecast history errors likewise', () => {
   const d = repo();
@@ -347,13 +299,13 @@ test('M1: fence() and errText neutralize fence tags (fence() linearity: test/sec
 // ---------- M2: an internal error never prints the absolute repository path ----------
 test('M2: internal errors name paths relative to the repository root', { skip: process.getuid?.() === 0 ? 'root ignores file modes' : false }, () => {
   const d = repo(), b = path.join(d, '.plangraph');
-  fs.chmodSync(path.join(b, 'edges.jsonl'), 0o000);
+  fs.chmodSync(path.join(b, 'meta.jsonl'), 0o000); // meta.jsonl is the one plan file that stays a plain file
   try {
     const r = run(d, ['build']);
     assert.equal(r.status, 5, r.stderr);
     assert.ok(!r.stderr.includes(d), r.stderr);
-    assert.match(r.stderr, /^error: internal error: EACCES: permission denied, open '\.\/\.plangraph\/edges\.jsonl'$/m);
-  } finally { fs.chmodSync(path.join(b, 'edges.jsonl'), 0o644); }
+    assert.match(r.stderr, /^error: internal error: EACCES: permission denied, open '\.\/\.plangraph\/meta\.jsonl'$/m);
+  } finally { fs.chmodSync(path.join(b, 'meta.jsonl'), 0o644); }
 });
 
 // ---------- M3: build then export reproduces canonical text byte for byte; a value a column cannot hold is a data error ----------
@@ -374,44 +326,38 @@ test('M3: canonical text with optional fields absent, explicit nulls and numbers
     'meta.jsonl': [{ k: 'version', v: 3 }, { k: 'name', v: 'x' }, { k: 'none' }],
   };
   const canon: Record<string, string> = {};
-  for (const [f, rows] of Object.entries(files)) { canon[f] = S.canonFile(rows as Rec[] /* plain record objects */, S.SCHEMAS[f]); fs.writeFileSync(path.join(b, f), canon[f]); }
+  for (const [f, rows] of Object.entries(files)) { canon[f] = S.canonFile(rows as Rec[] /* plain record objects */, S.SCHEMAS[f]); fs.writeFileSync(path.join(b, f), canon[f]); if (f !== 'meta.jsonl') writePlanFile(b, f, canon[f]); }
   ok(run(d, ['build']), 'build'); ok(run(d, ['export']), 'export');
-  for (const f of Object.keys(files)) assert.equal(fs.readFileSync(path.join(b, f), 'utf8'), canon[f], f);
+  for (const f of Object.keys(files)) assert.equal(f === 'meta.jsonl' ? fs.readFileSync(path.join(b, f), 'utf8') : readPlanFile(b, f), canon[f], f);
   ok(run(d, ['build']), 'build again'); ok(run(d, ['export']), 'export again');
-  for (const f of Object.keys(files)) assert.equal(fs.readFileSync(path.join(b, f), 'utf8'), canon[f], `${f} (second round)`);
+  for (const f of Object.keys(files)) assert.equal(f === 'meta.jsonl' ? fs.readFileSync(path.join(b, f), 'utf8') : readPlanFile(b, f), canon[f], `${f} (second round)`);
   assert.match(run(d, ['ticket', 'N-2']).stdout, /<untrusted n="[0-9a-f]{8}">123<\/untrusted>$/m, 'queries see the number as text');
 });
 test('M3: a boolean, object or array in a known text column is a data error naming the file and line only', () => {
   const d = repo({ build: false }), b = path.join(d, '.plangraph');
   for (const [f, line, field] of [['tickets.jsonl', '{"key":"Z-1","summary":true}', 'summary'], ['tickets.jsonl', '{"key":"Z-1","epic":{"secret":"SECRET-VALUE"}}', 'epic'], ['meta.jsonl', '{"k":"a","v":[1]}', 'v'], ['evidence.jsonl', '{"key":"Z-1","source":false,"verdict":"x"}', 'source']]) {
-    const before = fs.readFileSync(path.join(b, f), 'utf8');
-    fs.writeFileSync(path.join(b, f), `\n${line}\n`);
+    const plain = f === 'meta.jsonl', before = plain ? fs.readFileSync(path.join(b, f), 'utf8') : readPlanFile(b, f); // meta.jsonl is a plain file; every other kind is read in its canonical text, line 1
+    if (plain) fs.writeFileSync(path.join(b, f), `\n${line}\n`); else writePlanFile(b, f, `${line}\n`);
     const r = run(d, ['build']);
     assert.equal(r.status, 2, `${f}: ${r.stderr}`);
-    assert.equal(r.stderr, `error: ${f}:2: "${field}" must be a string or a number\ntry: plangraph doctor\n`);
-    fs.writeFileSync(path.join(b, f), before);
+    assert.equal(r.stderr, `error: ${f}:${plain ? 2 : 1}: "${field}" must be a string or a number\ntry: plangraph doctor\n`);
+    if (plain) fs.writeFileSync(path.join(b, f), before); else writePlanFile(b, f, before);
   }
 });
 
 // ---------- M4: every reader of the plan data files refuses a symlinked file, as build does ----------
-test('M4: stale, units --stale, card --line, open-items, ready and report refuse a symlinked data file (exit 2) and never read its target', () => {
+test('M4: stale, units --stale, card --line, open-items, ready and report skip a symlinked node file (a SYMLINK problem, exit 0) and never read its target', () => {
   const d = repo(), b = path.join(d, '.plangraph'), out = tmp();
   git(d, 'add', '-A'); git(d, 'commit', '-qm', 'base');
-  const link = (name: string, text: string) => { const t = put(out, name, text); fs.rmSync(path.join(b, name), { force: true }); fs.symlinkSync(t, path.join(b, name)); };
-  link('refs.jsonl', jl([{ key: 'OUT-1', plans: [], files: {}, fp_files: '', jira_updated: '', audited_at: '' }]));
-  for (const c of [['stale'], ['units', '--stale', '--out', 'u'], ['card', '--line']]) {
+  const link = (kind: string, id: string, text: string) => { const f = nodePath(b, kind, id), t = put(out, `${kind}.pg`, text); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.symlinkSync(t, f); };
+  link('ticket', 'OUT-1', 'id "OUT-1"\nsummary "OUTSIDE-TEXT"\nplans {"plan":"x.md","task":"1"}\n');
+  link('openitem', 'T-1|gap', 'id "T-1|gap"\nkey "T-1"\nkind "gap"\nowner "Ana"\nstatus "open"\ntext "OUTSIDE-TEXT"\n');
+  for (const c of [['stale'], ['units', '--stale', '--out', 'u'], ['card', '--line'], ['open-items'], ['ready', 'T-1'], ['report', '--out', '.']]) {
     const r = run(d, c);
-    assert.equal(r.status, 2, `${c.join(' ')}: ${r.stdout} ${r.stderr}`);
-    assert.match(r.stderr, /^error: refs\.jsonl: is a symlink, not a regular file$/m, c.join(' '));
+    assert.ok(!(r.stdout + r.stderr).includes('OUTSIDE-TEXT') && !(r.stdout + r.stderr).includes('OUT-1'), `${c.join(' ')}: the target was read`);
   }
-  fs.rmSync(path.join(b, 'refs.jsonl'));
-  link('open-items.jsonl', jl([{ key: 'T-1', kind: 'gap', owner: 'Ana', due_sprint: 1, status: 'open', text: 'OUTSIDE-TEXT' }]));
-  for (const c of [['open-items'], ['ready', 'T-1'], ['report', '--out', '.']]) {
-    const r = run(d, c);
-    assert.equal(r.status, 2, `${c.join(' ')}: ${r.stdout} ${r.stderr}`);
-    assert.match(r.stderr, /^error: open-items\.jsonl: is a symlink, not a regular file$/m, c.join(' '));
-    assert.ok(!r.stdout.includes('OUTSIDE-TEXT'));
-  }
+  const c = run(d, ['check']);
+  assert.equal(c.status, 1); assert.match(c.stdout, /^error: SYMLINK nodes\/ticket\//m); assert.match(c.stdout, /^error: SYMLINK nodes\/openitem\//m);
 });
 
 // ---------- M5: Jira ADF and responses are untrusted: heading level clamped, bad content a data error, body size capped ----------

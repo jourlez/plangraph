@@ -4,7 +4,6 @@
 import test from 'node:test';
 import { assureVerify } from './assure/verify.assure.ts';
 import { assureWhatif } from './assure/whatif.assure.ts';
-import { assureMerge } from './assure/merge.assure.ts';
 import { assureStale } from './assure/stale.assure.ts';
 import { assureReady, assureReadyBulk } from './assure/ready.assure.ts';
 import { assureForecast } from './assure/forecast.assure.ts';
@@ -16,7 +15,6 @@ const props: Array<[string, () => unknown]> = [
   ['(a) verifyPlan == oracle', () => assureVerify('quick')],
   ['(b) CLI check and verify agree', () => assureCli('quick')],
   ['(c) whatif verdicts and repairs', () => assureWhatif('quick')],
-  ['(d) three-way merge', () => assureMerge('quick')],
   ['(e) stale closure', () => assureStale('quick')],
   ['(f) can start today', () => assureReady('quick')],
   ['(f) bulk ready', () => assureReadyBulk('quick')],

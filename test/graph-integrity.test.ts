@@ -68,24 +68,19 @@ test('build prints violations on stderr and exits 0; check exits 1 on an error a
   assert.equal((await run(w, ['check'])).code, base);
 });
 
-test('build exits 2 on XREF_BAD_ID, LINK_DERIVED_REL and DUPLICATE_NODE', async () => {
+test('build exits 2 on XREF_BAD_ID and LINK_DERIVED_REL (a duplicate id cannot be written in the entity layout: check reports DUPLICATE_ID)', async () => {
   for (const [f, rows, code] of [
     ['xrefs.jsonl', [{ type: 'ticket', id: 'T-1', sys: 'jira', xid: 'a..b' }], 'XREF_BAD_ID'],
     ['links.jsonl', [{ from: 'T-1', from_type: 'ticket', rel: 'needs', to: 'T-2', to_type: 'ticket' }], 'LINK_DERIVED_REL'],
-    ['people.jsonl', [{ id: 'Ana', name: 'a' }, { id: 'Ana', name: 'b' }], 'DUPLICATE_NODE'],
   ] as const) {
     const d = copy(); put(d, f, rows);
     assert.equal((await run(d, ['build'])).code, 2, code);
   }
 });
 
-test('doctor: duplicate-id fix line, count and check hint only above 0, ext ignored, capacity warning; v1-only unchanged', async () => {
+test('doctor: count and check hint only above 0, ext ignored, capacity warning; v1-only unchanged', async () => {
   const base = await run(copy(), ['doctor']);
   assert.ok(!flat(base).some((l) => /integrity|ext ignored|capacity/.test(l)));
-  const dup = copy(); put(dup, 'people.jsonl', [{ id: 'Ana', name: 'a' }, { id: 'Ana', name: 'b' }]);
-  const r = await run(dup, ['doctor']);
-  assert.ok(r.out.some((l) => l.includes('people.jsonl:2: duplicate id Ana')), r.out.join('\n'));
-  assert.ok(r.out.some((l) => /keep one row, then run plangraph build/.test(l)));
   const v = copy(); put(v, 'sprints.jsonl', sprints); put(v, 'links.jsonl', [link('Zed', 'person'), { from: 'a', from_type: 'x-gh.pr', rel: 'x-gh/closes', to: 'T-1', to_type: 'ticket' }]);
   const rv = await run(v, ['doctor']);
   assert.ok(flat(rv).includes('graph integrity: 2 violations; run `plangraph check` to list them'));

@@ -16,7 +16,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { buildIndex, openIndex, stampContent, IndexHandle, INDEX_FILE } from '../src/db.ts';
 import { PlangraphError } from '../src/errors.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, writePlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
@@ -32,8 +32,8 @@ function repo() {
   execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl([{ key: 'T-1', summary: 'one', sp: 3, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));
-  fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
+  writePlanFile(b, 'tickets.jsonl', jl([{ key: 'T-1', summary: 'one', sp: 3, v2_owner: 'Ana', v2_sprint: 1 }, { key: 'T-2', summary: 'two', sp: 2, v2_owner: 'Ana', v2_sprint: 1 }]));
+  writePlanFile(b, 'schedule.jsonl', jl([{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }, { version: 'current', key: 'T-2', owner: 'Ana', sprint: 2 }]));
   adoptPlanDir(b);
   assert.equal(run(d, ['build']).status, 0);
   return { d, b, file: path.join(b, INDEX_FILE) };
@@ -151,23 +151,23 @@ test('normal index writes leave no sidecar: build, read-only opens, whatif --wri
   { using h = openIndex(file, { dir: b }); assert.equal(h.stale, false); }
 });
 
-const IGNORE = ['*.sqlite', '*.sqlite-journal', '*.sqlite-wal', '*.sqlite-shm'];
-test('init writes the sidecar ignore lines; on an existing .gitignore it appends only the missing ones and keeps every user line', () => {
+const IGNORE = ['cache/', 'plangraph.sqlite*', '.txn/'];
+test('init writes the cache, index and staging ignore lines; on an existing .gitignore it appends only the missing ones and keeps every user line', () => {
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal(run(d, ['init']).status, 0);
   const gi = path.join(d, '.plangraph', '.gitignore');
   assert.equal(fs.readFileSync(gi, 'utf8'), `${IGNORE.join('\n')}\n`);
-  fs.writeFileSync(gi, '# mine\r\n*.sqlite\r\n*.sqlite-wal\r\nCARD.md');
+  fs.writeFileSync(gi, '# mine\r\ncache/\r\nCARD.md');
   const r = run(d, ['init']); assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.split('\n')[0], 'already initialised: .plangraph (added *.sqlite-journal, *.sqlite-shm to .gitignore)');
-  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\r\n*.sqlite\r\n*.sqlite-wal\r\nCARD.md\r\n*.sqlite-journal\r\n*.sqlite-shm\r\n');
+  assert.equal(r.stdout.split('\n')[0], 'already initialised: .plangraph (added plangraph.sqlite*, .txn/ to .gitignore)');
+  assert.equal(fs.readFileSync(gi, 'utf8'), '# mine\r\ncache/\r\nCARD.md\r\nplangraph.sqlite*\r\n.txn/\r\n');
   assert.equal(run(d, ['init']).stdout.split('\n')[0], 'already initialised: .plangraph (no changes)');
   // a sidecar is really ignored by git now
   fs.writeFileSync(path.join(d, '.plangraph', `${INDEX_FILE}-journal`), 'x');
   assert.equal(execFileSync('git', ['status', '--porcelain', '--untracked-files=all', '--', '.plangraph'], { cwd: d, encoding: 'utf8' }).includes('journal'), false);
 });
 
-test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and a .gitignore without the sidecar lines', () => {
+test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and a .gitignore without the derived-file lines', () => {
   const { d, b, file } = repo(), home = tmp();
   const r0 = run(d, ['doctor'], { HOME: home });
   assert.equal(r0.status, 0, r0.stdout); assert.doesNotMatch(r0.stdout, /sidecar|journal/);
@@ -178,7 +178,7 @@ test('doctor warns about a sidecar beside the index, a git-tracked sidecar, and 
   execFileSync('git', ['add', '-f', '.plangraph/plangraph.sqlite-journal'], { cwd: d });
   r = run(d, ['doctor'], { HOME: home });
   assert.match(r.stdout, /^warning: tracked journal: \.plangraph\/plangraph\.sqlite-journal is committed; untrack it with `git rm --cached \.plangraph\/plangraph\.sqlite-journal`$/m);
-  fs.writeFileSync(path.join(b, '.gitignore'), '*.sqlite\n');
+  fs.writeFileSync(path.join(b, '.gitignore'), 'cache/\n');
   r = run(d, ['doctor'], { HOME: home });
-  assert.match(r.stdout, /^warning: \.plangraph\/\.gitignore does not ignore the SQLite journal files \(\*\.sqlite-journal, \*\.sqlite-wal, \*\.sqlite-shm\): run `plangraph init` to add the missing lines$/m);
+  assert.match(r.stdout, /^warning: \.plangraph\/\.gitignore does not ignore the derived files \(cache\/, plangraph\.sqlite\*, \.txn\/\): run `plangraph init` to add the missing lines$/m);
 });

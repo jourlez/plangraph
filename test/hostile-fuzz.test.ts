@@ -59,7 +59,7 @@ async function makeFixture(root: string) {
     T({ key: 'H-1', summary: M('summary1'), epic: M('epic'), sp: 3, jira_status: M('jirastatus'), v2_owner: OWNER, v2_sprint: 1, verdict: M('verdict'), verdict_source: M('vsource'), first_verdict: M('fverdict') }),
     T({ key: 'H-2', summary: M('summary2'), sp: 2, v2_owner: 'Ana', v2_sprint: 2, verdict: 'READY' }),
     T({ key: 'H-3', summary: M('summary3'), sp: 2, v2_owner: 'Ana', v2_sprint: 3, verdict: M('verdict3'), impl_status: 'in_progress' }),
-    T({ key: KEY, summary: M('summary4'), sp: 1, v2_owner: OWNER, v2_sprint: 2, verdict: M('verdict4'), [M('ticketextra')]: M('ticketextraval') }),
+    T({ key: KEY, summary: M('summary4'), sp: 1, v2_owner: OWNER, v2_sprint: 2, verdict: M('verdict4'), ticketextra: M('ticketextraval') }),
   ]));
   put(root, B + 'edges.jsonl', jl([
     { consumer: 'H-2', producer: 'H-1', kind: M('edgekind'), note: M('edgenote') }, { consumer: 'H-3', producer: KEY, kind: 'plan_need', note: '' }, { consumer: KEY, producer: 'H-1', kind: 'plan_need', note: '' },
@@ -77,7 +77,7 @@ async function makeFixture(root: string) {
     { key: KEY, plans: [], files: {}, fp_files: '', jira_updated: '', audited_at: 'base' },
   ]));
   put(root, B + 'open-items.jsonl', jl([
-    { key: 'H-2', kind: OIKIND, owner: M('oiowner'), due_sprint: 2, status: 'open', text: M('oitext'), source: 'manual', [M('oiextra')]: M('oiextraval') },
+    { key: 'H-2', kind: OIKIND, owner: M('oiowner'), due_sprint: 2, status: 'open', text: M('oitext'), source: 'manual', oiextra: M('oiextraval') },
     { key: 'H-1', kind: 'closedkind', owner: M('oiowner2'), due_sprint: 1, status: 'done', text: M('oitext2'), closed_at: M('closedat'), closed_by: M('closedby'), close_note: M('closenote'), source: 'manual' },
   ]));
   put(root, B + 'history.jsonl', jl([30, 34, 28, 36, 31].map((d, i) => ({ sprint: i + 1, planned: 40, done: d, added: 2, carried: 42 - d, note: M(`hist${i}`) }))));

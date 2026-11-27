@@ -1,5 +1,5 @@
 $ plangraph stale --ref HEAD
 exit: 0
 --- stdout
-stale vs HEAD (1355a1d): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
+stale vs HEAD (<SHA7>): 21 of 21 need re-audit {"plan":1,"files":1,"producer_changed":20} | not checked: jira
 --- stderr

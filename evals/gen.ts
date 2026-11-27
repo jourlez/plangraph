@@ -55,7 +55,7 @@ export function buildWorld(size: string) {
   const fo = keys.slice(Math.floor(keys.length / 3)).find((k) => T.get(k).verdict === 'READY' && T.get(k).jira_status === 'To Do' && (prods.get(k) || []).length > 0 && (prods.get(k) || []).every((p: string) => T.get(p).jira_status === 'Done') && !findings.some((f) => f.key === k));
   if (fo) findings.push({ key: fo, kind: 'model_clash', text: 'two tickets define the same model' });
   const ac = findings.filter((f) => f.kind === 'missing_ac');
-  if (ac[1]) items.push({ id: 'OI-0001', key: ac[1].key, kind: 'missing_ac', owner: sched.get(ac[1].key).owner, status: 'done', text: 'written down in review' });
+  if (ac[1]) items.push({ key: ac[1].key, kind: 'missing_ac', owner: sched.get(ac[1].key).owner, status: 'done', text: 'written down in review' });
   const m = buildModel({ tickets: [...T.values()], edges: plan.edges, schedule: plan.schedule, config: plan.config, findings }) as GModel; // see TotalMap
   const st = makeStale(m, { leaves: size === 'S' ? 2 : 3, maxClosure: 3, maxStale: size === 'L' ? 15 : 12 });
   const files = {

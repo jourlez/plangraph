@@ -9,17 +9,17 @@
 //   schedule           schedules/<version>.jsonl (immutable, all rows of the schedule in one version) plus schedules/CURRENT
 //   evidence findings learnings   sealed run files (runs/<evidence|findings|learnings>/<yyyy-mm>/<h8>.jsonl)
 //   openitem           nodes/openitem/ keyed `<key>|<kind>`; the status and any other column are fields
-//   meta               meta.jsonl, unchanged (the JsonlStore reads and writes it)
+//   meta               meta.jsonl, unchanged (a single canonical file: MetaFile below)
 // Every column is kept. A node that exists only to hold a part of another kind (a ref without a ticket row, a link whose source has no row) carries
 // `primary false`; a node that holds a ref row lists its stored names in `refcols` (a column whose name a ticket field already uses is stored as
-// `ref_<column>` and named in `refmap`). readKind returns what the JsonlStore returns for the same rows: canonical order, schema defaults.
+// `ref_<column>` and named in `refmap`). readKind returns the rows in canonical order with the schema defaults.
 import fs from 'node:fs';
 import path from 'node:path';
-import { canonFile, SCHEMAS, withDefaults, parseJsonlText } from '../store.ts';
-import type { Schema } from '../store.ts';
-import { kindFile, JsonlStore, precheckTargets } from '../planstore.ts';
+import { canonFile, readRecords, SCHEMAS, withDefaults, parseJsonlText } from '../store.ts';
+import type { Schema, Rec } from '../store.ts';
+import { kindFile, precheckTargets, refuseWrite, writeState } from '../planstore.ts';
 import type { Kind, PlanStore, Row, WriteOpts, WriteResult, ReadTextOpts, StoreCtx } from '../planstore.ts';
-import { IngestError, parseJsonl } from '../jsonl.ts';
+import { IngestError, parseJsonl, readJsonl, readDataCapped, presentDataFile, DATA_REFUSALS } from '../jsonl.ts';
 import { validators } from '../schema.ts';
 import { assertInside } from '../fsafe.ts';
 import { listNodeFiles, loadRaw } from './nodes.ts';
@@ -126,12 +126,48 @@ class Model {
   inDir(dirs: readonly string[]): Entry[] { return [...this.entries.values()].filter((e) => dirs.includes(e.dir)); }
 }
 
+// ---------- meta.jsonl: the one plan file that stays a single canonical file ----------
+const MAX = 64 * 1024 * 1024;
+type Coded = Error & { code?: string };
+class MetaFile {
+  readonly ctx: StoreCtx;
+  readonly name = kindFile('meta');
+  constructor(ctx: StoreCtx) { this.ctx = ctx; }
+  get path(): string { return path.join(this.ctx.dir, this.name); }
+  rows(defaults: boolean): Row[] { return readRecords(this.ctx.dir, this.name, { defaults }); }
+  validated(validate: ((r: Rec) => string | null) | undefined): Row[] { return readJsonl(this.path, { validate }); }
+  text(maxBytes = MAX, bare = false): string | null {
+    if (!presentDataFile(this.path)) return null; // a symlink is refused, as in build
+    try { return readDataCapped(this.path, maxBytes); }
+    catch (e) { if (!bare && DATA_REFUSALS.has((e as Coded).code as string)) throw new IngestError(`${this.name}: ${(e as Coded).message}`); throw e; } // whatever was thrown: a code it lacks is not a refusal
+  }
+  source(maxBytes: number): string | null {
+    // a source file is a regular file inside the plan directory: a symlink (even to a file outside the repo) is refused before any read
+    let st = null; try { st = fs.lstatSync(this.path); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // fs throws errno errors
+    if (st?.isSymbolicLink()) throw new IngestError(`${this.name}: is a symlink, not a regular file`);
+    try { return readDataCapped(this.path, maxBytes); } // O_NOFOLLOW + dev/ino check: no swap after the lstat
+    catch (e) { // fs errno errors and readDataCapped's coded refusals
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      if (DATA_REFUSALS.has((e as { code: string }).code)) throw new IngestError(`${this.name}: ${(e as Error).message}`);
+      throw e;
+    }
+  }
+  write(text: string, precheck: boolean): WriteResult {
+    if (precheck) precheckTargets(this.ctx, [this.path]);
+    writeState(this.ctx, this.path, text);
+    return { kind: 'meta', file: this.name, bytes: Buffer.byteLength(text) };
+  }
+  exists(): boolean { return fs.existsSync(this.path); }
+}
+
 const canonRows = (kind: Kind, rows: readonly Row[]): Row[] => parseJsonlText(canonFile(rows, SCHEMAS[kindFile(kind)] as Schema), kindFile(kind));
 
 export class EntityStore implements PlanStore {
   readonly ctx: StoreCtx;
-  readonly #j: JsonlStore;
-  constructor(ctx: StoreCtx) { this.ctx = ctx; this.#j = new JsonlStore(ctx); }
+  readonly #m: MetaFile;
+  readonly #txn: { durable?: boolean };
+  /** durable: false skips the fsync of staged files (the fixture conversion in lib/store2/adopt.ts); every other caller keeps the default. */
+  constructor(ctx: StoreCtx, { durable = true }: { durable?: boolean } = {}) { this.ctx = ctx; this.#m = new MetaFile(ctx); this.#txn = durable ? {} : { durable: false }; }
   get #dir(): string { return this.ctx.dir; }
 
   // ---------- reading ----------
@@ -159,13 +195,13 @@ export class EntityStore implements PlanStore {
   }
 
   readKind(kind: Kind, { defaults = true }: { defaults?: boolean } = {}): Row[] {
-    if (kind === 'meta') return this.#j.readKind(kind, { defaults });
+    if (kind === 'meta') return this.#m.rows(defaults);
     const rows = canonRows(kind, this.#raw(kind));
     return defaults ? rows.map((r) => withDefaults(SCHEMAS[kindFile(kind)] as Schema, r)) : rows;
   }
 
   readValidated(kind: Kind, { validate }: { maxBytes?: number; maxLine?: number; validate?: ((r: Row) => string | null) | undefined } = {}): Row[] {
-    if (kind === 'meta') return this.#j.readValidated(kind, validate ? { validate } : {});
+    if (kind === 'meta') return this.#m.validated(validate);
     const file = kindFile(kind), check = validate ?? validators[file];
     return parseJsonl(this.#asText(kind), file, { validate: check });
   }
@@ -173,12 +209,12 @@ export class EntityStore implements PlanStore {
   #asText(kind: Kind): string { return canonFile(this.readKind(kind, { defaults: false }), SCHEMAS[kindFile(kind)] as Schema); }
 
   readText(kind: Kind, opts: ReadTextOpts = {}): string | null {
-    if (kind === 'meta') return this.#j.readText(kind, opts);
+    if (kind === 'meta') return this.#m.text(opts.maxBytes, opts.bare);
     return this.exists(kind) ? this.#asText(kind) : null;
   }
 
   readSource(kind: Kind, maxBytes: number): string | null {
-    if (kind === 'meta') return this.#j.readSource(kind, maxBytes);
+    if (kind === 'meta') return this.#m.source(maxBytes);
     if (!this.exists(kind)) return null;
     const t = this.#asText(kind);
     if (Buffer.byteLength(t) > maxBytes) throw new IngestError(`${kindFile(kind)}: file too large (limit ${maxBytes} bytes)`);
@@ -186,21 +222,30 @@ export class EntityStore implements PlanStore {
   }
 
   // ---------- writing ----------
-  #mutate(kind: Kind, fn: (m: Model) => void): number {
-    const m = new Model(this.#dir, DIRS[kind] as readonly string[]);
+  #mutate(kinds: readonly Kind[], fn: (m: Model) => void): number {
+    const m = new Model(this.#dir, [...new Set(kinds.flatMap((k) => DIRS[k] as readonly string[]))]);
     fn(m);
     const changes: Array<{ rel: string; text: string | null }> = [];
     for (const e of m.entries.values()) {
       const t = encode(e);
       if (t !== e.text) changes.push({ rel: path.relative(this.#dir, nodePath(this.#dir, e.dir, e.id)), text: t });
     }
-    if (changes.length) withTxn(this.#dir, (tx) => { for (const c of changes) { if (c.text === null) tx.remove(c.rel); else tx.write(c.rel, c.text); } });
+    if (changes.length) withTxn(this.#dir, (tx) => { for (const c of changes) { if (c.text === null) tx.remove(c.rel); else tx.write(c.rel, c.text); } }, this.#txn);
     return changes.length;
   }
 
-  #replace(kind: Kind, rows: readonly Row[]): void {
+  #replace(kind: Kind, rows: readonly Row[]): void { this.#mutate([kind], (m) => this.#apply(m, kind, rows)); }
+
+  /** Writes several node kinds in one pass over the node files and one transaction (a bulk conversion reads and rewrites each node once, not once per kind). */
+  writeKinds(entries: ReadonlyArray<readonly [Kind, readonly Row[]]>): void {
+    const kinds = entries.map(([k]) => k);
+    for (const k of kinds) if (k === 'meta' || k === 'schedule' || RUN_NAMES[k]) throw new TypeError(`${k} is not a node kind: write it with writeKind`);
+    this.#mutate(kinds, (m) => { for (const [k, rows] of entries) this.#apply(m, k, canonRows(k, rows)); });
+  }
+
+  #apply(m: Model, kind: Kind, rows: readonly Row[]): void {
     const dirs = DIRS[kind] as readonly string[];
-    this.#mutate(kind, (m) => {
+    {
       const clear = (fn: (p: Parts) => void) => { for (const e of m.inDir(dirs)) fn(e.parts); };
       if (kind in PRIMARY) {
         const pr = PRIMARY[kind] as (typeof PRIMARY)[string];
@@ -218,28 +263,28 @@ export class EntityStore implements PlanStore {
       } else if (kind === 'link') {
         clear((p) => { p.links = []; });
         for (const r of rows) {
-          const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'the from field of a link')), line = without(r, ['from', 'from_type']);
+          const t = linkDirOf(text1(r.from_type, 'a link from_type'), text1(r.from, 'a link source id')), line = without(r, ['from', 'from_type']);
           m.at(t.dir, t.id).parts.links.push(r.rel === 'needs' ? { ...line, k: 'link' } : line); // a stored `needs` line is an edge; a link row with that relation is marked
         }
       } else if (kind === 'xref') {
         clear((p) => { p.xrefs = []; });
         for (const r of rows) { const t = linkDirOf(text1(r.type, 'an xref type'), text1(r.id, 'an xref id')); m.at(t.dir, t.id).parts.xrefs.push(without(r, ['type', 'id'])); }
       }
-    });
+    }
   }
 
   #replaceRuns(name: string, rows: readonly Row[]): void {
     const before = runFiles(this.#dir, name).map((f) => f.rel);
     const keep = rows.length ? writeRun(this.#dir, name, rows) : '';
     const stale = before.filter((r) => r !== keep);
-    if (stale.length) withTxn(this.#dir, (tx) => { for (const r of stale) tx.remove(r); });
+    if (stale.length) withTxn(this.#dir, (tx) => { for (const r of stale) tx.remove(r); }, this.#txn);
   }
 
   writeKind(kind: Kind, rows: readonly Row[], opts: WriteOpts = {}): WriteResult {
     if (kind === 'meta') {
       const f = kindFile(kind), t = canonFile(rows, SCHEMAS[f] as Schema);
-      if (this.#j.exists(kind) && this.#j.readText(kind, { bare: true }) === t) return { kind, file: f, bytes: Buffer.byteLength(t) }; // same bytes: the file is left alone
-      return this.#j.writeKind(kind, rows, opts);
+      if (this.#m.exists() && this.#m.text(MAX, true) === t) return { kind, file: f, bytes: Buffer.byteLength(t) }; // same bytes: the file is left alone
+      return this.#m.write(t, Boolean(opts.precheck));
     }
     if (opts.precheck) this.precheck([kind]);
     const canon = canonRows(kind, rows);
@@ -252,7 +297,7 @@ export class EntityStore implements PlanStore {
   #label(kind: Kind): string { return kind === 'schedule' ? 'schedules' : RUN_NAMES[kind] ? `runs/${RUN_NAMES[kind]}` : kind === 'meta' ? kindFile(kind) : `nodes/${(DIRS[kind] as readonly string[])[0]}`; }
 
   writeText(kind: Kind, text: string, opts: WriteOpts = {}): WriteResult {
-    if (kind === 'meta') return this.#j.writeText(kind, text, opts);
+    if (kind === 'meta') return this.#m.write(text, Boolean(opts.precheck));
     return this.writeKind(kind, parseJsonlText(text, kindFile(kind)), opts);
   }
 
@@ -270,7 +315,7 @@ export class EntityStore implements PlanStore {
 
   // ---------- files ----------
   #files(kind: Kind): string[] {
-    if (kind === 'meta') return this.#j.exists(kind) ? [path.join(this.#dir, kindFile(kind))] : [];
+    if (kind === 'meta') return this.#m.exists() ? [this.#m.path] : [];
     if (kind === 'schedule') return [...scheduleVersions(this.#dir).map((v) => path.join(this.#dir, 'schedules', `${v}.jsonl`)), ...(fs.existsSync(path.join(this.#dir, 'schedules', 'CURRENT')) ? [path.join(this.#dir, 'schedules', 'CURRENT')] : [])];
     const run = RUN_NAMES[kind];
     if (run) return runFiles(this.#dir, run).map((f) => path.join(this.#dir, f.rel));
@@ -284,22 +329,36 @@ export class EntityStore implements PlanStore {
       if (k === 'meta') { targets.push(path.join(this.#dir, kindFile(k))); continue; }
       const top = k === 'schedule' ? 'schedules' : RUN_NAMES[k] ? path.join('runs', RUN_NAMES[k] as string) : path.join('nodes', (DIRS[k] as readonly string[])[0] as string);
       targets.push(path.join(this.#dir, top));
-      assertInside(this.ctx.root, path.join(this.#dir, top)); // a directory that leaves the repository is refused with the same error as a file
+      try { assertInside(this.ctx.root, path.join(this.#dir, top)); } catch (e) { refuseWrite(e); } // a directory that leaves the repository is refused with the same error as a file
     }
     precheckTargets(this.ctx, [...targets.filter((t) => { try { return !fs.lstatSync(t).isDirectory(); } catch { return true; } }), ...extra]);
   }
 
-  exists(kind: Kind): boolean { return this.#files(kind).length > 0; }
+  /** True when the kind holds data: a node kind needs a row of its own (a node that exists only to hold a part of another kind, such as a ref on an epic, does not make `epics` present). */
+  exists(kind: Kind): boolean {
+    if (!this.#files(kind).length) return false;
+    return kind === 'meta' || kind === 'schedule' || RUN_NAMES[kind] ? true : this.#raw(kind).length > 0;
+  }
   mtimeMs(kind: Kind): number | null {
     let max: number | null = null;
     for (const f of this.#files(kind)) { try { const m = fs.statSync(f).mtimeMs; if (max === null || m > max) max = m; } catch { /* gone */ } }
     return max;
   }
+  /** The directories on the way to a kind's files (nodes, nodes/ticket, schedules, runs/findings, ...): each must be a plain directory when it exists. */
+  #roads(kind: Kind): string[] {
+    if (kind === 'meta') return [];
+    if (kind === 'schedule') return ['schedules'];
+    const run = RUN_NAMES[kind];
+    if (run) return ['runs', path.join('runs', run)];
+    const dirs = kind in PRIMARY ? [(PRIMARY[kind] as (typeof PRIMARY)[string]).dir] : (DIRS[kind] as readonly string[]);
+    return ['nodes', ...dirs.map((d) => path.join('nodes', d))];
+  }
   probe(kind: Kind, maxBytes: number): 'absent' | 'ok' | 'unsafe' {
+    for (const r of this.#roads(kind)) { try { if (!fs.lstatSync(path.join(this.#dir, r)).isDirectory()) return 'unsafe'; } catch { /* absent: nothing there */ } } // a symlink, FIFO or file where a directory belongs
     const files = this.#files(kind);
     if (!files.length) return 'absent';
     for (const f of files) { let st: fs.Stats; try { st = fs.lstatSync(f); } catch { return 'unsafe'; } if (!st.isFile() || st.size > maxBytes) return 'unsafe'; }
     return 'ok';
   }
-  describe(): { backend: 'jsonl' | 'entity'; root: string } { return { backend: 'entity', root: this.ctx.dir }; }
+  describe(): { backend: 'entity'; root: string } { return { backend: 'entity', root: this.ctx.dir }; }
 }

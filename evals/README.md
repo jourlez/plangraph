@@ -49,8 +49,7 @@ SessionStart card but does not put its `bin/` on the Bash PATH, so every `plangr
 arm B).
 
 - **Same conditions in both arms**: the same prompt on stdin, a fresh workspace per run (temp dir outside the repository, scaffolded like the
-  native `scaffold.sh` plus the merge driver wired and a `.gitignore` for the index before the commit, so the plugin's session hook finds
-  nothing to heal), `--setting-sources project --strict-mcp-config` (no user plugins, hooks, permissions or MCP servers), `--tools
+  native `scaffold.sh`, with the fixture converted to the entity layout and a `.gitignore` for the derived files before the commit), `--setting-sources project --strict-mcp-config` (no user plugins, hooks, permissions or MCP servers), `--tools
   Read,Grep,Glob,Bash,Skill,Edit,Write`, `--permission-mode dontAsk` with one `--allowedTools` list (reads and read-style Bash including
   `Bash(plangraph:*)`, `cd`, `python3`, `node`; Edit/Write visible but never granted), `--no-session-persistence`, `--max-budget-usd` per run,
   `--include-hook-events`, the parent session's `CLAUDE_*` variables removed and PATH entries holding a `plangraph` binary dropped. Arm A adds

@@ -7,6 +7,7 @@ import { parseNodeUri } from '../graph/uri.ts';
 import { FIX, listBatchFiles, listKinds, listNodeFiles, loadRaw } from './nodes.ts';
 import { nodePath } from './layout.ts';
 import { canon, formatPg } from './pg.ts';
+import { checkBatches } from './check-batches.ts';
 import type { Node } from './pg.ts';
 
 export type ViolationCode = 'ID_MISMATCH' | 'DUPLICATE_ID' | 'CASE_COLLISION' | 'NOT_CANONICAL' | 'DANGLING_LINK' | 'BAD_SCHEMA' | 'CONFLICT_MARKERS' | 'BAD_LINE' | 'UNSORTED_BATCH' | 'SYMLINK' | 'OVERSIZE' | 'MISSING_CURRENT';
@@ -123,3 +124,33 @@ export function fmtStore(root: string): { rewritten: string[] } {
   }
   return { rewritten: rewritten.sort() };
 }
+
+/** How many files the readers skip (damaged, misplaced or duplicated node files, damaged batch lines): what the card reports. Reads every node file, writes nothing, never throws on content. */
+export function problemFiles(root: string): number {
+  const bad = new Set<string>(), seen = new Set<string>();
+  for (const kind of listKinds(root)) {
+    for (const abs of listNodeFiles(root, kind)) {
+      const r = loadRaw(root, abs);
+      if ('problem' in r) { bad.add(r.problem.path); continue; }
+      const key = `${kind}\u0000${r.node.id}`;
+      if (abs !== nodePath(root, kind, r.node.id) || seen.has(key)) bad.add(path.relative(root, abs)); else seen.add(key);
+    }
+  }
+  for (const v of checkBatches(root)) if (v.code === 'CONFLICT_MARKERS' || v.code === 'BAD_LINE') bad.add(v.path);
+  return bad.size;
+}
+
+/** The codes that do not fail `plangraph check`: a file that is only unformatted (plangraph fmt fixes it) or a batch whose lines are out of order (readers sort them). */
+const WARNING_CODES: ReadonlySet<string> = new Set(['NOT_CANONICAL', 'UNSORTED_BATCH']);
+export interface StoreProblem { code: string; path: string; line: number | null; fix: string; warning: boolean }
+/** Every violation of the entity store (node files and batch files), once each, sorted by path, line and code. */
+export function storeProblems(root: string): StoreProblem[] {
+  const seen = new Set<string>(), out: StoreProblem[] = [];
+  for (const v of [...checkStore(root), ...checkBatches(root)]) {
+    const line = v.line === 0 ? null : v.line, k = `${v.code}\u0000${v.path}\u0000${line}`;
+    if (!seen.has(k)) { seen.add(k); out.push({ code: v.code, path: v.path, line, fix: v.fix, warning: WARNING_CODES.has(v.code) }); }
+  }
+  return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : (a.line ?? 0) - (b.line ?? 0) || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0)));
+}
+/** `error: CODE path:line: fix` (or `warning:`), the line `plangraph check` prints; the path and fix are one sanitized line. */
+export const renderStoreProblem = (v: StoreProblem): string => `${v.warning ? 'warning' : 'error'}: ${v.code} ${v.path.replace(/\s+/g, ' ').slice(0, 200)}${v.line === null ? '' : `:${v.line}`}: ${v.fix.replace(/\s+/g, ' ').slice(0, 200)}`;

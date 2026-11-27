@@ -59,10 +59,10 @@ function repo() {
   fs.writeFileSync(path.join(b, 'learnings.jsonl'), '');
   adoptPlanDir(b);
   const bl = spawnSync(process.execPath, [BRAIN, 'build'], { cwd: d, encoding: 'utf8', env }); assert.equal(bl.status, 0, bl.stderr);
-  return { d, b, env, db: path.join(b, INDEX_FILE), cfg: path.join(b, 'config.json') };
+  return { d, b, env, db: path.join(b, INDEX_FILE), cfg: path.join(b, 'config.json'), si: path.join(b, 'cache/solver-input') }; // si: the derived v1-shaped input `plangraph build` writes
 }
 const fromDb = (r: { db: string; cfg: string }) => `print(json.dumps(load(db=${JSON.stringify(r.db)}, config=${JSON.stringify(r.cfg)})))`;
-const fromDir = (r: { b: string }) => `print(json.dumps(load(jsonl_dir=${JSON.stringify(r.b)})))`;
+const fromDir = (r: { si: string }) => `print(json.dumps(load(jsonl_dir=${JSON.stringify(r.si)})))`; // --jsonl-dir reads the solver input directory
 
 test('the Python schema allowlist, table order and sidecar list are the same as src/db.ts', { skip: SKIP }, () => {
   const r = spawnSync('python3', ['-I', '-c', `${HEAD}
@@ -146,24 +146,24 @@ test('a sidecar beside the index is refused and never replayed', { skip: SKIP },
 test('a FIFO index and a FIFO JSONL file are refused at once (no blocking open)', { skip: SKIP || (HAVE_MKFIFO ? false : 'skipped: no mkfifo') }, () => {
   const r = repo(); fs.rmSync(r.db); execFileSync('mkfifo', [r.db]);
   assert.deepEqual(py(r.d, fromDb(r)), { ok: false, status: 'MODEL_INVALID', msg: 'the index is not a regular file: run `plangraph build`', code: 2 });
-  fs.rmSync(path.join(r.b, 'edges.jsonl')); execFileSync('mkfifo', [path.join(r.b, 'edges.jsonl')]);
+  fs.rmSync(path.join(r.si, 'edges.jsonl')); execFileSync('mkfifo', [path.join(r.si, 'edges.jsonl')]);
   assert.deepEqual(py(r.d, fromDir(r)), { ok: false, status: 'MODEL_INVALID', msg: 'edges.jsonl: not a regular file', code: 2 });
 });
 
 test('a symlinked index, JSONL file or default config.json is refused; an oversize JSONL file is refused at the cap', { skip: SKIP || (process.platform === 'win32' ? 'symlinks' : false) }, () => {
   const r = repo(), outside = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-solve-out-')); tmps.push(outside);
   fs.writeFileSync(path.join(outside, 'secret.jsonl'), jl([{ key: 'SECRET-1', summary: 'outside', sp: 1 }]));
-  fs.renameSync(path.join(r.b, 'tickets.jsonl'), path.join(outside, 't.jsonl'));
-  fs.symlinkSync(path.join(outside, 'secret.jsonl'), path.join(r.b, 'tickets.jsonl'));
+  fs.renameSync(path.join(r.si, 'tickets.jsonl'), path.join(outside, 't.jsonl'));
+  fs.symlinkSync(path.join(outside, 'secret.jsonl'), path.join(r.si, 'tickets.jsonl'));
   assert.deepEqual(py(r.d, fromDir(r)), { ok: false, status: 'MODEL_INVALID', msg: 'tickets.jsonl: is a symlink, not a regular file', code: 2 });
-  fs.rmSync(path.join(r.b, 'tickets.jsonl')); fs.renameSync(path.join(outside, 't.jsonl'), path.join(r.b, 'tickets.jsonl'));
-  fs.renameSync(r.cfg, path.join(outside, 'config.json')); fs.symlinkSync(path.join(outside, 'config.json'), r.cfg);
+  fs.rmSync(path.join(r.si, 'tickets.jsonl')); fs.renameSync(path.join(outside, 't.jsonl'), path.join(r.si, 'tickets.jsonl'));
+  const cfg = path.join(r.si, 'config.json'); fs.renameSync(cfg, path.join(outside, 'config.json')); fs.symlinkSync(path.join(outside, 'config.json'), cfg);
   assert.deepEqual(py(r.d, fromDir(r)), { ok: false, status: 'MODEL_INVALID', msg: 'config.json: is a symlink, not a regular file', code: 2 });
-  fs.rmSync(r.cfg); fs.renameSync(path.join(outside, 'config.json'), r.cfg);
+  fs.rmSync(cfg); fs.renameSync(path.join(outside, 'config.json'), cfg);
   fs.renameSync(r.db, path.join(outside, 'i.sqlite')); fs.symlinkSync(path.join(outside, 'i.sqlite'), r.db);
   assert.deepEqual(py(r.d, fromDb(r)), { ok: false, status: 'MODEL_INVALID', msg: 'the index is a symlink, not a regular file: run `plangraph build`', code: 2 });
   // the cap, lowered for the test (64 MiB in production): one byte over is refused before parsing
-  const big = py(r.d, `m.DATA_CAP = 40\nprint(json.dumps(load(jsonl_dir=${JSON.stringify(r.b)})))`);
+  const big = py(r.d, `m.DATA_CAP = 40\nprint(json.dumps(load(jsonl_dir=${JSON.stringify(r.si)})))`);
   assert.deepEqual(big, { ok: false, status: 'MODEL_INVALID', msg: 'tickets.jsonl: file too large (limit 40 bytes)', code: 2 });
 });
 

@@ -7,7 +7,7 @@ import { steerLine } from './steer.ts';
 import type { Model } from './model.ts';
 
 /** renderCard's meta: the source fingerprint, whether the index is stale, the plan dir as the repo names it. Other fields are ignored. */
-export interface CardMeta { fp?: unknown; stale?: unknown; dir?: string; [extra: string]: unknown }
+export interface CardMeta { fp?: unknown; stale?: unknown; problems?: unknown; dir?: string; [extra: string]: unknown }
 /** The model fields renderCard reads. */
 export type CardModel = Pick<Model, 'tickets' | 'edges' | 'sched' | 'config'> & { findings?: Model['findings'] | null };
 
@@ -109,7 +109,9 @@ export function renderCard(model: CardModel, meta: CardMeta = {}, { maxTokens = 
   add(4, steerLine(meta.dir));
 
   // STALE (when applicable) is appended after the budgeted body, so in the abnormal case only the tail differs.
-  const tail = meta.stale === true ? `\n${CARD_STALE}` : '';
+  // The store line (problem files the readers skipped) goes first in the tail, so STALE stays the last line.
+  const problems = Number.isSafeInteger(meta.problems) && (meta.problems as number) > 0 ? (meta.problems as number) : 0;
+  const tail = (problems ? `\nstore: ${problems} problem files (run plangraph check)` : '') + (meta.stale === true ? `\n${CARD_STALE}` : '');
   const max = maxTokens - (tail ? estTokens(tail) : 0);
   const render = (ls: typeof lines) => ls.sort((a, b) => a.i - b.i).map((l) => l.text).join('\n');
   const all = render(lines.slice());

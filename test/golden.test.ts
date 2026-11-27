@@ -2,8 +2,7 @@
 // before bin/plangraph is restructured. Compare against test/golden/<name>.txt; UPDATE_GOLDEN=1 rewrites the files (review them by eye).
 // Everything runs in throwaway temp dirs with a private HOME, CLAUDE_PLUGIN_DATA and GIT_CONFIG_GLOBAL=/dev/null; nothing touches the real
 // home or data dir, the network, or the clock (temp paths, shas and timestamps are normalized in the captured text).
-// Not covered: jira-pull (needs live Jira credentials and network; only its refusal without credentials is frozen), the
-// merge-driver install of `init`/`doctor --fix` (git config is private, its path is normalized), and `-v` of every command.
+// Not covered: jira-pull (needs live Jira credentials and network; only its refusal without credentials is frozen) and `-v` of every command.
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,6 +11,9 @@ import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
 import { adoptPlanDir, normalizeGolden } from './helpers/plan-dir.ts';
+import { readStoreAt, kindOfFile } from '../lib/planstore.ts';
+import { serializeItems } from '../lib/openitems.ts';
+import type { OpenItem } from '../lib/openitems.ts';
 
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), GOLD = path.join(HERE, 'golden'), FX = path.join(HERE, 'fixtures');
 const UPDATE = process.env.UPDATE_GOLDEN === '1';
@@ -85,6 +87,16 @@ function normalize(text: string, root: string): string {
 const capAna = (root: string, cap: number) => { const f = path.join(root, '.plangraph/config.json'), c = JSON.parse(fs.readFileSync(f, 'utf8')); fs.writeFileSync(f, JSON.stringify({ ...c, caps: { ...c.caps, Ana: cap } }, null, 2) + '\n'); };
 // A case: { name, args, repo: 'fixture' (default, fresh copy of the built fixture) | 'sp' | 'empty', stdin, setup(root), files: [rel paths printed after the run] }
 const J = (...a: string[]) => [...a, '--json'];
+// A plan file a case prints: a plan kind under its old name (`.plangraph/tickets.jsonl`) is the canonical text of that kind from the store, which is what
+// the old file held; anything else is the file as it is.
+function fileText(root: string, f: string): string {
+  const kind = path.dirname(f) === '.plangraph' ? kindOfFile(path.basename(f)) : undefined;
+  const store = kind && kind !== 'meta' ? readStoreAt(path.join(root, '.plangraph')) : null;
+  if (store && kind === 'openitem') return store.exists(kind) ? serializeItems(store.readKind(kind) as OpenItem[]) : '(missing)\n'; // the register's own serializer wrote this file
+  if (store && kind) return store.readText(kind) ?? '(missing)\n';
+  const fp = path.join(root, f);
+  return fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '(missing)\n';
+}
 interface Case { name: string; args: string[]; repo?: 'sp' | 'empty'; stdin?: string; setup?: (root: string) => void; files?: string[] }
 const CASES: Case[] = [
   // read commands, default and --json
@@ -138,13 +150,13 @@ const CASES: Case[] = [
   { name: 'export', args: ['export'] },
   { name: 'doctor', args: ['doctor'] }, { name: 'doctor-json', args: J('doctor') },
   { name: 'doctor-fix', args: ['doctor', '--fix'] },
-  { name: 'doctor-conflict', args: ['doctor'], setup: (r) => fs.appendFileSync(path.join(r, '.plangraph/findings.jsonl'), '<<<<<<< ours\n') },
+  { name: 'doctor-conflict', args: ['doctor'], setup: (r) => { const d = path.join(r, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'x~00000000.pg'), 'id "x"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n'); } }, // a conflicted node file: doctor counts the problem files
   { name: 'integrations', args: ['integrations'] }, { name: 'integrations-verbose', args: ['integrations', '-v'] }, { name: 'integrations-json', args: J('integrations') },
   { name: 'init', args: ['init'], repo: 'empty', files: ['.plangraph/config.json', '.plangraph/.gitignore', '.plangraph/format.json'] }, { name: 'init-json', args: J('init'), repo: 'empty' },
   { name: 'learn-from-wolf-text', args: ['learn', '--from-wolf', 'Never confirm a checkout from the redirect; wait for the webhook.'], files: ['.plangraph/learnings.jsonl'] },
   { name: 'learn-from-wolf-nomatch', args: ['learn', '--from-wolf', 'no such rule'] }, { name: 'learn-noarg', args: ['learn'] }, { name: 'learn-number', args: ['learn', '--from-wolf', '3'] },
   { name: 'learn-bad-handle', args: ['learn', '--from-wolf', 'w000000'] },
-  { name: 'sp-ingest', args: ['sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none'], repo: 'sp', setup: (r) => put(r, '.plangraph/tickets.jsonl', ''), files: ['.plangraph/tickets.jsonl', '.plangraph/edges.jsonl', '.plangraph/refs.jsonl'] },
+  { name: 'sp-ingest', args: ['sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none'], repo: 'sp', files: ['.plangraph/tickets.jsonl', '.plangraph/edges.jsonl', '.plangraph/refs.jsonl'] },
   { name: 'sp-ingest-json', args: J('sp-ingest', 'docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none', '--owner', 'Ana', '--sprint', '2'), repo: 'sp' },
   { name: 'sp-ingest-missing', args: ['sp-ingest', 'docs/nope.md'], repo: 'sp' }, { name: 'sp-ingest-noarg', args: ['sp-ingest'], repo: 'sp' },
   { name: 'sp-link', args: ['sp-link', 'T-3', 'docs/plan.md', '--tasks', '1,2'], files: ['.plangraph/refs.jsonl'] },
@@ -160,6 +172,12 @@ const CASES: Case[] = [
   { name: 'err-noplangraph-ticket', args: ['ticket', 'T-1'], repo: 'empty' }, { name: 'err-noplangraph-build', args: ['build'], repo: 'empty' },
   { name: 'err-noplangraph-check', args: ['check'], repo: 'empty' }, { name: 'err-noplangraph-doctor', args: ['doctor'], repo: 'empty' },
   { name: 'err-noplangraph-learn', args: ['learn', '--from-wolf', 'x'], repo: 'empty' },
+  { name: 'err-pre-1-0', args: ['ticket', 'T-5'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":1,"min_reader":1}\n') },
+  { name: 'err-pre-1-0-doctor', args: ['doctor'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":1,"min_reader":1}\n') },
+  { name: 'err-pre-1-0-unstamped', args: ['build'], setup: (r) => { fs.rmSync(path.join(r, '.plangraph/format.json')); put(r, '.plangraph/tickets.jsonl', '{"key":"T-1"}\n'); } },
+  { name: 'err-pre-1-0-init', args: ['init'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":1,"min_reader":1}\n') },
+  { name: 'card-store-problem', args: ['card'], setup: (r) => { const d = path.join(r, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'x~00000000.pg'), 'id "x"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n'); } },
+  { name: 'check-store-problem', args: ['check'], setup: (r) => { const d = path.join(r, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'x~00000000.pg'), 'id "x"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n'); } },
   { name: 'err-newer-format', args: ['ticket', 'T-5'], setup: (r) => put(r, '.plangraph/format.json', '{"format_version":99,"min_reader":99}\n') },
 ];
 
@@ -171,7 +189,7 @@ for (const c of CASES) {
     const r = run(root, c.args, c.stdin);
     assert.equal(r.error, undefined, String(r.error));
     let body = `$ plangraph ${c.args.join(' ')}\nexit: ${r.status}\n--- stdout\n${r.stdout}--- stderr\n${r.stderr}`;
-    for (const f of c.files || []) { const fp = path.join(root, f); body += `--- file ${f}\n${fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : '(missing)\n'}`; }
+    for (const f of c.files || []) body += `--- file ${f}\n${fileText(root, f)}`;
     const got = normalizeGolden(normalize(body, root));
     const file = path.join(GOLD, c.name + '.txt');
     if (UPDATE) { fs.mkdirSync(GOLD, { recursive: true }); fs.writeFileSync(file, got); return; }

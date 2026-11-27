@@ -16,7 +16,7 @@ import type { NodeRef, Rel } from '../lib/graph/views.ts';
 import { DERIVED_RELATIONS } from '../lib/graph/files.ts';
 import { genPlan, rng } from './fixtures/gen.ts';
 import { downgradeToV1 } from './helpers/older-index.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, writePlanFile } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
 const tmps: string[] = [];
@@ -117,7 +117,7 @@ test('property: g_links agrees with the v1 tables on every needs, owner and spri
 test('derived and stored rows never share a relation: a derived relation in links.jsonl is refused at build, the view also leaves it out', () => {
   for (const rel of DERIVED_RELATIONS) {
     const dir = tmp('graph-derived-');
-    fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([{ from: 'T-1', from_type: 'ticket', rel, to: 'T-2', to_type: 'ticket' }]));
+    writePlanFile(dir, 'links.jsonl', jl([{ from: 'T-1', from_type: 'ticket', rel, to: 'T-2', to_type: 'ticket' }]));
     adoptPlanDir(dir);
     assert.throws(() => buildIndex({ dir }), (e) => e instanceof Error && e.message.startsWith(`LINK_DERIVED_REL links.jsonl:1: `), rel);
   }
@@ -158,14 +158,14 @@ test('held_by holds open items only, forward and reverse; every register item is
   assert.deepEqual(reach(h, T('T-1'), ['held_by'], 1, false), []); // the module reach reads the index only
 });
 
-test('the reader gives the blocker facts of a ticket: verdict, findings in file order, open items, producers', () => {
+test('the reader gives the blocker facts of a ticket: verdict, findings in canonical order, open items, producers', () => {
   const tickets = [tk('A', { verdict: 'BLOCKED', impl_status: 'todo' }), tk('B', { verdict: '', jira_status: 'Done' })];
   using h = plan({ 'tickets.jsonl': tickets, 'edges.jsonl': [{ consumer: 'A', producer: 'B', kind: 'x' }, { consumer: 'A', producer: 'C' }], 'findings.jsonl': [{ key: 'A', kind: 'risk', text: 't1' }, { key: 'A', kind: 'gap', text: 't2' }, { key: 'B', kind: 'x', text: 'o' }] }).open();
   const rd = graphReader(h, [{ key: 'A', kind: 'decision', status: 'open', owner: 'Ana', text: 'tx' }, { key: 'A', kind: 'fix', status: 'done', owner: 'Ana', text: 'ty' }]);
   assert.deepEqual(rd.ticket('A'), { verdict: 'BLOCKED', jira_status: 'To Do', impl_status: 'todo' });
   assert.deepEqual(rd.ticket('B'), { verdict: '', jira_status: 'Done', impl_status: null });
   assert.equal(rd.ticket('nope'), null);
-  assert.deepEqual(rd.findings('A'), [{ kind: 'risk', text: 't1' }, { kind: 'gap', text: 't2' }]);
+  assert.deepEqual(rd.findings('A'), [{ kind: 'gap', text: 't2' }, { kind: 'risk', text: 't1' }]);
   assert.deepEqual(rd.openItems('A'), [{ key: 'A', kind: 'decision', status: 'open', owner: 'Ana', text: 'tx' }]);
   assert.deepEqual(rd.producers('A'), [{ key: 'B', kind: 'x' }, { key: 'C', kind: null }]);
 });
@@ -223,13 +223,13 @@ test('reach follows assigned_to and scheduled_in of one schedule version only', 
   assert.deepEqual(ids(reach(h, { id: 'Ana', type: 'person' }, ['assigned_to'], 1, true)), ['ticket:T-1']);
 });
 
-test('a links.jsonl row is stored with its from and to columns (keyword names), attrs as canonical JSON, and two equal lines give one reach result', () => {
+test('a links.jsonl row is stored with its from and to columns (keyword names), attrs as canonical JSON, and two equal lines are one row and give one reach result', () => {
   const row = { from: 'T-1', from_type: 'ticket', rel: 'relates_to', to: 'E-1', to_type: 'epic', attrs: { z: 1, a: { y: 2, x: 3 } } };
-  const dir = tmp('graph-links-'); fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([row, row]));
+  const dir = tmp('graph-links-'); writePlanFile(dir, 'links.jsonl', jl([row, row]));
   adoptPlanDir(dir);
   buildIndex({ dir });
   using h = openIndex(path.join(dir, INDEX_FILE), { dir });
-  assert.deepEqual(h.all('SELECT "from", "to", attrs, extra FROM link').map((r) => ({ ...(r as object) })), [{ from: 'T-1', to: 'E-1', attrs: '{"a":{"x":3,"y":2},"z":1}', extra: null }, { from: 'T-1', to: 'E-1', attrs: '{"a":{"x":3,"y":2},"z":1}', extra: null }]);
+  assert.deepEqual(h.all('SELECT "from", "to", attrs, extra FROM link').map((r) => ({ ...(r as object) })), [{ from: 'T-1', to: 'E-1', attrs: '{"a":{"x":3,"y":2},"z":1}', extra: null }]);
   assert.equal(reach(h, T('T-1'), ['relates_to'], 1, false).length, 1);
 });
 
@@ -259,7 +259,7 @@ test('an x-github.pr node and an x-github/closes link build, and the v1 answers 
     const d = tmp('graph-v1same-'); execFileSync('git', ['init', '-q'], { cwd: d });
     assert.equal(cli(d, 'init').status, 0);
     const b = path.join(d, '.plangraph');
-    fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+    writePlanFile(b, 'tickets.jsonl', jl(p.tickets)); writePlanFile(b, 'edges.jsonl', jl(p.edges)); writePlanFile(b, 'schedule.jsonl', jl(p.schedule));
     adoptPlanDir(b);
     if (graph) for (const [f, rows] of Object.entries(FULL)) if (!['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl', 'refs.jsonl'].includes(f)) fs.writeFileSync(path.join(b, f), jl(rows));
     adoptPlanDir(b);
@@ -278,8 +278,9 @@ test('an x-github.pr node and an x-github/closes link build, and the v1 answers 
 
 test('a links row without from_type or to_type, or with a type outside the grammar, is a data error naming the field', () => {
   for (const [row, field] of [[{ from: 'a', rel: 'relates_to', to: 'b', to_type: 'ticket' }, 'from_type'], [{ from: 'a', from_type: 'ticket', rel: 'relates_to', to: 'b' }, 'to_type'], [{ from: 'a', from_type: 'Ticket', rel: 'relates_to', to: 'b', to_type: 'ticket' }, 'from_type'], [{ from: 'a', from_type: 'ticket', rel: 'relates_to', to: 'b', to_type: 'x-a' }, 'to_type']] as const) {
-    const dir = tmp('graph-badlink-'); fs.writeFileSync(path.join(dir, 'links.jsonl'), jl([row]));
-    adoptPlanDir(dir);
+    const dir = tmp('graph-badlink-');
+    if (!('from_type' in row)) { assert.throws(() => writePlanFile(dir, 'links.jsonl', jl([row])), /from_type/); continue; } // a link with no source type has no node to live on
+    writePlanFile(dir, 'links.jsonl', jl([row]));
     assert.throws(() => buildIndex({ dir }), (e) => e instanceof Error && e.message.includes('links.jsonl:1:') && e.message.includes(`"${field}"`), field);
   }
 });
@@ -296,20 +297,20 @@ test('a graph file adds its bytes to the fingerprint only when it is present; a 
   const env = { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(d, '.data') };
   assert.equal(spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'init'], { cwd: d, env }).status, 0);
   const b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  writePlanFile(b, 'tickets.jsonl', jl(p.tickets)); writePlanFile(b, 'edges.jsonl', jl(p.edges)); writePlanFile(b, 'schedule.jsonl', jl(p.schedule));
   adoptPlanDir(b);
   const built = spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), 'build'], { cwd: d, env, encoding: 'utf8' });
   assert.equal(built.status, 0, built.stderr);
   const stored = (new DatabaseSync(path.join(b, INDEX_FILE), { readOnly: true }).prepare('SELECT v FROM index_meta WHERE k = ?').get(FINGERPRINT_KEY) as { v: string }).v;
   assert.equal(sourceFingerprint(b), stored, 'the fingerprint of a v1-only directory is the one the build stored');
-  fs.writeFileSync(path.join(b, 'people.jsonl'), jl([{ id: 'Ana' }]));
+  writePlanFile(b, 'people.jsonl', jl([{ id: 'Ana' }]));
   adoptPlanDir(b);
   const one = sourceFingerprint(b);
   assert.notEqual(one, stored);
-  fs.writeFileSync(path.join(b, 'people.jsonl'), jl([{ id: 'Ana', name: 'A' }]));
+  writePlanFile(b, 'people.jsonl', jl([{ id: 'Ana', name: 'A' }]));
   adoptPlanDir(b);
   assert.notEqual(sourceFingerprint(b), one);
-  fs.rmSync(path.join(b, 'people.jsonl'));
+  writePlanFile(b, 'people.jsonl', ''); // no person left
   assert.equal(sourceFingerprint(b), stored);
 });
 
@@ -321,7 +322,7 @@ function frozenRepo() {
   const now = (...a: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'bin/plangraph'), ...a], { cwd: d, env, encoding: 'utf8' });
   assert.equal(now('init').status, 0);
   const p = genPlan({ n: 6, people: 2, seed: 3 }), b = path.join(d, '.plangraph');
-  fs.writeFileSync(path.join(b, 'tickets.jsonl'), jl(p.tickets)); fs.writeFileSync(path.join(b, 'edges.jsonl'), jl(p.edges)); fs.writeFileSync(path.join(b, 'schedule.jsonl'), jl(p.schedule));
+  writePlanFile(b, 'tickets.jsonl', jl(p.tickets)); writePlanFile(b, 'edges.jsonl', jl(p.edges)); writePlanFile(b, 'schedule.jsonl', jl(p.schedule));
   adoptPlanDir(b);
   assert.equal(now('build').status, 0);
   downgradeToV1(path.join(b, INDEX_FILE));

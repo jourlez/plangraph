@@ -1,44 +1,4 @@
 {
- "attr-big": [
-  [
-   ".gitattributes refused: larger than 262144 bytes",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
-  ],
-  {
-   "(error)": "Error",
-   "message": "refusing to read .gitattributes: larger than 262144 bytes",
-   "code": "ATTR_REFUSED"
-  }
- ],
- "attr-dir": [
-  [
-   ".gitattributes refused: not a regular file",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
-  ],
-  {
-   "(error)": "Error",
-   "message": "refusing to read .gitattributes: not a regular file",
-   "code": "ATTR_REFUSED"
-  }
- ],
- "attr-symlink": [
-  [
-   ".gitattributes refused: it is a symlink",
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
-  ],
-  {
-   "(error)": "Error",
-   "message": "refusing to read .gitattributes: it is a symlink",
-   "code": "ATTR_REFUSED"
-  }
- ],
- "attr-unreadable": [
-  "Error EACCES EACCES: permission denied, open '<path>",
-  "Error EACCES EACCES: permission denied, open '<path>"
- ],
  "canon-file-edges.jsonl": "{\"consumer\":\"C0\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L0\",\"k\":\"k0\",\"key\":\"B\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"consumer\":\"C0\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L2\",\"k\":\"k2\",\"key\":\"A\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"current\"}\n{\"consumer\":\"C1\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L0\",\"k\":\"k3\",\"key\":\"A\",\"source\":\"s\",\"sp\":1,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n{\"consumer\":\"C1\",\"producer\":\"P\",\"kind\":\"x\",\"id\":\"L1\",\"k\":\"k1\",\"key\":\"A\",\"source\":\"s\",\"sp\":2,\"text\":\"t\",\"verdict\":\"v\",\"version\":\"old\"}\n",
  "canon-file-evidence.jsonl": "{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L2\",\"k\":\"k2\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":2,\"text\":\"t\",\"version\":\"current\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L0\",\"k\":\"k3\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":1,\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C1\",\"id\":\"L1\",\"k\":\"k1\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":2,\"text\":\"t\",\"version\":\"old\"}\n{\"key\":\"B\",\"source\":\"s\",\"verdict\":\"v\",\"consumer\":\"C0\",\"id\":\"L0\",\"k\":\"k0\",\"kind\":\"x\",\"producer\":\"P\",\"sp\":1,\"text\":\"t\",\"version\":\"current\"}\n",
  "canon-file-fallback": [
@@ -105,95 +65,6 @@
    "a": 1
   }
  ],
- "doctor-installed": {
-  "installed": false,
-  "attributes": true,
-  "config": true,
-  "executable": false,
-  "driver": "no-such-plangraph-merge-on-path %O %A %B %P",
-  "problems": [
-   "merge driver executable not found: no-such-plangraph-merge-on-path"
-  ]
- },
- "doctor-none": {
-  "installed": false,
-  "attributes": false,
-  "config": false,
-  "executable": false,
-  "driver": "",
-  "problems": [
-   ".gitattributes lacks \".plangraph/*.jsonl merge=plangraph-jsonl\"",
-   "git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `plangraph init` or `plangraph doctor --fix` in every clone)"
-  ]
- },
- "doctor-other-dir": {
-  "installed": false,
-  "attributes": false,
-  "config": true,
-  "executable": false,
-  "driver": "no-such-plangraph-merge-on-path %O %A %B %P",
-  "problems": [
-   ".gitattributes lacks \"elsewhere/*.jsonl merge=plangraph-jsonl\"",
-   "merge driver executable not found: no-such-plangraph-merge-on-path"
-  ]
- },
- "doctor-shim-empty": {
-  "installed": true,
-  "attributes": true,
-  "config": true,
-  "executable": true,
-  "driver": "<repo>/data-dir/bin/plangraph-merge %O %A %B %P",
-  "problems": [
-   "merge driver shim has an unreadable or empty driver.target in <repo>/data-dir: run `plangraph doctor --fix`",
-   "merge driver shim has an unreadable or empty driver.node in <repo>/data-dir: run `plangraph doctor --fix`"
-  ]
- },
- "doctor-shim-missing": {
-  "installed": true,
-  "attributes": true,
-  "config": true,
-  "executable": true,
-  "driver": "<repo>/data-dir/bin/plangraph-merge %O %A %B %P",
-  "problems": [
-   "merge driver.target points to a missing file: <repo>/missing.mjs: run `plangraph doctor --fix`",
-   "merge driver.node points to a missing file: <repo>/missing-node: run `plangraph doctor --fix`"
-  ]
- },
- "doctor-shim-ok": [],
- "doctor-versioned": {
-  "installed": false,
-  "attributes": true,
-  "config": true,
-  "executable": false,
-  "driver": "/u/.claude/plugins/cache/x/1/bin/plangraph-merge %O %A %B %P",
-  "problems": [
-   "merge driver executable not found: /u/.claude/plugins/cache/x/1/bin/plangraph-merge",
-   "merge driver path is the versioned plugin cache (orphaned after a plugin update): run `plangraph doctor --fix`"
-  ]
- },
- "driver-default": [
-  {
-   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "plangraph-merge %O %A %B %P"
-  },
-  ".plangraph/*.jsonl merge=plangraph-jsonl\n"
- ],
- "driver-on-path": true,
- "driver-refusals": [
-  {
-   "(error)": "TypeError",
-   "message": "refusing a versioned plugin-cache driver path (/plugins/cache/ is deleted after a plugin update); pass the stable shim from ensureStableDriver"
-  },
-  {
-   "(error)": "TypeError",
-   "message": "refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -"
-  },
-  {
-   "(error)": "TypeError",
-   "message": "refusing to write .gitattributes: the plan directory name must use only A-Z a-z 0-9 . _ / -"
-  }
- ],
- "driver-unreadable": "ok",
  "evidence-order": "{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v4\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v3\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v1\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v0\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v7\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v6\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v2\"}\n{\"key\":\"A\",\"source\":\"s\",\"verdict\":\"v5\"}\n",
  "format": [
   [
@@ -220,14 +91,14 @@
     "min_reader": 1
    },
    {
-    "version": 1,
-    "min_reader": 1,
-    "status": "ok"
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
    },
    {
-    "version": 1,
-    "min_reader": 1,
-    "status": "ok"
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
    }
   ],
   [
@@ -238,14 +109,14 @@
     "x": 1
    },
    {
-    "version": 1,
-    "min_reader": 0,
-    "status": "ok"
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
    },
    {
-    "version": 1,
-    "min_reader": 0,
-    "status": "ok"
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
    }
   ],
   [
@@ -382,7 +253,7 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 1) is newer than this tool supports (1): upgrade the plangraph tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 1) is newer than this tool supports (2): upgrade the plangraph tool",
     "code": "TOO_NEW"
    },
    {
@@ -399,12 +270,12 @@
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the plangraph tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (2): upgrade the plangraph tool",
     "code": "TOO_NEW"
    },
    {
     "(error)": "FormatError",
-    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (1): upgrade the plangraph tool",
+    "message": "<tmp>/storek-X: data format 3 (needs reader >= 3) is newer than this tool supports (2): upgrade the plangraph tool",
     "code": "TOO_NEW"
    }
   ],
@@ -423,6 +294,76 @@
     "version": 0,
     "min_reader": 0,
     "status": "ok"
+   }
+  ],
+  [
+   "v2",
+   {
+    "format_version": 2,
+    "min_reader": 2,
+    "storage": "entity"
+   },
+   {
+    "version": 2,
+    "min_reader": 2,
+    "status": "ok"
+   },
+   {
+    "version": 2,
+    "min_reader": 2,
+    "status": "ok"
+   }
+  ],
+  [
+   "v2-no-min",
+   {
+    "format_version": 2,
+    "min_reader": 2
+   },
+   {
+    "version": 2,
+    "min_reader": 2,
+    "status": "ok"
+   },
+   {
+    "version": 2,
+    "min_reader": 2,
+    "status": "ok"
+   }
+  ],
+  [
+   "pre-1-0",
+   {
+    "format_version": 1,
+    "min_reader": 1
+   },
+   {
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "unsupported pre-1.0 directory: recreate it with plangraph takeover",
+    "code": "PRE_1_0"
+   }
+  ],
+  [
+   "v2-newer-min",
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
+   },
+   {
+    "(error)": "FormatError",
+    "message": "format.json: min_reader must be an integer <= format_version",
+    "code": "BAD_FORMAT"
    }
   ]
  ],
@@ -454,33 +395,6 @@
   "(error)": "Error",
   "message": "could not take lock .lock: locked by pid 4194317"
  },
- "install": [
-  {
-   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "'/opt/plangraph'\\''s tools/plangraph-merge' %O %A %B %P"
-  },
-  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\n",
-  {
-   "gitattributes": "data/plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "no-such-plangraph-merge-on-path %O %A %B %P"
-  },
-  "*.md text\n.plangraph/*.jsonl merge=plangraph-jsonl\ndata/plangraph/*.jsonl merge=plangraph-jsonl\n"
- ],
- "install-quoted-doctor": [
-  {
-   "gitattributes": ".plangraph/*.jsonl merge=plangraph-jsonl",
-   "driver": "'<repo>/it'\\''s here/plangraph-merge' %O %A %B %P"
-  },
-  "plangraph jsonl three-way merge\n",
-  {
-   "installed": true,
-   "attributes": true,
-   "config": true,
-   "executable": true,
-   "driver": "'<repo>/it'\\''s here/plangraph-merge' %O %A %B %P",
-   "problems": []
-  }
- ],
  "keys": [
   "a\u0000\u00003\u0000",
   "a | b | ",
@@ -490,166 +404,6 @@
  "lock-unreadable": {
   "(error)": "Error",
   "message": "could not take lock .lock: locked"
- },
- "migrate-after": [
-  [
-   "tickets.jsonl",
-   "format.json"
-  ],
-  "{\"key\":\"A\"}\n{\"key\":\"B\",\"sp\":1}\n",
-  "{\"format_version\":1,\"min_reader\":1}\n",
-  {
-   "from": 1,
-   "to": 1,
-   "pending": false,
-   "steps": []
-  },
-  {
-   "from": 1,
-   "to": 1,
-   "pending": false,
-   "steps": [],
-   "written": false
-  }
- ],
- "migrate-cap": "IngestError  tickets.jsonl: file too large (limit 67108864 bytes)",
- "migrate-dry": {
-  "from": 0,
-  "to": 1,
-  "pending": true,
-  "steps": [
-   {
-    "from": 0,
-    "to": 1,
-    "describe": "add format.json, canonicalize every known jsonl file",
-    "files": [
-     "tickets.jsonl"
-    ]
-   }
-  ],
-  "written": false
- },
- "migrate-none": [
-  {
-   "from": 0,
-   "to": 0,
-   "pending": false,
-   "steps": []
-  }
- ],
- "migrate-plan": {
-  "from": 0,
-  "to": 1,
-  "pending": true,
-  "steps": [
-   {
-    "from": 0,
-    "to": 1,
-    "describe": "add format.json, canonicalize every known jsonl file",
-    "files": [
-     "tickets.jsonl"
-    ]
-   }
-  ]
- },
- "migrate-raced": {
-  "from": 0,
-  "to": 1,
-  "pending": true,
-  "steps": [
-   {
-    "from": 0,
-    "to": 1,
-    "describe": "",
-    "files": [
-     "x.jsonl"
-    ]
-   }
-  ],
-  "written": true
- },
- "migrate-refusals": [
-  "{\"(error)\":\"FormatError\",\"message\":\"<dir>: data format 9 is newer than this tool supports (1): upgrade the plangraph tool\",\"code\":\"TOO_NEW\"}",
-  {
-   "(error)": "IngestError",
-   "message": "tickets.jsonl: is a symlink, not a regular file"
-  },
-  {
-   "(error)": "IngestError",
-   "message": "tickets.jsonl: not a regular file"
-  },
-  {
-   "(error)": "FormatError",
-   "message": "no migration from format 0",
-   "code": "NO_PATH"
-  },
-  {
-   "from": 0,
-   "to": 3,
-   "pending": true,
-   "steps": [
-    {
-     "from": 0,
-     "to": 1,
-     "describe": "",
-     "files": [
-      "a.jsonl",
-      "b.jsonl"
-     ]
-    },
-    {
-     "from": 1,
-     "to": 3,
-     "describe": "jump",
-     "files": [
-      "c.jsonl"
-     ]
-    }
-   ]
-  },
-  {
-   "from": 0,
-   "to": 3,
-   "pending": true,
-   "steps": [
-    {
-     "from": 0,
-     "to": 1,
-     "describe": "",
-     "files": [
-      "a.jsonl",
-      "b.jsonl"
-     ]
-    },
-    {
-     "from": 1,
-     "to": 3,
-     "describe": "jump",
-     "files": [
-      "c.jsonl"
-     ]
-    }
-   ],
-   "written": true
-  },
-  "anull",
-  "{\"format_version\":3,\"min_reader\":2}\n"
- ],
- "migrate-write": {
-  "from": 0,
-  "to": 1,
-  "pending": true,
-  "steps": [
-   {
-    "from": 0,
-    "to": 1,
-    "describe": "add format.json, canonicalize every known jsonl file",
-    "files": [
-     "tickets.jsonl"
-    ]
-   }
-  ],
-  "written": true
  },
  "order-all": [
   [
@@ -801,7 +555,6 @@
   "(error)": "IngestError",
   "message": "input:1: invalid JSON at column 1"
  },
- "perm-migrate": "Error EACCES EACCES: permission denied, open '<path>",
  "perm-records-format-migrate": [
   "Error EACCES EACCES: permission denied, open '<path>",
   "Error EACCES EACCES: permission denied, open '<path>"

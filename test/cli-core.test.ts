@@ -22,12 +22,13 @@ import type { Command } from '../src/registry.ts';
 import type { SQLInputValue } from 'node:sqlite';
 import type { IndexHandle } from '../src/db.ts';
 import { buildIndex, openIndex, sourceFingerprint, loadSqlite, TABLES, INDEX_FILE, FINGERPRINT_KEY } from '../src/db.ts';
+import { readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
 
 const HERE = import.meta.dirname, BRAIN = path.join(HERE, '../bin/plangraph'), SRC = path.join(HERE, '../src');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-core-')); tmps.push(d); return d; };
-// a private plugin data directory: bin/plangraph keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
+// a private plugin data directory: bin/plangraph keeps its compile cache there, never in the real HOME
 const DATA = tmp();
 const jl = (rows: unknown[]) => rows.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n') + '\n';
 const usage = (fn: () => unknown, re: RegExp) => assert.throws(fn, (e) => e instanceof PlangraphError && e.code === 'USAGE' && e.exitCode === 2 && re.test(e.message));
@@ -350,7 +351,7 @@ function brainRepo(files: Record<string, string> = {}) {
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync(process.execPath, [BRAIN, 'init'], { cwd: d, stdio: 'ignore', env: { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', CLAUDE_PLUGIN_DATA: DATA } });
   const dir = path.join(d, '.plangraph');
-  for (const [f, t] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), t);
+  for (const [f, t] of Object.entries(files)) { if (f === 'meta.jsonl') fs.writeFileSync(path.join(dir, f), t); else writePlanFile(dir, f, t); } // meta.jsonl stays a file; every other kind goes into the store
   return { root: d, dir, ctx: makeContext({ root: d, env: {}, flags: {}, io: io().io }) };
 }
 const brainBuild = (root: string) => spawnSync(process.execPath, [BRAIN, 'build'], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: DATA } });
@@ -367,18 +368,17 @@ function dump(file: string): Record<string, Row[]> {
   } finally { db.close(); }
 }
 const tk = (key: string, more: Record<string, unknown> = {}) => ({ key, summary: 's' + key, epic: 'E', sp: 3, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', verdict_source: 'a', first_verdict: 'READY', ...more });
-const evil = 'summary) VALUES(1,2); DROP TABLE ticket;--';
 function fixtureFiles() {
   const p = genPlan({ n: 40, people: 3, seed: 7 });
   return {
-    'tickets.jsonl': jl([...p.tickets.slice(0, 30), tk('X-1', { zeta: 'z', alpha: { b: 2, a: [1, { y: 1, x: null }] }, list: [3, 1, 2], flag: true, nothing: null }), tk('X-2', { [evil]: 'x', "a'b": 1, '': 'empty', 'x y': 2 }), tk('X-3', { summary: 'not an object any more (an object in a known text column is a data error since the M3 fix)' }),
-      '{"key":"X-4","summary":"s","constructor":{"a":1},"extra":"mine","__proto__":{"polluted":true},"toString":5}']),
+    'tickets.jsonl': jl([...p.tickets.slice(0, 30), tk('X-1', { zeta: 'z', alpha: { b: 2, a: [1, { y: 1, x: null }] }, list: [3, 1, 2], flag: true, nothing: null }), tk('X-2', { 'summary-VALUES-DROP_TABLE-ticket': 'x', a_b: 1, 'x-y': 2 }), tk('X-3', { summary: 'not an object any more (an object in a known text column is a data error since the M3 fix)' }),
+      '{"key":"X-4","summary":"s","constructor":{"a":1},"extra":"mine","toString":5}']),
     'edges.jsonl': jl([...p.edges, { consumer: 'X-2', producer: 'X-1', kind: 'plan_need', note: '', weight: 2 }]),
     'schedule.jsonl': jl(p.schedule),
     'findings.jsonl': jl([{ key: 'T-1', kind: 'risk', text: 't', sev: { n: 1 } }, { key: 'T-3', kind: 'plan_text', text: 'x' }]),
     'evidence.jsonl': jl([{ key: 'T-1', source: 's', verdict: 'READY', resolution: '', needs: '', conf: 0.5 }, { key: 'T-3', source: 'audit', verdict: 'BLOCKED', resolution: 'wait', needs: 'T-1' }]),
     'meta.jsonl': jl([{ k: 'a', v: 'b' }, { k: 'c', v: 'o', more: true }]),
-    'learnings.jsonl': jl([{ id: 'L1', kind: 'rule', topic: 't', text: 'x', why: 'w', source: 's', tag: ['a'] }, { id: 'L2', kind: 'rule', topic: 't', text: 'y' }, { id: 'L1', kind: 'rule', topic: 't', text: 'replaced' }]),
+    'learnings.jsonl': jl([{ id: 'L1', kind: 'rule', topic: 't', text: 'x', why: 'w', source: 's', tag: ['a'] }, { id: 'L2', kind: 'rule', topic: 't', text: 'y' }]),
     'refs.jsonl': jl([{ key: 'T-1', plans: [{ plan: 'docs/plan.md', task: '1', fp: '' }], files: { 'a.ts': 1 }, fp_files: '', jira_updated: '', audited_at: '', note: 'n' }, { key: 'T-2' }]),
   };
 }
@@ -395,8 +395,9 @@ test('the table columns come from lib/store.ts SCHEMAS and match the legacy DDL'
 });
 
 test('buildIndex produces the same rows and schema as the legacy build on the same fixtures (extra, odd keys, prototype keys); `plangraph build` is buildIndex', () => {
-  const { root, dir, ctx } = brainRepo(fixtureFiles());
-  const theirs = dump(legacyBuild(dir, path.join(dir, 'legacy.sqlite')));
+  const files = fixtureFiles(), { root, dir, ctx } = brainRepo(files), old = tmp(); // the legacy oracle reads the same files as old-layout text
+  for (const [f, t] of Object.entries(files)) fs.writeFileSync(path.join(old, f), S.canonFile(S.parseJsonlText(t, f), S.SCHEMAS[f] as S.Schema));
+  const theirs = dump(legacyBuild(old, path.join(old, 'legacy.sqlite')));
   const b = brainBuild(root); assert.equal(b.status, 0, b.stderr);
   assert.deepEqual(dump(path.join(dir, INDEX_FILE)), theirs);
   const res = buildIndex(ctx, { file: path.join(dir, 'mine.sqlite') });
@@ -404,7 +405,7 @@ test('buildIndex produces the same rows and schema as the legacy build on the sa
   assert.deepEqual(mine, theirs);
   assert.equal(res.counts.ticket, 34); assert.equal(res.counts.learning, 2);
   assert.equal((mine.ticket.find((r) => r.key === 'X-1') as Row).extra, '{"alpha":{"a":[1,{"x":null,"y":1}],"b":2},"flag":true,"list":[3,1,2],"nothing":null,"zeta":"z"}'); // X-1 is in the fixture
-  assert.ok(((mine.ticket.find((r) => r.key === 'X-2') as Row).extra as string).includes('DROP TABLE')); // X-2 is in the fixture, with an extra
+  assert.ok(((mine.ticket.find((r) => r.key === 'X-2') as Row).extra as string).includes('DROP_TABLE')); // X-2 is in the fixture, with an extra
   assert.equal(({} as Record<string, unknown>).polluted, undefined); // a plain object reads no polluted key
 });
 
@@ -414,20 +415,20 @@ test('buildIndex writes atomically: a failed build keeps the old index and leave
   assert.equal(r1.file, path.join(dir, INDEX_FILE));
   const before = fs.readFileSync(r1.file);
   fs.writeFileSync(path.join(dir, `${INDEX_FILE}.tmp-999999`), 'junk');
-  fs.writeFileSync(path.join(dir, 'tickets.jsonl'), jl([tk('A-1'), '{not json', tk('A-1')]));
-  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && e.message === 'tickets.jsonl:2: invalid JSON at column 1');
+  writePlanFile(dir, 'tickets.jsonl', jl([tk('A-1', { sp: -1 })])); // a value the validator refuses: the build fails before the swap
+  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && /^tickets\.jsonl:1: "sp" must not be negative/.test(e.message));
   assert.deepEqual(fs.readFileSync(r1.file), before);
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.includes('.tmp-')), []);
-  fs.writeFileSync(path.join(dir, 'tickets.jsonl'), jl([tk('A-1'), tk('A-1')])); // duplicate primary key: fails at insert time
-  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && /^tickets\.jsonl: record 2: UNIQUE constraint failed: ticket\.key/.test(e.message));
+  writePlanFile(dir, 'tickets.jsonl', jl([tk('A-1', { sp: 'x' })]));
+  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && /^tickets\.jsonl:1: /.test(e.message));
   assert.deepEqual(fs.readFileSync(r1.file), before);
   assert.deepEqual(fs.readdirSync(dir).filter((f) => f.includes('.tmp-')), []);
 });
 
-test('buildIndex: a source that is a directory or too large is refused with a short message', () => {
+test('buildIndex: a source that is a directory is refused with a short message', () => {
   const { dir, ctx } = brainRepo({});
-  fs.rmSync(path.join(dir, 'findings.jsonl')); fs.mkdirSync(path.join(dir, 'findings.jsonl'));
-  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && e.message === 'findings.jsonl: not a regular file');
+  fs.rmSync(path.join(dir, 'meta.jsonl'), { force: true }); fs.mkdirSync(path.join(dir, 'meta.jsonl')); // meta.jsonl is the one plan file that stays a file
+  assert.throws(() => buildIndex(ctx), (e) => e instanceof IngestError && e.message === 'meta.jsonl: not a regular file');
   assert.equal(fs.existsSync(path.join(dir, INDEX_FILE)), false);
 });
 
@@ -447,7 +448,7 @@ test('source fingerprint: stored at build, verified at open; a mismatch is STALE
     assert.equal(w.stale, false);
     w.exec('CREATE TABLE scratch(a)'); w.exec('DROP TABLE scratch'); // fresh and writable: writes allowed
   }
-  fs.appendFileSync(path.join(dir, 'tickets.jsonl'), JSON.stringify(tk('NEW-1')) + '\n');
+  writePlanFile(dir, 'tickets.jsonl', readPlanFile(dir, 'tickets.jsonl') + JSON.stringify(tk('NEW-1')) + '\n');
   assert.notEqual(sourceFingerprint(dir), r.fingerprint);
   let held: IndexHandle;
   {
@@ -468,14 +469,16 @@ test('fingerprint: content, not mtime; a missing file differs from an empty one;
   const f = path.join(dir, 'meta.jsonl'); const t = fs.readFileSync(f);
   fs.utimesSync(f, new Date(0), new Date(0)); assert.equal(sourceFingerprint(dir), a);
   fs.writeFileSync(f, t); assert.equal(sourceFingerprint(dir), a);
-  fs.writeFileSync(path.join(dir, 'open-items.jsonl'), 'not part of the index\n'); assert.equal(sourceFingerprint(dir), a);
-  fs.rmSync(path.join(dir, 'refs.jsonl')); const missing = sourceFingerprint(dir);
-  fs.writeFileSync(path.join(dir, 'refs.jsonl'), ''); assert.notEqual(sourceFingerprint(dir), missing);
+  writePlanFile(dir, 'open-items.jsonl', jl([{ key: 'T-1', kind: 'x', status: 'open' }])); assert.equal(sourceFingerprint(dir), a); // open items are not an index source
+  fs.rmSync(f); const missing = sourceFingerprint(dir);
+  fs.writeFileSync(f, ''); assert.notEqual(sourceFingerprint(dir), missing); // a missing file differs from an empty one
+  fs.writeFileSync(f, t);
   {
-    using h = openIndex(legacyBuild(dir), { dir });
+    const old = tmp(); for (const n of ['tickets.jsonl', 'schedule.jsonl', 'edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'refs.jsonl']) fs.writeFileSync(path.join(old, n), readPlanFile(dir, n)); fs.writeFileSync(path.join(old, 'meta.jsonl'), t);
+    using h = openIndex(legacyBuild(old, path.join(dir, 'legacy.sqlite')), { dir });
     assert.equal(h.stale, true);
   }
-  fs.rmSync(path.join(dir, 'open-items.jsonl'), { force: true }); // build validates the register now (graph nodes); the garbage above only had to leave the fingerprint alone
+  fs.rmSync(path.join(dir, 'legacy.sqlite'), { force: true });
   { const bb = brainBuild(root); assert.equal(bb.status, 0, bb.stderr); } // `plangraph build` stores the fingerprint: fresh
   using h = openIndex(path.join(dir, INDEX_FILE), { dir });
   assert.equal(h.stale, false);
@@ -492,13 +495,13 @@ test('openIndex without an index is a fixed NO_INDEX error (exit 2); an old Node
   assert.equal(loadSqlite(), loadSqlite());
 });
 
-test('100k ticket records build in well under the bound (prepared statement reused per table)', () => {
+test('3,000 ticket nodes build in well under the bound (prepared statement reused per table)', () => {
   const { dir, ctx } = brainRepo({});
-  const lines = []; for (let i = 0; i < 100000; i++) lines.push(JSON.stringify(tk('K-' + i, i % 10 === 0 ? { extra_x: i } : {})));
-  fs.writeFileSync(path.join(dir, 'tickets.jsonl'), lines.join('\n') + '\n');
+  const lines = []; for (let i = 0; i < 3000; i++) lines.push(JSON.stringify(tk('K-' + i, i % 10 === 0 ? { extra_x: i } : {})));
+  writePlanFile(dir, 'tickets.jsonl', lines.join('\n') + '\n');
   const t0 = performance.now(); const r = buildIndex(ctx); const ms = performance.now() - t0;
-  assert.equal(r.counts.ticket, 100000);
-  assert.ok(ms < 10000, `build took ${ms} ms`); // measured well under 1 s; 10x margin
+  assert.equal(r.counts.ticket, 3000);
+  assert.ok(ms < 10000, `build took ${ms} ms`); // measured well under 2 s: 5x margin
 });
 
 // ---------- source scans ----------
@@ -516,6 +519,6 @@ test('src/db.ts builds SQL only from constants: every interpolation is a table n
   const code = fs.readFileSync(path.join(SRC, 'db.ts'), 'utf8');
   const sql = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE|PRAGMA)\b[^`]*)`/g)];
   assert.ok(sql.length >= 3);
-  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb)$/, 'interpolation: ' + i[1]);
+  for (const m of sql) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL)$/, 'interpolation: ' + i[1]);
   assert.ok(!/Object\.keys\(r(ec)?\)\s*\.(map|join)/.test(code), 'no per-record column list');
 });

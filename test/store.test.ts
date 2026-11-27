@@ -5,16 +5,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { rng } from './fixtures/gen.ts';
 import { genPlan } from './fixtures/gen.ts';
 import * as S from '../lib/store.ts';
 
-const BIN_MERGE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../bin/plangraph-merge');
 const tmp = (p = 'store-') => fs.mkdtempSync(path.join(os.tmpdir(), p));
 type Rng = () => number;
-const sh = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
 
 // random records for each schema
 function randRec(r: Rng, name: string, i: number): S.Rec {
@@ -97,10 +93,10 @@ test('defaults fill missing optional fields on read only', () => {
 // ---- format ----
 const legacyDir = () => tmp('legacy-'); // a directory with no format.json
 
-test('format: a dir without format.json reads as v0 and passes checkFormat; too-new is a hard error; read mode honours min_reader', () => {
+test('format: an empty dir without format.json reads as v0 and passes checkFormat; too-new is a hard error; read mode honours min_reader', () => {
   const d = legacyDir();
   assert.equal(S.readFormat(d).format_version, 0);
-  assert.equal(S.checkFormat(d).version, 0); // until the entity layout is stamped, no stamp is not refused
+  assert.equal(S.checkFormat(d).version, 0); // no stamp and no old-layout file: a fresh directory, not refused
   fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":3,"min_reader":3}\n');
   assert.throws(() => S.checkFormat(d), (e: Error & { code?: string }) => e.code === 'TOO_NEW' && /upgrade/.test(e.message));
   assert.throws(() => S.checkFormat(d, undefined, { mode: 'read' }), (e: Error & { code?: string }) => e.code === 'TOO_NEW');
@@ -109,14 +105,31 @@ test('format: a dir without format.json reads as v0 and passes checkFormat; too-
   assert.equal(S.checkFormat(d, undefined, { mode: 'read' }).status, 'newer-readable');
   fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":"x"}\n');
   assert.throws(() => S.readFormat(d), (e: Error & { code?: string }) => e.code === 'BAD_FORMAT');
-  fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":1}\n'); // missing min_reader defaults
-  assert.equal(S.readFormat(d).min_reader, 1);
+  fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":2}\n'); // missing min_reader defaults
+  assert.equal(S.readFormat(d).min_reader, 2);
   assert.equal(S.checkFormat(d).status, 'ok');
 });
-test('format.json write keeps unknown fields', () => {
+test('format: a directory below format 2, or unstamped beside old-layout files, is refused as pre-1.0 (and a stamped or empty one is not)', () => {
+  const MSG = 'unsupported pre-1.0 directory: recreate it with plangraph takeover';
+  const pre = (e: unknown) => e instanceof S.FormatError && e.code === 'PRE_1_0' && e.message === MSG;
+  const v1 = tmp('v1-'); fs.writeFileSync(path.join(v1, 'format.json'), '{"format_version":1,"min_reader":1}\n');
+  assert.throws(() => S.checkFormat(v1), pre);
+  assert.throws(() => S.checkFormat(v1, undefined, { mode: 'read' }), pre);
+  for (const f of ['tickets.jsonl', 'edges.jsonl', 'schedule.jsonl', 'learnings.jsonl', 'open-items.jsonl', 'people.jsonl', 'xrefs.jsonl']) {
+    const d = tmp('old-'); fs.writeFileSync(path.join(d, f), '');
+    assert.throws(() => S.checkFormat(d), pre, f);
+  }
+  const meta = tmp('meta-'); fs.writeFileSync(path.join(meta, 'meta.jsonl'), ''); // meta.jsonl is a file of the entity layout too
+  assert.equal(S.checkFormat(meta).version, 0);
+  const ok = tmp('v2-'); fs.writeFileSync(path.join(ok, 'format.json'), '{"format_version":2,"min_reader":2,"storage":"entity"}\n'); fs.writeFileSync(path.join(ok, 'tickets.jsonl'), '');
+  assert.equal(S.checkFormat(ok).status, 'ok'); // a stamped directory is never judged by its leftover files
+});
+test('format.json write keeps unknown fields and writes the storage field when given', () => {
   const d = tmp(); fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":1,"min_reader":1,"note":"x"}\n');
   S.writeFormat(d, { format_version: 2, min_reader: 1 });
   assert.equal(fs.readFileSync(path.join(d, 'format.json'), 'utf8'), '{"format_version":2,"min_reader":1,"note":"x"}\n');
+  S.writeFormat(d, { format_version: 2, min_reader: 2, storage: 'entity' });
+  assert.equal(fs.readFileSync(path.join(d, 'format.json'), 'utf8'), '{"format_version":2,"min_reader":2,"storage":"entity","note":"x"}\n');
 });
 
 // ---- locks ----
@@ -153,18 +166,6 @@ test("the lock file holds pid and token, and release leaves another owner's lock
   assert.equal((seen as { pid?: unknown }).pid, process.pid); assert.equal(typeof (seen as { token: string }).token, 'string'); assert.ok((seen as { token: string }).token.length >= 8); // set by fn, which withLock ran
   assert.equal(JSON.parse(fs.readFileSync(lock, 'utf8')).token, 'other', 'not removed');
 });
-test('doctorMergeDriver reports problems; installMergeDriver is idempotent and quotes paths', () => {
-  const root = tmp('doc-'); sh(root, 'init', '-q');
-  const d0 = S.doctorMergeDriver(root); assert.equal(d0.installed, false); assert.ok(d0.problems.length >= 2);
-  fs.writeFileSync(path.join(root, '.gitattributes'), '*.png binary');
-  S.installMergeDriver(root, { driverPath: BIN_MERGE }); S.installMergeDriver(root, { driverPath: BIN_MERGE });
-  assert.equal(fs.readFileSync(path.join(root, '.gitattributes'), 'utf8'), '*.png binary\n.plangraph/*.jsonl merge=plangraph-jsonl\n');
-  assert.equal(S.doctorMergeDriver(root).installed, true);
-  S.installMergeDriver(root, { driverPath: '/no such dir/plangraph-merge' });
-  const d1 = S.doctorMergeDriver(root); assert.equal(d1.installed, false); assert.equal(d1.executable, false); assert.match(d1.problems.join(), /not found/);
-  S.installMergeDriver(root, { dir: 'x/y', driverPath: BIN_MERGE }); assert.equal(S.doctorMergeDriver(root, { dir: 'x/y' }).attributes, true);
-});
-
 // ---- lock hardening (cleanup A2, items 24, 25, 27) ----
 const within = (ms: number, fn: () => unknown) => { const t0 = Date.now(); let err: Error | null = null; try { fn(); } catch (e) { err = e as Error; } assert.ok(Date.now() - t0 < ms, `took ${Date.now() - t0} ms`); return err; }; // whatever fn throws here is an Error
 test('a dangling symlink at the lock path throws promptly and is never followed', () => {
@@ -232,15 +233,11 @@ withLock(lock, () => {
 
 // ---- composite keys and undefined fields (mutation-tested by scripts/mutate.ts) ----
 test('composite keys that differ only around the separator never collide (edges A|B>C vs A>B|C, A:B vs A>:B)', async () => {
-  const { mergeJsonl } = await import('../lib/merge.ts');
   const spec = S.SCHEMAS['edges.jsonl'];
   const pairs = [[{ consumer: 'A|B', producer: 'C' }, { consumer: 'A', producer: 'B|C' }], [{ consumer: 'A ', producer: '| B' }, { consumer: 'A | ', producer: 'B' }], [{ consumer: 'A,B', producer: 'C' }, { consumer: 'A', producer: 'B,C' }]];
   for (const [x, y] of pairs) {
     assert.notEqual(spec.id(x), spec.id(y), `${JSON.stringify(x)} and ${JSON.stringify(y)} must have different identities`);
-    // real behaviour: each side adds one of them; the merge keeps both and reports no conflict
-    const r = mergeJsonl({ base: '', ours: `${S.canonLine(x, spec)}\n`, theirs: `${S.canonLine(y, spec)}\n` }, spec, { name: 'edges.jsonl' });
-    assert.deepEqual(r.conflicts, []);
-    assert.equal(r.text.split('\n').filter(Boolean).length, 2, r.text);
+    assert.equal(S.canonFile([x, y], spec).split('\n').filter(Boolean).length, 2, 'a canonical file keeps both (they are two records)');
   }
   assert.equal(S.showKey(S.keyStr(['A', 'B'])), 'A | B');
 });

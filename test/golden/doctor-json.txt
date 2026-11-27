@@ -1,5 +1,5 @@
 $ plangraph doctor --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"doctor","ok":true,"exit":0,"data":{"lines":["data format v1; tool supports v1","merge driver: ok","node v<NODE>: ok","solver runtime: uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)","jira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it","warning: openwolf: rules only: its hooks are not registered"]},"fresh":null,"next":[]}
+{"v":2,"cmd":"doctor","ok":true,"exit":0,"data":{"lines":["data format v2; tool supports v2","node v<NODE>: ok","solver runtime: uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)","jira: not configured (config.json \"jira\" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it","warning: openwolf: rules only: its hooks are not registered"]},"fresh":null,"next":[]}
 --- stderr

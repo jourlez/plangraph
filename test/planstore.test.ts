@@ -1,5 +1,5 @@
-// Tests for lib/planstore.ts: the JsonlStore reproduces today's reads and writes byte for byte, and no plan-data access bypasses it.
-// NOT covered: the entity backend (tasks 9 and 10), the Python solver's own reads.
+// Tests for lib/planstore.ts: the entity backend behind the one PlanStore door (round trip of every kind, a damaged file skipped, refused write
+// targets), and no plan-data access bypasses it. NOT covered: the Python solver's own reads; the mapping itself is test/entitystore.test.ts.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -41,23 +41,30 @@ test('every kind has a file name and a schema, and the list is closed', () => {
   assert.equal(P.SRC_KINDS.length + P.GRAPH_KINDS.length, P.KINDS.length);
 });
 
-test('writeKind writes the bytes the old writer wrote, readKind reads them back', () => {
+test('writeKind then readKind round-trips every kind in canonical order, and readText is the canonical text of the kind', () => {
   for (const k of P.KINDS) {
-    const d = tmp(), legacy = tmp(), st = P.openStore({ dir: d, root: d }), f = P.kindFile(k);
-    const r = st.writeKind(k, ROWS[k]);
+    const d = tmp(), st = P.openStore({ dir: d, root: d }), f = P.kindFile(k), schema = S.SCHEMAS[f] as S.Schema;
+    const r = st.writeKind(k, ROWS[k]), text = S.canonFile(ROWS[k], schema);
     assert.equal(r.kind, k);
-    S.writeAtomic(path.join(legacy, f), S.canonFile(ROWS[k], S.SCHEMAS[f]), { root: legacy });
-    assert.equal(fs.readFileSync(path.join(d, f), 'utf8'), fs.readFileSync(path.join(legacy, f), 'utf8'), k);
-    assert.deepEqual(st.readKind(k, { defaults: false }), S.readRecords(d, f, { defaults: false }), k);
-    assert.deepEqual(st.readKind(k), S.readRecords(d, f), k);
+    assert.deepEqual(st.readKind(k, { defaults: false }), S.parseJsonlText(text, f), k);
+    assert.deepEqual(st.readKind(k), S.parseJsonlText(text, f).map((x) => S.withDefaults(schema, x)), k);
+    assert.equal(st.readText(k), text, k);
     assert.equal(st.exists(k), true);
-    assert.equal(r.bytes, fs.statSync(path.join(d, f)).size);
+    assert.equal(r.bytes, Buffer.byteLength(text));
   }
+});
+
+test('the one plan kind that stays a single file is meta.jsonl; every other kind is entity files, batch files or a schedule version', () => {
+  const d = tmp(), st = P.openStore({ dir: d, root: d });
+  for (const k of P.KINDS) st.writeKind(k, ROWS[k]);
+  assert.equal(fs.readFileSync(path.join(d, 'meta.jsonl'), 'utf8'), S.canonFile(ROWS.meta, S.SCHEMAS['meta.jsonl'] as S.Schema));
+  for (const k of P.KINDS) if (k !== 'meta') assert.equal(fs.existsSync(path.join(d, P.kindFile(k))), false, `${k}: no old-layout file`);
+  for (const dir of ['nodes/ticket', 'nodes/person', 'nodes/sprint', 'nodes/epic', 'nodes/repo', 'nodes/openitem', 'schedules', 'runs/evidence', 'runs/findings', 'runs/learnings']) assert.ok(fs.existsSync(path.join(d, dir)), dir);
 });
 
 test('describe, exists and a missing kind', () => {
   const d = tmp(), st = P.openStore({ dir: d, root: d });
-  assert.deepEqual(st.describe(), { backend: 'jsonl', root: d });
+  assert.deepEqual(st.describe(), { backend: 'entity', root: d });
   assert.equal(st.exists('ticket'), false);
   assert.deepEqual(st.readKind('ticket'), []);
   assert.deepEqual(st.readValidated('ticket'), []);
@@ -67,29 +74,38 @@ test('describe, exists and a missing kind', () => {
   assert.equal(st.probe('ticket', 1024), 'absent');
 });
 
-test('readValidated and readText keep the readers errors', () => {
+test('readValidated and readText keep the readers errors (meta.jsonl, the single file)', () => {
   const d = tmp(), st = P.openStore({ dir: d, root: d });
-  fs.writeFileSync(path.join(d, 'tickets.jsonl'), '{"summary":"no key"}\n');
-  assert.throws(() => st.readValidated('ticket'), (e: Error) => /^tickets\.jsonl:/.test(e.message));
-  fs.writeFileSync(path.join(d, 'edges.jsonl'), 'x'.repeat(100));
-  assert.throws(() => st.readText('edge', { maxBytes: 10 }), { message: 'edges.jsonl: file too large (limit 10 bytes)' });
-  assert.throws(() => st.readText('edge', { maxBytes: 10, bare: true }), { message: 'file too large (limit 10 bytes)' });
-  assert.throws(() => st.readSource('edge', 10), { message: 'edges.jsonl: file too large (limit 10 bytes)' });
-  fs.symlinkSync(path.join(d, 'edges.jsonl'), path.join(d, 'meta.jsonl'));
+  fs.writeFileSync(path.join(d, 'meta.jsonl'), 'not json\n');
+  assert.throws(() => st.readValidated('meta'), (e: Error) => /^meta\.jsonl:1: invalid JSON/.test(e.message));
+  fs.writeFileSync(path.join(d, 'meta.jsonl'), 'x'.repeat(100));
+  assert.throws(() => st.readText('meta', { maxBytes: 10 }), { message: 'meta.jsonl: file too large (limit 10 bytes)' });
+  assert.throws(() => st.readText('meta', { maxBytes: 10, bare: true }), { message: 'file too large (limit 10 bytes)' });
+  assert.throws(() => st.readSource('meta', 10), { message: 'meta.jsonl: file too large (limit 10 bytes)' });
+  assert.equal(st.probe('meta', 10), 'unsafe');
+  assert.equal(st.probe('meta', 1000), 'ok');
+  fs.rmSync(path.join(d, 'meta.jsonl')); fs.writeFileSync(path.join(d, 'other'), ''); fs.symlinkSync(path.join(d, 'other'), path.join(d, 'meta.jsonl'));
   for (const f of [() => st.readKind('meta'), () => st.readText('meta'), () => st.readSource('meta', 1024)]) assert.throws(f, { message: /meta\.jsonl: is a symlink/ });
   assert.equal(st.probe('meta', 1024), 'unsafe');
-  assert.equal(st.probe('edge', 10), 'unsafe');
-  assert.equal(st.probe('edge', 1000), 'ok');
+});
+
+test('a damaged node file is skipped by the readers, never thrown', () => {
+  const d = tmp(), st = P.openStore({ dir: d, root: d });
+  st.writeKind('person', [{ id: 'Ana' }, { id: 'Ben' }]);
+  const dir = path.join(d, 'nodes/person', 'ab'); fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'bad~00000000.pg'), 'id "bad"\n<<<<<<< a\nname "x"\n=======\nname "y"\n>>>>>>> b\n');
+  fs.writeFileSync(path.join(dir, 'worse~11111111.pg'), 'not a node file\n\u0000');
+  assert.deepEqual(st.readKind('person').map((r) => r.id), ['Ana', 'Ben']);
 });
 
 test('writes refuse a symlink target (REFUSED) and precheck writes nothing', () => {
   const d = tmp(), st = P.openStore({ dir: d, root: d });
-  fs.writeFileSync(path.join(d, 'x'), '');
-  fs.symlinkSync(path.join(d, 'x'), path.join(d, 'edges.jsonl'));
-  assert.throws(() => st.writeKind('edge', ROWS.edge, { precheck: true }), (e: unknown) => e instanceof PlangraphError && e.code === 'REFUSED' && /refusing to write edges\.jsonl: it is a symlink \(nothing was written\)/.test(e.message));
-  assert.throws(() => st.precheck(['ticket', 'edge']), { code: 'REFUSED' });
-  assert.equal(fs.existsSync(path.join(d, 'tickets.jsonl')), false);
-  assert.throws(() => st.writeKind('edge', ROWS.edge), { code: 'REFUSED' });
+  fs.mkdirSync(path.join(d, 'nodes')); fs.mkdirSync(path.join(d, 'elsewhere'));
+  fs.symlinkSync(path.join(d, 'elsewhere'), path.join(d, 'nodes', 'ticket'));
+  assert.throws(() => st.writeKind('ticket', ROWS.ticket, { precheck: true }), (e: unknown) => e instanceof PlangraphError && e.code === 'REFUSED' && /refusing to write ticket: it is a symlink \(nothing was written\)/.test(e.message));
+  assert.throws(() => st.precheck(['person', 'ticket']), { code: 'REFUSED' });
+  assert.equal(fs.existsSync(path.join(d, 'nodes', 'person')), false);
+  assert.deepEqual(fs.readdirSync(path.join(d, 'elsewhere')), []);
 });
 
 test('writeChanged validates all, writes only the kinds whose canonical rows changed', () => {
@@ -97,28 +113,31 @@ test('writeChanged validates all, writes only the kinds whose canonical rows cha
   st.writeKind('person', [{ id: 'Ana' }]);
   const n = st.writeChanged([{ kind: 'person', rows: [{ id: 'Ana' }], old: [{ id: 'Ana' }] }, { kind: 'epic', rows: [{ id: 'E1' }], old: [] }], { validate: true });
   assert.equal(n, 1);
-  assert.equal(fs.readFileSync(path.join(d, 'epics.jsonl'), 'utf8'), '{"id":"E1"}\n');
+  assert.equal(st.readText('epic'), '{"id":"E1"}\n');
   assert.throws(() => st.writeChanged([{ kind: 'epic', rows: [{ nope: 1 }], old: [] }], { validate: true }), (e: Error) => /^epics\.jsonl:/.test(e.message));
 });
 
-test('writeText writes the text as given (a kind with its own serializer)', () => {
+test('writeText writes rows from text (a kind with its own serializer)', () => {
   const d = tmp(), st = P.openStore({ dir: d, root: d });
-  st.writeText('openitem', '{"key":"T-1"}\n');
-  assert.equal(fs.readFileSync(path.join(d, 'open-items.jsonl'), 'utf8'), '{"key":"T-1"}\n');
+  st.writeText('openitem', '{"key":"T-1","kind":"gap","status":"open"}\n');
+  assert.deepEqual(st.readKind('openitem', { defaults: false }), [{ key: 'T-1', kind: 'gap', status: 'open' }]);
+  assert.ok(fs.existsSync(path.join(d, 'nodes', 'openitem')));
 });
 
 // ---- no plan-data access outside the store ----
 // A line that names readRecords, canonFile, canonText, writeState or readJsonl as a call or import must be in lib/planstore.ts or on this list.
 // Each exception says why; a stale exception (matches nothing) fails the test, so the list cannot rot.
 const EXCEPTIONS: Array<{ file: string; line: RegExp; reason: string }> = [
-  { file: 'lib/store.ts', line: /readRecords|canonFile|canonText/, reason: 'definitions of the JSONL primitives the JsonlStore wraps (canonText is a pure text helper)' },
-  { file: 'lib/jsonl.ts', line: /readJsonl/, reason: 'definition of the validated file reader the JsonlStore wraps' },
+  { file: 'lib/store.ts', line: /readRecords|canonFile|canonText/, reason: 'definitions of the canonical-text primitives the store builds on (canonText is a pure text helper)' },
+  { file: 'lib/jsonl.ts', line: /readJsonl/, reason: 'definition of the validated file reader the store wraps (meta.jsonl, snapshots)' },
   { file: 'src/commands/shared.ts', line: /writeState/, reason: 'writeState re-export for files that are not plan kinds (config.json, .gitignore, CARD.md, report files)' },
   { file: 'src/commands/plan.ts', line: /writeState|canonFile/, reason: 'init writes config.json and .gitignore, which are not plan kinds' },
   { file: 'src/commands/openitems.ts', line: /writeState/, reason: 'open-items --write also writes OPEN-ITEMS.md, a rendered document and not a plan kind' },
   { file: 'src/commands/queries.ts', line: /writeState/, reason: 'card --write writes CARD.md, not a plan kind' },
   { file: 'src/commands/report.ts', line: /writeState/, reason: 'report writes REPORT.md and REPORT.html, not plan kinds' },
-  { file: 'lib/store2/entitystore.ts', line: /canonFile/, reason: 'the entity backend of the PlanStore: it builds the canonical row order and text of a kind from entity files' },
+  { file: 'lib/store2/entitystore.ts', line: /readRecords|canonFile|readJsonl|writeState/, reason: 'the entity backend of the PlanStore: it builds the canonical row order and text of a kind from entity files and keeps meta.jsonl as a single file' },
+  { file: 'lib/store2/adopt.ts', line: /readRecords/, reason: 'reads the old-layout files it converts into the store' },
+  { file: 'lib/solver-input.ts', line: /canonFile/, reason: 'the derived solver input is the v1-shaped canonical text of five kinds' },
   { file: 'src/commands/import.ts', line: /canonFile/, reason: 'cache/obs.jsonl is an observation cache, not a plan kind (it has its own column order)' },
 ];
 const CALLS = /\b(readRecords|canonFile|canonText|writeState|readJsonl)\b/;

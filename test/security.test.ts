@@ -12,7 +12,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { genPlan } from './fixtures/gen.ts';
 import { STALE_WARNING } from '../src/context.ts';
 import type { SpawnSyncReturns } from 'node:child_process';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile, putFile, writePlanFile } from './helpers/plan-dir.ts';
+import { nodePath } from '../lib/store2/layout.ts';
 type Row = Record<string, unknown>;
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
@@ -24,9 +25,9 @@ const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_
 const ENV = { ...process.env, PLANGRAPH_DIR: '', ...GIT_ENV };
 const run = (cwd: string, args: string[], env = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', timeout: 30000, env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: ENV, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
-const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
+const put = putFile;
 const editJson = (f: string, fn: (c: Row) => void) => { const c = JSON.parse(fs.readFileSync(f, 'utf8')); fn(c); fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\n'); };
-const editTickets = (d: string, fn: (rows: Row[]) => void) => { const f = path.join(d, '.plangraph/tickets.jsonl'); const rows = fs.readFileSync(f, 'utf8').trim().split('\n').map((l) => JSON.parse(l)); fn(rows); fs.writeFileSync(f, jl(rows)); };
+const editTickets = (d: string, fn: (rows: Row[]) => void) => { const b = path.join(d, '.plangraph'); const rows = readPlanFile(b, 'tickets.jsonl').trim().split('\n').map((l) => JSON.parse(l)); fn(rows); writePlanFile(b, 'tickets.jsonl', jl(rows)); };
 const ok = (r: SpawnSyncReturns<string>, what: string) => assert.equal(r.status, 0, `${what}: ${r.stderr}`);
 /** Every file under dir (recursive) -> its bytes, to prove "nothing written". */
 function snapshot(dir: string) {
@@ -99,19 +100,20 @@ test('(3) .plangraphrc {"dir":"../../x"} (and --dir, PLANGRAPH_DIR) exits 4 "out
 });
 
 // ---------- (4) a symlinked state file is never written through ----------
-test('(4) .plangraph/findings.jsonl symlinked to a victim file: export exits 4, victim and plan dir untouched', () => {
-  const d = repo(), victim = path.join(path.dirname(d), `victim-${path.basename(d)}.jsonl`);
-  tmps.push(victim);
+test('(4) .plangraph/runs/findings symlinked to a victim directory: export exits 4, victim and plan dir untouched', () => {
+  const d = repo(), victim = path.join(path.dirname(d), `victim-${path.basename(d)}`);
+  tmps.push(victim); fs.mkdirSync(victim);
   const body = jl([{ key: 'T-1', kind: 'note', text: 'victim content' }]);
-  fs.writeFileSync(victim, body);
-  const f = path.join(d, '.plangraph/findings.jsonl'); fs.writeFileSync(f, body);
-  ok(run(d, ['build']), 'build'); // built from a regular file; `plangraph build` itself refuses a symlinked source (test/platform.test.ts)
-  fs.rmSync(f); fs.symlinkSync(victim, f);
+  fs.writeFileSync(path.join(victim, 'x.jsonl'), body);
+  put(d, '.plangraph/findings.jsonl', body);
+  ok(run(d, ['build']), 'build'); // built from a regular directory
+  const runs = path.join(d, '.plangraph/runs/findings'); fs.rmSync(runs, { recursive: true }); fs.symlinkSync(victim, runs);
   const before = snapshot(path.join(d, '.plangraph'));
   const r = run(d, ['export']);
   assert.equal(r.status, 4);
-  assert.equal(r.stderr, 'error: refusing to write findings.jsonl: it is a symlink (nothing was written)\ntry: plangraph explain export\n');
-  assert.equal(fs.readFileSync(victim, 'utf8'), body);
+  assert.match(r.stderr, /^error: refusing to write: path is outside the repository: .*\(nothing was written\)\ntry: plangraph explain export\n$/);
+  assert.equal(fs.readFileSync(path.join(victim, 'x.jsonl'), 'utf8'), body);
+  assert.deepEqual(fs.readdirSync(victim), ['x.jsonl']);
   assert.deepEqual(snapshot(path.join(d, '.plangraph')), before);
 });
 
@@ -224,10 +226,9 @@ test('(6) a tracked plangraph.sqlite makes doctor exit 1 with "tracked index"', 
 
 // ---------- (7) the fingerprint, not the mtime, decides staleness, and the card says so ----------
 test('(7) text changed after build with the old mtime kept: STALE on stderr, and the card itself says STALE (even in hook mode)', () => {
-  const d = repo(), f = path.join(d, '.plangraph/tickets.jsonl'), st = fs.statSync(f);
-  editTickets(d, (rows) => { rows[0].sp = 99; });
+  const d = repo(), f = nodePath(path.join(d, '.plangraph'), 'ticket', 'T-1'), st = fs.statSync(f);
+  editTickets(d, (rows) => { (rows.find((r) => r.key === 'T-1') as Row).sp = 99; });
   fs.utimesSync(f, st.atime, st.mtime); // mtime unchanged: only the content fingerprint can tell
-  adoptPlanDir(path.join(d, '.plangraph'));
   const t = run(d, ['ticket', 'T-1']);
   assert.equal(t.stderr, `${STALE_WARNING}\n`);
   const c = run(d, ['card']);
@@ -248,8 +249,8 @@ test('(8) a JSONL record with an unknown field builds and survives export', () =
   adoptPlanDir(path.join(d, '.plangraph'));
   ok(run(d, ['build']), 'build');
   ok(run(d, ['export']), 'export');
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(d, '.plangraph/tickets.jsonl'), 'utf8').split('\n')[0]).x_future, { a: [1, 2] });
-  assert.equal(JSON.parse(fs.readFileSync(path.join(d, '.plangraph/findings.jsonl'), 'utf8').trim()).x_rank, 3);
+  assert.deepEqual(JSON.parse(readPlanFile(path.join(d, '.plangraph'), 'tickets.jsonl').split('\n')[0]).x_future, { a: [1, 2] });
+  assert.equal(JSON.parse(readPlanFile(path.join(d, '.plangraph'), 'findings.jsonl').trim()).x_rank, 3);
 });
 
 // ---------- (9) prototype names are not commands ----------
@@ -304,7 +305,7 @@ test('(d) plangraph verify reports a free ticket placed before config.first_spri
   editJson(cfg, (c) => { c.first_sprint = 2; c.frozen_statuses = ['In Progress']; });
   adoptPlanDir(path.join(d, '.plangraph'));
   ok(run(d, ['build']), 'build');
-  const sched = fs.readFileSync(path.join(d, '.plangraph/schedule.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const sched = readPlanFile(path.join(d, '.plangraph'), 'schedule.jsonl').trim().split('\n').map((l) => JSON.parse(l));
   const early = sched.filter((s) => s.sprint < 2).map((s) => s.key).sort();
   assert.ok(early.length >= 2, 'fixture has tickets in sprint 1');
   let r = run(d, ['verify']);

@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { canonFile, SCHEMAS } from '../lib/store.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph'), FX = path.join(import.meta.dirname, 'fixtures/repo-scan');
 const fx = (n: string) => fs.readFileSync(path.join(FX, n), 'utf8');
@@ -25,7 +25,7 @@ const repo = (name: string, files: Record<string, string>, parent = path.join(BA
   for (const [k, v] of Object.entries(files)) put(d, k, v);
   git(d, 'add', '-A'); git(d, 'commit', '-qm', 'c'); return d;
 };
-const rows = (p: string) => fs.readFileSync(path.join(p, '.plangraph/repos.jsonl'), 'utf8');
+const rows = (p: string) => readPlanFile(path.join(p, '.plangraph'), 'repos.jsonl');
 const PKG = '{"name":"web","scripts":{"build":"tsc","test":"node --test"},"dependencies":{"react":"1"}}';
 
 before(() => { BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-reposcan-'))); for (const d of ['home', 'data']) fs.mkdirSync(path.join(BASE, d)); });

@@ -1,12 +1,13 @@
-// EntityStore: the entity backend of the PlanStore. The mapping of task 10 (every old file to one home, every column kept), the same rows as the
-// JsonlStore for every kind, and idempotent writes. NOT covered: the commands on the entity backend (task 10), the index (index-incremental.test.ts).
+// EntityStore: the entity backend of the PlanStore (the only one). The mapping (every old file to one home, every column kept), the rows every kind
+// reads back in canonical order, and idempotent writes. NOT covered: the commands on it (test/storage-mapping.test.ts), the index (index-incremental.test.ts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { genPlan } from './fixtures/gen.ts';
-import { openStore, JsonlStore, KINDS, kindFile } from '../lib/planstore.ts';
+import { openStore, KINDS, kindFile } from '../lib/planstore.ts';
+import * as S from '../lib/store.ts';
 import type { Kind, Row } from '../lib/planstore.ts';
 import { EntityStore } from '../lib/store2/entitystore.ts';
 import { listKinds, listNodeFiles, readNodes } from '../lib/store2/nodes.ts';
@@ -16,7 +17,9 @@ import { adoptPlanDir } from './helpers/plan-dir.ts';
 const tmps: string[] = [];
 const tmp = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-entity-'))); tmps.push(d); return d; };
 test.after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const entityDir = (): string => { const d = tmp(); fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":1,"min_reader":1,"storage":"entity"}\n'); return d; };
+const entityDir = (): string => { const d = tmp(); fs.writeFileSync(path.join(d, 'format.json'), '{"format_version":2,"min_reader":2,"storage":"entity"}\n'); return d; };
+/** What a kind reads back as: the canonical text of the rows, parsed again (canonical order), with the schema defaults when asked. */
+const expected = (k: Kind, rows: readonly Row[], defaults: boolean): Row[] => { const f = kindFile(k), sch = S.SCHEMAS[f] as S.Schema, out = S.parseJsonlText(S.canonFile(rows, sch), f); return defaults ? out.map((r) => S.withDefaults(sch, r)) : out; };
 
 const plan = genPlan({ n: 14, seed: 5 });
 // one hand-made row set per kind, unsorted on purpose; every optional column is present at least once, unknown columns too
@@ -64,31 +67,27 @@ const snapshot = (dir: string): Record<string, string> => {
 
 test('the order list names every kind', () => { assert.deepEqual([...ORDER].sort(), [...KINDS].sort()); assert.deepEqual(Object.keys(ROWS).sort(), [...KINDS].sort()); });
 
-test('openStore picks the backend from format.json', () => {
-  const a = tmp(), b = entityDir(), c = tmp();
+test('openStore always returns the entity backend, whatever format.json says (or does not)', () => {
+  const a = tmp(), c = tmp();
   fs.writeFileSync(path.join(a, 'format.json'), '{"format_version":1,"min_reader":1}\n');
   fs.writeFileSync(path.join(c, 'format.json'), 'not json');
-  assert.equal(openStore({ dir: a, root: a }).describe().backend, 'jsonl');
-  assert.equal(openStore({ dir: b, root: b }).describe().backend, 'entity');
-  assert.equal(openStore({ dir: tmp(), root: '/' }).describe().backend, 'jsonl');
-  assert.equal(openStore({ dir: c, root: c }).describe().backend, 'jsonl');
-  assert.ok(openStore({ dir: b, root: b }) instanceof EntityStore);
+  for (const d of [a, c, entityDir(), tmp()]) { const st = openStore({ dir: d, root: d }); assert.equal(st.describe().backend, 'entity'); assert.ok(st instanceof EntityStore); }
 });
 
-test('EntityStore and JsonlStore give identical readKind rows for every kind (with and without defaults)', () => {
-  const j = tmp(), e = entityDir(), js = new JsonlStore({ dir: j, root: j }), es = openStore({ dir: e, root: e });
-  writeAll(js); writeAll(es);
-  for (const k of KINDS) for (const defaults of [true, false]) assert.deepEqual(es.readKind(k, { defaults }), js.readKind(k, { defaults }), `${k} defaults=${defaults}`);
-  for (const k of KINDS) assert.equal(es.exists(k), js.exists(k), k);
-  assert.equal(es.readSource('ticket', 1 << 20), js.readSource('ticket', 1 << 20), 'the canonical text of a kind');
+test('every kind reads back the canonical rows of what was written (with and without defaults)', () => {
+  const e = entityDir(), es = openStore({ dir: e, root: e });
+  writeAll(es);
+  for (const k of KINDS) for (const defaults of [true, false]) assert.deepEqual(es.readKind(k, { defaults }), expected(k, ROWS[k], defaults), `${k} defaults=${defaults}`);
+  for (const k of KINDS) assert.equal(es.exists(k), true, k);
+  assert.equal(es.readSource('ticket', 1 << 20), S.canonFile(ROWS.ticket, S.SCHEMAS['tickets.jsonl'] as S.Schema), 'the canonical text of a kind');
 });
 
 test('the same on genPlan alone, at a larger size', () => {
   const big = genPlan({ n: 60, people: 4, density: 0.2, seed: 11 });
-  const j = tmp(), e = entityDir(), js = new JsonlStore({ dir: j, root: j }), es = openStore({ dir: e, root: e });
+  const e = entityDir(), es = openStore({ dir: e, root: e });
   const rows: Partial<Record<Kind, Row[]>> = { ticket: big.tickets as unknown as Row[], edge: big.edges, schedule: big.schedule };
-  writeAll(js, rows); writeAll(es, rows);
-  for (const k of ['ticket', 'edge', 'schedule'] as Kind[]) assert.deepEqual(es.readKind(k), js.readKind(k), k);
+  writeAll(es, rows);
+  for (const k of ['ticket', 'edge', 'schedule'] as Kind[]) assert.deepEqual(es.readKind(k), expected(k, rows[k] as Row[], true), k);
   assert.equal(es.readKind('ticket').length, 60);
 });
 
@@ -177,19 +176,17 @@ test('a write is refused when the node directory leaves the repository', () => {
 });
 
 test('adoptPlanDir converts old-layout files into the entity layout and removes them', () => {
-  const d = tmp(), old = new JsonlStore({ dir: d, root: d });
-  writeAll(old);
+  const d = tmp();
+  for (const k of KINDS) fs.writeFileSync(path.join(d, kindFile(k)), S.canonFile(ROWS[k], S.SCHEMAS[kindFile(k)] as S.Schema)); // the old layout: one canonical file per kind
   fs.writeFileSync(path.join(d, 'config.json'), '{}\n');
-  adoptPlanDir(d, { backend: 'entity' });
+  adoptPlanDir(d);
   for (const k of KINDS) if (k !== 'meta') assert.ok(!fs.existsSync(path.join(d, kindFile(k))), `${kindFile(k)} is gone`);
   assert.ok(fs.existsSync(path.join(d, 'meta.jsonl')));
   assert.equal(JSON.parse(fs.readFileSync(path.join(d, 'format.json'), 'utf8')).storage, 'entity');
-  const s = openStore({ dir: d, root: d });
-  assert.equal(s.describe().backend, 'entity');
-  const ref = tmp(), rs = new JsonlStore({ dir: ref, root: ref });
-  writeAll(rs);
-  for (const k of KINDS) assert.deepEqual(s.readKind(k), rs.readKind(k), k);
+  const s2 = openStore({ dir: d, root: d });
+  assert.equal(s2.describe().backend, 'entity');
+  for (const k of KINDS) assert.deepEqual(s2.readKind(k), expected(k, ROWS[k], true), k);
   assert.ok(fs.existsSync(path.join(d, 'config.json')));
-  adoptPlanDir(d, { backend: 'entity' }); // again: nothing left to convert
-  for (const k of KINDS) assert.deepEqual(s.readKind(k), rs.readKind(k), k);
+  adoptPlanDir(d); // again: nothing left to convert
+  for (const k of KINDS) assert.deepEqual(s2.readKind(k), expected(k, ROWS[k], true), k);
 });

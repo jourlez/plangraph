@@ -38,7 +38,7 @@ kills it (`test/mutation-kills-*.test.ts`; their JSON goldens are in `test/golde
 after an intended output change and reviewed as a diff), or with an equivalence entry, never with a test of the mutant's text.
 
 Trust roots: the files whose failure would let untrusted input act with the user's authority (the Jira client, credentials, hosts, redaction,
-registry and tenant decision, the safe file writer and reader, the git helpers, the merge-driver shim and its consent keys, the sanitizer, the
+registry and tenant decision, the safe file writer and reader, the git helpers, the sanitizer, the
 tracker seam, the launchers, and the one-way name migration) are listed in `scripts/mutate/trust-roots.json` (`test/trust-roots.test.ts` checks
 that every listed file exists and that this paragraph names it). Zero mutants of these files may survive: each survivor is killed by a behavior
 test or, where no test can observe it on the CI platforms (a win32 branch, a type annotation, a value that cannot be told from its mutant), recorded
@@ -104,7 +104,7 @@ schedule row; an `sp:` task is exempt until someone places it). Its one line add
 `plangraph verify`'s own UNPLACED count (check calls `verifyPlan`, the function behind the card's violation count), so `verify` exiting 1 on UNPLACED
 and `check` saying all is well can no longer both happen.
 
-Session hook: `plangraph card --if-present` (with or without `--heal`) prints nothing and exits 0 whenever anything fails: a too-old Node, a bad
+Session hook: `plangraph card --if-present` (with or without `--refresh`) prints nothing and exits 0 whenever anything fails: a too-old Node, a bad
 `.plangraphrc`, a refused plan directory (`PLANGRAPH_DIR` or `--dir` absolute or escaping), a missing or corrupt index, a bad option, or any
 thrown error. On success it prints the card (a last `STALE:` line when the index is stale). With no index but plan data present (the plangraph
 directory resolves inside the repository and holds `tickets.jsonl` or `config.json`) it prints ONE fixed first-use line instead, still exit 0:
@@ -125,7 +125,7 @@ exactly one line: a line break of any kind (LF, CR, VT, FF, NEL, U+2028, U+2029)
 through `ctx.io.outBlock(lines)`. `test/hostile-fuzz.test.ts` runs every registered command over a plan whose every free-text field
 carries a line injection.
 
-`plangraph explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class plus the merge-driver wiring a command always does (`init`) or a flag adds (`doctor --fix`, `card --heal`: git config, `.gitattributes`, the merge shim), exit codes),
+`plangraph explain [COMMAND] [--json]` describes the CLI from the registry (summary, options, argument count, `writes` class, exit codes),
 bounded (the full list under 400 estimated tokens). `--json` on any command prints exactly one v2 envelope on stdout
 `{"v":2,"cmd","ok","exit","data","fresh","next"}`, also when the command printed nothing (`data` is `{ "lines": [] }`) and when it failed
 (the error lines stay on stderr; `cmd` is null for an unknown command; `test/json-envelope.test.ts` runs every registered command): `data` is structured for `sprint`, `ready` (one ticket or the bulk form), `whatif` (dry run, also `--relieve`), `verify` and
@@ -291,4 +291,3 @@ descriptor of that directory is held, so a directory deleted and recreated on th
 it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a
 plangraph command runs; with that access they can usually edit the data files directly anyway. On Windows there is no `O_NOFOLLOW`: the device
 and inode comparisons are the guard there (not tested on Windows), and creating symlinks needs a privilege. The data directory of the
-merge-driver shim is covered by its own trust model (docs/INTEGRATIONS.md); `bin/plangraph-merge` reads the files git hands it.

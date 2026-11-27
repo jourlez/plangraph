@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { readPlanFile } from './helpers/plan-dir.ts';
 
 const ROOT = path.join(import.meta.dirname, '..');
 const BRAIN = path.join(ROOT, 'bin', 'plangraph'), RUN = path.join(ROOT, 'bin', 'plangraph-solve-run');
@@ -24,12 +24,11 @@ function ingested() {
   execFileSync('git', ['init', '-q'], { cwd: root });
   const rel = 'docs/superpowers/plans/demo.md';
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), PLAN);
-  // a private plugin data directory under the temp root: the compile cache and the merge-driver shim never go to the real HOME
+  // a private plugin data directory under the temp root: the compile cache never goes to the real HOME
   const plangraph = (...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd: root, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', CLAUDE_PLUGIN_DATA: path.join(root, '.git', 'plangraph-data') } });
   let r = plangraph('init'); assert.equal(r.status, 0, r.stderr);
   r = plangraph('sp-ingest', rel, '--ledger', 'none', '--owner', 'Ana', '--sprint', '1'); assert.equal(r.status, 0, r.stdout + r.stderr);
-  adoptPlanDir(path.join(root, '.plangraph'));
-  const tickets = fs.readFileSync(path.join(root, '.plangraph', 'tickets.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const tickets = readPlanFile(path.join(root, '.plangraph'), 'tickets.jsonl').trim().split('\n').map((l) => JSON.parse(l));
   return { root, plangraph, tickets };
 }
 

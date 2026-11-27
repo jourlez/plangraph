@@ -1,9 +1,10 @@
-// In-process CLI runs for the stratified CLI properties: a throwaway repository (mkdtemp, a `.git` directory, `.plangraph/*.jsonl`) and
+// In-process CLI runs for the stratified CLI properties: a throwaway repository (mkdtemp, a `.git` directory, a plan directory written as old-layout JSONL and converted to entity files) and
 // src/cli.ts main() with a captured io, which is the whole CLI except the bin/plangraph Node-floor shim (spawned separately on a few cases).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { main } from '../../src/cli.ts';
+import { adoptOldLayout } from '../../lib/store2/adopt.ts';
 
 const line = (o: object): string => JSON.stringify(o);
 export function makeRepo(base: string, files: Record<string, string | object[]>): string {
@@ -12,6 +13,7 @@ export function makeRepo(base: string, files: Record<string, string | object[]>)
   const dir = path.join(root, '.plangraph');
   fs.mkdirSync(dir);
   for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), Array.isArray(content) ? content.map(line).join('\n') + (content.length ? '\n' : '') : content);
+  adoptOldLayout(dir); // the files above are old-layout JSONL: entity files and the format stamp (a row the entity layout cannot hold, such as one without its key, throws here)
   return root;
 }
 export async function run(root: string, argv: string[]): Promise<{ code: number; out: string; err: string }> {

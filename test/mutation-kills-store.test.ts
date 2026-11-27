@@ -2,14 +2,13 @@
 // written to kill mutants that survived scripts/mutate-all.ts: canonical values, lines and files for every schema (sets, defaults,
 // unknown fields, duplicates, the evidence content hash), record reads and their refusals, the lock (exclusive create, a live owner kept,
 // a stale dead owner stolen, symlinked lock paths refused, release only by the holder), format.json reads with every refusal and the
-// read/write format gate, migration planning and running, and .gitattributes and git config for the merge driver in a temp repository.
+// read/write format gate (format 2, the pre-1.0 refusal).
 // NOT covered: concurrent processes racing for the lock (test/store.test.ts); running as root.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import * as S from '../lib/store.ts';
 import { golden, outcome } from './helpers/golden-json.ts';
 
@@ -19,7 +18,6 @@ const made: string[] = [];
 after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'storek-'))); made.push(d); return d; };
 const put = (d: string, f: string, t: string) => { fs.mkdirSync(path.dirname(path.join(d, f)), { recursive: true }); fs.writeFileSync(path.join(d, f), t); };
-const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 
 // The nine files of format 1 (the schemas that predate the graph files).
 const V1_FILES = ['edges.jsonl', 'evidence.jsonl', 'findings.jsonl', 'learnings.jsonl', 'meta.jsonl', 'open-items.jsonl', 'refs.jsonl', 'schedule.jsonl', 'tickets.jsonl'];
@@ -77,7 +75,7 @@ test('locks: exclusive, live owners kept, stale dead owners stolen, symlinks ref
 
 test('format.json: reads, every refusal, the read and write gates, writes that keep unknown fields', () => {
   const cases = [['missing', null], ['ok', '{"format_version":1}'], ['bom', '﻿{"format_version":1,"min_reader":0,"x":1}'], ['bad-json', '{'], ['array', '[1]'], ['negative', '{"format_version":-1}'],
-    ['float', '{"format_version":1.5}'], ['min-above', '{"format_version":1,"min_reader":2}'], ['min-negative', '{"format_version":1,"min_reader":-1}'], ['min-float', '{"format_version":2,"min_reader":1.5}'], ['newer', '{"format_version":3,"min_reader":1}'], ['newer-hard', '{"format_version":3,"min_reader":3}'], ['old', '{"format_version":0}']];
+    ['float', '{"format_version":1.5}'], ['min-above', '{"format_version":1,"min_reader":2}'], ['min-negative', '{"format_version":1,"min_reader":-1}'], ['min-float', '{"format_version":2,"min_reader":1.5}'], ['newer', '{"format_version":3,"min_reader":1}'], ['newer-hard', '{"format_version":3,"min_reader":3}'], ['old', '{"format_version":0}'], ['v2', '{"format_version":2,"min_reader":2,"storage":"entity"}'], ['v2-no-min', '{"format_version":2}'], ['pre-1-0', '{"format_version":1,"min_reader":1}'], ['v2-newer-min', '{"format_version":2,"min_reader":3}']];
   const out = [];
   for (const [name, text] of cases) {
     const d = tmp(); if (text !== null) put(d, 'format.json', text);
@@ -95,53 +93,7 @@ test('format.json: reads, every refusal, the read and write gates, writes that k
   G('format-write', () => [fs.readFileSync(path.join(w, 'format.json'), 'utf8'), fs.readFileSync(path.join(bad, 'format.json'), 'utf8')]);
 });
 
-test('merge driver: .gitattributes and git config in a temp repository, doctor findings', () => {
-  const r = tmp();
-  execFileSync('git', ['init', '-q', r], { env: GIT_ENV });
-  const scrub = (v: unknown) => JSON.parse(JSON.stringify(v).split(r).join('<repo>'));
-  G('driver-refusals', () => [outcome(() => S.installMergeDriver(r, { driverPath: '/x/plugins/cache/p/1/bin/plangraph-merge' })), outcome(() => S.installMergeDriver(r, { dir: 'a b' })), outcome(() => S.installMergeDriver(r, { dir: (5 as unknown as string) }))]); // deliberate misuse
-  G('doctor-none', () => scrub(S.doctorMergeDriver(r)));
-  put(r, '.gitattributes', '*.md text');
-  const quoted = path.join(r, "it's here", 'plangraph-merge'); fs.mkdirSync(path.dirname(quoted)); fs.writeFileSync(quoted, '#!/bin/sh\n'); fs.chmodSync(quoted, 0o755);
-  G('install-quoted-doctor', () => scrub([S.installMergeDriver(r, { driverPath: quoted }), execFileSync('git', ['-C', r, 'config', '--get', 'merge.plangraph-jsonl.name'], { env: GIT_ENV, encoding: 'utf8' }), S.doctorMergeDriver(r)]));
-  G('install', () => scrub([S.installMergeDriver(r, { driverPath: "/opt/plangraph's tools/plangraph-merge" }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8'), S.installMergeDriver(r, { driverPath: 'no-such-plangraph-merge-on-path', dir: 'data/plangraph' }), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8')]));
-  G('doctor-installed', () => scrub(S.doctorMergeDriver(r)));
-  G('doctor-other-dir', () => scrub(S.doctorMergeDriver(r, { dir: 'elsewhere' })));
-  const shimDir = path.join(r, 'data-dir'), bin = path.join(shimDir, 'bin'); fs.mkdirSync(bin, { recursive: true });
-  fs.writeFileSync(path.join(bin, 'plangraph-merge'), '#!/bin/sh\n# reads driver.target\n'); fs.chmodSync(path.join(bin, 'plangraph-merge'), 0o755);
-  S.installMergeDriver(r, { driverPath: path.join(bin, 'plangraph-merge') });
-  G('doctor-shim-empty', () => scrub(S.doctorMergeDriver(r)));
-  fs.writeFileSync(path.join(shimDir, 'driver.target'), path.join(r, 'missing.mjs')); fs.writeFileSync(path.join(shimDir, 'driver.node'), path.join(r, 'missing-node'));
-  G('doctor-shim-missing', () => scrub(S.doctorMergeDriver(r)));
-  fs.writeFileSync(path.join(shimDir, 'driver.target'), path.join(bin, 'plangraph-merge')); fs.writeFileSync(path.join(shimDir, 'driver.node'), process.execPath);
-  G('doctor-shim-ok', () => scrub(S.doctorMergeDriver(r)).problems);
-  S.installMergeDriver(r, { driverPath: '/home/u/.claude/plugins/cache/x/1/bin/plangraph-merge'.replace('plugins/cache', 'plugins/cache-not') });
-  execFileSync('git', ['-C', r, 'config', 'merge.plangraph-jsonl.driver', '/u/.claude/plugins/cache/x/1/bin/plangraph-merge %O %A %B %P'], { env: GIT_ENV });
-  G('doctor-versioned', () => scrub(S.doctorMergeDriver(r)));
-  fs.rmSync(path.join(r, '.gitattributes')); fs.symlinkSync(path.join(r, 'x'), path.join(r, '.gitattributes'));
-  G('attr-symlink', () => [scrub(S.doctorMergeDriver(r)).problems, outcome(() => S.installMergeDriver(r))]);
-  fs.rmSync(path.join(r, '.gitattributes')); fs.mkdirSync(path.join(r, '.gitattributes'));
-  G('attr-dir', () => [scrub(S.doctorMergeDriver(r)).problems, outcome(() => S.installMergeDriver(r))]);
-  fs.rmSync(path.join(r, '.gitattributes'), { recursive: true }); put(r, '.gitattributes', 'x'.repeat(S.GITATTRIBUTES_MAX + 1));
-  G('attr-big', () => [scrub(S.doctorMergeDriver(r)).problems, outcome(() => S.installMergeDriver(r))]);
-});
-
-test('schemas: identity fields drive the three-way merge, field order and defaults are exact for every file', async () => {
-  const { mergeJsonl } = await import('../lib/merge.ts');
-  const jlines = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-  // two records that share all identity fields but one: each side adds one, so a correct identity merges cleanly
-  const pairs = ([
-    ['edges.jsonl', { consumer: 'A', producer: 'P' }, { consumer: 'B', producer: 'P' }], ['edges.jsonl', { consumer: 'A', producer: 'P' }, { consumer: 'A', producer: 'Q' }],
-    ['schedule.jsonl', { version: 'current', key: 'A' }, { version: 'v2', key: 'A' }], ['schedule.jsonl', { version: 'current', key: 'A' }, { version: 'current', key: 'B' }],
-    ['findings.jsonl', { key: 'A', kind: 'k', text: 't' }, { key: 'B', kind: 'k', text: 't' }], ['findings.jsonl', { key: 'A', kind: 'k', text: 't' }, { key: 'A', kind: 'j', text: 't' }], ['findings.jsonl', { key: 'A', kind: 'k', text: 't' }, { key: 'A', kind: 'k', text: 'u' }],
-    ['meta.jsonl', { k: 'a', v: 1 }, { k: 'b', v: 1 }], ['learnings.jsonl', { id: 'L1', text: 'x' }, { id: 'L2', text: 'x' }], ['refs.jsonl', { key: 'A' }, { key: 'B' }],
-    ['open-items.jsonl', { key: 'A', kind: 'k' }, { key: 'B', kind: 'k' }], ['open-items.jsonl', { key: 'A', kind: 'k' }, { key: 'A', kind: 'j' }], ['tickets.jsonl', { key: 'A' }, { key: 'B' }],
-  ] as Array<[string, object, object]>); // literal tuples
-  for (const [file, a, b] of pairs) {
-    const r = mergeJsonl({ base: '', ours: jlines([a]), theirs: jlines([b]) }, S.SCHEMAS[file]);
-    assert.deepEqual(r.conflicts, [], `${file}: ${JSON.stringify(a)} and ${JSON.stringify(b)} are different records`);
-    assert.equal(r.text.split('\n').filter(Boolean).length, 2, file);
-  }
+test('schemas: field order and defaults are exact for every file', () => {
   const full = { impl_status: 'done', first_verdict: 'READY', verdict_source: 'audit', verdict: 'READY', v2_sprint: 2, v2_owner: 'Ana', jira_status: 'Done', sp: 3, epic: 'E', summary: 's', key: 'A', zz: 1, aa: 2 };
   G('order-tickets', () => S.canonLine(full, S.SCHEMAS['tickets.jsonl']));
   G('order-open-items', () => S.canonLine({ text: 't', status: 'open', due_sprint: 1, kind: 'k', key: 'A', owner: 'x' }, S.SCHEMAS['open-items.jsonl']));
@@ -245,7 +197,7 @@ test('lock files that cannot be read or created', { skip: process.platform === '
   try { G('guard-cannot-create', () => { try { S.acquireLock(rlock, { staleMs: 1000, retries: 1, waitMs: 1 }); return 'acquired'; } catch (e) { return (e as Error & { code?: string }).code; } }); } finally { fs.chmodSync(ro, 0o700); } // whatever acquireLock throws is read for its code
 });
 
-test('store edges: permission errors pass through, null format, field order on write, default driver path', { skip: process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0) }, (t) => {
+test('store edges: permission errors pass through, null format, field order on write', { skip: process.platform === 'win32' || (typeof process.getuid === 'function' && process.getuid() === 0) }, (t) => {
   const code = (fn: () => unknown) => { try { fn(); return 'ok'; } catch (e) { return `${(e as Error).constructor.name} ${(e as Error & { code?: string }).code ?? ''} ${(e as Error).message.replace(/\/[^ ]*storek-[^ ]*/g, '<path>')}`; } }; // the store throws Errors
   const d = tmp();
   put(d, 'tickets.jsonl', '{"key":"A"}\n'); fs.chmodSync(path.join(d, 'tickets.jsonl'), 0o000);
@@ -257,17 +209,6 @@ test('store edges: permission errors pass through, null format, field order on w
   G('format-null', () => code(() => S.readFormat(n)));
   const w = tmp(); put(w, 'format.json', '{"format_version":0,"a":1,"zz":2}'); S.writeFormat(w, { format_version: 1, min_reader: 1 });
   G('format-write-order', () => fs.readFileSync(path.join(w, 'format.json'), 'utf8'));
-  const r = tmp(); execFileSync('git', ['init', '-q', r], { env: GIT_ENV });
-  G('driver-default', () => [S.installMergeDriver(r), fs.readFileSync(path.join(r, '.gitattributes'), 'utf8')]);
-  S.installMergeDriver(r, { driverPath: 'git' });
-  G('driver-on-path', () => S.doctorMergeDriver(r).executable);
-  const locked = path.join(r, 'locked-driver'); fs.writeFileSync(locked, 'x'); fs.chmodSync(locked, 0o000);
-  execFileSync('git', ['-C', r, 'config', 'merge.plangraph-jsonl.driver', `${locked} %O %A %B %P`], { env: GIT_ENV });
-  G('driver-unreadable', () => code(() => S.doctorMergeDriver(r).problems));
-  fs.chmodSync(locked, 0o600);
-  fs.chmodSync(path.join(r, '.gitattributes'), 0o000);
-  G('attr-unreadable', () => [code(() => S.doctorMergeDriver(r)), code(() => S.installMergeDriver(r))]);
-  fs.chmodSync(path.join(r, '.gitattributes'), 0o600);
   // a lock that vanishes inside the steal with no retries left; an lstat error inside the steal
   const ld = tmp(), lock = path.join(ld, '.lock'), old = new Date(Date.now() - 120000);
   const stale = () => { fs.writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 + 19, token: 's' })); fs.utimesSync(lock, old, old); };

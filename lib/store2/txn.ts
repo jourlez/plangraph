@@ -21,7 +21,9 @@ export interface Txn {
 }
 /** Failure injection for tests: a throw from a hook leaves the transaction on disk exactly as a kill at that point would. */
 export interface TxnHooks { beforeJournal?: () => void; beforeApply?: () => void; afterOp?: (index: number) => void }
-export interface TxnOptions { hooks?: TxnHooks; lock?: { retries?: number; waitMs?: number } }
+/** durable: false skips the fsync of every staged file (a bulk conversion of fixtures, where a crash means starting again); the journal commit point is still written the same way. */
+export interface TxnOptions { hooks?: TxnHooks; lock?: { retries?: number; waitMs?: number }; durable?: boolean }
+const NO_FSYNC = { ...fs, fsyncSync: (): void => {} } as unknown as typeof fs;
 type Op = { op: 'write'; path: string; stage: string } | { op: 'remove'; path: string };
 interface Journal { id: string; ops: Op[] }
 
@@ -98,7 +100,7 @@ export function withTxn(root: string, fn: (tx: Txn) => void, opts?: TxnOptions):
         try { if (fs.lstatSync(dest).isSymbolicLink()) throw fail('SYMLINK', `refusing to write through a symlink: ${path.basename(dest)}`); }
         catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } // whatever was thrown: read its code
         const stage = `f${i++}`;
-        writeAtomicSafe(path.join(dir, stage), o.text, { root });
+        writeAtomicSafe(path.join(dir, stage), o.text, opts?.durable === false ? { root, fsImpl: NO_FSYNC } : { root });
         list.push({ op: 'write', path: p, stage });
       }
     } catch (e) { fs.rmSync(dir, { recursive: true, force: true }); throw e; }

@@ -235,9 +235,6 @@ test('doctor --fix --alias work on a TTY shows the alias host and the repository
   assert.deepEqual(fs.readdirSync(cfg), ['jira-sites.json'], 'no temporary file is left behind');
   const t = resolveTenant({ tenant: 'work' }, root, env);
   assert.deepEqual([t.alias, t.tenant, t.aliasProblem], ['work', CLOUD, null]);
-  // doctor --fix is a doctor --fix run: the merge driver is wired and the heal consent recorded
-  assert.equal(spawnSync('git', ['config', '--get', 'plangraph.heal'], { cwd: root, env: GIT_ENV, encoding: 'utf8' }).status, 0);
-  assert.match(shown, /merge driver: ok/);
   // a second approval does not duplicate the entry
   await run(['doctor', '--fix', '--alias', 'work'], root, env, { stdin: fakeStdin(true, `${CLOUD}\n`) });
   assert.equal(approved(reg, root).filter((k) => k === keyOf(root)).length, 1);

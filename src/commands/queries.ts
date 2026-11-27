@@ -6,12 +6,11 @@ import crypto from 'node:crypto';
 import { readDataCapped } from '../../lib/jsonl.ts';
 import { openStore, kindFile, SRC_KINDS, GRAPH_KINDS } from '../../lib/planstore.ts';
 import { oneLine, fenceInline } from '../../lib/sanitize.ts';
-import { makeGit } from '../../lib/gitsafe.ts';
 import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';
 import { reach } from '../../lib/graph/views.ts';
-import { BIN, CUR, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, wireMergeDriver, pluginVersion, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
+import { CUR, MAX_DATA, capOf, dbFile, rel, verbose, isPlaced, needBrain, usage, dataError, readJsonInput, modelFromDb, readItems, loadJiraSnap, precheckTargets, writeState, fenceBlock, fencedList, nextCommand, nextList, dataText } from './shared.ts';
 import type { Ctx, Args } from '../context.ts';
 import type { CommandMap } from '../registry.ts';
 import type { IndexHandle } from '../db.ts';
@@ -229,9 +228,11 @@ async function check(ctx: Ctx): Promise<number> {
   const unplaced = (await import('../../lib/verify.ts')).verifyPlan(model).filter((x) => x.code === 'UNPLACED').length;
   const { integrityOf, renderViolation } = await import('../../lib/graph/integrity.ts'), gv = integrityOf(ctx.dir, cfg, (await readItems(ctx)).items).violations;
   for (const x of gv) ctx.io.out(renderViolation(x));
-  const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree || gv.some((x) => !x.warning) ? 1 : 0;
+  const { storeProblems, renderStoreProblem } = await import('../../lib/store2/check.ts'), sv = storeProblems(ctx.dir); // node and batch files: one line each, file and line
+  for (const x of sv) ctx.io.out(oneLine(renderStoreProblem(x), 500));
+  const loopFree = seen === sched.size, lastSprint = sched.size ? last : 0, code = viol || over || unplaced || !loopFree || gv.some((x) => !x.warning) || sv.some((x) => !x.warning) ? 1 : 0;
   ctx.io.out(`tickets ${sched.size} | links ${edges.length} | strict-rule violations ${viol} | person-sprints over cap ${over} | loop-free ${loopFree} | last sprint ${lastSprint}${unplaced ? ` | unplaced ${unplaced} (plangraph verify lists them)` : ''}`);
-  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced, ...(gv.length ? { integrity: gv.map(renderViolation) } : {}) }, { next: unplaced ? ['plangraph verify'] : [] });
+  ctx.io.data?.({ tickets: sched.size, links: edges.length, violations: viol, overCap: over, loopFree, lastSprint, unplaced, ...(gv.length ? { integrity: gv.map(renderViolation) } : {}), ...(sv.length ? { store: sv.map(renderStoreProblem) } : {}) }, { next: unplaced ? ['plangraph verify'] : [] });
   return code; // CI fails on any violation, and on any unplaced ticket (verify exits 1 on UNPLACED too)
 }
 
@@ -337,32 +338,6 @@ async function ready(ctx: Ctx, args: Args<ReadyValues>): Promise<number> {
 }
 
 // ---- session card ----
-// Session-hook repair (`card --heal`): never throws, never prompts. Only when the plan dir exists inside a git work tree, and only when
-// doctor sees a problem (including a driver.target left at an older plugin install), so a healthy setup is not rewritten. It repairs only
-// with the user's consent, plangraph.heal in the clone's own git config (lib/driver.ts, decision D3), recorded by init and doctor --fix.
-// A clone whose local config already holds the driver (wired before 0.3.0) is grandfathered when plangraph.heal is unset: consent is
-// recorded and the repair runs. Any other value disables that: `never` is silent, the rest get the nudge, and the value is left unchanged.
-// Without consent nothing is written and the returned line (printed after the card) tells the user the one command that opts in.
-async function healMergeDriver(ctx: Ctx): Promise<string | null> {
-  try {
-    if (!fs.existsSync(ctx.dir)) return null;
-    if (makeGit(ctx.dir)('rev-parse', '--is-inside-work-tree').trim() !== 'true') return null;
-    const [S, D] = await Promise.all([import('../../lib/store.ts'), import('../../lib/driver.ts')]);
-    const common = D.gitCommonDir(ctx.root);
-    if (!common) return null;
-    const value = D.localConfigValue(common, D.CONSENT_KEY);
-    if (value === 'never') return null;
-    let consent = D.hasConsent(common);
-    if (!consent && value === null && D.localConfigValue(common, 'merge.plangraph-jsonl.driver')) { D.recordConsent(common, pluginVersion()); consent = true; }
-    const dir = rel(ctx, ctx.dir);
-    if (!S.doctorMergeDriver(ctx.root, { dir, target: path.join(BIN, 'plangraph-merge') }).problems.length) return null;
-    if (consent) { await wireMergeDriver(ctx); return null; }
-    // dir may come from a committed .plangraphrc: hook output names it only when it is a plain short name.
-    const files = S.SAFE_ATTR_DIR.test(dir) && dir.length <= 40 ? `${dir}/*.jsonl` : '*.jsonl files in the plan directory';
-    return `plangraph: merge driver not set up in this clone; merges of ${files} conflict until the user runs plangraph doctor --fix`;
-  } catch { return null; /* the hook must never fail */ }
-}
-
 // One deterministic line for the agent to place under `## Context` in STATUS (never under OpenWolf's injected section). Plan data only.
 /** The card line text (also compared by `plangraph doctor` with the line in OpenWolf's STATUS.md). */
 export async function cardLineText(ctx: Ctx): Promise<string> {
@@ -413,23 +388,20 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
   try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch { return null; }
 }
 
-async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
-  const nudge = args.values.heal ? await healMergeDriver(ctx) : null;
-  // Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card
-  // and the heal nudge. Healing above still ran; a manual `plangraph card` is never affected.
+// Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card; a manual
+// `plangraph card` is never affected. --refresh is accepted and does nothing yet (the hook passes it; task 29 gives it work).
+async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
-  const code = await cardBody(ctx, args);
-  if (nudge) ctx.io.out(nudge); // last stdout line, after the card
-  return code;
+  return cardBody(ctx, args);
 }
-async function cardBody(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; heal?: boolean; 'if-present'?: boolean }>): Promise<number> {
+async function cardBody(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values.line) return cardLine(ctx);
   const file = dbFile(ctx);
   if (args.values['if-present'] && !fs.existsSync(file)) { const l = await firstUseLine(ctx); if (l) ctx.io.out(l); return 0; }
   const R = await import('../../lib/render.ts'), model = modelFromDb(ctx);
   // Cache-stable: identity is the source fingerprint of the text, STALE comes only from the fingerprint check of ctx.db() (content, not
   // modification times or a clock), so the same data prints the same bytes; in hook mode (--if-present) the card text itself says STALE.
-  const h = ctx.db(), meta = { fp: h.fingerprint, stale: Boolean(h.stale), dir: rel(ctx, ctx.dir) };
+  const h = ctx.db(), meta = { fp: h.fingerprint, stale: Boolean(h.stale), dir: rel(ctx, ctx.dir), problems: (await import('../../lib/store2/check.ts')).problemFiles(ctx.dir) };
   const text = `${R.renderCard(model, meta)}\n`;
   if (args.values.write) {
     const dst = path.join(ctx.dir, 'CARD.md');
@@ -452,5 +424,5 @@ export const commands: CommandMap = {
   check: { run: check, positionals: [0, 0], summary: 'strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation)' },
   verify: { run: verify, positionals: [0, 1], options: { 'enforce-min': B, strict: B }, summary: 'independent plan verifier (exit 1 on a violation; BLOCKED is a warning unless --strict)' },
   ready: { run: ready, positionals: [0, 1], options: { jira: { type: 'string' }, person: { type: 'string' }, sprint: { type: 'integer' } }, summary: 'may this ticket start now? (exit 1 with reasons); --person/--sprint: which of those tickets may start' },
-  card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, heal: { ...B, writes: ['git-config', 'gitattributes', 'merge-shim'] } }, guard: (v: Record<string, unknown>) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
+  card: { run: card, positionals: [0, 0], writes: 'file', options: { write: B, line: B, refresh: B }, guard: (v: Record<string, unknown>) => (v['if-present'] ? 'none' : 'soft'), summary: 'short plan summary for a session start' },
 };

@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { main } from '../../src/cli.ts';
 import { genPlan } from '../fixtures/gen.ts';
 import { adoptPlanDir } from './plan-dir.ts';
+import { readStoreAt, KINDS, kindFile } from '../../lib/planstore.ts';
 export const made: string[] = [];
 export const tmp = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'clik-'))); made.push(d); return d; };
 export const jl = (rows: object[]): string => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
@@ -67,6 +68,9 @@ export const snapshot = (d: string): Record<string, string> => {
     const p = path.join(d, rel, f);
     if (fs.statSync(p).isFile() && !/\.sqlite|\.lock$/.test(f)) o[path.posix.join(rel, f)] = fs.readFileSync(p, 'utf8').split(d).join('<repo>');
   }
+  // the plan kinds live in entity files: each shows up under its old file name with its canonical text, which is what a writing command changes
+  const store = readStoreAt(path.join(d, '.plangraph'));
+  for (const kind of KINDS) if (kind !== 'meta') { const text = store.readText(kind); if (text !== null) o[path.posix.join('.plangraph', kindFile(kind))] = text; }
   return o;
 };
 

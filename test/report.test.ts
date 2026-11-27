@@ -14,7 +14,7 @@ import { parseItems } from '../lib/openitems.ts';
 import { genPlan } from './fixtures/gen.ts';
 import type { Edge, PlanConfig, ScheduleRow, Ticket } from '../lib/model.ts';
 import type { OpenItem } from '../lib/openitems.ts';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile } from './helpers/plan-dir.ts';
 
 /** The raw records the oracle reads (JSON lines written by these tests). */
 type RawPlan = { tickets: Ticket[]; edges: Edge[]; findings: Array<{ key: string; kind: string }>; config: PlanConfig };
@@ -164,12 +164,12 @@ function bruteReady(raw: RawPlan, items: OpenItem[], statuses: Record<string, { 
   return out;
 }
 const readRaw = (dir: string): RawPlan => {
-  const rows = (f: string) => { const t = fs.readFileSync(path.join(dir, f), 'utf8'); return t.split('\n').filter(Boolean).map((l) => JSON.parse(l)); };
+  const rows = (f: string) => { const t = readPlanFile(dir, f); return t.split('\n').filter(Boolean).map((l) => JSON.parse(l)); };
   return { tickets: rows('tickets.jsonl'), edges: rows('edges.jsonl'), findings: rows('findings.jsonl'), config: JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')) };
 };
 
 test('oracle: the can-start set equals the tickets `plangraph ready` accepts and an independent brute-force rule, with and without a Jira snapshot', () => {
-  const model = loadModel(path.join(ROOT, '.plangraph')), items = parseItems(fs.readFileSync(path.join(ROOT, '.plangraph/open-items.jsonl'), 'utf8')) as OpenItem[], // parseItems rows are open items
+  const model = loadModel(path.join(ROOT, '.plangraph')), items = parseItems(readPlanFile(path.join(ROOT, '.plangraph'), 'open-items.jsonl')) as OpenItem[], // parseItems rows are open items
     raw = readRaw(path.join(ROOT, '.plangraph'));
   for (const snap of [null, 'snap.json']) {
     const viaCli = [...model.tickets.keys()].sort().filter((k) => { const r = plangraph(ROOT, 'ready', k, ...(snap ? ['--jira', snap] : [])); return r.status === 0 && r.stdout.startsWith('READY TO START'); });

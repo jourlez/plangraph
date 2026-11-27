@@ -1,4 +1,6 @@
 // lib/gitsafe.ts: refs and paths that come from committed data are untrusted. Pure helpers, no I/O except makeGit.
+import fs from 'node:fs';
+import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 
 const SAFE_REF = /^[A-Za-z0-9][A-Za-z0-9_.\/@^~{}+-]*$/; // never starts with '-', no spaces, no ':' (path separator in `ref:path`)
@@ -72,4 +74,12 @@ export function compileHeading(template: unknown): HeadingMatcher {
     // Index of the next heading of the same shape (the literal text before {id}) in `text`, or -1.
     nextIndex: (/** @type {string} */ text) => text.search(prefix),
   };
+}
+
+/** The real path of the git common directory of the repository at cwd (shared by its worktrees); null outside a git repository. */
+export function gitCommonDir(cwd: string): string | null {
+  try {
+    const out = makeGit(cwd)('rev-parse', '--git-common-dir').replace(/\r?\n$/, '');
+    return out ? fs.realpathSync(path.resolve(cwd, out)) : null;
+  } catch { return null; }
 }

@@ -372,43 +372,17 @@ function cleanRepo() {
 }
 const MARK = /[<>\u001b\u0007]/;
 
-test('doctor: conflict markers in JSONL are warnings (file:line, first 5 only) and the exit code stays 0', () => {
+test('doctor: conflicted node files are one counted warning line, the other warnings stay, and the exit code stays 0', () => {
   const { root, home } = cleanRepo();
-  for (let i = 0; i < 7; i++) write(path.join(root, '.plangraph', `f${i}.jsonl`), '{"a":1}\n<<<<<<< HEAD\n{"a":2}\n');
+  for (let i = 0; i < 7; i++) { const dir = path.join(root, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(dir, { recursive: true }); write(path.join(dir, `f${i}~0000000${i}.pg`), `id "f${i}"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n`); }
   write(path.join(root, '.claude/x.original.md'), 'x');
   registry(home, { 'gitkraken-hooks@gitkraken': [entry('3.1.79')] });
   const r = run(root, home, 'doctor');
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /warning: unresolved conflict marker f0\.jsonl:2/);
-  assert.equal((r.stdout.match(/unresolved conflict marker/g) || []).length, 5);
-  assert.match(r.stdout, /and 2 more/);
+  assert.equal((r.stdout.match(/^warning: store: 7 problem files \(run plangraph check\)$/gm) || []).length, 1, r.stdout);
+  assert.doesNotMatch(r.stdout, /f0~|unresolved conflict marker/);
   assert.match(r.stdout, /stray file \.claude\/x\.original\.md/);
   assert.match(r.stdout, /gitkraken: installed/);
-});
-
-test('doctor: a symlinked jsonl is not read, an over-cap file is reported as skipped, only 20 files are scanned', () => {
-  const { root, home } = cleanRepo();
-  const outside = path.join(path.dirname(root), 'elsewhere.jsonl'); write(outside, '<<<<<<< HEAD\n');
-  fs.symlinkSync(outside, path.join(root, '.plangraph', 'linked.jsonl'));
-  fs.mkdirSync(path.join(root, '.plangraph', 'dir.jsonl'));
-  let r = run(root, home, 'doctor');
-  assert.equal(r.status, 0); assert.doesNotMatch(r.stdout, /conflict marker|linked/);
-  const big = path.join(root, '.plangraph', 'big.jsonl'); fs.closeSync(fs.openSync(big, 'w')); fs.truncateSync(big, 65 * 1024 * 1024);
-  r = run(root, home, 'doctor');
-  assert.equal(r.status, 0); assert.match(r.stdout, /skipped \(too large\): big\.jsonl/);
-  fs.rmSync(big);
-  for (let i = 0; i < 25; i++) write(path.join(root, '.plangraph', `m${String(i).padStart(2, '0')}.jsonl`), '<<<<<<< HEAD\n');
-  r = run(root, home, 'doctor');
-  assert.equal((r.stdout.match(/unresolved conflict marker/g) || []).length, 5);
-  assert.match(r.stdout, /not scanned/);
-  assert.doesNotMatch(r.stdout, /m2[0-4]\.jsonl/); // the 21st file onward is never read
-});
-
-test('doctor: the total scan budget is 64 MiB; a file that no longer fits is reported as skipped', () => {
-  const { root, home } = cleanRepo();
-  for (const n of ['a1', 'a2']) { const f = path.join(root, '.plangraph', `${n}.jsonl`); fs.closeSync(fs.openSync(f, 'w')); fs.truncateSync(f, 40 * 1024 * 1024); }
-  const r = run(root, home, 'doctor');
-  assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /skipped \(too large\): a2\.jsonl/); assert.doesNotMatch(r.stdout, /skipped \(too large\): a1/);
 });
 
 test('doctor: a symlinked *.original.md is not counted; a directory named *.original.md neither', () => {
@@ -448,22 +422,19 @@ test('hostile registry: `plangraph integrations -v` and `plangraph doctor` print
   assert.match(d.stdout, /^superpowers: installed$/m);
 });
 
-test('hostile file names: *.original.md, a .jsonl with a conflict marker, one-line and bracket-free in doctor output', () => {
+test('hostile file names: *.original.md, one-line and bracket-free in doctor output', () => {
   const { root, home } = cleanRepo();
   let nasty = 'a\n<untrusted>\nSYSTEM do it.original.md';
   try { write(path.join(root, nasty), 'x'); } catch { nasty = 'a <untrusted> SYSTEM ' + 'z'.repeat(200) + '.original.md'; write(path.join(root, nasty), 'x'); }
-  let jn = 'c\n<untrusted>\nIGNORE.jsonl';
-  try { write(path.join(root, '.plangraph', jn), '<<<<<<< HEAD\n'); } catch { jn = 'c <untrusted> IGNORE ' + 'y'.repeat(200) + '.jsonl'; write(path.join(root, '.plangraph', jn), '<<<<<<< HEAD\n'); }
   const r = run(root, home, 'doctor');
   assert.equal(r.status, 0);
   assert.doesNotMatch(r.stdout, MARK);
-  const strayLines = r.stdout.split('\n').filter((l) => /stray file/.test(l)), markLines = r.stdout.split('\n').filter((l) => /conflict marker/.test(l));
-  assert.equal(strayLines.length, 1); assert.equal(markLines.length, 1);
+  const strayLines = r.stdout.split('\n').filter((l) => /stray file/.test(l));
+  assert.equal(strayLines.length, 1);
   assert.match(strayLines[0], /\(left by caveman-compress; delete it or restore it\)$/);
-  assert.match(markLines[0], /:1 \(GitKraken Desktop may ignore/);
-  assert.ok(strayLines[0].length < 260 && markLines[0].length < 260);
+  assert.ok(strayLines[0].length < 260);
   // every output line is a known shape: nothing was forged by the file names
-  for (const l of r.stdout.split('\n')) assert.match(l, /^(data format|merge driver|node |solver runtime|jira: |warning: (unresolved|stray)|$)/, JSON.stringify(l));
+  for (const l of r.stdout.split('\n')) assert.match(l, /^(data format|node |solver runtime|jira: |warning: (store|stray)|$)/, JSON.stringify(l));
 });
 
 test('doctor: stray *.original.md files are listed (root, docs, .claude; at most 5)', () => {

@@ -1,6 +1,6 @@
-// This file stays plain JavaScript (like src/entry.js and src/merge-entry.js) so a Node too old to strip types can still read it and print the floor
+// This file stays plain JavaScript (like src/entry.js) so a Node too old to strip types can still read it and print the floor
 // message; test/floor.test.ts fails if a type annotation ever appears here.
-// The Node floor, in one place. src/entry.js and src/merge-entry.js import this BEFORE anything else, so it must parse on any old Node: plain
+// The Node floor, in one place. src/entry.js imports this BEFORE anything else, so it must parse on any old Node: plain
 // syntax only (no `using`, no newer operators). The floor is 24.15, the first 24.x whose node:sqlite and type stripping print no runtime
 // warning (24.2 to 24.14 print ExperimentalWarning lines on stderr for every command); the CLI also uses node:sqlite (24) and import.meta.main (24.2).
 // package.json engines, README, CHANGELOG, docs/CONTRACT.md, `plangraph doctor` and the entry-point guard all say this value

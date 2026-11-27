@@ -228,7 +228,7 @@ test('report over run-p results: natural is the headline block, plugin use is sh
   assert.ok(!txt.includes('ANSWER'), 'no answer text is printed');
 });
 
-test('scaffold: a git workspace with the plan, the merge driver wired and committed, the index built and ignored', { timeout: 120000 }, () => {
+test('scaffold: a git workspace with the plan converted to entity files and committed, the index built and ignored', { timeout: 120000 }, () => {
   const suite = tmp('evals-runp-suite-'), ws = tmp('evals-runp-ws-');
   copyPlugin(root, path.join(suite, 'plugin'));
   fs.cpSync(path.join(root, 'evals/fixtures/S'), path.join(suite, 'fixtures', 'S'), { recursive: true });
@@ -238,10 +238,10 @@ test('scaffold: a git workspace with the plan, the merge driver wired and commit
   assert.ok(fs.existsSync(path.join(ws, '.plangraph', 'plangraph.sqlite')));
   const st = spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' });
   assert.equal(st.stdout, '', 'the workspace is clean after the scaffold (index ignored, everything committed)');
-  assert.match(fs.readFileSync(path.join(ws, '.gitattributes'), 'utf8'), /\.plangraph\/\*\.jsonl merge=/);
-  const card = spawnSync(process.execPath, [path.join(suite, 'plugin', 'bin', 'plangraph'), 'card', '--if-present', '--heal'], { cwd: ws, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data') } });
+  assert.ok(!fs.existsSync(path.join(ws, '.gitattributes')), 'no merge attribute is written'); assert.ok(fs.existsSync(path.join(ws, '.plangraph', 'nodes', 'ticket')));
+  const card = spawnSync(process.execPath, [path.join(suite, 'plugin', 'bin', 'plangraph'), 'card', '--if-present', '--refresh'], { cwd: ws, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_DATA: path.join(suite, 'plugin-data') } });
   assert.equal(card.status, 0);
-  assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' }).stdout, '', 'the session hook finds nothing to heal: no file changes in arm A from the hook');
+  assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: ws, encoding: 'utf8' }).stdout, '', 'the session hook writes nothing in arm A');
 });
 
 test('CLI: paid modes need a cap; --out inside the repository is refused; --dry-run builds a suite outside the repo and prints the command', { timeout: 120000 }, () => {

@@ -1,8 +1,7 @@
 $ plangraph doctor
-exit: 1
+exit: 0
 --- stdout
-data format v0; tool supports v1
-merge driver: .gitattributes lacks ".plangraph/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `plangraph init` or `plangraph doctor --fix` in every clone)
+data format v0; tool supports v2
 node v<NODE>: ok
 solver runtime: uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)
 jira: not configured (config.json "jira" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it

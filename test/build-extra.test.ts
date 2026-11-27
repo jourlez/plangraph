@@ -8,11 +8,12 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import * as S from '../lib/store.ts';
+import { readPlanFile, writePlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-// a private plugin data directory: bin/plangraph keeps its compile cache (and `init` its merge-driver shim) there, never in the real HOME
+// a private plugin data directory: bin/plangraph keeps its compile cache there, never in the real HOME
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-data-')); tmps.push(DATA);
 function repo() {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-extra-'));
@@ -23,7 +24,7 @@ function repo() {
 }
 const run = (cwd: string, ...args: string[]) => execFileSync('node', [BRAIN, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_PLUGIN_DATA: DATA } });
 const bdir = (d: string) => path.join(d, '.plangraph');
-const put = (d: string, f: string, recs: readonly unknown[]) => fs.writeFileSync(path.join(bdir(d), f), recs.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n') + '\n');
+const put = (d: string, f: string, recs: readonly unknown[]) => writePlanFile(bdir(d), f, recs.map((r) => (typeof r === 'string' ? r : JSON.stringify(r))).join('\n') + '\n');
 const canonTickets = (recs: readonly S.Rec[]) => S.canonFile(recs, S.SCHEMAS['tickets.jsonl']);
 const tk = (key: string, more: S.Rec = {}) => ({ key, summary: 's' + key, epic: 'E', sp: 3, jira_status: 'To Do', v2_owner: 'Ana', v2_sprint: 1, verdict: 'READY', verdict_source: 'a', first_verdict: 'READY', ...more });
 const count = (d: string, t: string) => { const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true }); try { return (db.prepare(`SELECT COUNT(*) c FROM ${t}`).get() as { c: number }).c; } finally { db.close(); } }; // COUNT(*) always returns one row
@@ -32,12 +33,12 @@ test('(a) unknown scalar, object and array fields build and round-trip byte-stab
   const d = repo();
   const recs = [tk('T-1', { zeta: 'z', alpha: { b: 2, a: [1, { y: 1, x: null }] }, list: [3, 1, 2], flag: true, nothing: null }), tk('T-2')];
   const text = canonTickets(recs);
-  fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), text);
+  writePlanFile(bdir(d), 'tickets.jsonl', text);
   run(d, 'build'); run(d, 'export');
-  const first = fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8');
+  const first = readPlanFile(bdir(d), 'tickets.jsonl');
   assert.equal(first, text);
   run(d, 'build'); run(d, 'export');
-  assert.equal(fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8'), first);
+  assert.equal(readPlanFile(bdir(d), 'tickets.jsonl'), first);
   const db = new DatabaseSync(path.join(bdir(d), 'plangraph.sqlite'), { readOnly: true });
   const x = db.prepare("SELECT key, extra FROM ticket ORDER BY key").all();
   db.close();
@@ -45,47 +46,50 @@ test('(a) unknown scalar, object and array fields build and round-trip byte-stab
   assert.equal(x[1].extra, null);
 });
 
-test('(b) record keys containing SQL never reach a statement; the odd key round-trips as an unknown field', () => {
+test('(b) record keys containing SQL never reach a statement: the entity layout refuses such a field name, an SQL-looking allowed one is an unknown field', () => {
   const d = repo();
   put(d, 'edges.jsonl', [{ consumer: 'T-2', producer: 'T-1', kind: 'plan_need', note: '' }]);
   const evil = 'summary) VALUES(1,2); DROP TABLE ticket;--';
-  const recs = [tk('T-1', { [evil]: 'x', "a'b": 1, '': 'empty', 'x y': 2 }), tk('T-2')];
+  for (const bad of [evil, "a'b", '', 'x y']) assert.throws(() => writePlanFile(bdir(d), 'tickets.jsonl', canonTickets([tk('T-1', { [bad]: 'x' })])), /field name not allowed/, bad);
+  const recs = [tk('T-1', { 'summary-VALUES-DROP_TABLE-ticket': 'x', a_b: 1, 'x-y': 2 }), tk('T-2')];
   const text = canonTickets(recs);
-  fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), text);
+  writePlanFile(bdir(d), 'tickets.jsonl', text);
   run(d, 'build');
   assert.equal(count(d, 'ticket'), 2);
   assert.equal(count(d, 'edge'), 1);
   assert.equal(count(d, 'schedule'), 0);
   run(d, 'export');
-  assert.equal(fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8'), text);
-  assert.ok(text.includes('DROP TABLE'));
+  assert.equal(readPlanFile(bdir(d), 'tickets.jsonl'), text);
+  assert.ok(text.includes('DROP_TABLE'));
 });
 
-test('(b2) prototype keys and a field literally named extra survive as unknown fields', () => {
+test('(b2) prototype keys and a field literally named extra survive as unknown fields; a __proto__ field is not stored', () => {
   const d = repo();
-  const line = '{"key":"T-1","summary":"s","constructor":{"a":1},"extra":"mine","__proto__":{"polluted":true},"toString":5}';
-  fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), line + '\n');
+  writePlanFile(bdir(d), 'tickets.jsonl', '{"key":"T-1","summary":"s","__proto__":{"polluted":true}}\n'); // the entity layout cannot name that field: it is not stored, nothing is polluted
+  assert.ok(!readPlanFile(bdir(d), 'tickets.jsonl').includes('__proto__'));
+  const line = '{"key":"T-1","summary":"s","constructor":{"a":1},"extra":"mine","toString":5}';
+  writePlanFile(bdir(d), 'tickets.jsonl', line + '\n');
   run(d, 'build'); run(d, 'export');
-  const out = fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8');
-  for (const frag of ['"__proto__":{"polluted":true}', '"constructor":{"a":1}', '"extra":"mine"', '"toString":5']) assert.ok(out.includes(frag), frag + ' in ' + out);
+  const out = readPlanFile(bdir(d), 'tickets.jsonl');
+  for (const frag of ['"constructor":{"a":1}', '"extra":"mine"', '"toString":5']) assert.ok(out.includes(frag), frag + ' in ' + out);
   assert.equal(({} as Record<string, unknown>).polluted, undefined); // reads a key a fresh object does not have
   run(d, 'build'); run(d, 'export');
-  assert.equal(fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8'), out);
+  assert.equal(readPlanFile(bdir(d), 'tickets.jsonl'), out);
 });
 
 test('(c) a legacy file with only known fields exports byte-identical to its canonical form (no extra noise)', () => {
   const d = repo();
   const recs = [tk('T-2'), tk('T-1', { impl_status: 'done' })];
   const text = canonTickets(recs);
-  fs.writeFileSync(path.join(bdir(d), 'tickets.jsonl'), text);
+  writePlanFile(bdir(d), 'tickets.jsonl', text);
   put(d, 'schedule.jsonl', [{ version: 'current', key: 'T-1', owner: 'Ana', sprint: 1 }]);
   put(d, 'meta.jsonl', [{ k: 'a', v: 'b' }]);
-  const sched = fs.readFileSync(path.join(bdir(d), 'schedule.jsonl'), 'utf8');
-  const meta = fs.readFileSync(path.join(bdir(d), 'meta.jsonl'), 'utf8');
+  const sched = readPlanFile(bdir(d), 'schedule.jsonl');
+  const meta = fs.readFileSync(path.join(bdir(d), 'meta.jsonl'), 'utf8'); // meta.jsonl stays a file
   run(d, 'build'); run(d, 'export');
-  assert.equal(fs.readFileSync(path.join(bdir(d), 'tickets.jsonl'), 'utf8'), text);
+  assert.equal(readPlanFile(bdir(d), 'tickets.jsonl'), text);
   assert.ok(!text.includes('extra'));
-  assert.equal(fs.readFileSync(path.join(bdir(d), 'schedule.jsonl'), 'utf8'), sched);
+  assert.equal(readPlanFile(bdir(d), 'schedule.jsonl'), sched);
   assert.equal(fs.readFileSync(path.join(bdir(d), 'meta.jsonl'), 'utf8'), meta);
 });
 
@@ -106,9 +110,9 @@ test('(d) a known text field with an object value is a data error (security revi
   assert.equal((db.prepare('SELECT extra FROM finding').get() as Record<string, unknown>).extra, '{"sev":{"n":1}}'); // the query has a row
   assert.equal((db.prepare('SELECT extra FROM evidence').get() as Record<string, unknown>).extra, '{"conf":0.5}'); // the query has a row
   db.close();
-  const before = ['edges', 'findings', 'evidence'].map((f) => fs.readFileSync(path.join(bdir(d), f + '.jsonl'), 'utf8'));
+  const before = ['edges', 'findings', 'evidence'].map((f) => readPlanFile(bdir(d), f + '.jsonl'));
   run(d, 'export');
-  for (const f of ['edges', 'findings', 'evidence']) assert.ok(fs.readFileSync(path.join(bdir(d), f + '.jsonl'), 'utf8').includes(f === 'edges' ? '"weight":2' : f === 'findings' ? '"sev":{"n":1}' : '"conf":0.5'));
+  for (const f of ['edges', 'findings', 'evidence']) assert.ok(readPlanFile(bdir(d), f + '.jsonl').includes(f === 'edges' ? '"weight":2' : f === 'findings' ? '"sev":{"n":1}' : '"conf":0.5'));
   assert.equal(before.length, 3);
 });
 
@@ -133,7 +137,7 @@ test('(f) source scan: the INSERT column lists come from constants, never from r
   const sqlTemplates = [...code.matchAll(/`([^`]*\b(INSERT|SELECT|CREATE)\b[^`]*)`/g)];
   assert.ok(sqlTemplates.length >= 2);
   for (const m of sqlTemplates) for (const i of m[1].matchAll(/\$\{([^}]*)\}/g)) {
-    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb)$/, 'interpolation: ' + i[1]);
+    assert.match(i[1].trim(), /^(t\.name|t\.columnList|t\.placeholders|t\.ddl|t\.order|verb|SOURCE_FILE_DDL)$/, 'interpolation: ' + i[1]);
   }
   // insertSql takes only a table spec and a verb: no record parameter
   assert.match(code, /const insertSql = \(t(?:: [^,]+)?, verb(?:: string)? = 'INSERT'\)(?:: string)? =>/);

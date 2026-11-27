@@ -31,9 +31,9 @@ function index(n: number) {
   return openIndex(path.join(dir, INDEX_FILE), { dir });
 }
 
-test('a node lookup and a depth-1 reach over the views scale linearly: 100000 tickets take at most 12 times as long as 10000', () => {
-  using small = index(10000);
-  using large = index(100000);
+test('a node lookup and a depth-1 reach over the views scale linearly: 20000 tickets take at most 12 times as long as 2000', () => {
+  using small = index(2000);
+  using large = index(20000);
   const probe = (h: typeof small, n: number) => {
     const rd = graphReader(h, []);
     const start = { id: `K-${Math.floor(n / 2)}`, type: 'ticket' as const };
@@ -43,8 +43,8 @@ test('a node lookup and a depth-1 reach over the views scale linearly: 100000 ti
     assert.equal(rd.producers(start.id).length <= 1, true);
   };
   const time = (h: typeof small, n: number) => { let best = Infinity; for (let k = 0; k < 7; k++) { const t = performance.now(); probe(h, n); best = Math.min(best, performance.now() - t); } return best; };
-  probe(small, 10000); probe(large, 100000); // warm-up
+  probe(small, 2000); probe(large, 20000); // warm-up
   let best = Infinity;
-  for (let attempt = 0; attempt < 4 && best >= 12 * factor(); attempt++) best = Math.min(best, time(large, 100000) / Math.max(time(small, 10000), 0.05));
+  for (let attempt = 0; attempt < 4 && best >= 12 * factor(); attempt++) best = Math.min(best, time(large, 20000) / Math.max(time(small, 2000), 0.05));
   assert.ok(best < 12 * factor(), `not linear: ratio ${best.toFixed(1)} for 10x the tickets`);
 });

@@ -1,8 +1,7 @@
 $ plangraph doctor --fix
 exit: 0
 --- stdout
-data format v1; tool supports v1
-merge driver: ok
+data format v2; tool supports v2
 node v<NODE>: ok
 solver runtime: uv not found (plangraph-solve-run falls back to a python3.10-3.14 venv)
 jira: not configured (config.json "jira" is empty): `plangraph jira-pull` is off; see docs/JIRA.md. The Atlassian connector is separate and `plangraph` never uses it

@@ -68,7 +68,6 @@ test('import: input with no usable observation is a data error and writes nothin
   const r = run(d, ['import', '--sys', 'generic', 'e.json']);
   assert.equal(r.status, 2); assert.match(r.stderr, /no observation could be read/);
   assert.equal(fs.existsSync(path.join(d, '.plangraph/cache')), false);
-  assert.equal(fs.existsSync(gi(d)) && fs.readFileSync(gi(d), 'utf8').includes('cache/'), false);
 });
 
 test('import: a --sys flag without a file, and a file without --sys, are usage errors; an unknown provider names the known ones', () => {

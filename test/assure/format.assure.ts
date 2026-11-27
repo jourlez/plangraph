@@ -17,6 +17,7 @@ import path from 'node:path';
 import { SCHEMAS, canonLine, canonFile, parseJsonlText, specOf } from '../../lib/store.ts';
 import type { Spec } from '../../lib/store.ts';
 import { makeRepo, run, tmpBase, rmBase } from './cli.ts';
+import { readPlanFile } from '../helpers/plan-dir.ts';
 import type { Level } from './enum.ts';
 
 type Rec = Record<string, unknown>;
@@ -118,7 +119,7 @@ export async function assureBuildExport(lvl: Level): Promise<{ valid: number; in
       if (b.code !== 0) fail(`${file}: build of valid records failed`, { err: b.err, out: b.out });
       const e = await run(root, ['export']);
       if (e.code !== 0) fail(`${file}: export failed`, { err: e.err });
-      const got = fs.readFileSync(path.join(root, '.plangraph', file), 'utf8');
+      const got = file === 'meta.jsonl' ? fs.readFileSync(path.join(root, '.plangraph', file), 'utf8') : readPlanFile(path.join(root, '.plangraph'), file); // meta.jsonl is the one plan file that stays a file
       // schedule: a row without `version` (absent, or null: model.ts and build both read it with `??`) comes back as "current"
       const want = canonFile(valid.map((x) => (file === 'schedule.jsonl' && x.r.version == null ? { ...x.r, version: 'current' } : x.r)), schema);
       if (got !== want) {
@@ -128,7 +129,9 @@ export async function assureBuildExport(lvl: Level): Promise<{ valid: number; in
       counts.valid += valid.length;
       // every invalid record alone: exit 2 and the documented message at line 1
       for (const x of lvl === 'full' ? invalid : invalid.slice(0, 3)) {
-        const root2 = makeRepo(base, { 'format.json': '{"format_version":1,"min_reader":1}\n', [file]: [x.r] });
+        let root2: string;
+        try { root2 = makeRepo(base, { 'format.json': '{"format_version":1,"min_reader":1}\n', [file]: [x.r] }); }
+        catch (e) { if (e instanceof TypeError) { counts.invalid++; continue; } throw e; } // a row the entity layout cannot hold (no key, a name outside the grammar) is refused when it is written
         const r = await run(root2, ['build']); counts.builds++;
         if (r.code !== 2 || !r.err.includes(`${file}:1: ${x.err}`)) fail(`${file}: expected data error`, { r: x.r, want: x.err, code: r.code, err: r.err });
         counts.invalid++;

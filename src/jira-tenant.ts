@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { AUTH_MODES, JiraError, dcHostsFromEnv, getCredentialsFor, isAuthMode, parseSiteRegistry, siteHostsFromEnv, validateBase } from '../lib/jira.ts';
 import type { AliasEntry, AuthMode, Exec, JiraCredentials, ProjectEntry, SiteEntry } from '../lib/jira.ts';
 import { ALIAS_RE, isAliasName } from '../lib/jira/registry.ts';
-import { gitCommonDir } from '../lib/driver.ts';
+import { gitCommonDir } from '../lib/gitsafe.ts';
 import { writeAtomicSafe } from '../lib/fsafe.ts';
 
 /** The Jira settings of one project: the committed config.jira block with the user's `projects` entry laid over it. */
