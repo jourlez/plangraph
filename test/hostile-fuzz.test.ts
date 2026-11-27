@@ -125,14 +125,14 @@ const SHAPES = {
   units: [['--keys', 'H-1,H-2,H-3', '--out', 'u', '--text', 'jt'], [SAFE_REFS, '--stale', '--full', '--out', 'u2']], bundle: [['H-1', 'H-2', '--text', 'jt'], ['H-3']],
   'jira-pull': [['--out', 'snap.jsonl']], 'jira-text': [['H-1', '--out', 'jtout', '--from-json', 'issue.json']], 'jira-import': [['issue.json', '--out', 'imp.jsonl']],
   'open-items': [[], ['--write'], ['--suggest-from-status'], ['--close', 'H-2', OIKIND], ['--register', 'H-1', 'newkind', '--owner', M('regowner'), '--text', M('regtext')], ['--findings', 'f.jsonl'], ['--mine', '--me', OWNER]],
-  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]], 'graph-materialize': [[]], fmt: [[]], resolve: [[]], compact: [[]], repo: [['scan'], ['scan', '--check'], ['scan', '--all']], sync: [['--plan']], import: [['--sys', 'generic', 'batch.json'], ['--sys', 'jira', 'issue.json', '--tenant', 'work'], ['--sys', 'sp', 'docs/superpowers/plans/2026-11-20-widget-export.md']], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], [FKIND], ['pg:ticket/T-2'], ['materialize']],
+  forecast: [[]], simulate: [['--runs', '50']], integrations: [[]], 'graph-materialize': [[]], fmt: [[]], resolve: [[]], compact: [[]], docs: [['list'], ['check'], ['export', 'roadmap'], ['export', 'status'], ['export', 'nope']], 'docs-build': [[], ['roadmap', '--force'], ['--commit-ready']], ingest: [['links'], ['docs', 'docs/plan.md'], ['requirements', 'docs/plan.md'], ['git'], ['nope']], 'sync-fetch': [[]], trust: [['nope'], ['github:o/r']], identity: [['propose'], ['list']], 'identity-map': [['jira:u1', 'Nobody'], ['jira:u1', 'Ana']], repo: [['scan'], ['scan', '--check'], ['scan', '--all']], sync: [['--plan']], import: [['--sys', 'generic', 'batch.json'], ['--sys', 'jira', 'issue.json', '--tenant', 'work'], ['--sys', 'sp', 'docs/superpowers/plans/2026-11-20-widget-export.md']], graph: [['T-2'], ['T-2', '--depth', '2', '--reverse'], [FKIND], ['pg:ticket/T-2'], ['materialize']],
   'sp-ingest': [['docs/superpowers/plans/2026-11-20-widget-export.md', '--ledger', 'none']], 'sp-link': [['H-1', 'docs/plan.md']],
   // @handle: the handle `rules --repo` prints for the hostile rule (its exact text holds line breaks, so the text form finds no rule)
   learn: [['--from-wolf', RULE_TEXT], ['--from-wolf', '@handle']], report: [[]], explain: [[], ['ticket']],
 };
 // Files a command writes for an agent to read, checked like stdout when present after the run.
 const OUTPUT_FILES = ['.plangraph/report.md', '.plangraph/report.html', '.plangraph/OPEN-ITEMS.md', '.plangraph/CARD.md'];
-const OUTPUT_DIRS = ['u', 'u2', 'jtout']; // units (*.md) and jira-text (*.txt)
+const OUTPUT_DIRS = ['u', 'u2', 'jtout', 'docs/plangraph']; // units (*.md) and jira-text (*.txt)
 
 // Multi-line free text kept by design (plan sections, Jira text, superpowers parser warnings) lives only inside fence() blocks with
 // these sources: a body line there may start with anything, but the block is still one of our fences (guardOutput checks it).
@@ -164,7 +164,11 @@ function jsonStrings(v: unknown, where: string, out: string[]): void {
     v.forEach((x, i) => { if (BREAK.test(x)) out.push(`${where}[${i}]: JSON string with a line break: ${JSON.stringify(x.slice(0, 80))}`); });
     out.push(...problems(v.join('\n'), where));
   } else if (Array.isArray(v)) v.forEach((x, i) => { jsonStrings(x, `${where}[${i}]`, out); });
-  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { jsonStrings(k, `${where} key`, out); jsonStrings(x, `${where}.${k}`, out); }
+  else if (v && typeof v === 'object') {
+    // docs export: a table or code block keeps its rows as one string; each row is checked as a line of its own
+    const rows = (v as { type?: unknown }).type === 'table' || (v as { type?: unknown }).type === 'code';
+    for (const [k, x] of Object.entries(v)) { jsonStrings(k, `${where} key`, out); jsonStrings(rows && k === 'text' && typeof x === 'string' ? x.split('\n') : x, `${where}.${k}`, out); }
+  }
 }
 
 test('every registered command has fuzz argument shapes (a new command must be added to SHAPES)', () => {

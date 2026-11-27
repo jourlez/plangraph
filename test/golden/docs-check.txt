@@ -1,0 +1,11 @@
+$ plangraph docs check
+exit: 1
+--- stdout
+architecture missing
+adr-index missing
+onboarding missing
+release-notes missing
+roadmap missing
+rtm missing
+status missing
+--- stderr

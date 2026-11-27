@@ -19,7 +19,7 @@ const parse = (n: string) => {
 };
 const skills = Object.fromEntries(names.map((n) => [n, parse(n)]));
 const { registry } = await import('../src/registry.ts'); // the commands bin/plangraph runs
-const VERBS = ['Route', 'Onboard', 'Plan', 'Prepare', 'Set'];
+const VERBS = ['Route', 'Onboard', 'Plan', 'Prepare', 'Set', 'Publish'];
 const connectorSkills = ['plangraph', 'onboard', 'plan', 'audit', 'report'];
 const POINTER = 'Connector use follows the Connectors block in the plangraph skill; run `plangraph integrations -v` for the tool patterns present here';
 
@@ -138,6 +138,7 @@ test('allowed-tools lists only read-only Bash(plangraph ...) patterns and named 
   const APPROVED_BRAIN = new Set([
     ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale', 'graph'].map((c) => `Bash(plangraph ${c}:*)`),
     'Bash(plangraph doctor)', 'Bash(plangraph blockers)', 'Bash(plangraph check)', 'Bash(plangraph forecast)', 'Bash(plangraph open-items)', 'Bash(plangraph card --line)',
+    'Bash(plangraph docs:*)', // docs list, check and export are read-only; docs-build is its own command and stays unapproved
   ]);
   for (const n of names) {
     const at = skills[n].fm['allowed-tools'];
@@ -163,7 +164,7 @@ test('every plangraph command a skill names is a registered command', () => {
   }
 });
 
-test('the six routing jobs and all seven skills have trigger cases in evals/cases (both polarities) and the docs point there instead of copying them', () => {
+test('the six routing jobs and every skill have trigger cases in evals/cases (both polarities) and the docs point there instead of copying them', () => {
   const dir = path.join(root, 'evals', 'cases');
   assert.ok(fs.existsSync(dir), 'evals/cases is missing');
   const cases = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'))).filter((c) => c.kind === 'trigger');
@@ -196,4 +197,14 @@ test('no skill instructs writing under .wolf/ (another tool\'s files)', () => {
     assert.doesNotMatch(line, /\b(write|edit|create|append|update|overwrite)\b[^.]*\.wolf\/|by hand/i, `${n}: instructs writing under .wolf/: ${line.slice(0, 120)}`);
   }
   for (const n of names) assert.doesNotMatch(skills[n].text, /write STATUS by hand/i, n);
+});
+
+test('docs-publish is owner-only, pre-approves only the read-only docs commands, and names registered commands', () => {
+  const s = skills['docs-publish'];
+  assert.ok(s, 'skills/docs-publish is missing');
+  assert.equal(s.fm['disable-model-invocation'], 'true');
+  assert.doesNotMatch(s.fm['allowed-tools'] ?? '', /docs-build|ingest|trust|sync-fetch|identity-map/, 'a writer is pre-approved');
+  for (const c of ['docs', 'docs-build', 'identity', 'identity-map', 'ingest', 'sync-fetch', 'trust']) assert.ok(registry.has(c), `${c} is not registered`);
+  assert.equal(registry.get('docs')?.writes, 'none');
+  assert.equal(registry.get('docs-build')?.writes, 'text');
 });

@@ -369,6 +369,13 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph fmt` | rewrite every non-canonical entity file to its canonical form | | files |
 | `plangraph resolve` | repair merge-conflict markers in entity files when every conflicting hunk is a collection line (union and sort); scalar conflicts are left for a person | | files |
 | `plangraph compact` | merge sealed months of event and run files into one content-hashed file per month and kind; refuses outside CI (`CI=true` or `--ci`) | `--ci` | files |
+| `plangraph docs` | generated documents: `list`, `check` (one line per generator, exit 1 when a region is stale, edited or missing), `export ID` (neutral blocks for a remote mirror) | `list`, `check`, `export ID` | none |
+| `plangraph docs-build` | write the generated documents to `docs.out` (default `docs/plangraph/`, git-ignored by `init` unless `docs.commit` is true); a hand edit inside a region is refused unless forced | `[ID...]`, `--force`, `--commit-ready` | text |
+| `plangraph ingest` | local facts and plan nodes: `git` (module facts from history into the git-ignored cache), `links` (ticket links from commit and pull request keys), `docs` (decision nodes from ADRs), `requirements` (requirement nodes from a document) | `git\|links\|docs\|requirements`, `--repo ID`, `--since DAYS`, `--full`, `--prune` | text |
+| `plangraph sync-fetch` | read-only fetch of the trusted targets named in `config.json` into the git-ignored cache; no targets, nothing to do | `--sys jira\|github\|confluence`, `--full`, `--strict` | files |
+| `plangraph trust` | allow `sync-fetch` to read one target with your own credentials, recorded in the git-ignored cache | `SYS:TARGET` | files |
+| `plangraph identity` | `propose` suggests which plan person each observed tracker assignee is (prints only); `list` shows the local identity map | `propose\|list`, `--sys S` | none |
+| `plangraph identity-map` | map one tracker ref to a plan person in the git-ignored identity map; the person must exist | `REF PERSON` | text |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
 | `plangraph init` | create the plan directory, config, generic learnings and the entity-layout stamp | | text |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
@@ -400,7 +407,7 @@ Two more executables ship in `bin/`:
 
 ## Skills
 
-The plugin ships eight skills. Claude picks one from its description, or you invoke it as `/plangraph:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `plangraph` commands; anything that writes still asks you.
+The plugin ships nine skills. Claude picks one from its description, or you invoke it as `/plangraph:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `plangraph` commands; anything that writes still asks you.
 
 | Skill | When it is used | What it does | Writes |
 |---|---|---|---|
@@ -412,6 +419,7 @@ The plugin ships eight skills. Claude picks one from its description, or you inv
 | `audit` | owner only: replan, re-verify readiness, "what changed since the last audit" | `stale`, `jira-text`, `units` with a cost preview, then the agent briefs in `briefs/` | writing commands go through a permission prompt |
 | `report` | a status report, sprint review or per-owner update | read-only summary, or `plangraph report` after a yes; proposes publishing through the Artifact tool or a Slack draft | only `report.*`, after a yes |
 | `whatif` | "what happens if this ticket moves or goes to someone else" | runs the dry run, explains every broken rule and its fix; for overload uses one `--relieve`, for "where can it go" one `--find` | never; the owner runs `--write` |
+| `docs-publish` | publish a generated document as a read-only mirror in Confluence, Google Docs, Notion, Claude Docs or an Artifact | reads the document with `plangraph docs export`; the owner starts it with `/plangraph:docs-publish` | remote mirror only |
 
 ## Configuration
 

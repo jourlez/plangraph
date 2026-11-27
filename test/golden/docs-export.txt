@@ -1,0 +1,45 @@
+$ plangraph docs export roadmap
+exit: 0
+--- stdout
+# Roadmap
+fp 28037f9f6d6b165a source docs/plangraph/roadmap.md
+
+Tickets: 40. Facts from the plan graph; no dates.
+
+Sprint 1
+
+15 tickets, 46 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-1 | todo | 1 | E0 | p-dea210f0 |  |
+| T-11 | todo | 5 | E2 | p-a86b18c7 |  |
+| T-12 | todo | 3 | E3 | p-dea210f0 |  |
+| T-14 | todo | 4 | E1 | p-030d7562 |  |
+| T-15 | todo | 3 | E2 | p-a86b18c7 |  |
+| T-18 | todo | 4 | E1 | p-030d7562 |  |
+| T-2 | todo | 3 | E1 | p-a86b18c7 |  |
+| T-20 | todo | 1 | E3 | p-a86b18c7 |  |
+| T-25 | todo | 3 | E0 | p-a86b18c7 |  |
+| T-27 | todo | 4 | E2 | p-dea210f0 |  |
+| T-3 | todo | 3 | E2 | p-030d7562 |  |
+| T-4 | todo | 3 | E3 | p-a86b18c7 |  |
+| T-5 | todo | 5 | E0 | p-dea210f0 |  |
+| T-6 | todo | 3 | E1 | p-dea210f0 |  |
+| T-9 | todo | 1 | E0 | p-030d7562 |  |
+
+Sprint 2
+
+8 tickets, 22 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-10 | todo | 4 | E1 | p-a86b18c7 |  |
+| T-17 | todo | 2 | E0 | p-a86b18c7 |  |
+| T-22 | todo | 2 | E1 | p-a86b18c7 |  |
+| T-24 | todo | 4 | E3 | p-dea210f0 |  |
+| T-32 | todo | 1 | E3 | p-dea210f0 |  |
+| T-35 | todo | 1 | E2 | p-a86b18c7 |  |
+| T-7 | todo | 4 | E2 | p-a86b18c7 |  |
+... 39 more
+--- stderr

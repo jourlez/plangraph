@@ -1,0 +1,5 @@
+$ plangraph sync-fetch
+exit: 0
+--- stdout
+nothing to fetch: name targets in config.json (fetch.github, jira.jql with jira.tenant, fetch.confluence)
+--- stderr

@@ -1,0 +1,11 @@
+$ plangraph docs list
+exit: 0
+--- stdout
+docs/plangraph/architecture.md architecture
+docs/plangraph/decisions.md adr-index
+docs/plangraph/onboarding.md onboarding
+docs/plangraph/release-notes.md release-notes
+docs/plangraph/roadmap.md roadmap
+docs/plangraph/rtm.md rtm
+docs/plangraph/status.md status
+--- stderr

@@ -1,0 +1,86 @@
+$ plangraph docs-build
+exit: 0
+--- stdout
+wrote 7 documents to docs/plangraph
+--- stderr
+--- file docs/plangraph/roadmap.md
+# Roadmap
+
+<!-- plangraph:begin id=roadmap fp=28037f9f6d6b165a bh=954ed66553222830 v=1 -->
+Tickets: 40. Facts from the plan graph; no dates.
+
+## Sprint 1
+
+15 tickets, 46 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-1 | todo | 1 | E0 | p-dea210f0 |  |
+| T-11 | todo | 5 | E2 | p-a86b18c7 |  |
+| T-12 | todo | 3 | E3 | p-dea210f0 |  |
+| T-14 | todo | 4 | E1 | p-030d7562 |  |
+| T-15 | todo | 3 | E2 | p-a86b18c7 |  |
+| T-18 | todo | 4 | E1 | p-030d7562 |  |
+| T-2 | todo | 3 | E1 | p-a86b18c7 |  |
+| T-20 | todo | 1 | E3 | p-a86b18c7 |  |
+| T-25 | todo | 3 | E0 | p-a86b18c7 |  |
+| T-27 | todo | 4 | E2 | p-dea210f0 |  |
+| T-3 | todo | 3 | E2 | p-030d7562 |  |
+| T-4 | todo | 3 | E3 | p-a86b18c7 |  |
+| T-5 | todo | 5 | E0 | p-dea210f0 |  |
+| T-6 | todo | 3 | E1 | p-dea210f0 |  |
+| T-9 | todo | 1 | E0 | p-030d7562 |  |
+
+## Sprint 2
+
+8 tickets, 22 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-10 | todo | 4 | E1 | p-a86b18c7 |  |
+| T-17 | todo | 2 | E0 | p-a86b18c7 |  |
+| T-22 | todo | 2 | E1 | p-a86b18c7 |  |
+| T-24 | todo | 4 | E3 | p-dea210f0 |  |
+| T-32 | todo | 1 | E3 | p-dea210f0 |  |
+| T-35 | todo | 1 | E2 | p-a86b18c7 |  |
+| T-7 | todo | 4 | E2 | p-a86b18c7 |  |
+| T-8 | todo | 4 | E3 | p-a86b18c7 |  |
+
+## Sprint 3
+
+8 tickets, 24 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-13 | todo | 5 | E0 | p-dea210f0 |  |
+| T-16 | todo | 4 | E3 | p-030d7562 |  |
+| T-19 | todo | 2 | E2 | p-dea210f0 |  |
+| T-21 | todo | 1 | E0 | p-dea210f0 |  |
+| T-26 | todo | 4 | E1 | p-030d7562 |  |
+| T-30 | todo | 2 | E1 | p-dea210f0 |  |
+| T-33 | todo | 4 | E0 | p-dea210f0 |  |
+| T-36 | todo | 2 | E3 | p-030d7562 |  |
+
+## Sprint 4
+
+7 tickets, 21 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-23 | todo | 2 | E2 | p-a86b18c7 |  |
+| T-28 | todo | 4 | E3 | p-a86b18c7 |  |
+| T-29 | todo | 1 | E0 | p-dea210f0 |  |
+| T-31 | todo | 2 | E2 | p-a86b18c7 |  |
+| T-34 | todo | 5 | E1 | p-030d7562 |  |
+| T-39 | todo | 2 | E2 | p-a86b18c7 |  |
+| T-40 | todo | 5 | E3 | p-a86b18c7 |  |
+
+## Sprint 5
+
+2 tickets, 7 points.
+
+| Ticket | Status | Points | Epic | Owner | Title |
+|---|---|---|---|---|---|
+| T-37 | todo | 2 | E0 | p-dea210f0 |  |
+| T-38 | todo | 5 | E1 | p-030d7562 |  |
+<!-- plangraph:end id=roadmap -->

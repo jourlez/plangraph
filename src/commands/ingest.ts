@@ -188,7 +188,7 @@ async function ingest(ctx: Ctx, args: Args<Opts>): Promise<number> {
 
 export const commands: CommandMap = {
   ingest: {
-    run: ingest as never, positionals: [1, Infinity], writes: 'file', guard: 'soft',
+    run: ingest as never, positionals: [1, Infinity], writes: 'text', guard: 'strict',
     options: { repo: { type: 'string' }, since: { type: 'integer', min: 1, max: 36500 }, full: { type: 'boolean' }, prune: { type: 'boolean' } },
     summary: 'git [--repo ID] [--since DAYS] [--full]: mine git history into local module facts (cache/git.jsonl, 0600), a shallow clone is refused; links [--repo ID]: touches links from commit and pull request ticket keys (conf >= 0.5, lower as LOW_CONF); docs [PATH...]: decision nodes from ADRs; requirements DOC [--prune]: requirement nodes from a document',
   },

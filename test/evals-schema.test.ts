@@ -140,7 +140,7 @@ const goldenRun = (c: TruthCase) => {
 
 test('every grader passes on the golden run of every case (llm judges excluded)', () => {
   for (const c of cases.filter((x) => x.truth || x.kind === 'trigger')) {
-    const run = c.truth ? goldenRun(c) : { message: 'A burndown chart; hoisting and the temporal dead zone; npm audit for vulnerabilities; git status; pg_dump and schema; a template with highlights; git init makes a .git repository; rebase replays commits; story point estimate; retryCount; a roadmap template; brownfield.', calls: [] };
+    const run = c.truth ? goldenRun(c) : { message: 'A burndown chart; hoisting and the temporal dead zone; npm audit for vulnerabilities; git status; pg_dump and schema; a template with highlights; git init makes a .git repository; rebase replays commits; story point estimate; retryCount; a roadmap template; a read-only mirror is a copy; brownfield.', calls: [] };
     const r = grade(c, run, { ablation: 'none' });
     assert.deepEqual(r.failed, [], `${c.id}: ${r.failed}`);
   }

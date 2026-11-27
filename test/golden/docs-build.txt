@@ -1,0 +1,5 @@
+$ plangraph docs-build
+exit: 0
+--- stdout
+wrote 7 documents to docs/plangraph
+--- stderr

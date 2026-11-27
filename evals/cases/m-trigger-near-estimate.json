@@ -50,7 +50,7 @@
       "role": "outcome",
       "type": "tool_used",
       "tool": "Skill",
-      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif)\"",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif|docs-publish)\"",
       "min": 0,
       "max": 0,
       "weight": 3,

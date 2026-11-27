@@ -1,0 +1,5 @@
+$ plangraph identity propose
+exit: 0
+--- stdout
+0 proposed, 0 ambiguous
+--- stderr

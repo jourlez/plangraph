@@ -15,10 +15,13 @@ async function sync(ctx: Ctx, args: Args<{ plan?: boolean }>): Promise<number> {
   const { drift, DEFAULT_STALE_DAYS } = await import('../../lib/graph/drift.ts');
   const { closedStatuses } = await import('../../lib/ready.ts');
   const { isoDay } = await import('../../lib/clock.ts');
+  const { readIdentityMap } = await import('../../lib/identity.ts');
   const db = ctx.db();
   if (db.older) throw new PlangraphError('STALE', 'the index was built by an older plangraph', { hint: 'run `plangraph build`' });
   const cfg = ctx.config() as { graph?: { stale_days?: unknown } }, sd = cfg.graph?.stale_days;
   const staleDays = Number.isSafeInteger(sd) && (sd as number) >= 0 ? (sd as number) : DEFAULT_STALE_DAYS;
+  let identities;
+  try { identities = readIdentityMap(ctx.dir); } catch (e) { if ((e as { code?: unknown }).code === 'DATA') throw new PlangraphError('DATA', (e as Error).message, { hint: 'fix or delete cache/identities.json' }); throw e; }
   const all = (sql: string) => db.all(sql) as never[];
   const found = drift({
     tickets: all('SELECT "key", jira_status, impl_status FROM ticket'),
@@ -26,7 +29,7 @@ async function sync(ctx: Ctx, args: Args<{ plan?: boolean }>): Promise<number> {
     edges: all('SELECT consumer, producer FROM edge'),
     xrefs: all('SELECT "type", "id", sys, xid FROM xref'),
     obs: all('SELECT sys, xid, "type", fields, links, seen FROM obs'),
-    closed: closedStatuses(ctx.config()), staleDays, today: isoDay(ctx.now()),
+    closed: closedStatuses(ctx.config()), staleDays, today: isoDay(ctx.now()), identities,
   });
   const counts: Record<string, number> = {};
   for (const f of found) counts[f.code] = (counts[f.code] ?? 0) + 1;

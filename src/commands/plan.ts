@@ -216,6 +216,27 @@ const CONFIG = {
 // after trimming. The entity layout needs no git attribute, so none is written.
 const IGNORE_LINES = Object.freeze(['cache/', 'plangraph.sqlite*', '.txn/']);
 const missingIgnoreLines = (text: string) => { const have = new Set(text.split(/\r?\n/).map((l) => l.trim())); return IGNORE_LINES.filter((l) => !have.has(l)); };
+// The live docs directory (docs.out, default docs/plangraph) is derived output: while docs.commit is not true it stays out of git. The line goes
+// into the repository root .gitignore (the plan dir's own file cannot reach a sibling directory); an existing file keeps every user line.
+function docsIgnoreLine(cfgFile: string): string | null {
+  let c: { docs?: { out?: unknown; commit?: unknown } } = {};
+  try { c = JSON.parse(readCapped(cfgFile, 1024 * 1024)) as typeof c; } catch { c = {}; }
+  const d = c && typeof c === 'object' && c.docs && typeof c.docs === 'object' ? c.docs : {};
+  if (d.commit === true) return null;
+  const out = (typeof d.out === 'string' ? d.out : '').replace(/\/+$/, '');
+  const p = out === '' ? 'docs/plangraph' : out;
+  if (p.startsWith('/') || /^[A-Za-z]:/.test(p) || p.split('/').includes('..') || p === '.' || /[\0\r\n]/.test(p)) return null; // docs-build refuses it too
+  return `/${p}/`;
+}
+function ignoreDocsOut(ctx: Ctx, cfgFile: string): void {
+  const line = docsIgnoreLine(cfgFile);
+  if (!line) return;
+  const gi = path.join(ctx.root, '.gitignore'), old = fs.existsSync(gi) ? readCapped(gi, 1024 * 1024) : null;
+  const bare = line.slice(1, -1), have = new Set((old ?? '').split(/\r?\n/).map((l) => l.trim()));
+  if ([line, `${bare}/`, `/${bare}`, bare].some((l) => have.has(l))) return;
+  const eol = old !== null && old.includes('\r\n') ? '\r\n' : '\n';
+  writeState(ctx, gi, `${old ?? ''}${old === null || old === '' || old.endsWith('\n') ? '' : eol}${line}${eol}`);
+}
 async function init(ctx: Ctx): Promise<number> {
   const S = await import('../../lib/store.ts'), dir = ctx.dir, cfg = path.join(dir, 'config.json'), fmt = path.join(dir, S.FORMAT_FILE);
   precheckTargets(ctx, [fmt]); // a symlinked format.json (even a dangling one) is REFUSED (exit 4) before anything is written
@@ -223,8 +244,9 @@ async function init(ctx: Ctx): Promise<number> {
   fs.mkdirSync(dir, { recursive: true });
   const missing = (f: string) => !fs.existsSync(f), gi = path.join(dir, '.gitignore'), changes: string[] = [];
   const store = openStore(ctx), existing = !missing(cfg) || store.exists('ticket'); // a plangraph that was set up before: init must not read as a first set-up
-  precheckTargets(ctx, [gi]);
+  precheckTargets(ctx, [gi, path.join(ctx.root, '.gitignore')]);
   if (missing(cfg)) writeState(ctx, cfg, `${JSON.stringify(CONFIG, null, 2)}\n`);
+  ignoreDocsOut(ctx, cfg);
   if (!store.exists('learning') && fs.existsSync(SEED)) store.writeText('learning', readCapped(SEED, 1024 * 1024));
   // Only ADD the lines init needs (cache, index and its SQLite sidecars, staging): every user line in an existing .gitignore stays, in order, byte for
   // byte; the missing lines are appended in IGNORE_LINES order with the file's own line ending; nothing is written when all are there.

@@ -14,5 +14,12 @@ import { commands as sync } from './sync.ts';
 import { commands as fmt } from './fmt.ts';
 import { commands as resolve } from './resolve.ts';
 import { commands as compact } from './compact.ts';
+import { commands as docs } from './docs.ts';
+import { commands as docsBuild } from './docs-build.ts';
+import { commands as ingest } from './ingest.ts';
+import { commands as syncFetch } from './sync-fetch.ts';
+import { commands as trust } from './trust.ts';
+import { commands as identity } from './identity.ts';
+import { commands as identityMap } from './identity-map.ts';
 
-export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact });
+export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact, docs, docsBuild, ingest, syncFetch, trust, identity, identityMap });

@@ -1,0 +1,5 @@
+$ plangraph identity list
+exit: 0
+--- stdout
+0 mapped
+--- stderr
