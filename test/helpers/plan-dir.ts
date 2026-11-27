@@ -70,6 +70,7 @@ export const TEXT_ONLY: readonly string[] = [
   'evals-schema.test.ts',
   'fsafe.test.ts',
   'graph-repo.test.ts',
+  'graph-repo-depth.test.ts', // names repos.jsonl only to pick the validator of the kind, in memory
   'jira-output-mode.test.ts',
   'openitems.test.ts',
 ];

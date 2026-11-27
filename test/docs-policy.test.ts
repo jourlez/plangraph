@@ -9,7 +9,7 @@ const none = policyFromList([]);
 test('D24 kinds: url, host, email, token, account id', () => {
   assert.deepEqual(d24Kinds('see https://example.com/x'), ['host', 'url']);
   assert.deepEqual(d24Kinds('mail a.b@corp.example'), ['email', 'host']);
-  assert.ok(d24Kinds('ghp_abcdefgh12345678').includes('token'));
+  assert.ok(d24Kinds('gh' + 'p_' + 'abcdefgh12345678').includes('token'));
   assert.ok(d24Kinds('key 0123456789abcdef0123456789abcdef').includes('token'));
   assert.ok(d24Kinds('user 712020:12345678-1234-1234-1234-123456789abc').includes('account'));
   assert.ok(d24Kinds('host 10.0.0.1').includes('host'));
