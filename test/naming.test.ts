@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { configDir } from '../src/jira-tenant.ts';
 
@@ -20,10 +20,10 @@ test('plugin, marketplace and package carry the name plangraph', () => {
   assert.deepEqual(m.plugins.map((p: { name: string }) => p.name), ['plangraph']);
 });
 
-test('the previous name survives only in the CHANGELOG history (and the migration plan that quotes it)', () => {
-  const out = execFileSync('git', ['grep', '-l', '-i', OLD], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
-  const allowed = new Set(['CHANGELOG.md', 'docs/superpowers/plans/2026-11-23-typescript-migration.md']);
-  assert.deepEqual(out.filter((f) => !allowed.has(f)), []);
+test('no tracked file names the previous private project name', () => {
+  const r = spawnSync('git', ['grep', '-l', '-i', OLD], { cwd: root, encoding: 'utf8' });
+  assert.equal(r.status, 1, `git grep exits 1 when nothing matches: ${r.stdout}`);
+  assert.equal(r.stdout, '');
 });
 
 test('the README install line uses the new names', () => {
