@@ -1,0 +1,5 @@
+$ plangraph flow-link T-1 jira:u1 ABC-1
+exit: 0
+--- stdout
+linked T-1 jira:u1 ABC-1
+--- stderr

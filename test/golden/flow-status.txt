@@ -1,0 +1,5 @@
+$ plangraph flow status
+exit: 0
+--- stdout
+no requirement
+--- stderr

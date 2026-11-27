@@ -142,6 +142,7 @@ const EXCEPTIONS: Array<{ file: string; line: RegExp; reason: string }> = [
   { file: 'lib/store2/adopt.ts', line: /readRecords/, reason: 'reads the old-layout files it converts into the store' },
   { file: 'lib/solver-input.ts', line: /canonFile/, reason: 'the derived solver input is the v1-shaped canonical text of five kinds' },
   { file: 'src/commands/import.ts', line: /canonFile/, reason: 'cache/obs.jsonl is an observation cache, not a plan kind (it has its own column order)' },
+  { file: 'src/commands/sync-fetch.ts', line: /canonFile/, reason: 'cache/<sys>.jsonl is an observation cache, not a plan kind (same writer shape as import)' },
 ];
 const CALLS = /\b(readRecords|canonFile|canonText|writeState|readJsonl)\b/;
 const SKIP_DIRS = ['lib', 'src', 'scripts', 'mcp', 'evals', 'bin'];

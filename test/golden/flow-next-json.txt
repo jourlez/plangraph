@@ -1,0 +1,5 @@
+$ plangraph flow next --json
+exit: 0
+--- stdout
+{"v":2,"cmd":"flow","ok":true,"exit":0,"data":{"ready":[{"key":"T-1","owner":"Ana","own":false},{"key":"T-11","owner":"Cleo","own":false},{"key":"T-14","owner":"Ben","own":false},{"key":"T-15","owner":"Cleo","own":false},{"key":"T-18","owner":"Ben","own":false},{"key":"T-2","owner":"Cleo","own":false},{"key":"T-20","owner":"Cleo","own":false},{"key":"T-25","owner":"Cleo","own":false},{"key":"T-4","owner":"Cleo","own":false},{"key":"T-6","owner":"Ana","own":false}],"omitted":0},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
+--- stderr

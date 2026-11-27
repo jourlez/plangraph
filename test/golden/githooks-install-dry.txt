@@ -1,0 +1,14 @@
+$ plangraph githooks-install --dry-run
+exit: 0
+--- stdout
+would write .githooks/post-commit
+would write .githooks/post-merge
+would write .githooks/post-checkout
+would write .githooks/post-rewrite
+to enable them, pick one (this command never changes git config):
+  git:      git config core.hooksPath .githooks
+  lefthook: add to lefthook.yml, one block per hook, e.g.
+              post-commit: { commands: { plangraph: { run: plangraph refresh --fast --quiet || true } } }
+              (also post-merge, post-checkout, post-rewrite; for the check: pre-commit: plangraph check --quiet)
+  husky:    copy a script to .husky/<hook> (for example cp .githooks/post-commit .husky/post-commit)
+--- stderr

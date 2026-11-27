@@ -110,6 +110,7 @@ test('Requirements become satisfies links only for ids of the id grammar (no exi
 test('a missing requirement is LINK_MISSING_NODE in check', { skip: HAS_SATISFIES ? false : 'skipped: the satisfies relation and requirement nodes arrive with task 12' }, () => {
   const p = project(plan('**Requirements:** R-a1b2c3\n', ''));
   assert.equal(p.ingest().status, 0);
+  assert.equal(p.pg('build').status, 0);
   const r = p.pg('check'); assert.match(r.stdout + r.stderr, /LINK_MISSING_NODE/);
 });
 
