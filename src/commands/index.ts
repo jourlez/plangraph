@@ -21,5 +21,15 @@ import { commands as syncFetch } from './sync-fetch.ts';
 import { commands as trust } from './trust.ts';
 import { commands as identity } from './identity.ts';
 import { commands as identityMap } from './identity-map.ts';
+import { commands as flow } from './flow.ts';
+import { commands as flowClaim } from './flow-claim.ts';
+import { commands as flowProgress } from './flow-progress.ts';
+import { commands as flowDone } from './flow-done.ts';
+import { commands as flowLink } from './flow-link.ts';
+import { commands as map } from './map.ts';
+import { commands as context } from './context.ts';
+import { commands as refresh } from './refresh.ts';
+import { commands as hookPrompt } from './hook-prompt.ts';
+import { commands as githooksInstall } from './githooks-install.ts';
 
-export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact, docs, docsBuild, ingest, syncFetch, trust, identity, identityMap });
+export const GROUPS = Object.freeze({ queries, plan, audit, openItems, analysis, integrations, report, explain, repo, graph, importObs, sync, fmt, resolve, compact, docs, docsBuild, ingest, syncFetch, trust, identity, identityMap, flow, flowClaim, flowProgress, flowDone, flowLink, map, context, refresh, hookPrompt, githooksInstall });
