@@ -157,6 +157,16 @@ const MUTATIONS: Array<[string, string, string, string[]]> = [
   ["lib/ingest/requirements.ts", "ACC_LINES = 50,", "ACC_LINES = 51,", ["test/ingest-requirements.test.ts"]],
   ["lib/ingest/requirements.ts", "if (fence) continue;", "", ["test/ingest-requirements.test.ts"]],
   ["lib/ingest/requirements.ts", "if (!hit && bulletIn && inReq) add(", "if (!hit && bulletIn) add(", ["test/ingest-requirements.test.ts"]],
+  // 1.0 flow: the task state machine
+  ["lib/flow/state.ts", "if (!ev.length) { findings.push({ code: 'DONE_WITHOUT_EVIDENCE'", "if (false) { findings.push({ code: 'DONE_WITHOUT_EVIDENCE'", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "if (!canTransition(from, e.to)) { bad(''); continue; }", "", ["test/flow-state.test.ts","test/flow-state-merge.test.ts"]],
+  ["lib/flow/state.ts", "done: ['in_progress', 'in_review', 'removed'],", "done: ['in_progress', 'in_review', 'removed', 'claimed'],", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "cmp(a.at, b.at) || a.seq - b.seq ||", "a.seq - b.seq || cmp(a.at, b.at) ||", ["test/flow-state.test.ts","test/flow-state-merge.test.ts"]],
+  ["lib/flow/state.ts", "if (!isState(e.to) || e.to === 'blocked') {", "if (!isState(e.to)) {", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "verified = ev.some((r) => r.startsWith('pr:') && !!opts.merged?.(r));", "verified = ev.some((r) => !!opts.merged?.(r));", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "now - at > (opts.claimDays ?? 7) * DAY", "now - at >= (opts.claimDays ?? 7) * DAY", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "if (to !== 'done') verified = false;", "", ["test/flow-state.test.ts"]],
+  ["lib/flow/state.ts", "if (to === 'ready') state = null; else state = to;", "state = to;", ["test/flow-state.test.ts"]],
 ];
 
 if (process.argv.includes('--list')) { for (const [f, a, b] of MUTATIONS) console.log(`${f}: ${a} -> ${b}`); process.exit(0); }

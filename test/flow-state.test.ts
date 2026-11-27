@@ -89,3 +89,54 @@ test('tracker status map', async () => {
   assert.equal(mapTrackerStatus('Weird'), null);
   assert.equal(mapTrackerStatus('Weird', { Weird: 'failed' }), 'failed');
 });
+
+const at = (s: number) => `2026-01-01T00:00:${String(s).padStart(2, '0')}Z`;
+const codes = (r: ReturnType<typeof deriveState>) => r.findings.map((f) => f.code);
+
+test('a second actor claiming a task that is only needs_input or ready is not a double claim; one holding a claim is', () => {
+  const held = deriveState('t', [ev('t', 'claimed', { at: at(1), by: 'ann' }), ev('t', 'claimed', { at: at(2), by: 'bob' })], NONE);
+  assert.deepEqual(codes(held), ['DOUBLE_CLAIM']);
+  const released = deriveState('t', [ev('t', 'claimed', { at: at(1), by: 'ann' }), ev('t', 'ready', { at: at(2), by: 'ann' }), ev('t', 'claimed', { at: at(3), by: 'bob' })], NONE);
+  assert.deepEqual(codes(released), []);
+  const failed = deriveState('t', [ev('t', 'claimed', { at: at(1), by: 'ann' }), ev('t', 'failed', { at: at(2), by: 'ann' }), ev('t', 'claimed', { at: at(3), by: 'bob' })], NONE);
+  assert.deepEqual(codes(failed), []);
+});
+
+test('an event to blocked, or to a name that is no state, is a BAD_TRANSITION and changes nothing', () => {
+  for (const to of ['blocked', 'nonsense']) {
+    const r = deriveState('t', [ev('t', 'claimed', { at: at(1) }), ev('t', to, { at: at(2) })], NONE);
+    assert.equal(r.state, 'claimed');
+    assert.deepEqual(codes(r), ['BAD_TRANSITION']);
+    assert.match(r.findings[0]?.detail ?? '', /not an assertable state/);
+  }
+});
+
+test('only a merged pr: reference verifies a done task', () => {
+  const evs = [ev('t', 'claimed', { at: at(1) }), ev('t', 'done', { at: at(2), evidence: ['test:green'] })];
+  const merged = (ref: string) => ref === 'test:green' || ref === 'pr:o/r#1';
+  assert.deepEqual(codes(deriveState('t', evs, NONE, { merged })), ['UNVERIFIED_DONE']);
+  const ok = deriveState('t', [evs[0] as (typeof evs)[0], ev('t', 'done', { at: at(2), evidence: ['pr:o/r#1'] })], NONE, { merged });
+  assert.deepEqual(codes(ok), []);
+  assert.equal(ok.verified, true);
+});
+
+test('a task reopened after a verified done is no longer verified', () => {
+  const merged = () => true;
+  const r = deriveState('t', [ev('t', 'claimed', { at: at(1) }), ev('t', 'done', { at: at(2), evidence: ['pr:o/r#1'] }), ev('t', 'in_progress', { at: at(3) })], NONE, { merged });
+  assert.equal(r.state, 'in_progress');
+  assert.equal(r.verified, false);
+});
+
+test('a claim is stale only after claimDays have passed, never at exactly claimDays', () => {
+  const evs = [ev('t', 'claimed', { at: '2026-01-01T00:00:00Z' })];
+  const day = 86_400_000, t0 = Date.parse('2026-01-01T00:00:00Z');
+  assert.deepEqual(codes(deriveState('t', evs, NONE, { now: t0 + 7 * day })), []);
+  assert.deepEqual(codes(deriveState('t', evs, NONE, { now: t0 + 7 * day + 1 })), ['STALE_CLAIM']);
+  assert.deepEqual(codes(deriveState('t', evs, NONE, { now: t0 + 3 * day + 1, claimDays: 3 })), ['STALE_CLAIM']);
+});
+
+test('an event to ready releases the asserted state back to the computed one', () => {
+  const deps: Deps = { openDeps: () => ['p'], gated: () => false };
+  assert.equal(deriveState('t', [ev('t', 'claimed', { at: at(1) })], deps).state, 'claimed');
+  assert.equal(deriveState('t', [ev('t', 'claimed', { at: at(1) }), ev('t', 'ready', { at: at(2) })], deps).state, 'blocked');
+});
