@@ -139,7 +139,7 @@ The plugin declares three options:
 - Inside Claude Code: `/plugin configure plangraph@plangraph-marketplace`.
 - At install time: `claude plugin install plangraph@plangraph-marketplace --config card=auto --config prompt_hook=on --config mcp=on`.
 - Later, from a terminal: `echo '{"card":"auto","prompt_hook":"on","mcp":"on"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`. Use `off` to turn one back off (`--config card=off`).
-- For one shell or one machine: `PLANGRAPH_CARD=auto` (or `PLANGRAPH_CARD=off`; unset also means off), `PLANGRAPH_PROMPT_HOOK=on`, `PLANGRAPH_MCP=on`. The three are strictly opt-in: only the explicit value turns one on, and the code does not rely on Claude Code exporting the default. Claude Code exports the plugin options as `CLAUDE_PLUGIN_OPTION_CARD` and `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`.
+- For one shell or one machine: `PLANGRAPH_CARD=auto` (or `PLANGRAPH_CARD=off`; unset also means off), `PLANGRAPH_PROMPT_HOOK=on`. The bundled MCP server is the exception: the plugin's `.mcp.json` sets `PLANGRAPH_MCP` from the plugin option `mcp`, which replaces a variable exported in your shell, so turn it on with the option (above); `PLANGRAPH_MCP=on` applies only when you start `mcp/plangraph-mcp.ts` yourself. The three are strictly opt-in: only the explicit value turns one on, and the code does not rely on Claude Code exporting the default. Claude Code exports the plugin options as `CLAUDE_PLUGIN_OPTION_CARD` and `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`.
 
 ### Verifying the install
 
