@@ -60,7 +60,7 @@ function readState(dir: string): Checkpoint {
     return s;
   } catch { return empty; }
 }
-function writeState(dir: string, s: Checkpoint): void {
+function saveCheckpoint(dir: string, s: Checkpoint): void {
   const norm: Checkpoint = { version: 1, done: STEPS.filter((x) => s.done.includes(x)), failed: [...s.failed].sort((a, b) => cmp(a.step, b.step)), questions: [...s.questions].sort((a, b) => cmp(a.id, b.id)), ...(s.skipped?.length ? { skipped: [...s.skipped].sort((a, b) => cmp(a.step, b.step)) } : {}), ...(s.capped ? { capped: true } : {}) };
   const text = `${JSON.stringify(norm, null, 2)}\n`;
   const file = path.join(dir, FILE);
@@ -226,7 +226,7 @@ async function takeover(ctx: Ctx, args: Args<Opts>): Promise<number> {
         if (out && out !== SKIP) { (state.skipped ??= []).push({ step, reason: out.skip }); line = `${step}: skipped (${out.skip})`; } else line = out === SKIP ? '' : `${step}: ok`;
       } catch (e) { state.failed.push({ step, reason: one(e) }); failedNow.add(step); line = `${step}: failed (${one(e)})`; }
     }
-    writeState(ctx.dir, state);
+    saveCheckpoint(ctx.dir, state);
     if (line) say(line);
     hooks?.afterStep?.(step);
   }
@@ -237,7 +237,7 @@ async function takeover(ctx: Ctx, args: Args<Opts>): Promise<number> {
   state.questions = needTracker ? [...base, { id: 'tracker-access', text: 'give plangraph tracker access: name the targets in config.json, trust them with `plangraph trust`, and sign in to gh or the Atlassian tenant' }] : base;
   state.failed = state.failed.filter((f) => f.step !== 'report');
   if (!state.done.includes('report') && !state.failed.length) state.done.push('report');
-  writeState(ctx.dir, state);
+  saveCheckpoint(ctx.dir, state);
   say(`gaps: ${gaps.length}`);
   for (const g of gaps) say(`- ${g}`);
   say(`questions: ${state.questions.length}`);
