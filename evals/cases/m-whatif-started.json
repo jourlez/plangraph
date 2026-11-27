@@ -101,7 +101,7 @@
       "role": "diagnostic",
       "type": "tool_used",
       "tool": "Skill",
-      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif|docs-publish)\"",
+      "input_match": "\"skill\"\\s*:\\s*\"(?:[\\w-]+:)?(?:plangraph|audit|autopilot|init|onboard|plan|report|whatif|docs-publish|takeover|flow)\"",
       "min": 1,
       "weight": 1,
       "arm": "with-only"
