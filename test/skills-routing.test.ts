@@ -19,7 +19,7 @@ const parse = (n: string) => {
 };
 const skills = Object.fromEntries(names.map((n) => [n, parse(n)]));
 const { registry } = await import('../src/registry.ts'); // the commands bin/plangraph runs
-const VERBS = ['Route', 'Onboard', 'Plan', 'Prepare', 'Set', 'Publish'];
+const VERBS = ['Route', 'Onboard', 'Plan', 'Prepare', 'Set', 'Publish', 'Take', 'Orchestrate'];
 const connectorSkills = ['plangraph', 'onboard', 'plan', 'audit', 'report'];
 const POINTER = 'Connector use follows the Connectors block in the plangraph skill; run `plangraph integrations -v` for the tool patterns present here';
 
@@ -136,16 +136,19 @@ test('the superpowers guard itself rejects an automatic call (self-check of the 
 
 test('allowed-tools lists only read-only Bash(plangraph ...) patterns and named connector globs', () => {
   const APPROVED_BRAIN = new Set([
-    ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale', 'graph'].map((c) => `Bash(plangraph ${c}:*)`),
+    ...['integrations', 'ticket', 'neighbors', 'chain', 'sprint', 'person', 'findings', 'rules', 'verify', 'ready', 'stale', 'graph', 'map', 'context', 'flow', 'identity'].map((c) => `Bash(plangraph ${c}:*)`),
     'Bash(plangraph doctor)', 'Bash(plangraph blockers)', 'Bash(plangraph check)', 'Bash(plangraph forecast)', 'Bash(plangraph open-items)', 'Bash(plangraph card --line)',
     'Bash(plangraph docs:*)', // docs list, check and export are read-only; docs-build is its own command and stays unapproved
   ]);
+  // The one documented exception: the five append-only writers, pre-approved only in the flow skill.
+  const APPEND_ONLY = ['flow-claim', 'flow-progress', 'flow-done', 'flow-link', 'identity-map'].map((c) => `Bash(plangraph ${c}:*)`);
   for (const n of names) {
     const at = skills[n].fm['allowed-tools'];
     assert.ok(at, `${n}: allowed-tools missing`);
     const items = at.split(/\s*,\s*|\s+(?=Bash\(|mcp__)/).map((s) => s.trim()).filter(Boolean);
     assert.ok(items.length > 0);
     for (const it of items) {
+      if (n === 'flow' && APPEND_ONLY.includes(it)) continue;
       if (it.startsWith('Bash')) { assert.ok(APPROVED_BRAIN.has(it), `${n}: Bash entry not on the approved allowlist: ${it}`); continue; }
       assert.match(it, /^mcp__\*[A-Za-z_]+\*__(getJiraIssue|searchJiraIssuesUsingJql|get_meeting_action_items|read_file_content)$/, `${n}: ${it} is not an approved read connector glob`);
     }
@@ -207,4 +210,40 @@ test('docs-publish is owner-only, pre-approves only the read-only docs commands,
   for (const c of ['docs', 'docs-build', 'identity', 'identity-map', 'ingest', 'sync-fetch', 'trust']) assert.ok(registry.has(c), `${c} is not registered`);
   assert.equal(registry.get('docs')?.writes, 'none');
   assert.equal(registry.get('docs-build')?.writes, 'text');
+});
+
+test('the flow skill pre-approves exactly the five append-only writers and no other skill pre-approves any of them', () => {
+  const items = (n: string) => skills[n].fm['allowed-tools'].split(/\s*,\s*/).filter((s) => s.startsWith('Bash('));
+  const FIVE = ['flow-claim', 'flow-progress', 'flow-done', 'flow-link', 'identity-map'].map((c) => `Bash(plangraph ${c}:*)`);
+  assert.deepEqual(items('flow').filter((s) => FIVE.includes(s)).sort(), [...FIVE].sort());
+  assert.deepEqual(items('flow').filter((s) => /^Bash\(plangraph (flow-|identity-)/.test(s) && !FIVE.includes(s)), []);
+  for (const n of names) if (n !== 'flow') assert.deepEqual(items(n).filter((s) => FIVE.includes(s)), [], `${n}: pre-approves an append-only writer`);
+  for (const c of ['ingest', 'docs-build', 'sp-ingest', 'repo', 'build', 'trust', 'sync-fetch', 'resolve', 'fmt', 'takeover']) for (const n of names) assert.ok(!skills[n].fm['allowed-tools'].includes(`plangraph ${c}`), `${n}: ${c} must need approval`);
+});
+
+test('read commands are pre-approved in the router and the flow skill', () => {
+  for (const n of ['plangraph', 'flow']) for (const c of ['map', 'context', 'graph', 'flow', 'docs', 'identity']) assert.ok(skills[n].fm['allowed-tools'].includes(`Bash(plangraph ${c}:*)`), `${n}: ${c}`);
+});
+
+test('takeover and flow: trigger words in the first 200 characters, bodies under 500 lines, registered commands, routed from the router', () => {
+  const trig = { takeover: ['existing project', 'inherit', 'onboard', 'history'], flow: ['requirements document', 'orchestrate', 'next task', 'assign', 'dispatch'] };
+  for (const [n, ws] of Object.entries(trig)) {
+    const d = skills[n].fm.description;
+    assert.ok(d.length <= 1024);
+    for (const w of ws) assert.ok(d.toLowerCase().includes(w) || skills[n].text.toLowerCase().includes(w), `${n}: ${w}`);
+    assert.ok(ws.some((w) => d.slice(0, 200).toLowerCase().includes(w)), `${n}: no trigger word in the first 200 characters`);
+    assert.ok(skills[n].body.split('\n').length < 500, `${n}: body too long`);
+    assert.ok(skills.plangraph.body.includes(`plangraph:${n}`), `router does not route to ${n}`);
+  }
+  assert.match(skills.onboard.body, /plangraph:takeover/);
+  assert.match(skills.takeover.body, /cache\/takeover\.json/);
+  assert.match(skills.flow.body, /plangraph never merges/);
+  assert.match(skills.flow.body, /never edits event files/);
+  for (const c of ['takeover', 'flow', 'flow-claim', 'flow-progress', 'flow-done', 'flow-link', 'identity-map', 'map', 'context', 'graph']) assert.ok(registry.has(c), c);
+});
+
+test('docs/AGENTS-snippet.md is under 20 lines and states facts without imperative capitals', () => {
+  const s = read('docs/AGENTS-snippet.md');
+  assert.ok(s.trimEnd().split('\n').length < 20);
+  assert.doesNotMatch(s, /\b(MUST|NEVER|ALWAYS|DO NOT|IMPORTANT|CRITICAL|SHOULD)\b/);
 });

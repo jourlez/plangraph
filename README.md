@@ -418,7 +418,7 @@ Two more executables ship in `bin/`:
 
 ## Skills
 
-The plugin ships nine skills. Claude picks one from its description, or you invoke it as `/plangraph:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `plangraph` commands; anything that writes still asks you.
+The plugin ships eleven skills. Claude picks one from its description, or you invoke it as `/plangraph:<name>`. Skills marked "owner only" have `disable-model-invocation: true`, so only you can start them. Each skill pre-approves only read-only `plangraph` commands, with one documented exception: the `flow` skill also pre-approves the five append-only writers `flow-claim`, `flow-progress`, `flow-done`, `flow-link` and `identity-map`. Everything else that writes (`ingest`, `takeover`, `docs-build`, `sp-ingest`, `repo`, `build`, `trust`, `sync-fetch`, `resolve`, `fmt`) still asks you.
 
 | Skill | When it is used | What it does | Writes |
 |---|---|---|---|
@@ -431,6 +431,8 @@ The plugin ships nine skills. Claude picks one from its description, or you invo
 | `report` | a status report, sprint review or per-owner update | read-only summary, or `plangraph report` after a yes; proposes publishing through the Artifact tool or a Slack draft | only `report.*`, after a yes |
 | `whatif` | "what happens if this ticket moves or goes to someone else" | runs the dry run, explains every broken rule and its fix; for overload uses one `--relieve`, for "where can it go" one `--find` | never; the owner runs `--write` |
 | `docs-publish` | publish a generated document as a read-only mirror in Confluence, Google Docs, Notion, Claude Docs or an Artifact | reads the document with `plangraph docs export`; the owner starts it with `/plangraph:docs-publish` | remote mirror only |
+| `takeover` | an existing project to inherit or onboard, with history | runs `plangraph takeover`, reads `cache/takeover.json`, asks only the questions the command lists, ends with the gap report | the plan directory, `cache/` and `docs.out`, after a yes |
+| `flow` | a requirements document to orchestrate, the next task, assign or dispatch | with your one-time approval of the requirements: ingest, plan, then `flow next`, `flow brief`, a subagent per task, `flow-done` with evidence, `flow actions` through the vendor MCP server, `flow-link`; you only approve requirements and merge pull requests | append-only task events and xrefs; requirement ingest after a yes |
 
 ## Configuration
 
