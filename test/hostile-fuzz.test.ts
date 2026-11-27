@@ -14,7 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { registry } from '../src/registry.ts';
-import { guardOutput, oneLine } from '../lib/sanitize.ts';
+import { guardOutput, oneLine, ident } from '../lib/sanitize.ts';
 import { adoptPlanDir } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
@@ -211,10 +211,10 @@ test('hostile fixture: no command forges a line, a fence or a control sequence i
 test('hole: ready echoes the KEY argument as one sanitized line (it printed it raw: a key from the data forged lines)', async () => {
   let r = await run(FIXTURE, ['ready', KEY]);
   assert.equal(r.status, 1, r.stderr);
-  assert.equal(r.stdout.split('\n')[0], `NOT READY ${oneLine(KEY, 120)}`);
+  assert.equal(r.stdout.split('\n')[0], `NOT READY ${ident(KEY, 120)}`); // a name of free text is one inline fence
   r = await run(FIXTURE, ['ready', OWNER]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout, `${oneLine(OWNER, 120)}: not an open plan ticket (done, or not in the plan)\n`);
+  assert.equal(r.stdout, `${ident(OWNER, 120)}: not an open plan ticket (done, or not in the plan)\n`);
 });
 test('hole: card --json and bundle --json print the v2 envelope (they printed raw text), with the same lines as the text output', async () => {
   for (const args of [['card'], ['bundle', 'H-1', 'H-2', '--text', 'jt']]) {
@@ -240,5 +240,5 @@ test('relieve and bulk ready with hostile names: one sanitized line per name, an
   const j = JSON.parse((await run(FIXTURE, ['whatif', '--relieve', OWNER, '--sprint', '2', '--owner-change', '--json'])).stdout);
   assert.deepEqual([j.data.moves[0].command, j.next], [null, []]);
   r = await run(FIXTURE, ['ready', '--person', OWNER, '--sprint', '2']);
-  assert.equal(r.stdout.split('\n')[0], `${oneLine(OWNER, 60)} S2: ready 0 of 1, done 0, not ready 1 (waiting on producers 1, open items 1, verdict not READY 1)`);
+  assert.equal(r.stdout.split('\n')[0], `${ident(OWNER, 60)} S2: ready 0 of 1, done 0, not ready 1 (waiting on producers 1, open items 1, verdict not READY 1)`);
 });

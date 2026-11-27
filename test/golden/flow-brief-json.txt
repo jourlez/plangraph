@@ -1,5 +1,5 @@
 $ plangraph flow brief T-3 --json
 exit: 0
 --- stdout
-{"v":2,"cmd":"flow","ok":true,"exit":0,"data":{"key":"T-3","title":"ticket 3","owner":"Ben","repos":[],"requirements":[],"decisions":[],"files":[],"ask":["Ben"],"omitted":0},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
+{"v":2,"cmd":"flow","ok":true,"exit":0,"data":{"key":"T-3","title":"<untrusted n=\"24d2c227\">ticket 3</untrusted>","owner":"Ben","repos":[],"requirements":[],"decisions":[],"files":[],"ask":["Ben"],"omitted":0},"fresh":{"fp":"<FP>","built":"<FP>"},"next":[]}
 --- stderr

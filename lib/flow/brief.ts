@@ -4,7 +4,7 @@
 import type { Model } from '../model.ts';
 import type { Repo } from '../graph/files.ts';
 import { estTokens } from '../render.ts';
-import { oneLine } from '../sanitize.ts';
+import { oneLine, ident } from '../sanitize.ts';
 import { fenceBlock } from './fence.ts';
 
 export const BRIEF_TOKENS = 1200;
@@ -31,18 +31,18 @@ const under = (path: string, prefix: string): boolean => path === prefix || path
 export function buildBrief(model: Model, key: string, { maxTokens = BRIEF_TOKENS, ...extras }: { maxTokens?: number } & BriefExtras = {}): Brief {
   const t = model.tickets.get(key), spec = extras.task ?? {}, links = extras.links ?? [];
   const mine = (rel: string, toType: string): string[] => [...new Set(links.filter((l) => l.from === key && l.rel === rel && l.to_type === toType).map((l) => l.to))].sort();
-  const files = [...(spec.files ?? [])].map((f) => one(f, 160));
+  const files = [...(spec.files ?? [])].map((f) => ident(f, 160));
   const repoIds = new Set(mine('touches', 'repo'));
   const repoRows = (extras.repos ?? []).filter((r) => repoIds.has(r.id)).sort((a, b) => (a.id < b.id ? -1 : 1));
   const reqIds = new Set(mine('satisfies', 'requirement'));
   const reqs = (extras.requirements ?? []).filter((r) => reqIds.has(r.id)).sort((a, b) => (a.id < b.id ? -1 : 1));
   const decs = (extras.decisions ?? []).filter((d) => (d.affects ?? []).some((a) => repoIds.has(a) || files.some((f) => under(f, a)))).sort((a, b) => (a.id < b.id ? -1 : 1));
   const owner = model.sched.get(key)?.owner ?? '';
-  const ask = [...new Set([...(typeof owner === 'string' && owner ? [owner] : []), ...repoRows.flatMap((r) => r.owners ?? [])])].map((s) => one(s, 60));
+  const ask = [...new Set([...(typeof owner === 'string' && owner ? [owner] : []), ...repoRows.flatMap((r) => r.owners ?? [])])].map((s) => ident(s, 60));
   const title = one(spec.title ?? t?.summary ?? '', 200);
   const b: Brief = {
     key: one(key, 80), title, steps: (spec.steps ?? []).map((s) => one(s)), consumes: (spec.consumes ?? []).map((s) => one(s)), produces: (spec.produces ?? []).map((s) => one(s)),
-    files, owner: typeof owner === 'string' ? one(owner, 60) : '',
+    files, owner: typeof owner === 'string' ? ident(owner, 60) : '',
     repos: repoRows.map((r) => ({ id: one(r.id, 80), test: one(r.cmds?.test ?? '', 160), build: one(r.cmds?.build ?? '', 160) })),
     requirements: reqs.map((r) => ({ id: one(r.id, 80), text: one(r.text ?? r.title ?? '', 300) })),
     decisions: decs.map((d) => ({ id: one(d.id, 80), title: one(d.title ?? d.text ?? '', 200) })),

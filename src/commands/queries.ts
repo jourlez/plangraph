@@ -5,7 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { readDataCapped } from '../../lib/jsonl.ts';
 import { openStore, kindFile, SRC_KINDS, GRAPH_KINDS } from '../../lib/planstore.ts';
-import { oneLine, fenceInline } from '../../lib/sanitize.ts';
+import { oneLine, fenceInline, ident } from '../../lib/sanitize.ts';
 import { SAFE_ATTR_DIR } from '../../lib/store.ts';
 import { PlangraphError } from '../errors.ts';
 import { INDEX_FILE } from '../db.ts';

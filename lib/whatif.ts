@@ -14,6 +14,7 @@ import type { Model, Placement, Ticket } from './model.ts';
 import { verifyPlan } from './verify.ts';
 import type { Violation } from './verify.ts';
 import { isClosed, frozenTest } from './frozen.ts';
+import { ident } from './sanitize.ts';
 import { blockedRow, sprintIsClosed } from './graph/blockers.ts';
 import { REL_SEMANTICS } from './graph/files.ts';
 import type { NodeType } from './graph/files.ts';
@@ -664,14 +665,14 @@ export function renderRelieve(r: RelieveResult, { cmd, limit = 15, keys = 5, nam
 export function renderWhatif(r: WhatifView, opts: { limit?: number } = {}): string {
   const lim = opts.limit ?? 8;
   const mv = r.ripple && r.ripple[0];
-  const head = mv ? `${mv.key} -> ${mv.to.owner} S${mv.to.sprint}` : (r.reasons[0]?.key ?? '?');
+  const head = mv ? `${mv.key} -> ${ident(mv.to.owner, 40)} S${mv.to.sprint}` : (r.reasons[0]?.key ?? '?');
   const rs = r.reasons.map((x) => `${x.code} ${x.key} (${x.detail})`);
   const shown = rs.slice(0, lim).join(' | ') + (rs.length > lim ? ` | ... ${rs.length - lim} more` : '');
   const warn = r.reasons.length && r.reasons.every((x) => x.warn);
   if (r.ok) {
     let s = `OK: ${head}.`;
-    for (const o of Object.keys(r.load as Loads)) for (const sp of Object.keys((r.load as Loads)[o] as Record<string, LoadCell>)) { const l = ((r.load as Loads)[o] as Record<string, LoadCell>)[sp] as LoadCell; if (l.after > l.before) s += ` ${o} S${sp} ${l.after}/${l.cap}.`; } // an ok result carries its load (whatif always sets it); o and sp are keys of the maps they index
-    if (r.freed && r.freed.sp) s += ` Frees ${r.freed.sp} on ${r.freed.owner} S${r.freed.sprint}.`;
+    for (const o of Object.keys(r.load as Loads)) for (const sp of Object.keys((r.load as Loads)[o] as Record<string, LoadCell>)) { const l = ((r.load as Loads)[o] as Record<string, LoadCell>)[sp] as LoadCell; if (l.after > l.before) s += ` ${ident(o, 40)} S${sp} ${l.after}/${l.cap}.`; } // an ok result carries its load (whatif always sets it); o and sp are keys of the maps they index
+    if (r.freed && r.freed.sp) s += ` Frees ${r.freed.sp} on ${ident(r.freed.owner, 40)} S${r.freed.sprint}.`;
     if (warn) s += ` WARN ${shown}.`;
     if (r.notes?.length) s += ` Note: ${r.notes.join('; ')}.`;
     if (r.touches) s += ` ${r.touches}`;
