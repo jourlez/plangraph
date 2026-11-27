@@ -1,14 +1,11 @@
-// A real temp git repository with a small generated plan, and a runner that calls src/cli.ts main() with the not-yet-registered hook commands added to a copy of the default registry.
+// A real temp git repository with a small generated plan, and a runner that calls src/cli.ts main() with a copy of the default registry.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { main } from '../../src/cli.ts';
 import { makeContext } from '../../src/context.ts';
-import { registry, defineCommand } from '../../src/registry.ts';
-import { commands as refreshCmds } from '../../src/commands/refresh.ts';
-import { commands as promptCmds } from '../../src/commands/hook-prompt.ts';
-import { commands as githookCmds } from '../../src/commands/githooks-install.ts';
+import { registry } from '../../src/registry.ts';
 import { genPlan } from '../fixtures/gen.ts';
 import { writePlanDir } from './plan-dir.ts';
 import { adoptPlanDir } from './plan-dir.ts';
@@ -21,7 +18,6 @@ export const git = (cwd: string, ...a: string[]): string => execFileSync('git', 
 export const tmp = (): string => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'hkw-'))); made.push(d); return d; };
 
 export const reg = new Map(registry);
-for (const group of [refreshCmds, promptCmds, githookCmds]) for (const [n, spec] of Object.entries(group)) defineCommand(reg, n, spec);
 
 /** A repository with a committed plan (ABC-1 .. ABC-6, ABC-3 needs ABC-2), the plan's .gitignore, and docs/plangraph/ ignored; no index yet. */
 export function world(config: Record<string, unknown> = {}): { root: string; dir: string } {
