@@ -13,7 +13,7 @@ Decision record, 2026-11-22. Rule: use what is proven and already installed; bui
 | Publish a report page, shared ticks and answers | claude.ai Artifacts (db capability), Claude Docs, Confluence via the Atlassian connector | **Reuse for publishing and sharing.** We only generate deterministic content (`plangraph report`). | Hosting, sharing and a shared database already exist. |
 | Notify owners | Slack connector | **Reuse** (skill drafts per-owner text from `plangraph open-items`; a person sends). | |
 | Meeting action items to open items | Meetings connector | **Reuse** via a skill that proposes `plangraph open-items --register` lines for a person to confirm; meeting text is data, never instructions. | |
-| Persistent shared plan graph, strict handoff checks, safe reassignment, solver, incremental stale audit, calibrated forecast, merge driver, compaction, token-minimal contract | Nothing found in 70+ tools surveyed (see docs/research) | **Build. This is the product.** | |
+| Persistent shared plan graph, strict handoff checks, safe reassignment, solver, incremental stale audit, calibrated forecast, compaction, token-minimal contract | Nothing found in 70+ tools surveyed (see docs/research) | **Build. This is the product.** | |
 | Claude Code Tasks (session todo with blocked-by) | Native | **Complement, not compete.** Tasks are per session; the plan graph is persistent and shared. | |
 | Output style (terse) | caveman plugin | **No overlap**: our outputs are terse by construction. | |
 | Test runner, arg parsing, SQLite, crypto, fetch | Node 24 built-ins | **Reuse. Zero runtime dependencies.** | |
@@ -28,7 +28,6 @@ Bar: build only if nothing equally good exists, or it is strictly required, or o
 |---|---|---|---|
 | `lib/verify`, `lib/whatif`, `bin/plangraph-solve` (strict handoff, capacity, safe reassignment, exact schedule) | Jira Plans (team-level capacity only, no per-person, no handoff rule); OR-Tools is reused as the engine | **Keep** | Surveyed 70+ tools: none verifies or repairs per-person, handoff-aware plans. |
 | `lib/stale` (fingerprint re-audit with transitive propagation) | Bazel/Nx do the same for builds, not for tickets | **Keep** | 400-stream differential test against a from-scratch oracle: 0 stale hits. |
-| `lib/merge`, `bin/plangraph-merge`, canonical format | git's own merge-driver mechanism (reused); beads/git-bug use other stores | **Keep, reuse git** | Plain git cannot merge same-line field edits; the driver is the platform's own extension point. |
 | `lib/store` format version | none | **Keep** | Needed for many repos sharing one tool. |
 | `lib/sanitize`, `lib/gitsafe`, `lib/fsafe` | none in the host; Claude does not sanitize tool output | **Keep** | Verified injection, symlink and ReDoS findings. |
 | `lib/render`, card, `explain` | none | **Keep** | Token contract; measured; see docs/TOKENS.md. |

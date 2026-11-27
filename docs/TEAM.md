@@ -13,17 +13,11 @@ claude plugin install plangraph@plangraph-marketplace --scope project
 
 Restart Claude Code. See the README, section Installation, for the other scopes and for a local path.
 
-## 2. Run `plangraph doctor --fix` once per clone
+## 2. Nothing to wire per clone
 
-```bash
-plangraph doctor --fix
-```
+The plan is a directory of small text files (one file per ticket, person, sprint, and so on). Stock git merges them: there is no merge driver and no `.gitattributes` entry, so a fresh clone, the GitHub merge button, CI and an agent sandbox all behave alike. After a merge, run `plangraph check`: it lists any conflicted or inconsistent file with its file and line.
 
-Why: the plan files in `.plangraph/*.jsonl` are merged record by record by a git merge driver. The repository carries only the `.gitattributes` line that asks for it. The driver itself lives in your local git config (`merge.plangraph-jsonl.*`), which git does not version. So every clone needs the driver wired once, or git falls back to a plain text merge of the JSONL files and conflicts appear where the driver would have merged cleanly.
-
-Why it is a command you run and not something the plugin does on its own: the plugin never wires the merge driver into a clone you did not set up. Git runs a configured driver as you at every merge, so writing that setting is your consent to make, once, per clone. The session hook only repoints a driver you already wired (after a plugin update). `plangraph doctor` without `--fix` only reports.
-
-`plangraph doctor` exits 0 when the merge driver, the data format and Node are fine.
+`plangraph doctor` exits 0 when the data format and Node are fine.
 
 ## 3. Jira credentials are per person and never committed
 
@@ -32,10 +26,9 @@ Each person puts their own Jira token in their own environment, 1Password or key
 ## 4. What to commit
 
 Commit:
-- the `.plangraph/*.jsonl` files (the plan), `config.json` and `format.json`;
-- `.gitattributes` (it holds the `merge=plangraph-jsonl` line).
+- the plan files (`nodes/`, `events/`, `runs/`, `schedules/`, `meta.jsonl`), `config.json` and `format.json`.
 
-Never commit `plangraph.sqlite` (nor `*.sqlite-wal` or `*.sqlite-shm`). It is a derived index: `plangraph build` recreates it from the text. `plangraph init` adds the ignore lines to the plan directory's `.gitignore`. Never commit a Jira token, an email address or a keychain export.
+Never commit `plangraph.sqlite` (nor its journal files) or `cache/`. They are derived: `plangraph build` recreates it from the text. `plangraph init` adds the ignore lines to the plan directory's `.gitignore`. Never commit a Jira token, an email address or a keychain export.
 
 ## 5. Upgrade together
 
@@ -63,7 +56,7 @@ The GitHub marketplace source follows the default branch. To move to another rel
 
 ## 7. When a merge conflicts
 
-1. Run `plangraph doctor`. A line `merge driver: ... is not set` means this clone was never wired (or the plugin moved): run `plangraph doctor --fix`, then redo the merge (`git merge --abort`, then merge again).
-2. If the driver is wired and a conflict remains, the same record was changed in two different ways. Open the file named in the conflict, keep one side per record (one JSON object per line), and remove the markers.
-3. Run `plangraph check` and `plangraph verify`: they catch an invalid line or a broken dependency before you commit.
-4. Run `plangraph build` to refresh the index, then commit the `.jsonl` files.
+1. Run `plangraph check`: it names every conflicted file with its file and line (`CONFLICT_MARKERS`).
+2. Run `plangraph resolve`: when every conflicting hunk of a file only adds or removes lines of a collection field (links, cross references), it keeps both sides, sorted. A conflict on a scalar field (an owner, a status) is left in the file and reported with the file and field: open it, keep one side, and remove the markers.
+3. Run `plangraph check` and `plangraph verify`: they catch an invalid file or a broken dependency before you commit.
+4. Run `plangraph build` to refresh the index, then commit the plan files.

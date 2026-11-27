@@ -33,7 +33,7 @@ plangraph is a Claude Code plugin that keeps a team's sprint plan as a small kno
 
 What it does:
 
-- Stores the plan as JSONL text files in your repository (one record per line, canonical order), so plan changes are reviewed and merged like code. A git merge driver merges these files record by record.
+- Stores the plan as small text files in your repository (one file per ticket, person, sprint and so on, a line per field, canonical order), so plan changes are reviewed and merged like code with stock git: no merge driver, no setup per clone. `plangraph check` guards what git cannot, and `plangraph resolve` repairs mechanical conflicts.
 - Answers plan questions with the `plangraph` command: ticket details, what a ticket needs, whether it may start, the load of a person or a sprint, the longest chain behind a ticket, and which verdicts are stale.
 - Checks a plan, or a proposed move, against the strict handoff rule and the capacity rule, and lists every violation with a fix (`plangraph check`, `plangraph verify`, `plangraph whatif`).
 - Finds the smallest set of moves that brings an overloaded person under capacity (`plangraph whatif --relieve`), and every valid slot for one ticket (`plangraph whatif KEY --find`). Both are read-only.
@@ -50,14 +50,14 @@ What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md
 
 ## Requirements
 
-**Windows is not supported** (the merge driver shim is POSIX shell). Use macOS or Linux, or WSL.
+**Windows is not supported** (there is no `O_NOFOLLOW` there). Use macOS or Linux, or WSL.
 
 > **Which Node, how to get it.** Node.js 24.15 or newer (the floor; the index uses the built-in `node:sqlite`). Check with `node --version`. If it is older, install a current one with nvm (`nvm install 24`) or fnm (`fnm install 24`). The repository's `.node-version` file holds the Node major that development and CI use; `fnm use` reads it, and with nvm you pass the number yourself (`nvm use 24`).
 
 | Requirement | Version | Needed for |
 |---|---|---|
 | Node.js | 24.15 or newer (the index uses the built-in `node:sqlite`) | everything |
-| git | any recent version | the data, the merge driver, stale detection |
+| git | any recent version | the data, stale detection |
 | Claude Code | 2.1.329 or newer (`engines.claude-code` is `>=2.1.329` in `plugin.json`) | the plugin: hook, skills, `plangraph` on the Bash PATH |
 | uv (recommended), or Python 3.10 to 3.14 | any uv; OR-Tools has no wheel for Python 3.15 yet | the solver only (`plangraph-solve-run`) |
 
@@ -102,7 +102,7 @@ claude plugin marketplace update plangraph-marketplace
 claude plugin update plangraph@plangraph-marketplace
 ```
 
-Restart Claude Code to apply the update. The git merge driver points at the installed copy through a shim, and the session hook repoints it after an update; `plangraph doctor` reports a stale target and `plangraph doctor --fix` repairs it.
+Restart Claude Code to apply the update. A plan directory written by a pre-1.0 version is refused with the line `unsupported pre-1.0 directory: recreate it with plangraph takeover`.
 
 ### Uninstalling
 
@@ -111,7 +111,7 @@ claude plugin uninstall plangraph@plangraph-marketplace
 claude plugin marketplace remove plangraph-marketplace
 ```
 
-`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the plan directory (`.plangraph/` by default) is plain text that you own. To remove plangraph from a repository, delete that directory, the `merge=plangraph-jsonl` line in `.gitattributes`, and the `merge.plangraph-jsonl.*` entries in `.git/config`.
+`--keep-data` on `uninstall` keeps the plugin's data directory. Your plan data stays in your repository: the plan directory (`.plangraph/` by default) is plain text that you own. To remove plangraph from a repository, delete that directory.
 
 ### Turning the session card off
 
@@ -126,7 +126,7 @@ The plugin declares one option, `card`, with the values `auto` (default) and `of
 
 1. Run `/plugin` in Claude Code (or `claude plugin list` in a terminal). `plangraph@plangraph-marketplace` should be listed as enabled. `claude plugin details plangraph` lists 8 skills, 1 hook and 0 MCP servers.
 2. In a Claude Code session, ask Claude to run `plangraph explain`. It prints the command list. `plangraph` is on the Bash PATH only inside Claude Code sessions with the plugin enabled; see [Troubleshooting](#troubleshooting) for terminal use.
-3. In a project, run `plangraph doctor`. It checks Node, the data format, the merge driver and the solver runtime, and exits 0 when all are fine.
+3. In a project, run `plangraph doctor`. It checks Node, the data format and the solver runtime, and exits 0 when all are fine.
 
 The GitHub and local-path installs, `configure`, `update`, `uninstall` and `marketplace remove` above were run with the `claude plugin` CLI of Claude Code 2.1.329 in an isolated configuration. The interactive `/plugin` menu was not exercised for this README.
 
@@ -149,7 +149,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
    Run `plangraph explain` for the full command list.
    ```
 
-   It writes `config.json`, empty data files, 16 generic learnings, `format.json` and a `.gitignore` for the index, and wires the merge driver (`.gitattributes` plus local git config). Use `.plangraphrc` (`{"dir": "docs/plan-graph"}`) for another directory.
+   It writes `config.json`, empty data files, 16 generic learnings, `format.json` (format 2, entity storage) and a `.gitignore` for the cache, the index and the staging directory. It writes no `.gitattributes` and no git config. Use `.plangraphrc` (`{"dir": "docs/plan-graph"}`) for another directory.
 
 2. Set the sprints and capacity in `.plangraph/config.json` (here `"end_sprint": 4` and `"caps": {"default": 8}`), then add your data, one JSON object per line:
 
@@ -239,8 +239,7 @@ The examples below were run on a small synthetic plan (three invented people, ni
 
    ```console
    $ plangraph doctor
-   data format v1; tool supports v1
-   merge driver: ok
+   data format v2; tool supports v2
    node v24.18.0: ok
    solver runtime: uv found (plangraph-solve-run will use it)
    $ plangraph integrations
@@ -253,17 +252,11 @@ The examples below were run on a small synthetic plan (three invented people, ni
 
 ### An existing plan
 
-**A fresh clone.** `plangraph doctor --fix` wires the merge driver (git config is not versioned, so every clone needs it once).
+**A fresh clone.** Nothing to set up: the plan is plain files and stock git merges them. Run `plangraph build` to make the index.
 
 ```console
 $ plangraph doctor
-data format v1; tool supports v1
-merge driver: .gitattributes lacks ".plangraph/*.jsonl merge=plangraph-jsonl"; git config merge.plangraph-jsonl.driver is not set (it is not versioned: run `plangraph init` or `plangraph doctor --fix` in every clone)
-node v24.18.0: ok
-solver runtime: uv found (plangraph-solve-run will use it)
-$ plangraph doctor --fix
-data format v1; tool supports v1
-merge driver: ok
+data format v2; tool supports v2
 node v24.18.0: ok
 solver runtime: uv found (plangraph-solve-run will use it)
 $ plangraph build
@@ -296,9 +289,9 @@ Add `--jira snapshot.jsonl` to include Jira changes. The `plangraph:audit` skill
 
 ### Data model
 
-- **Text in git is the source of truth.** The plan directory holds `tickets.jsonl`, `edges.jsonl`, `schedule.jsonl`, `findings.jsonl`, `evidence.jsonl`, `meta.jsonl`, `refs.jsonl`, `learnings.jsonl`, optional `open-items.jsonl`, `history.jsonl` and `actuals.jsonl`, plus `config.json` and `format.json`. Each file is canonical: one record per line, sorted by primary key, fixed key order, trailing newline. Unknown fields are kept, never interpreted. Details: [docs/FORMAT.md](docs/FORMAT.md).
+- **Text in git is the source of truth.** The plan directory holds one `.pg` file per node under `nodes/` (tickets, people, sprints, epics, repos, open items), append-only batch files under `events/` and `runs/`, immutable schedule versions under `schedules/`, and `config.json`, `format.json`, `meta.jsonl`, optional `history.jsonl` and `actuals.jsonl`. Each file is canonical: sorted lines, fixed spelling, trailing newline. Unknown fields are kept, never interpreted. The index, the observation cache and the solver input are derived and git-ignored. Details: [docs/FORMAT.md](docs/FORMAT.md).
 - **The SQLite index is a throwaway derived file.** `plangraph build` writes `plangraph.sqlite` atomically and records a fingerprint of the text it was built from and a digest of its own rows. When the text changes, queries still answer but say `STALE`; `plangraph build` rebuilds it in well under a second on a plan of about 1,400 tickets. The index is git-ignored.
-- **Merging.** `plangraph init` registers a git merge driver (`bin/plangraph-merge`) for the JSONL files. It merges by primary key and field: edits to different fields of the same ticket merge cleanly; the same field changed to two values is a conflict. A clean merge of `schedule.jsonl` or `edges.jsonl` reminds you to run `plangraph build` and `plangraph check`, because a valid merge of records can still break a plan rule.
+- **Merging.** There is no merge driver: git merges the files as text. Two branches that edit different nodes, or non-adjacent fields of one node, merge clean; adjacent lines conflict in that one file. A conflicted file is skipped (the card says `store: N problem files`), `plangraph check` lists it with file and line, and `plangraph resolve` unions the collection lines and leaves scalar conflicts for you. A valid merge can still break a plan rule, so run `plangraph check` after a merge.
 - **Format versions.** `format.json` holds `format_version` and `min_reader`. A tool refuses to write to a newer format.
 
 ### The two rules
@@ -338,35 +331,34 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 
 | What | Started by | When | Network |
 |---|---|---|---|
-| `node bin/plangraph card --if-present --heal` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled | none |
-| `plangraph`, `plangraph-merge`, `plangraph-solve-run` (in `bin/`, on the Bash PATH in Claude Code sessions) | you, or Claude through the Bash tool | when run | none, except the rows below |
-| `git`, with an argument list and no shell | `plangraph` (for example `init`, `doctor`, `card --heal`, `stale`, `refs-update`, `units`, `bundle`, `sp-ingest`) | when those commands run | none |
+| `node bin/plangraph card --if-present --refresh` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled | none |
+| `plangraph`, `plangraph-solve-run` (in `bin/`, on the Bash PATH in Claude Code sessions) | you, or Claude through the Bash tool | when run | none, except the rows below |
+| `git`, with an argument list and no shell | `plangraph` (for example `init`, `doctor`, `stale`, `refs-update`, `units`, `bundle`, `sp-ingest`) | when those commands run | none |
 | `uv --version` | `plangraph doctor` | when run | none |
-| `bin/plangraph-merge`, through a small shell shim in the plugin data directory | git | at merge, rebase and cherry-pick of plangraph JSONL files | none |
 | `op read`, `security find-generic-password` (macOS) or `secret-tool lookup` (Linux) | `plangraph jira-pull`, `plangraph jira-text` | only to read your Jira credential, in that order, when the environment does not hold it | none from plangraph; the helper is your own tool |
 | HTTPS requests from `lib/jira.ts` | `plangraph jira-pull`, `plangraph jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `PLANGRAPH_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/plangraph-solve`, or a Python venv with `pip install --require-hashes` | `plangraph-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
 | `node mcp/plangraph-mcp.ts` | your MCP client | only if you register it yourself (off by default) | none |
 
-What the hook does: if the project has a plangraph index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. With `--heal` it also repairs a missing or outdated merge driver, silently. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
+What the hook does: if the project has a plangraph index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
 
-`plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the merge-driver shim and, on the pip path, the solver venv.
+`plugin.json` declares the six network hosts above in `network.hosts`. The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the Node compile cache and, on the pip path, the solver venv.
 
 ## Commands
 
 `plangraph` prints the smallest useful answer: counts first, lists capped (`-v` shows more), one line for a yes or no. `--json` prints one versioned envelope (`{"v":2,"cmd","ok","exit","data","fresh","next"}`) on any command. `plangraph explain` lists the commands from the registry, and `plangraph explain COMMAND` shows one. Global options: `--json`, `-v`, `--dir DIR`, `--if-present`.
 
-"Writes" is the registry's class: **none** (read-only), **index** (`plangraph.sqlite` only; run `plangraph export` to keep it), **text** (files in the plan directory), **file** (an output file you name, or `CARD.md`). `init`, `doctor --fix` and `card --heal` also write git config, `.gitattributes` and the merge shim.
+"Writes" is the registry's class: **none** (read-only), **index** (`plangraph.sqlite` only; run `plangraph export` to keep it), **text** (files in the plan directory), **file** (an output file you name, or `CARD.md`).
 
 | Command | Purpose | Key arguments and flags | Writes |
 |---|---|---|---|
 | `plangraph blockers` | tickets whose verdict is not READY | | none |
 | `plangraph build` | text to index (atomic; stores the source fingerprint) | | index |
 | `plangraph bundle` | one ticket per section: row, plan task text, needs with positions, findings, Jira text | `KEY...`, `--ref R`, `--text DIR` | none |
-| `plangraph card` | short plan summary for a session start | `--line` (one line for a handoff), `--write` (`CARD.md`), `--heal` | file |
+| `plangraph card` | short plan summary for a session start | `--line` (one line for a handoff), `--write` (`CARD.md`), `--refresh` (accepted, does nothing yet) | file |
 | `plangraph chain` | longest dependency chain behind a ticket | `KEY` | none |
 | `plangraph check` | strict handoff rule, capacity, loops and unplaced tickets of the current plan (exit 1 on a violation or an unplaced ticket; the line ends with `unplaced N` when N > 0) | | none |
-| `plangraph doctor` | data format, merge driver, Node and solver runtime checks (exit 1 on a problem) | `--fix` | none (`--fix`: git config) |
+| `plangraph doctor` | data format, Node and solver runtime checks (exit 1 on a problem) | `--fix` | none |
 | `plangraph explain` | what each command does, from the registry | `[COMMAND]`, `--json` | none |
 | `plangraph export` | index to canonical text (refuses a stale index) | | text |
 | `plangraph sync` | read-only drift report between the plan files and the observation cache (`DRIFT_ASSIGNEE`, `DRIFT_SPRINT`, `DRIFT_DONE`, `DRIFT_LINK`, `XREF_STALE`, `XREF_ORPHAN`) plus a tracker push list; `config.graph.stale_days` (default 14) | `--plan` | none |
@@ -378,7 +370,7 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 | `plangraph resolve` | repair merge-conflict markers in entity files when every conflicting hunk is a collection line (union and sort); scalar conflicts are left for a person | | files |
 | `plangraph compact` | merge sealed months of event and run files into one content-hashed file per month and kind; refuses outside CI (`CI=true` or `--ci`) | `--ci` | files |
 | `plangraph forecast` | delivery forecast from `history.jsonl`; refuses on thin history | `--seed N` | none |
-| `plangraph init` | create the plan directory, config, generic learnings and the merge driver | | text, git config |
+| `plangraph init` | create the plan directory, config, generic learnings and the entity-layout stamp | | text |
 | `plangraph integrations` | which companion tools are installed or active (files only) | `-v` adds connector name patterns and a token budget | none |
 | `plangraph jira-import` | merge issue JSON fetched elsewhere (for example by the Atlassian connector) into a snapshot; no network, no credentials | `FILE...`, `--out FILE` | file |
 | `plangraph jira-pull` | read-only Jira snapshot (delta by default) | `--out FILE`, `--full` | file |
@@ -405,7 +397,6 @@ What the hook does: if the project has a plangraph index, it prints the plan car
 Two more executables ship in `bin/`:
 
 - `plangraph-solve-run --out schedule.json [--end N] [--time S] [--deterministic] [--seed N] [--freeze K1,K2] ...`: the solver (see [The solver](#the-solver)).
-- `plangraph-merge %O %A %B %P`: the git merge driver; git runs it, you do not.
 
 ## Skills
 
@@ -577,7 +568,6 @@ What is defended, each covered by tests:
 **Residual risks**, from [docs/CONTRACT.md](docs/CONTRACT.md) and [SECURITY.md](SECURITY.md):
 
 - Hooks and the commands in `bin/` run as you, unsandboxed, with your permissions.
-- Whoever can write the plugin data directory or `bin/plangraph-merge` can run code as you at the next merge. The shim refuses a data directory that is a symlink, owned by someone else or writable by others, but checks only the final path components.
 - Every open is by path, so an intermediate directory component (for example `.plangraph` itself, or a directory above it inside the repository) swapped for a symlink between the realpath walk and the open is not detected for reads, and for writes it is detected only when it is the target's own parent directory. To use it, a local attacker needs write access to a directory on that path inside your repository and to win a race of a few system calls while a plangraph command runs.
 - SQLite opens the index again by path after plangraph's own check, so a file swapped in between that check and SQLite's open is not detected (Node's SQLite binding cannot take a descriptor).
 - The index digest is unkeyed: it detects direct edits and accidental tools, not a forger who edits rows and recomputes the digest the same way. The text files in git remain the source of truth.
@@ -585,7 +575,7 @@ What is defended, each covered by tests:
 - The swap check on reads relies on the change time for a file created after the original was deleted; a file created within the filesystem's timestamp granularity of the original's last change is not caught.
 - Files you name on the command line (`--jira`, `--keys-file`, input JSON) still follow symlinks.
 - The solver's first run downloads pinned, hash-verified packages; the packages themselves are not audited here.
-- Windows is not supported: the merge-driver shim is POSIX shell, and there is no `O_NOFOLLOW` there.
+- Windows is not supported: there is no `O_NOFOLLOW` there.
 
 **Reporting a vulnerability.** Use GitHub private vulnerability reporting (enabled): the repository's Security tab, then Report a vulnerability. Do not put exploit details in a public issue. See [SECURITY.md](SECURITY.md).
 
@@ -611,7 +601,7 @@ What is verified live, and what only against fixtures:
 
 | Area | Status |
 |---|---|
-| CLI, hook command, solver, merge driver | tested on synthetic data, on Linux and macOS in CI |
+| CLI, hook command, solver | tested on synthetic data, on Linux and macOS in CI |
 | Plugin install from GitHub and from a local path, configure, update, uninstall (`claude plugin` CLI) | run on Claude Code 2.1.329 in an isolated configuration |
 | Interactive `/plugin` menu | not exercised for this README |
 | Plugin loaded in live sessions (skills, card, `plangraph` on PATH) | owner-run evaluation sessions (see [Measured results](#measured-results)) |
@@ -630,8 +620,8 @@ What is verified live, and what only against fixtures:
 | `plangraph: command not found` in a terminal | `bin/` is on the PATH only inside Claude Code sessions with the plugin enabled | run `node /path/to/plangraph/bin/plangraph ...`, or add that `bin/` directory to your PATH |
 | `STALE: the text files changed since the index was built` | text edited after the last build | `plangraph build` |
 | `error: the index is stale ... export would overwrite them` | `plangraph export` over a stale index | `plangraph build`, then redo the index change |
-| `error: tickets.jsonl: is a symlink, not a regular file` or `error: the index is a symlink` | a symlink where plangraph expects a regular file (refused by design) | replace the symlink with the real file; for the index, delete it and run `plangraph build` |
-| `merge driver: ... is not set` in `plangraph doctor` | a fresh clone (git config is not versioned) or a moved plugin install | `plangraph doctor --fix` |
+| `error: refusing to write ...: it is a symlink` or `error: the index is a symlink` | a symlink where plangraph expects a regular file (refused by design) | replace the symlink with the real file; for the index, delete it and run `plangraph build` |
+| `unsupported pre-1.0 directory: recreate it with plangraph takeover` | the plan directory was written by a version before 1.0 (old one-file-per-kind layout) | recreate it as the line says (the `takeover` command ships with 1.0) |
 | `plangraph-solve-run` exits 3 | no uv and no usable Python 3.10 to 3.14 | install uv (recommended), or a Python 3.10 to 3.14 |
 | `MODEL_INVALID: every ticket needs an sp` | a ticket without story points (for example the epic ticket `sp-ingest` creates for a plan) | give every ticket an `sp` value (`0` is allowed) |
 | `error: plan directory is outside the repository` | `--dir`, `PLANGRAPH_DIR` or `.plangraphrc` names an absolute or escaping path | use a relative path inside the repository |
@@ -643,7 +633,7 @@ What is verified live, and what only against fixtures:
 
 **Does it write to Jira?** Never. It reads Jira with a read-only token or imports what the Atlassian connector fetched. Writes go through the connector, after the owner approves.
 
-**Where is my data?** In your repository, as JSONL text in the plan directory, versioned by git. Nothing is uploaded. The SQLite index is a local cache you can delete at any time.
+**Where is my data?** In your repository, as small text files in the plan directory, versioned by git. Nothing is uploaded. The SQLite index is a local cache you can delete at any time.
 
 **How do I uninstall?** `claude plugin uninstall plangraph@plangraph-marketplace`, then optionally `claude plugin marketplace remove plangraph-marketplace`. See [Uninstalling](#uninstalling) for removing the data from a repository.
 
