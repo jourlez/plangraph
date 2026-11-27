@@ -76,7 +76,7 @@ function validate(schema: any, v: any, at = '$'): string[] {
     for (const [k, s] of Object.entries(schema.properties ?? {})) if (Object.hasOwn(v, k)) errs.push(...validate(s, v[k], `${at}.${k}`));
     if (schema.additionalProperties === false) for (const k of Object.keys(v)) if (!Object.hasOwn(schema.properties ?? {}, k)) errs.push(`${at}.${k}: unexpected`);
   }
-  if (Array.isArray(v) && schema.items) v.forEach((x, i) => errs.push(...validate(schema.items, x, `${at}[${i}]`)));
+  if (Array.isArray(v) && schema.items) v.forEach((x, i) => { errs.push(...validate(schema.items, x, `${at}[${i}]`)); });
   return errs;
 }
 
@@ -161,7 +161,7 @@ test('an unknown writer tool name is an error and changes nothing', async () => 
   const before = hashTree(repo);
   const writers = ['flow_claim', 'flow-claim', 'flow_done', 'flow_progress', 'flow_link', 'whatif_apply', 'ingest', 'build', 'init', 'graph-materialize', 'identity_map', 'plangraph'];
   const r = await session([INIT(), ...writers.map((n, i) => call(i + 1, n, { key: 'T-1', by: 'x' })), call(50, 'whatif', { key: 'T-9', write: true }), call(51, 'map', { write: true }), call(52, 'flow_next', { claim: 'T-1' })], { cwd: repo });
-  writers.forEach((_, i) => assert.deepEqual(byId(r.msgs, i + 1).error, { code: -32602, message: 'unknown tool' }));
+  writers.forEach((_, i) => { assert.deepEqual(byId(r.msgs, i + 1).error, { code: -32602, message: 'unknown tool' }); });
   for (const id of [50, 51, 52]) assert.equal(byId(r.msgs, id).result.isError, true);
   assert.equal(hashTree(repo), before);
   assert.deepEqual(fs.readdirSync(HOME), []);

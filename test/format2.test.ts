@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
-import { openStore, KINDS, kindFile } from '../lib/planstore.ts';
+import { openStore, type KINDS, kindFile } from '../lib/planstore.ts';
 import type { Row } from '../lib/planstore.ts';
 import { appendEvent } from '../lib/store2/batches.ts';
 import { formatPg, parsePg } from '../lib/store2/pg.ts';

@@ -72,7 +72,7 @@ test('criticalPath equals a brute-force oracle on 200 random DAGs of at most 8 n
     const res = criticalPath(buildAdjacency(edges, n), w, [0]);
     assert.equal(res.length, oracle(n, edges, w), `case ${i}`);
     assert.equal(res.path.reduce((s, v) => s + (w[v] as number), 0), res.length);
-    res.path.slice(1).forEach((v, k) => assert.ok(edges.some((e) => e.src === res.path[k] && e.dst === v)));
+    res.path.slice(1).forEach((v, k) => { assert.ok(edges.some((e) => e.src === res.path[k] && e.dst === v)); });
   }
 });
 

@@ -40,7 +40,7 @@ test('two pages: watermark minus 5 minutes in the JQL, nextPageToken, idempotent
   assert.equal(a.has('nextPageToken'), false);
   assert.equal(q(calls[1]).get('nextPageToken'), 'tok-2');
   assert.deepEqual(r.issues.map((i) => i.key), ['ABC-1', 'ABC-2', 'ABC-3']);
-  assert.equal((r.issues[1]?.fields as { summary: string }).summary, 'Second copy', 'the later copy wins');
+  assert.equal((r.issues[1] as unknown as { fields: { summary: string } }).fields.summary, 'Second copy', 'the later copy wins');
   assert.equal(r.nextWatermark, '2026-11-04T10:00:00.000Z');
   assertReadOnly(calls);
 });
