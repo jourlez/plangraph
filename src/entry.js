@@ -15,27 +15,12 @@
 // or refusal means no cache: it prints nothing, never throws and never changes the exit code (test/compile-cache.test.ts).
 import { nodeSupported, floorMessage, floorTry, floorHookLine } from './floor.js';
 
-/** True when no plan directory can exist for this run: no --dir, PLANGRAPH_DIR, GIT_DIR or .plangraphrc, and no .plangraph in the repository root (the nearest ancestor with .git, else the cwd). Errs towards false. */
-async function noPlanDir() {
-  try {
-    const fs = await import('node:fs'), { join, dirname, resolve } = await import('node:path');
-    const { env, argv } = process;
-    if (env.PLANGRAPH_DIR || env.GIT_DIR || env.GIT_WORK_TREE || argv.some((a) => a === '--dir' || a.startsWith('--dir='))) return false;
-    let root = resolve(process.cwd());
-    for (let d = root; ; d = dirname(d)) {
-      if (fs.existsSync(join(d, '.git'))) { root = d; break; }
-      if (dirname(d) === d) break;
-    }
-    return !fs.existsSync(join(root, '.plangraph')) && !fs.existsSync(join(root, '.plangraphrc'));
-  } catch { return false; }
-}
-
 if (!nodeSupported(process.versions.node)) {
   const quiet = process.argv.includes('--if-present');
   if (!quiet) process.stderr.write(`${floorMessage(process.version)}\n${floorTry}\n`);
   else if (process.argv[2] === 'card') process.stdout.write(`${floorHookLine(process.version)}\n`);
   process.exitCode = quiet ? 0 : 3;
-} else if ((process.argv[2] === 'refresh' || process.argv[2] === 'hook-prompt') && await noPlanDir()) {
+} else if ((process.argv[2] === 'refresh' || process.argv[2] === 'hook-prompt') && await (await import('./floor.js')).noPlanDir()) {
   // Hooks that need a plan: with no plan directory there is nothing to do, so nothing else loads (no compile cache, no CLI): exit 0, silent.
 } else {
   try {

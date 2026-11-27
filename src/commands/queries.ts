@@ -401,8 +401,9 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
 // stays the last fingerprint the session saw; it is bounded by the refresh budget and never changes the card's exit code or output.
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
   if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
+  const hadIndex = fs.existsSync(dbFile(ctx)); // first use (data, no index) stays the one nudge line: the hook builds nothing, `plangraph build` or `refresh` does
   const code = await cardBody(ctx, args);
-  if (code === 0 && args.values.refresh) { try { await (await import('./refresh.ts')).runRefresh(ctx); } catch { /* the card already printed; a refresh never fails it */ } }
+  if (code === 0 && args.values.refresh && hadIndex) { try { await (await import('./refresh.ts')).runRefresh(ctx); } catch { /* the card already printed; a refresh never fails it */ } }
   return code;
 }
 async function cardBody(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {

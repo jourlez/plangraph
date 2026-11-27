@@ -51,10 +51,18 @@ export function scanDocs(text: string, policy: DataPolicy, known: Known = {}): V
   const names = policy.include.has('names') ? [] : (known.names ?? []).filter((n) => n.length >= 2);
   const texts = policy.include.has('tracker_text') ? [] : (known.texts ?? []).filter((n) => n.length >= 8);
   const authors = policy.include.has('authors') ? [] : (known.authors ?? []).filter((n) => n.length >= 2);
+  // tracker texts are matched through a map of their first 8 characters (every text here has at least 8): a line holds a text only where one of
+  // its 8-character windows is such a prefix, so a line costs its length, not the number of tickets (a includes per text per line is quadratic)
+  const byPrefix = new Map<string, string[]>();
+  for (const t of texts) { const k = t.slice(0, 8), g = byPrefix.get(k); if (g) g.push(t); else byPrefix.set(k, [t]); }
+  const hasText = (line: string): boolean => {
+    for (let j = 0; j + 8 <= line.length; j++) { const g = byPrefix.get(line.slice(j, j + 8)); if (g?.some((t) => line.startsWith(t, j))) return true; }
+    return false;
+  };
   lines.forEach((line, i) => {
     for (const k of d24Kinds(line)) out.push({ code: 'D24_VIOLATION', kind: k, line: i + 1 });
     if (names.some((n) => hasWord(line, n))) out.push({ code: 'DATA_CLASS_VIOLATION', kind: 'names', line: i + 1 });
-    if (texts.some((n) => line.includes(n))) out.push({ code: 'DATA_CLASS_VIOLATION', kind: 'tracker_text', line: i + 1 });
+    if (byPrefix.size > 0 && hasText(line)) out.push({ code: 'DATA_CLASS_VIOLATION', kind: 'tracker_text', line: i + 1 });
     if (authors.some((n) => hasWord(line, n))) out.push({ code: 'DATA_CLASS_VIOLATION', kind: 'authors', line: i + 1 });
   });
   return out;

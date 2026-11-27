@@ -25,3 +25,18 @@ export const floorTry = `try: install Node ${NODE_FLOOR} or newer`;
 
 /** The one stdout line the SessionStart hook prints below the floor (the hook stays exit 0 and writes nothing). The version is capped. */
 export const floorHookLine = (/** @type {unknown} */ version) => `plangraph: needs Node >= ${NODE_FLOOR}, found ${String(version).slice(0, 20)}; install Node 24`;
+
+/** Hook fast path (kept in this plain-JS file so entry.js stays thin). True when no plan directory can exist for this run: no --dir, PLANGRAPH_DIR, GIT_DIR or .plangraphrc, and no .plangraph in the repository root (the nearest ancestor with .git, else the cwd). Errs towards false. */
+export async function noPlanDir() {
+  try {
+    const fs = await import('node:fs'), { join, dirname, resolve } = await import('node:path');
+    const { env, argv } = process;
+    if (env.PLANGRAPH_DIR || env.GIT_DIR || env.GIT_WORK_TREE || argv.some((a) => a === '--dir' || a.startsWith('--dir='))) return false;
+    let root = resolve(process.cwd());
+    for (let d = root; ; d = dirname(d)) {
+      if (fs.existsSync(join(d, '.git'))) { root = d; break; }
+      if (dirname(d) === d) break;
+    }
+    return !fs.existsSync(join(root, '.plangraph')) && !fs.existsSync(join(root, '.plangraphrc'));
+  } catch { return false; }
+}
