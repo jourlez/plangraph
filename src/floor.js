@@ -40,3 +40,11 @@ export async function noPlanDir() {
     return !fs.existsSync(join(root, '.plangraph')) && !fs.existsSync(join(root, '.plangraphrc'));
   } catch { return false; }
 }
+
+/** The opt-in hooks (benchmark ruling): `card --if-present` runs only when the option card (CLAUDE_PLUGIN_OPTION_CARD or PLANGRAPH_CARD) is `auto` or `on`, `hook-prompt` only when prompt_hook (CLAUDE_PLUGIN_OPTION_PROMPT_HOOK or PLANGRAPH_PROMPT_HOOK) is `on`. Unset, empty or anything else is off. Any other command: true. */
+export function hookOptedIn(/** @type {string[]} */ argv, /** @type {Record<string, string | undefined>} */ env) {
+  const is = (/** @type {Array<string | undefined>} */ vals, /** @type {string[]} */ ok) => vals.some((v) => ok.includes(String(v ?? '').trim().toLowerCase()));
+  if (argv[2] === 'card' && argv.includes('--if-present')) return is([env.CLAUDE_PLUGIN_OPTION_CARD, env.PLANGRAPH_CARD], ['auto', 'on']);
+  if (argv[2] === 'hook-prompt') return is([env.CLAUDE_PLUGIN_OPTION_PROMPT_HOOK, env.PLANGRAPH_PROMPT_HOOK], ['on']);
+  return true;
+}

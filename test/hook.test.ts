@@ -32,7 +32,7 @@ const sub = (a: string) => a.replace('${CLAUDE_PLUGIN_ROOT}', PLUGIN);
 function world() {
   const dataDir = tmp('hk-data-'), home = tmp('hk-home-'), repo = tmp('hk-repo-');
   git(repo, 'init', '-q', '-b', 'main');
-  const env = { PATH: binDir, HOME: home, CLAUDE_PLUGIN_DATA: dataDir, ...GIT_ENV };
+  const env = { PATH: binDir, HOME: home, CLAUDE_PLUGIN_DATA: dataDir, PLANGRAPH_CARD: 'auto', ...GIT_ENV };
   const run = (e = env) => spawnSync(hook.command, hook.args.map(sub), { cwd: repo, env: e, encoding: 'utf8' });
   const plangraph = (args: string[]) => spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), ...args], { cwd: repo, env: { ...process.env, ...env, PATH: `${binDir}:${path.dirname(process.execPath)}` }, encoding: 'utf8' });
   return { dataDir, repo, env, run, plangraph };
@@ -118,7 +118,7 @@ test('card off never silences a manual card: CLAUDE_PLUGIN_OPTION_CARD=off or PL
   for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
     const m = spawnSync(process.execPath, [path.join(PLUGIN, 'bin/plangraph'), 'card'], { cwd: w.repo, env: { ...w.env, [key]: 'off' }, encoding: 'utf8' });
     assert.deepEqual([m.status, m.stdout, m.stderr], [0, plain, ''], key);
-    assert.equal(ok(w.run({ ...w.env, [key]: 'OFF ' })).stdout, '', `${key}: case and spaces do not matter for the hook`);
+    assert.equal(ok(w.run({ ...w.env, PLANGRAPH_CARD: '', [key]: 'OFF ' })).stdout, '', `${key}: case and spaces do not matter for the hook`);
   }
 });
 
@@ -150,9 +150,10 @@ test('running the hook writes nothing: no git config, no .gitattributes, no plan
 test('card is off: CLAUDE_PLUGIN_OPTION_CARD=off and PLANGRAPH_CARD=off silence the hook only', () => {
   const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
   for (const key of ['CLAUDE_PLUGIN_OPTION_CARD', 'PLANGRAPH_CARD']) {
-    const r = ok(w.run({ ...w.env, [key]: 'off' })); assert.equal(r.stdout, '');
-    assert.ok(ok(w.run({ ...w.env, [key]: 'auto' })).stdout.length > 0);
+    const r = ok(w.run({ ...w.env, PLANGRAPH_CARD: '', [key]: 'off' })); assert.equal(r.stdout, '');
+    assert.ok(ok(w.run({ ...w.env, PLANGRAPH_CARD: '', [key]: 'auto' })).stdout.length > 0);
   }
+  assert.ok(ok(w.run({ ...w.env, PLANGRAPH_CARD: 'on' })).stdout.length > 0, 'on is accepted too');
   assert.ok(ok(w.plangraph(['card'])).stdout.length > 0); // a manual card is unaffected
 });
 
@@ -218,4 +219,13 @@ test('prompt_hook is opt-in: the registered hook, run as declared with the optio
     const { r, ms } = go(extra); assert.deepEqual([r.status, r.stdout, r.stderr], [0, '', ''], JSON.stringify(extra)); assert.ok(ms < 300, `${ms} ms`);
   }
   assert.equal(go({ CLAUDE_PLUGIN_OPTION_PROMPT_HOOK: 'on' }).r.status, 0);
+});
+
+test('card is opt-in: with the variable unset, empty or anything but auto/on, the registered hook is a silent fast exit 0 even with an index', () => {
+  const w = world(); ok(w.plangraph(['init'])); ok(w.plangraph(['build']));
+  const { PLANGRAPH_CARD: _c, ...rest } = w.env, unset = rest as typeof w.env;
+  for (const e of [unset, { ...unset, PLANGRAPH_CARD: '' }, { ...unset, CLAUDE_PLUGIN_OPTION_CARD: 'yes' }, { ...unset, CLAUDE_PLUGIN_OPTION_CARD: 'off' }] as Array<typeof w.env>) {
+    const t = performance.now(); const r = ok(w.run(e)); assert.equal(r.stdout, ''); assert.ok(performance.now() - t < 300, 'quick');
+  }
+  assert.ok(ok(w.run({ ...unset, CLAUDE_PLUGIN_OPTION_CARD: 'auto' } as typeof w.env)).stdout.length > 0);
 });

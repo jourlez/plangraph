@@ -15,7 +15,7 @@ import { nodePath } from '../lib/store2/layout.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 const tmps: string[] = [];
 after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true }); });
-const ENV = { ...process.env, PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+const ENV = { ...process.env, PLANGRAPH_CARD: 'auto', PLANGRAPH_DIR: '', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
 const run = (cwd: string, args: string[], env: Record<string, string> = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 /** A git repo with `plangraph init` run (data, no index). */
 function repo() {
@@ -100,7 +100,8 @@ test('every unsafe or hostile shape stays silent with exit 0 (hook and hook --re
 });
 
 test('card off silences the nudge too', () => {
-  const d = repo(); silent(run(d, HOOK, { PLANGRAPH_CARD: 'off' }), 'PLANGRAPH_CARD=off'); silent(run(d, HOOK, { CLAUDE_PLUGIN_OPTION_CARD: 'off' }), 'option off');
+  const d = repo(); silent(run(d, HOOK, { PLANGRAPH_CARD: 'off' }), 'PLANGRAPH_CARD=off'); silent(run(d, HOOK, { PLANGRAPH_CARD: '', CLAUDE_PLUGIN_OPTION_CARD: 'off' }), 'option off');
+  silent(run(d, HOOK, { PLANGRAPH_CARD: '' }), 'option unset: the card hook is opt-in, so the nudge is silent too');
 });
 
 test('the no-index nudge never prints a committed directory name that is not a plain safe name', () => {

@@ -72,9 +72,9 @@ export function argvFor(cell: Cell, prompt: string, opts: { pluginDir?: string |
   return argv;
 }
 
-/** The plugin's own `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` resolved and the `mcp` option at its default (`auto`), as inline JSON for `--mcp-config`. */
+/** The plugin's own `.mcp.json` with `${CLAUDE_PLUGIN_ROOT}` resolved and the `mcp` option ON, as inline JSON for `--mcp-config`. */
 export function mcpConfigFor(pluginDir: string): string {
-  const raw = fs.readFileSync(path.join(pluginDir, '.mcp.json'), 'utf8').replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir).replaceAll('${user_config.mcp}', 'auto');
+  const raw = fs.readFileSync(path.join(pluginDir, '.mcp.json'), 'utf8').replaceAll('${CLAUDE_PLUGIN_ROOT}', pluginDir).replaceAll('${user_config.mcp}', 'on');
   return JSON.stringify(JSON.parse(raw));
 }
 
@@ -139,7 +139,14 @@ export function parseRun(stdout: string): Parsed {
   return { reply: j.result ?? '', tokens: tokensIn + tokensOut, firstIn: firstIn ? inputOf(firstIn) : 0, tokensIn, tokensOut, calls: ids.size > 0 ? ids.size : (j.num_turns ?? 0), toolCalls, cost: j.total_cost_usd ?? 0, error: j.is_error ? (j.subtype ?? 'error') : null };
 }
 
-const withPrefix = (e: Record<string, string>, prefix: string): Record<string, string> => (prefix ? { ...e, PATH: `${prefix}${path.delimiter}${e.PATH ?? ''}` } : e);
+/**
+ * The plugin options are opt-in (benchmark ruling: card, prompt_hook and mcp default to off, and the hooks run only when the option is explicitly on), and a
+ * `--plugin-dir` run has no configured userConfig. So the arms that name an injection get it switched ON through the environment their hooks inherit:
+ * `graph` and `plugin-default` run the card (auto) and the prompt hook (on); `plugin-default` also gets the MCP server (`mcpConfigFor`, mcp on).
+ * The numbers in docs/BENCHMARK.md (Ruling) were measured with those options ON.
+ */
+export const optionEnv = (cell: Cell): Record<string, string> => (ARMS.find((a) => a.name === cell.arm)?.hooks ? { PLANGRAPH_CARD: 'auto', PLANGRAPH_PROMPT_HOOK: 'on' } : {});
+const withPrefix = (e: Record<string, string>, prefix: string, extra: Record<string, string> = {}): Record<string, string> => ({ ...e, ...extra, ...(prefix ? { PATH: `${prefix}${path.delimiter}${e.PATH ?? ''}` } : {}) });
 export type Detail = Parsed & { ms: number };
 const NONE: Parsed = { reply: '', tokens: 0, firstIn: 0, tokensIn: 0, tokensOut: 0, calls: 0, toolCalls: 0, cost: 0, error: null };
 function finish(stdout: string, status: number | null, spawnError: string | null, ms: number): Detail {
@@ -149,7 +156,7 @@ function finish(stdout: string, status: number | null, spawnError: string | null
 /** LIVE. One headless `claude` run in `cwd`. A harness failure (spawn error, timeout, no result, is_error) comes back in `error`; nothing throws after the spawn. `pluginDir` overrides the plugin directory (plugin-pull-only). */
 export function runClaude(cell: Cell, prompt: string, cwd: string, timeoutSec = 900, pathPrefix = '', pluginDir?: string): Detail {
   requireLive();
-  const t0 = Date.now(), p = spawnSync(claudeBin(), argvFor(cell, prompt, { pluginDir }), { cwd, env: withPrefix(claudeEnv(), pathPrefix), encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutSec * 1000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const t0 = Date.now(), p = spawnSync(claudeBin(), argvFor(cell, prompt, { pluginDir }), { cwd, env: withPrefix(claudeEnv(), pathPrefix, optionEnv(cell)), encoding: 'utf8', maxBuffer: 1 << 28, timeout: timeoutSec * 1000, stdio: ['ignore', 'pipe', 'pipe'] });
   return finish(p.stdout ?? '', p.status, p.error ? ((p.error as NodeJS.ErrnoException).code ?? 'error') : null, Date.now() - t0);
 }
 /** LIVE. The same run without blocking the event loop, so `--parallel N` cells really run together. The timeout kills only the child this call started. */
@@ -158,7 +165,7 @@ export function runClaudeAsync(cell: Cell, prompt: string, cwd: string, timeoutS
   const t0 = Date.now();
   return new Promise((resolve) => {
     let out = '', err: string | null = null, done = false;
-    const child = spawn(claudeBin(), argvFor(cell, prompt, { pluginDir }), { cwd, env: withPrefix(claudeEnv(), pathPrefix), stdio: ['ignore', 'pipe', 'ignore'] });
+    const child = spawn(claudeBin(), argvFor(cell, prompt, { pluginDir }), { cwd, env: withPrefix(claudeEnv(), pathPrefix, optionEnv(cell)), stdio: ['ignore', 'pipe', 'ignore'] });
     const end = (status: number | null): void => { if (done) return; done = true; clearTimeout(timer); resolve(finish(out, status, err, Date.now() - t0)); };
     const timer = setTimeout(() => { err = 'ETIMEDOUT'; child.kill('SIGKILL'); }, timeoutSec * 1000);
     child.stdout.setEncoding('utf8').on('data', (d: string) => { out += d; });

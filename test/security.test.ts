@@ -22,7 +22,7 @@ after(() => { for (const d of tmps) fs.rmSync(d, { recursive: true, force: true 
 const tmp = () => { const d = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-sec-'))); tmps.push(d); return d; };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 'tester', GIT_AUTHOR_EMAIL: 'tester@example.invalid', GIT_COMMITTER_NAME: 'tester', GIT_COMMITTER_EMAIL: 'tester@example.invalid' };
-const ENV = { ...process.env, PLANGRAPH_DIR: '', ...GIT_ENV };
+const ENV = { ...process.env, PLANGRAPH_CARD: 'auto', PLANGRAPH_DIR: '', ...GIT_ENV };
 const run = (cwd: string, args: string[], env = {}) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, encoding: 'utf8', timeout: 30000, env: { ...ENV, CLAUDE_PLUGIN_DATA: path.join(cwd, '.data'), ...env } });
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: ENV, stdio: ['ignore', 'pipe', 'pipe'] }).toString();
 const put = putFile;

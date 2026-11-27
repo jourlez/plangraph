@@ -24,7 +24,7 @@ const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 let BASE: string, REPO: string, HOME: string, DATA: string, TEMPLATE: string;
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 'tester', GIT_AUTHOR_EMAIL: 'tester@example.invalid', GIT_COMMITTER_NAME: 'tester', GIT_COMMITTER_EMAIL: 'tester@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-const env = () => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV });
+const env = () => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', PLANGRAPH_MCP: 'on', ...GIT_ENV });
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: ['ignore', 'pipe', 'pipe'] });
 const cli = (args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd: REPO, env: env(), encoding: 'utf8', timeout: 60000 });
 

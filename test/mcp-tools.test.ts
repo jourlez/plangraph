@@ -17,7 +17,7 @@ const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
 let BASE: string, REPO: string, HOME: string, DATA: string;
 const GIT_ENV = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid', GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-const env = (extra: Record<string, string> = {}) => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', ...GIT_ENV, ...extra });
+const env = (extra: Record<string, string> = {}) => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', TZ: 'UTC', NO_COLOR: '1', PLANGRAPH_DIR: '', SOURCE_DATE_EPOCH: '1795305600', PLANGRAPH_MCP: 'on', ...GIT_ENV, ...extra });
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: ['ignore', 'pipe', 'pipe'] });
 const cli = (cwd: string, args: string[]) => spawnSync(process.execPath, [BRAIN, ...args], { cwd, env: env(), encoding: 'utf8', timeout: 60000 });
 
@@ -192,6 +192,17 @@ test('no plan directory: one clear JSON-RPC error on initialize, nothing on stde
   const off = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: 'off' } });
   assert.equal(off.code, 0); assert.equal(off.err, ''); assert.equal(off.msgs.length, 1);
   assert.match(off.msgs[0]?.error.message ?? '', /disabled/);
+  for (const v of ['', 'auto', 'true']) { // opt-in: unset, empty or anything but on is the same one error and a quiet exit 0
+    const r = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: v } });
+    assert.equal(r.code, 0); assert.equal(r.err, ''); assert.equal(r.msgs.length, 1); assert.match(r.msgs[0]?.error.message ?? '', /disabled/, JSON.stringify(v));
+  }
+  const unset = await new Promise<{ code: number | null; err: string; out: string }>((resolve) => { // the variable absent altogether
+    const { PLANGRAPH_MCP: _drop, ...e } = env();
+    const child = spawn(process.execPath, [ENTRY], { cwd: REPO, env: e, stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = '', err = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { err += d; }); child.on('close', (code) => resolve({ code, err, out }));
+    child.stdin.end(`${INIT()}\n${req(1, 'tools/list')}\n`);
+  });
+  assert.deepEqual([unset.code, unset.err], [0, '']); assert.match(unset.out, /disabled/); assert.equal(unset.out.trim().split('\n').length, 1);
   const on = await session([INIT(), req(1, 'tools/list')], { extraEnv: { PLANGRAPH_MCP: 'on' } });
   assert.equal(byId(on.msgs, 1).result.tools.length, 7);
 });

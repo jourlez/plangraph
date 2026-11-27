@@ -60,7 +60,7 @@ test('PLANGRAPH_CARD=off silences the session card; the old variable does not', 
   const d = tmp(); execFileSync('git', ['init', '-q'], { cwd: d });
   assert.equal((await run(d, ['init'])).code, 0); assert.equal((await run(d, ['build'])).code, 0);
   assert.deepEqual((await run(d, ['card', '--if-present'], { PLANGRAPH_CARD: 'off' })).out, []);
-  assert.notDeepEqual((await run(d, ['card', '--if-present'], { [OLD('CARD')]: 'off' })).out, []);
+  assert.notDeepEqual((await run(d, ['card', '--if-present'], { [OLD('CARD')]: 'off', PLANGRAPH_CARD: 'auto' })).out, []);
 });
 
 test('PLANGRAPH_SOLVE_SCRIPT overrides the solver script of the launcher; the old variable does not', { skip: process.platform === 'win32' }, () => {

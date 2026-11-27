@@ -20,8 +20,8 @@ if (!nodeSupported(process.versions.node)) {
   if (!quiet) process.stderr.write(`${floorMessage(process.version)}\n${floorTry}\n`);
   else if (process.argv[2] === 'card') process.stdout.write(`${floorHookLine(process.version)}\n`);
   process.exitCode = quiet ? 0 : 3;
-} else if (process.argv[2] === 'hook-prompt' && ![process.env.CLAUDE_PLUGIN_OPTION_PROMPT_HOOK, process.env.PLANGRAPH_PROMPT_HOOK].some((v) => String(v ?? '').trim().toLowerCase() === 'on')) {
-  // The prompt hook is opt-in (plugin option prompt_hook = on, or PLANGRAPH_PROMPT_HOOK=on): off, or unset, exits 0 silently before anything else loads.
+} else if (!(await import('./floor.js')).hookOptedIn(process.argv, process.env)) {
+  // The session card (option card = auto) and the prompt hook (prompt_hook = on) are opt-in: unset, empty or any other value exits 0, silent, before anything else loads.
 } else if ((process.argv[2] === 'refresh' || process.argv[2] === 'hook-prompt') && await (await import('./floor.js')).noPlanDir()) {
   // Hooks that need a plan: with no plan directory there is nothing to do, so nothing else loads (no compile cache, no CLI): exit 0, silent.
 } else {

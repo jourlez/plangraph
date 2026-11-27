@@ -15,7 +15,7 @@ import { adoptPlanDir } from './helpers/plan-dir.ts';
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph');
 let BASE: string, HOME: string, DATA: string, REPO: string, OUTSIDE: string;
 const GIT = { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' };
-const env = () => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', PLANGRAPH_DIR: '', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
+const env = () => ({ PATH: process.env.PATH, HOME, CLAUDE_PLUGIN_DATA: DATA, LC_ALL: 'C', PLANGRAPH_DIR: '', PLANGRAPH_CARD: 'auto', TMPDIR: BASE, PLANGRAPH_STRICT_OUT: '1', ...GIT });
 const run = (cwd: string, ...a: string[]) => spawnSync(process.execPath, [BRAIN, ...a], { cwd, env: env(), encoding: 'utf8', timeout: 60000 });
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
 

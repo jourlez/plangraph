@@ -399,11 +399,11 @@ async function firstUseLine(ctx: Ctx): Promise<string | null> {
   try { checkFormat(ctx.dir); return `${head} plangraph build`; } catch { return null; }
 }
 
-// Hook only: `card: off` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD) silences the session-start card; a manual
+// Hook only (--if-present): the card is opt-in, printed only when `card` is `auto` or `on` (plugin userConfig, exported as CLAUDE_PLUGIN_OPTION_CARD, or PLANGRAPH_CARD); off, unset or anything else is a silent exit 0; a manual
 // `plangraph card` is never affected. --refresh runs the quiet refresh (src/commands/refresh.ts) AFTER the card is printed, so the card line
 // stays the last fingerprint the session saw; it is bounded by the refresh budget and never changes the card's exit code or output.
 async function card(ctx: Ctx, args: Args<{ write?: boolean; line?: boolean; refresh?: boolean; 'if-present'?: boolean }>): Promise<number> {
-  if (args.values['if-present'] && [ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => String(v ?? '').trim().toLowerCase() === 'off')) return 0;
+  if (args.values['if-present'] && ![ctx.env.CLAUDE_PLUGIN_OPTION_CARD, ctx.env.PLANGRAPH_CARD].some((v) => ['auto', 'on'].includes(String(v ?? '').trim().toLowerCase()))) return 0;
   const hadIndex = fs.existsSync(dbFile(ctx)); // first use (data, no index) stays the one nudge line: the hook builds nothing, `plangraph build` or `refresh` does
   const code = await cardBody(ctx, args);
   if (code === 0 && args.values.refresh && hadIndex) { try { await (await import('./refresh.ts')).runRefresh(ctx); } catch { /* the card already printed; a refresh never fails it */ } }

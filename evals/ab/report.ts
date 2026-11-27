@@ -13,7 +13,8 @@ export type Arm = {
 };
 const GRAPH_TOOLS = ['Read', 'Grep', 'Bash'], CODING_TOOLS = ['Read', 'Edit', 'Write', 'Grep', 'Glob', 'Bash'];
 /**
- * baseline = plugin off with Read, Grep, Bash; graph = plugin on (hooks on, MCP off as in the pilot). Coding: plugin-off; plugin-default = every default injection
+ * baseline = plugin off with Read, Grep, Bash; graph = plugin on (card auto and prompt hook on, MCP off as in the pilot). The options are set ON by `optionEnv`
+ * in run.ts: the ruling's numbers in docs/BENCHMARK.md were measured with those options on. Coding: plugin-off; plugin-default = every default injection
  * (hooks and the MCP server); plugin-pull-only = plugin loaded with hooks emptied and MCP off, so the model only sees the skill list. Every arm, plugin or not,
  * is also given Claude Code's own Skill tool (`argvFor`), so the comparison isolates the plugin.
  */

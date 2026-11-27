@@ -51,7 +51,7 @@ test('src/entry.js on a pretended old Node: exit 3 with one line; with --if-pres
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-floor-'));
   try {
     const old = 'data:text/javascript,Object.defineProperty(process.versions,"node",{value:"24.1.0"});Object.defineProperty(process,"version",{value:"v24.1.0"})';
-    const run = (...a: string[]) => spawnSync(process.execPath, ['--import', old, path.join(root, 'src/entry.js'), ...a], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '' } });
+    const run = (...a: string[]) => spawnSync(process.execPath, ['--import', old, path.join(root, 'src/entry.js'), ...a], { cwd, encoding: 'utf8', env: { ...process.env, PLANGRAPH_DIR: '', PLANGRAPH_CARD: 'auto' } });
     let r = run('ticket', 'T-1');
     assert.equal(r.status, 3); assert.equal(r.stdout, ''); assert.equal(r.stderr, `${floorMessage('v24.1.0')}\n${floorTry}\n`);
     assert.equal(r.stderr.split('\n').length, 3, 'message and try line only');

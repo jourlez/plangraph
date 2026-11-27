@@ -50,7 +50,7 @@ const jsonProblems = (v: unknown, where: string): string[] => typeof v === 'stri
 let W: { root: string; dir: string };
 const tmpDirs: string[] = [];
 const KEYS = ['ABC-1', 'ABC-2', 'ABC-3'];
-const env = { PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on' };
+const env = { PLANGRAPH_STRICT_OUT: '1', PLANGRAPH_PROMPT_HOOK: 'on', PLANGRAPH_CARD: 'auto' };
 const sh = (cwd: string, args: string[], input?: string): string => execFileSync('git', args, { cwd, input, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' }, stdio: ['pipe', 'pipe', 'pipe'] });
 const put = (root: string, rel: string, text: string): string => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); return f; };
 const must = async (cwd: string, argv: string[]): Promise<void> => { const r = await run(cwd, argv, { env }); assert.equal(r.code, 0, `${argv.join(' ')} -> ${r.code} ${r.err.join('|')} ${r.out.join('|').slice(0, 300)}`); };
@@ -173,7 +173,7 @@ test('hook-prompt: a prompt naming a hostile ticket gets graph facts and no payl
 const req = (id: number, method: string, params?: unknown): string => JSON.stringify(params === undefined ? { jsonrpc: '2.0', id, method } : { jsonrpc: '2.0', id, method, params });
 function session(lines: string[]): Promise<Array<{ id: number; result?: { content?: Array<{ text: string }>; structuredContent?: unknown } }>> {
   return new Promise((resolve, reject) => {
-    const c = spawn(process.execPath, [ENTRY], { cwd: W.root, env: { PATH: process.env.PATH, HOME: W.root, LC_ALL: 'C', TZ: 'UTC' }, stdio: ['pipe', 'pipe', 'pipe'] });
+    const c = spawn(process.execPath, [ENTRY], { cwd: W.root, env: { PATH: process.env.PATH, HOME: W.root, LC_ALL: 'C', TZ: 'UTC', PLANGRAPH_MCP: 'on' }, stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
     c.stdout.on('data', (d) => { out += d; });
     c.on('error', reject);

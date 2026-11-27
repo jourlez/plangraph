@@ -139,7 +139,7 @@ The plugin declares three options:
 - Inside Claude Code: `/plugin configure plangraph@plangraph-marketplace`.
 - At install time: `claude plugin install plangraph@plangraph-marketplace --config card=auto --config prompt_hook=on --config mcp=on`.
 - Later, from a terminal: `echo '{"card":"auto","prompt_hook":"on","mcp":"on"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`. Use `off` to turn one back off (`--config card=off`).
-- For one shell or one machine: `PLANGRAPH_CARD=auto` (or `PLANGRAPH_CARD=off`), `PLANGRAPH_PROMPT_HOOK=on`, `PLANGRAPH_MCP=on`. Claude Code exports the plugin options as `CLAUDE_PLUGIN_OPTION_CARD` and `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`.
+- For one shell or one machine: `PLANGRAPH_CARD=auto` (or `PLANGRAPH_CARD=off`; unset also means off), `PLANGRAPH_PROMPT_HOOK=on`, `PLANGRAPH_MCP=on`. The three are strictly opt-in: only the explicit value turns one on, and the code does not rely on Claude Code exporting the default. Claude Code exports the plugin options as `CLAUDE_PLUGIN_OPTION_CARD` and `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`.
 
 ### Verifying the install
 
@@ -537,7 +537,7 @@ The credential is never written to a file, logged, or accepted as a command-line
 claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
 ```
 
-It implements the legacy `initialize` flow and not `server/discover`. It was connected and called in an owner-run Claude Code 2.1.329 session when it had three tools; the seven-tool version was tested through its own test suite, not in a live session. It duplicates the CLI, so keep it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
+The server runs only when `PLANGRAPH_MCP=on` is in its environment (add `--env PLANGRAPH_MCP=on` to that command); unset or anything else, it answers with one "disabled" error and exits 0. It implements the legacy `initialize` flow and not `server/discover`. It was connected and called in an owner-run Claude Code 2.1.329 session when it had three tools; the seven-tool version was tested through its own test suite, not in a live session. It duplicates the CLI, so keep it only if your own evaluation shows it is no worse. Details: [docs/MCP.md](docs/MCP.md).
 
 ## The solver
 
