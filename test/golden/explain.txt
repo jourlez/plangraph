@@ -6,7 +6,7 @@ exit: 0 ok, 1 negative answer, 2 usage or data error, 3 environment missing, 4 r
 writes none: blockers bundle chain check context docs doctor explain findings flow forecast graph identity integrations map neighbors person ready rules simulate sprint stale sync ticket verify
 writes files: card githooks-install hook-prompt jira-import jira-pull jira-text refresh sync-fetch trust units
 writes index: build schedule-load whatif
-writes text: compact docs-build export flow-claim flow-done flow-link flow-progress fmt graph-materialize identity-map import ingest init learn open-items refs-update repo report resolve sp-ingest sp-link
+writes text: compact docs-build export flow-claim flow-done flow-link flow-progress fmt graph-materialize identity-map import ingest init learn open-items refs-update repo report resolve sp-ingest sp-link takeover
 global: --json -v --dir DIR --if-present
 more: plangraph explain COMMAND | plangraph explain --json
 --- stderr

@@ -1,0 +1,21 @@
+$ plangraph takeover --no-fetch
+exit: 0
+--- stdout
+detect: ok
+scan: ok
+history: ok
+fetch: skipped (no-fetch)
+links: ok
+build: ok
+check: ok
+map: ok
+docs-build: ok
+gaps: 3
+- no CODEOWNERS
+- no tracker access (fetch skipped by --no-fetch)
+- unmapped authors: 55 module(s) with commits by authors that map to no person
+questions: 1
+<untrusted src="takeover-questions" n="c406a314" len="156">
+tracker-access: give plangraph tracker access: name the targets in config.json, trust them with `plangraph trust`, and sign in to gh or the Atlassian tenant
+</untrusted>
+--- stderr

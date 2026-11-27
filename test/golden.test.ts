@@ -126,6 +126,7 @@ const CASES: Case[] = [
   { name: 'refresh-quiet', args: ['refresh', '--quiet'] }, { name: 'refresh-fast', args: ['refresh', '--fast'] },
   { name: 'hook-prompt', args: ['hook-prompt'], stdin: JSON.stringify({ session_id: 's1', prompt: 'who owns T-3?' }) }, { name: 'hook-prompt-nokey', args: ['hook-prompt'], stdin: JSON.stringify({ session_id: 's2', prompt: 'hello' }) },
   { name: 'githooks-install-dry', args: ['githooks-install', '--dry-run'] },
+  { name: 'takeover-nofetch', args: ['takeover', '--no-fetch'] },
   { name: 'fmt', args: ['fmt'] }, { name: 'resolve', args: ['resolve'] }, { name: 'compact-refused', args: ['compact'] },
   { name: 'resolve-scalar-left', args: ['resolve'], setup: (r) => { const d = path.join(r, '.plangraph/nodes/ticket/ab'); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'x~00000000.pg'), 'id "x"\n<<<<<<< HEAD\nowner "a"\n=======\nowner "b"\n>>>>>>> t\n'); } },
   { name: 'repo', args: ['repo'] }, { name: 'repo-badpath', args: ['repo', 'scan', 'nope'] },
