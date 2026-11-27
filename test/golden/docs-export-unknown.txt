@@ -1,0 +1,5 @@
+$ plangraph docs export nope
+exit: 2
+--- stdout
+--- stderr
+no document nope; ids: architecture adr-index onboarding release-notes roadmap rtm status

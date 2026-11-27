@@ -2,5 +2,5 @@ $ plangraph repo
 exit: 2
 --- stdout
 --- stderr
-error: repo needs a subcommand: scan [PATH] [--all] [--check]
+error: repo needs a subcommand: scan [PATH] [--all] [--check] | link TICKET REPO | link --auto | catalog [--write]
 try: plangraph explain repo

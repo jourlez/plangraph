@@ -1,0 +1,5 @@
+$ plangraph ingest links
+exit: 0
+--- stdout
+linked 0 ticket(s) to repo:run-ingest-links-scanned from 1 commits and 0 pull requests
+--- stderr

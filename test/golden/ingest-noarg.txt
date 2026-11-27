@@ -1,0 +1,6 @@
+$ plangraph ingest
+exit: 2
+--- stdout
+--- stderr
+error: expected at least 1 argument, got 0
+try: plangraph explain ingest

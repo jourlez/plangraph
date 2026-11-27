@@ -1,0 +1,6 @@
+$ plangraph identity-map jira:u1 Nobody
+exit: 2
+--- stdout
+--- stderr
+error: unknown person Nobody: it must be an id in people
+try: plangraph explain identity-map

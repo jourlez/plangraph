@@ -1,0 +1,5 @@
+$ plangraph ingest docs docs/plan.md
+exit: 0
+--- stdout
+ingested 1 decision(s) (created 1, changed 0, same 0)
+--- stderr

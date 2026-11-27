@@ -1,0 +1,5 @@
+$ plangraph ingest requirements docs/plan.md
+exit: 0
+--- stdout
+ingested 0 requirement(s) (created 0, changed 0, same 0)
+--- stderr

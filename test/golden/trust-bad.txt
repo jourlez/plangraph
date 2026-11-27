@@ -1,0 +1,6 @@
+$ plangraph trust nope
+exit: 2
+--- stdout
+--- stderr
+error: trust needs SYS:TARGET with plain characters, for example github:owner/repo (no URL, no ..)
+try: plangraph explain trust
