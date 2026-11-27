@@ -3,6 +3,8 @@
 Every answer `plangraph` prints is read by a model, so tokens are the budget. This page measures them. Regenerate the table with
 `node test/bench-tokens.ts` (exit code 1 if any answer is wrong; `--no-write` prints without touching this file).
 
+These are sizes of single answers. They are not a measurement of agent behavior: no token or accuracy benefit has been measured, and the benchmark found none on a small plan (docs/BENCHMARK.md, Ruling).
+
 ## What is measured
 
 For each of 24 fixed questions an agent could ask about a plan, three outputs are measured in **bytes** (exact, deterministic, the

@@ -4,7 +4,7 @@
 
 plangraph is a Claude Code plugin that keeps a project's plan as a small graph in git: requirements, decisions, tasks and tickets, people, repositories and history, as one small text file per node. It takes over an existing repository (`plangraph takeover`) or starts from one plan document, answers plan questions with one local command that prints a few lines ("can this start?", "who owns this?", "what breaks if it moves to Ben?"), generates documents from the graph, and checks every answer against two exact rules (a handoff rule and a capacity rule). It never calls a model and never writes to Jira, GitHub or Confluence.
 
-Status: 1.0 is in preparation and not released yet. What was verified, and what was not, is listed in [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md) and in [Known limits](#known-limits-and-roadmap). Whether it saves tokens or improves answers is **results pending** (see [Measured results](#measured-results)); nothing here claims it does.
+Status: 1.0 is in preparation and not released yet. What was verified, and what was not, is listed in [docs/audit/1.0-audit.md](docs/audit/1.0-audit.md) and in [Known limits](#known-limits-and-roadmap). No token or accuracy benefit has been measured (see [Measured results](#measured-results)); nothing here claims one.
 
 ## Contents
 
@@ -45,7 +45,7 @@ What it does:
 - Finds the smallest set of moves that brings an overloaded person under capacity (`plangraph whatif --relieve`), and every valid slot for one ticket (`plangraph whatif KEY --find`). Both are read-only.
 - Computes a schedule with an exact constraint solver (OR-Tools CP-SAT) and rechecks the result with an independent verifier (`plangraph-solve-run`).
 - Lists only the readiness verdicts whose inputs changed (plan text, files, Jira, links, producers), so a re-audit covers what changed and nothing else (`plangraph stale`).
-- Injects a short plan card at session start so Claude knows the plan exists and how to query it.
+- Offers three opt-in injections, all off by default: a short plan card at session start, a prompt hook that adds owner and blockers of a ticket you name, and a read-only MCP server. The skills and the `plangraph` command need none of them.
 
 What it deliberately does not do (decision record: [docs/REUSE.md](docs/REUSE.md)):
 
@@ -124,14 +124,22 @@ claude plugin marketplace remove plangraph-marketplace
 
 To remove what plangraph added to a repository, run `plangraph uninstall` first: it removes the `.githooks/` scripts it wrote (if you did not edit them) and the `.gitignore` lines it added, and, after you confirm with `--yes` or a typed `y`, the local cache and the index. It never deletes `nodes/`, `events/`, `runs/`, `schedules/`, `config.json` or `format.json`; delete the plan directory yourself if you want the plan gone. To remove one person's data from the plan and its history, see [docs/ERASURE.md](docs/ERASURE.md).
 
-### Turning the session card off
+### Turning the card, the prompt hook and the MCP server on
 
-The plugin declares one option, `card`, with the values `auto` (default) and `off`. With `off`, the session hook prints nothing; the `plangraph` command and the skills still work.
+No token or accuracy benefit has been measured; the default injections were measured and found not to help on a small plan (see [Measured results](#measured-results)). So all three are off by default. The skills and the `plangraph` command (`plangraph map`, `plangraph context`) work without them.
+
+The plugin declares three options:
+
+| Option | Values | Default | What `on` does |
+|---|---|---|---|
+| `card` | `auto`, `off` | `off` | `auto` injects the short plan card at session start (and runs the quiet refresh) |
+| `prompt_hook` | `on`, `off` | `off` | `on` adds owner and blockers of a ticket named in your prompt (UserPromptSubmit). The hook stays registered; with the option off it exits silently at once |
+| `mcp` | `on`, `off` | `off` | `on` starts the read-only MCP server |
 
 - Inside Claude Code: `/plugin configure plangraph@plangraph-marketplace`.
-- At install time: `claude plugin install plangraph@plangraph-marketplace --config card=off`.
-- Later, from a terminal: `echo '{"card":"off"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`.
-- For one shell or one machine: set the environment variable `PLANGRAPH_CARD=off`.
+- At install time: `claude plugin install plangraph@plangraph-marketplace --config card=auto --config prompt_hook=on --config mcp=on`.
+- Later, from a terminal: `echo '{"card":"auto","prompt_hook":"on","mcp":"on"}' | claude plugin configure plangraph@plangraph-marketplace --values-stdin`. Use `off` to turn one back off (`--config card=off`).
+- For one shell or one machine: `PLANGRAPH_CARD=auto` (or `PLANGRAPH_CARD=off`), `PLANGRAPH_PROMPT_HOOK=on`, `PLANGRAPH_MCP=on`. Claude Code exports the plugin options as `CLAUDE_PLUGIN_OPTION_CARD` and `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`.
 
 ### Verifying the install
 
@@ -330,8 +338,8 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 
 | What | Started by | When | Network |
 |---|---|---|---|
-| `node src/entry.js card --if-present --refresh` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled | none |
-| `node src/entry.js hook-prompt` (timeout 5 s) | the plugin's UserPromptSubmit hook | each prompt, while the plugin is enabled; prints at most 200 tokens, once per session per ticket | none |
+| `node src/entry.js card --if-present --refresh` (timeout 10 s) | the plugin's SessionStart hook | session start, resume, clear, compact and fork, while the plugin is enabled; prints nothing unless the option `card` is `auto` (default `off`) | none |
+| `node src/entry.js hook-prompt` (timeout 5 s) | the plugin's UserPromptSubmit hook | each prompt, while the plugin is enabled; exits silently at once unless the option `prompt_hook` is `on` (default `off`); when on, prints at most 200 tokens, once per session per ticket | none |
 | `plangraph`, `plangraph-solve-run` (in `bin/`, on the Bash PATH in Claude Code sessions) | you, or Claude through the Bash tool | when run | none, except the rows below |
 | `git`, with an argument list and no shell | `plangraph` (for example `init`, `takeover`, `ingest git`, `doctor`, `stale`, `refs-update`, `units`, `bundle`, `sp-ingest`) | when those commands run | none |
 | `uv --version` | `plangraph doctor` | when run | none |
@@ -339,9 +347,9 @@ Everything runs as you, unsandboxed, with your permissions. Read the code before
 | HTTPS requests from `lib/jira.ts` | `plangraph jira-pull`, `plangraph jira-text` | only when you run them | `api.atlassian.com`, `<site>.atlassian.net`, or a Data Center host you allow in `PLANGRAPH_JIRA_DC_HOSTS` |
 | `uv run --locked --script bin/plangraph-solve`, or a Python venv with `pip install --require-hashes` | `plangraph-solve-run` | when run; packages are downloaded on the first run and cached | first run only: `pypi.org`, `files.pythonhosted.org`; and, if uv must download a Python, `github.com` and `release-assets.githubusercontent.com` |
 | `gh api --method GET ...` | `plangraph sync-fetch` (also in `takeover` without `--no-fetch`, and in `refresh` without `--fast`) | only for a GitHub target you named in `config.json` and trusted with `plangraph trust`; your own `gh` token | whatever `gh` contacts (`github.com`); plangraph opens no socket itself |
-| `node mcp/plangraph-mcp.ts` | Claude Code, from the plugin's `.mcp.json`; or your MCP client | while the plugin option `mcp` is `on` (the default is a placeholder until the benchmark ruling, see [docs/MCP.md](docs/MCP.md)); `off` turns it off | none |
+| `node mcp/plangraph-mcp.ts` | Claude Code, from the plugin's `.mcp.json`; or your MCP client | only while the plugin option `mcp` is `on` (default `off`, see [docs/MCP.md](docs/MCP.md)) | none |
 
-What the hook does: if the project has a plangraph index, it prints the plan card (about 134 estimated tokens on the 1,400-ticket benchmark plan in [docs/TOKENS.md](docs/TOKENS.md)); otherwise it prints nothing. It exits 0 and prints nothing on any failure, so it never breaks a session. `card = off` (or `PLANGRAPH_CARD=off`) turns it off.
+What the session hook does when `card` is `auto`: if the project has a plangraph index, it prints the plan card; otherwise it prints nothing. It exits 0 and prints nothing on any failure, so it never breaks a session. With `card` off (the default) it prints nothing.
 
 `plugin.json` declares the six network hosts above in `network.hosts`. plangraph sends no telemetry (see [Requirements](#requirements)). The plugin data directory is `$CLAUDE_PLUGIN_DATA`, or `~/.cache/plangraph` outside Claude Code; it holds the Node compile cache and, on the pip path, the solver venv.
 
@@ -469,7 +477,8 @@ The plugin ships eleven skills. Claude picks one from its description, or you in
 
 | Variable | Effect |
 |---|---|
-| `PLANGRAPH_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
+| `PLANGRAPH_CARD=off` | the session hook prints nothing (same as the plugin option `card = off`, the default, which Claude Code exports as `CLAUDE_PLUGIN_OPTION_CARD`) |
+| `PLANGRAPH_PROMPT_HOOK=on` | the prompt hook answers (same as the plugin option `prompt_hook = on`, exported as `CLAUDE_PLUGIN_OPTION_PROMPT_HOOK`); unset or anything else, it exits silently |
 | `PLANGRAPH_DIR` | plan directory (relative, inside the repository) |
 | `CLAUDE_PLUGIN_DATA` | data directory for the Node compile cache and the solver venv (set by Claude Code; default `~/.cache/plangraph`) |
 | `JIRA_EMAIL`, `JIRA_API_TOKEN` | Jira credential from your shell |
@@ -522,7 +531,7 @@ The credential is never written to a file, logged, or accepted as a command-line
 
 ### The MCP server
 
-`mcp/plangraph-mcp.ts` is a read-only MCP server (stdio, no dependencies) with seven tools, `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`, `context` and `flow_next`, returning the same text as the CLI (the last three call the libraries and write nothing). The plugin bundles it in `.mcp.json` behind the option `mcp` (`on` or `off`). Whether `on` should be the default depends on the benchmark ruling, which is pending, so the default in `plugin.json` is a placeholder. To turn it off: `/plugin configure plangraph@plangraph-marketplace`, or toggle it in `/mcp`. Without the plugin:
+`mcp/plangraph-mcp.ts` is a read-only MCP server (stdio, no dependencies) with seven tools, `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`, `context` and `flow_next`, returning the same text as the CLI (the last three call the libraries and write nothing). The plugin bundles it in `.mcp.json` behind the option `mcp` (`on` or `off`, default `off`). To turn it on: `/plugin configure plangraph@plangraph-marketplace`. Without the plugin:
 
 ```bash
 claude mcp add plangraph -- node /absolute/path/to/plangraph/mcp/plangraph-mcp.ts
@@ -552,7 +561,7 @@ loaded as current; previous plan kept as before-solve; run `plangraph export` to
 
 ## Measured results
 
-**Results pending.** The 1.0 benchmark (`evals/ab/`, described in [docs/BENCHMARK.md](docs/BENCHMARK.md)) has not been run in full, and its ruling on which automatic injections stay on by default is open. Until then this README makes no claim that plangraph saves tokens, saves money or improves accuracy.
+No token or accuracy benefit has been measured; the default injections were measured and found not to help on a small plan. The final benchmark pass (sonnet, haiku and an opus subset on a synthetic 30-ticket plan; 30 coding tasks, one repeat per cell; ruling in [docs/BENCHMARK.md](docs/BENCHMARK.md)) found no token or cost saving, no accuracy gain, and one harm: the default prompt hook lowered accuracy on multi-blocker questions (0.88 against 0.99 to 1.00). Every plugin arm added about 1k tokens to the first call. So the card, the prompt hook and the MCP server are opt-in, and this README makes no claim that plangraph saves tokens, saves money or improves accuracy. A larger real plan was not measured and may differ.
 
 What exists today, stated plainly:
 

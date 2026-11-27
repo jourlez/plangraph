@@ -27,6 +27,7 @@ First public release. Releases 0.1 to 0.5 were never published, and 1.0.0 does n
 - `plangraph verify` reports `BLOCKED` rows as warnings (an error with `--strict`) and `SPRINT_CLOSED` rows as errors; the solver never places a ticket in a closed sprint.
 - Every `flow` writer takes `--by ACTOR`; taking over a held task needs `--force`.
 - The fetch trust list lives outside the work tree (the plugin data directory or the user config directory). Run `plangraph trust` once per target.
+- The default injections are opt-in, per the benchmark ruling (docs/BENCHMARK.md): the plugin options `card` (`auto` turns the session card on), `prompt_hook` (new; `on` enables the UserPromptSubmit hook, which stays registered and exits silently when off) and `mcp` (`on` starts the bundled MCP server) all default to `off`. The skills and the `plangraph` command do not need them. The AGENTS snippet stays in `docs/` and is not installed anywhere.
 
 ### Removed
 - The git merge driver, the JSONL storage backend, `plangraph migrate`, `plangraph migrate-names` and every other compatibility path for versions that never shipped.
@@ -41,6 +42,7 @@ First public release. Releases 0.1 to 0.5 were never published, and 1.0.0 does n
 - Free-text owners, statuses and file names are fenced in every output, including the MCP tools.
 
 ### Known limits
+- The benchmark found no token or accuracy benefit on a 30-ticket synthetic plan (the default prompt hook lowered accuracy, 0.88 against 0.99 to 1.00); a larger plan was not measured. No claim of token or accuracy benefit is made.
 - Windows is not supported.
 - The MCP server implements the `initialize` flow and not `server/discover`.
 - `takeover` has no per-step rollback; steps are idempotent and resume from the checkpoint.

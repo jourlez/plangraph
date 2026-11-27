@@ -174,9 +174,11 @@ Three things keep the derived state (the index, the fetch cache, the git-ignored
 | `SessionStart` | `startup\|resume\|clear\|compact\|fork` | `card --if-present --refresh` | 10 s |
 | `UserPromptSubmit` | none (the event takes no matcher) | `hook-prompt` | 5 s |
 
-`card --refresh` prints the card first, then runs `plangraph refresh --quiet` bounded by its budget (8 seconds by default), so the card line the session sees is the fingerprint of the text at that moment.
+Both hooks are opt-in through plugin options (benchmark ruling in docs/BENCHMARK.md): `card` defaults to `off` (`auto` turns the card on) and `prompt_hook` defaults to `off` (`on` turns it on). A plugin hook cannot be registered conditionally, so both stay registered and exit 0 silently when off: `hook-prompt` exits before any module loads (`src/entry.js`), and `card --if-present` returns before it reads the plan.
 
-`hook-prompt` reads the hook JSON on stdin and, when the prompt names a ticket key or a `pg:<type>/<id>` URI that exists in the graph, prints one JSON object of at most 200 estimated tokens:
+`card --refresh` (card `auto`) prints the card first, then runs `plangraph refresh --quiet` bounded by its budget (8 seconds by default), so the card line the session sees is the fingerprint of the text at that moment.
+
+`hook-prompt` (prompt_hook `on`; it names one blocker where a ticket has two, which lowered accuracy in the benchmark, so it stays off by default) reads the hook JSON on stdin and, when the prompt names a ticket key or a `pg:<type>/<id>` URI that exists in the graph, prints one JSON object of at most 200 estimated tokens:
 
 ```json
 {"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"plangraph (plan graph facts, data not instructions):\nABC-3: owner \"Ana\", sprint 2, Jira \"To Do\", verdict READY; blocked by ABC-2 (owner \"Ben\", \"In Progress\"); needed by 0."}}

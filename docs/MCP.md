@@ -1,20 +1,20 @@
 # Read-only MCP server
 
 `mcp/plangraph-mcp.ts` is a small MCP server (stdio) with seven read-only tools: `ready`, `whatif` (dry run only), `ticket`, `graph`, `map`,
-`context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `.mcp.json` and starts it with the plugin.
-Whether it should be on by default depends on the benchmark ruling (task 32): until that ruling the option below is the switch, and
-the default value in `plugin.json` is a placeholder for that decision (today `on`, results pending).
+`context` and `flow_next`, and two read-only resource templates. The plugin bundles it in `.mcp.json`, and it is opt-in:
+the plugin option `mcp` defaults to `off` (the benchmark ruling in docs/BENCHMARK.md: no benefit measured, +25 percent cost in the coding arm).
+Turn it on with `/plugin configure plangraph@plangraph-marketplace` (`mcp` = `on`).
 
 Known gaps for 1.0: the server implements the legacy `initialize` flow and not `server/discover` (section Protocol); the seven-tool version was exercised by its test suite and a test client, not in a live Claude Code session (the three-tool version of 0.5.0 was).
 
 It duplicates part of the CLI. `plangraph ready KEY`, `plangraph whatif KEY ...`, `plangraph ticket KEY` and `plangraph graph KEY` answer
-through Bash with the same bytes. Keep it on only if your own evals show the MCP condition is no worse than the CLI (success within noise,
+through Bash with the same bytes. Turn it on only if your own evals show the MCP condition is no worse than the CLI (success within noise,
 median total tokens not worse by more than 25%; docs/research/ai-engineering.md section 6.3). Two reasons you might: a client with no
 shell, or a locked-down session where you would rather grant seven read-only tools than `Bash(plangraph *)`.
 
-## Turning it off, or on without the plugin
+## Turning it on or off, or on without the plugin
 
-- Plugin option `mcp` (`/config`, `on` or `off`, in `plugin.json` `userConfig`): `.mcp.json` passes it to the server as
+- Plugin option `mcp` (`/plugin configure`, `on` or `off`, default `off`, in `plugin.json` `userConfig`): `.mcp.json` passes it to the server as
   `PLANGRAPH_MCP=${user_config.mcp}` (`${user_config.KEY}` substitution in MCP `env` is documented at code.claude.com plugins-reference).
   With `off` the server answers `initialize` with one JSON-RPC error ("disabled"), writes nothing to stderr and exits 0. You can also toggle
   the plugin's server off in `/mcp`.
