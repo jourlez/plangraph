@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { adoptPlanDir } from './helpers/plan-dir.ts';
+import { adoptPlanDir, readPlanFile } from './helpers/plan-dir.ts';
 
 const BRAIN = path.join(import.meta.dirname, '../bin/plangraph'), FX = path.join(import.meta.dirname, 'fixtures/repo-scan/depth');
 const fx = (n: string) => fs.readFileSync(path.join(FX, n), 'utf8');
@@ -16,8 +16,8 @@ const run = (cwd: string, args: string[]) => spawnSync(process.execPath, [BRAIN,
 const git = (cwd: string, ...a: string[]) => execFileSync('git', a, { cwd, env: env(), stdio: 'ignore' });
 const put = (root: string, rel: string, text: string) => { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
 const jl = (rows: object[]) => rows.map((r) => JSON.stringify(r)).join('\n') + '\n';
-const links = (p: string) => { try { return fs.readFileSync(path.join(p, '.plangraph/links.jsonl'), 'utf8'); } catch { return ''; } };
-const rows = (p: string, f: string) => fs.readFileSync(path.join(p, '.plangraph', f), 'utf8');
+const links = (p: string) => readPlanFile(path.join(p, '.plangraph'), 'links.jsonl');
+const rows = (p: string, f: string) => readPlanFile(path.join(p, '.plangraph'), f);
 
 before(() => { BASE = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-repolink-'))); for (const d of ['home', 'data']) fs.mkdirSync(path.join(BASE, d)); });
 after(() => { if (BASE) fs.rmSync(BASE, { recursive: true, force: true }); });

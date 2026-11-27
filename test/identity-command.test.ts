@@ -7,6 +7,7 @@ import path from 'node:path';
 import { commands as readCmds } from '../src/commands/identity.ts';
 import { commands as writeCmds } from '../src/commands/identity-map.ts';
 import { readIdentityMap } from '../lib/identity.ts';
+import { adoptPlanDir } from './helpers/plan-dir.ts';
 import { PlangraphError } from '../src/errors.ts';
 
 const tmps: string[] = [];
@@ -16,6 +17,7 @@ function fixture(rows: object[] = [obs('jira:acme', 'Ana Lopez'), obs('jira:acme
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plangraph-idcmd-'))); tmps.push(root);
   const dir = path.join(root, '.plangraph'); fs.mkdirSync(dir);
   fs.writeFileSync(path.join(dir, 'people.jsonl'), '{"id":"ana"}\n{"id":"ben"}\n');
+  adoptPlanDir(dir);
   const out: string[] = [], err: string[] = [];
   const ctx = { root, dir, flags: {}, env: {}, now: () => new Date('2026-11-26T00:00:00Z'),
     io: { out: (s: string) => out.push(s), err: (s: string) => err.push(s), raw: (s: string) => out.push(s), outBlock: (l: string[]) => out.push(...l) },
