@@ -11,7 +11,7 @@ Type these in a Claude Code session (they are slash commands, so you type them y
 /plugin install plangraph@plangraph-marketplace
 ```
 
-Check with `/plugin`: `plangraph` should be enabled with 8 skills. To have Claude do all of this plus the roadmap documents and the Jira setup, with no questions asked, use the single prompt in [AUTOPILOT.md](AUTOPILOT.md) instead of step 2. The session-start card can be turned off with the plugin's `card` option (`auto` or `off`).
+Check with `/plugin`: `plangraph` should be enabled with 11 skills. To have Claude do all of this plus the roadmap documents and the Jira setup, with no questions asked, use the single prompt in [AUTOPILOT.md](AUTOPILOT.md) instead of step 2. The session-start card is off by default; turn it on with the plugin's `card` option (`auto`). Node 26 or newer must be the `node` on your PATH.
 
 ## 2. Paste this into Claude Code in the project
 
